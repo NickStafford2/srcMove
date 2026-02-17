@@ -10,7 +10,6 @@
 #ifndef INCLUDED_MOVE_REGISTRY_HPP
 #define INCLUDED_MOVE_REGISTRY_HPP
 
-// #include "../model/construct.hpp"
 #include "move_candidate.hpp"
 #include <cstddef>
 #include <iosfwd>
