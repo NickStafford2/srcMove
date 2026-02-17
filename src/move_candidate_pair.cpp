@@ -1,7 +1,7 @@
 #include <cstddef>
 #include <string>
 
-#include "move_candidate.hpp"
+#include "move_candidate_pair.hpp"
 
 namespace srcmove {
 
