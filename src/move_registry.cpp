@@ -85,8 +85,8 @@ void move_registry::debug() const {
             << "   Matched Moves:\n";
 
   for (const auto &[move_id, p] : move_candidates) {
-    const std::shared_ptr<move_candidate_pair> &del = p.first;
-    const std::shared_ptr<move_candidate_pair> &ins = p.second;
+    const std::shared_ptr<move_candidate_pair> &del = p.original;
+    const std::shared_ptr<move_candidate_pair> &ins = p.modified;
 
     std::cout << "     move " << move_id << ": "
               << (del ? del->debug_id() : "<null>") << "  ->  "
