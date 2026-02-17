@@ -17,7 +17,7 @@
 namespace srcmove {
 
 void move_registry::add_unmatched_original_delete(
-    std::shared_ptr<move_candidate_part> del) {
+    std::shared_ptr<move_candidate> del) {
   if (!del)
     return;
   deleted_by_hash.emplace(del->hash(), std::move(del));
@@ -25,7 +25,7 @@ void move_registry::add_unmatched_original_delete(
 }
 
 void move_registry::add_unmatched_modified_insert(
-    std::shared_ptr<move_candidate_part> ins) {
+    std::shared_ptr<move_candidate> ins) {
   if (!ins)
     return;
   inserted_by_hash.emplace(ins->hash(), std::move(ins));
@@ -49,8 +49,8 @@ move_registry::get_move_candidates() {
       continue;
     }
 
-    std::shared_ptr<move_candidate_part> del = del_it->second;
-    std::shared_ptr<move_candidate_part> ins = ins_it->second;
+    std::shared_ptr<move_candidate> del = del_it->second;
+    std::shared_ptr<move_candidate> ins = ins_it->second;
 
     const int move_id = ++next_move_id;
     move_candidates.emplace(move_id, std::move(del), std::move(ins)));

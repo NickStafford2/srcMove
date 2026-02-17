@@ -23,7 +23,7 @@ can be either original or modified.
 
 either an insert or delete operation in a source diff
 */
-struct move_candidate_part {
+struct move_candidate {
 
   // relative to the project root.
   std::string file_path;
