@@ -9,6 +9,8 @@
 #ifndef INCLUDED_MOVE_CANDIDATE_HPP
 #define INCLUDED_MOVE_CANDIDATE_HPP
 
+#include <cstddef>
+#include <cstdint>
 #include <string>
 #include <utility>
 
@@ -31,26 +33,35 @@ can be either original or modified.
 
 either an insert or delete operation in a source diff
 */
+
+// This should be the output of the parser.
 struct move_candidate {
-
-  // relative to the project root.
+  // Relative to project root (or whatever your parser chooses as root).
   std::string file_path;
-  std::string file_name;
 
-  // The whole move_candidate as a string as it appears in the diff
+  // Raw representation (useful for debugging, not a great matching key
+  // long-term).
   std::string as_string;
 
-  // string of all the parent blocks up unto the position
+  // Context string (parent blocks, surrounding scope, etc.).
+  // When parser is introduced, consider storing a structured representation
+  // instead.
   std::string context;
 
-  std::size_t number_of_characters;
+  // Size in characters of the moved/deleted/inserted region.
+  std::size_t number_of_characters = 0;
 
-  // distance to move on page. rows/columns  --position
-  // row and column where the first letter of the first line appears
-  std::pair<std::size_t, std::size_t> page_position;
+  // Row/column of first character (1-based or 0-based: pick one and document
+  // it).
+  std::pair<std::size_t, std::size_t> page_position{0, 0};
 
-  std::size_t hash();
-  std::string debug_id();
+  // Content fingerprint used for initial bucketing.
+  // Today: hash(as_string). Tomorrow: hash(AST subtree signature) or token
+  // stream signature.
+  std::size_t hash() const noexcept;
+
+  // Debug-friendly id.
+  std::string debug_id() const;
 };
 
 } // namespace srcmove

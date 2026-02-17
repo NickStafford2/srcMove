@@ -14,46 +14,56 @@
 #include "move_candidate_pair.hpp"
 
 #include <cstddef>
+#include <cstdint>
 #include <iosfwd>
-#include <memory>
 #include <unordered_map>
+#include <unordered_set>
+#include <vector>
 
 namespace srcmove {
 
-// todo. add some way to measure distance between constructs. may need to wrap
-// construct. todo. maybe check for pairs on every insert.
-
+// Store candidates by value; registry owns them.
+// Pairing is done by bucket key (content_hash()).
+// match_all() consumes one insert for one delete per bucket (simple
+//  baseline).
 class move_registry {
-private:
-  std::unordered_multimap<std::size_t, std::shared_ptr<move_candidate>>
-      inserted_by_hash;
-  std::unordered_multimap<std::size_t, std::shared_ptr<move_candidate>>
-      deleted_by_hash;
-  std::unordered_map<int, std::shared_ptr<move_candidate_pair>> move_candidates;
-
-  // Monotonically increasing move id (1, 2, 3, ...)
-  int next_move_id = 1;
-
-  // Optional debug counters
-  std::size_t inserts_registered = 0;
-  std::size_t deletes_considered = 0;
-  std::size_t moves_marked = 0;
-
 public:
-  // Hash -> inserted construct (duplicates allowed)
-  int get_next_move_id() { return next_move_id++; }
+  using move_id_t = std::int32_t;
 
   void clear();
-  void add_unmatched_original_delete(std::shared_ptr<move_candidate> del);
-  void add_unmatched_modified_insert(std::shared_ptr<move_candidate> ins);
 
-  std::unordered_map<int, std::shared_ptr<move_candidate_pair>>
-  get_move_candidates();
+  void add_unmatched_original_delete(move_candidate del);
+  void add_unmatched_modified_insert(move_candidate ins);
 
-  void debug() const;
+  // Matches and returns new move pairs; also stores them internally.
+  std::vector<move_id_t> match_all();
+
+  const std::unordered_map<move_id_t, move_candidate_pair> &
+  moves() const noexcept {
+    return moves_;
+  }
+
+  // Debug/metrics
+  void debug(std::ostream &os) const;
+
+private:
+  move_id_t next_id_ = 1;
+
+  // hash -> candidates (duplicates allowed)
+  std::unordered_multimap<std::size_t, move_candidate> inserted_by_hash_;
+  std::unordered_multimap<std::size_t, move_candidate> deleted_by_hash_;
+
+  std::unordered_map<move_id_t, move_candidate_pair> moves_;
+
+  std::size_t inserts_registered_ = 0;
+  std::size_t deletes_registered_ = 0;
+  std::size_t moves_marked_ = 0;
+
+  move_id_t next_move_id() noexcept { return next_id_++; }
 };
 
 std::ostream &operator<<(std::ostream &os, const move_registry &mr);
 
 } // namespace srcmove
+
 #endif

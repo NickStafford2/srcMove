@@ -9,28 +9,23 @@
 #ifndef INCLUDED_MOVE_CANDIDATE_PAIR_HPP
 #define INCLUDED_MOVE_CANDIDATE_PAIR_HPP
 
+#include "move_candidate.hpp"
+
 #include <cstddef>
 #include <string>
-
-#include "move_candidate.hpp"
 
 namespace srcmove {
 
 struct move_candidate_pair {
+  move_candidate original; // delete
+  move_candidate modified; // insert
 
-  move_candidate_pair(move_candidate original, move_candidate modified);
+  // 0.0..1.0 heuristic. This should eventually live in a separate scorer
+  // component.
+  float likelihood() const noexcept;
 
-  move_candidate original;
-  move_candidate modified;
-
-  /*
-   * Estimation that a particular move_candidate was intended as a move by the
-   * developer.
-   */
-  float calc_move_likelyhood(move_candidate original, move_candidate modified);
-
-  std::size_t hash();
-  std::string debug_id();
+  std::size_t hash() const noexcept;
+  std::string debug_id() const;
 };
 
 } // namespace srcmove
