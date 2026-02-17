@@ -10,7 +10,7 @@
 #ifndef INCLUDED_MOVE_REGISTRY_HPP
 #define INCLUDED_MOVE_REGISTRY_HPP
 
-#include "move_candidate.hpp"
+#include "move_candidate_pair.hpp"
 #include "move_candidate_part.hpp"
 
 #include <cstddef>
