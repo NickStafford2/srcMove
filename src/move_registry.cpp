@@ -32,7 +32,7 @@ void move_registry::add_unmatched_modified_insert(
   ++inserts_registered;
 }
 
-std::unordered_map<int, std::shared_ptr<move_candidate>>
+std::unordered_map<int, std::shared_ptr<move_candidate_pair>>
 move_registry::get_move_candidates() {
 
   // For each unmatched delete, try to find an unmatched insert with the same
@@ -85,8 +85,8 @@ void move_registry::debug() const {
             << "   Matched Moves:\n";
 
   for (const auto &[move_id, p] : move_candidates) {
-    const std::shared_ptr<move_candidate> &del = p.first;
-    const std::shared_ptr<move_candidate> &ins = p.second;
+    const std::shared_ptr<move_candidate_pair> &del = p.first;
+    const std::shared_ptr<move_candidate_pair> &ins = p.second;
 
     std::cout << "     move " << move_id << ": "
               << (del ? del->debug_id() : "<null>") << "  ->  "

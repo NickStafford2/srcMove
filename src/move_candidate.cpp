@@ -5,21 +5,21 @@
 
 namespace srcmove {
 
-move_candidate::move_candidate(move_candidate_part original,
-                               move_candidate_part modified)
+move_candidate_pair::move_candidate_pair(move_candidate_part original,
+                                         move_candidate_part modified)
     : original(original), modified(modified) {}
 
 /*
  * Estimation that a particular move_candidate was intended as a move by the
  * developer.
  */
-float move_candidate::calc_move_likelyhood(move_candidate_part original,
-                                           move_candidate_part modified) {
+float move_candidate_pair::calc_move_likelyhood(move_candidate_part original,
+                                                move_candidate_part modified) {
 
   return 0.11;
 }
 
-std::size_t move_candidate::hash() { return 0; }
+std::size_t move_candidate_pair::hash() { return 0; }
 
-std::string move_candidate::debug_id() { return "todo later."; }
+std::string move_candidate_pair::debug_id() { return "todo later."; }
 } // namespace srcmove

@@ -8,9 +8,10 @@
 
 namespace srcmove {
 
-struct move_candidate {
+struct move_candidate_pair {
 
-  move_candidate(move_candidate_part original, move_candidate_part modified);
+  move_candidate_pair(move_candidate_part original,
+                      move_candidate_part modified);
 
   move_candidate_part original;
   move_candidate_part modified;
