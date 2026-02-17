@@ -49,6 +49,7 @@ struct move_candidate {
    * developer.
    */
   float calc_move_likelyhood(move_candidate original, move_candidate modified);
+  std::size_t hash();
 };
 
 } // namespace srcmove
