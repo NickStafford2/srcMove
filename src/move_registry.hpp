@@ -23,8 +23,10 @@ namespace srcmove {
 
 class move_registry {
 private:
-  std::unordered_multimap<std::size_t, move_candidate> inserted_by_hash;
-  std::unordered_multimap<std::size_t, move_candidate> deleted_by_hash;
+  std::unordered_multimap<std::size_t, std::shared_ptr<move_candidate>>
+      inserted_by_hash;
+  std::unordered_multimap<std::size_t, std::shared_ptr<move_candidate>>
+      deleted_by_hash;
   std::unordered_map<int, std::pair<std::shared_ptr<move_candidate>,
                                     std::shared_ptr<move_candidate>>>
       move_pairs;
