@@ -5,6 +5,10 @@
 
 namespace srcmove {
 
+move_candidate::move_candidate(move_candidate_part original,
+                               move_candidate_part modified)
+    : original(original), modified(modified) {}
+
 /*
  * Estimation that a particular move_candidate was intended as a move by the
  * developer.

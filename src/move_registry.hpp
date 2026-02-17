@@ -11,6 +11,8 @@
 #define INCLUDED_MOVE_REGISTRY_HPP
 
 #include "move_candidate.hpp"
+#include "move_candidate_part.hpp"
+
 #include <cstddef>
 #include <iosfwd>
 #include <memory>
@@ -23,13 +25,11 @@ namespace srcmove {
 
 class move_registry {
 private:
-  std::unordered_multimap<std::size_t, std::shared_ptr<move_candidate>>
+  std::unordered_multimap<std::size_t, std::shared_ptr<move_candidate_part>>
       inserted_by_hash;
-  std::unordered_multimap<std::size_t, std::shared_ptr<move_candidate>>
+  std::unordered_multimap<std::size_t, std::shared_ptr<move_candidate_part>>
       deleted_by_hash;
-  std::unordered_map<int, std::pair<std::shared_ptr<move_candidate>,
-                                    std::shared_ptr<move_candidate>>>
-      move_pairs;
+  std::unordered_map<int, std::shared_ptr<move_candidate>> move_candidates;
 
   // Monotonically increasing move id (1, 2, 3, ...)
   int next_move_id = 1;
@@ -44,12 +44,12 @@ public:
   int get_next_move_id() { return next_move_id++; }
 
   void clear();
-  void add_unmatched_original_delete(std::shared_ptr<move_candidate> del);
-  void add_unmatched_modified_insert(std::shared_ptr<move_candidate> ins);
+  void add_unmatched_original_delete(std::shared_ptr<move_candidate_part> del);
+  void add_unmatched_modified_insert(std::shared_ptr<move_candidate_part> ins);
 
-  std::unordered_map<int, std::pair<std::shared_ptr<move_candidate>,
-                                    std::shared_ptr<move_candidate>>>
-  get_move_pairs();
+  std::unordered_map<int, std::shared_ptr<move_candidate>>
+  get_move_candidates();
+
   void debug() const;
 };
 

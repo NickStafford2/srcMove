@@ -9,6 +9,9 @@
 namespace srcmove {
 
 struct move_candidate {
+
+  move_candidate(move_candidate_part original, move_candidate_part modified);
+
   move_candidate_part original;
   move_candidate_part modified;
 
@@ -18,6 +21,7 @@ struct move_candidate {
    */
   float calc_move_likelyhood(move_candidate_part original,
                              move_candidate_part modified);
+
   std::size_t hash();
   std::string debug_id();
 };

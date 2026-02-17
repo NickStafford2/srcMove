@@ -40,6 +40,9 @@ struct move_candidate_part {
   // distance to move on page. rows/columns  --position
   // row and column where the first letter of the first line appears
   std::pair<std::size_t, std::size_t> page_position;
+
+  std::size_t hash();
+  std::string debug_id();
 };
 
 } // namespace srcmove
