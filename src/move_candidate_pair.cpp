@@ -5,16 +5,16 @@
 
 namespace srcmove {
 
-move_candidate_pair::move_candidate_pair(move_candidate_part original,
-                                         move_candidate_part modified)
+move_candidate_pair::move_candidate_pair(move_candidate original,
+                                         move_candidate modified)
     : original(original), modified(modified) {}
 
 /*
  * Estimation that a particular move_candidate was intended as a move by the
  * developer.
  */
-float move_candidate_pair::calc_move_likelyhood(move_candidate_part original,
-                                                move_candidate_part modified) {
+float move_candidate_pair::calc_move_likelyhood(move_candidate original,
+                                                move_candidate modified) {
 
   return 0.11;
 }
