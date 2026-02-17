@@ -1,3 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-only
+/**
+ * @file move_candidate_pair.cpp
+ *
+ * @copyright Copyright (C) 2014-2024 SDML (www.srcDiff.org)
+ *
+ * This file is part of the srcDiff Infrastructure.
+ */
 #include <cstddef>
 #include <string>
 
