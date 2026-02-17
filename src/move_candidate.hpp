@@ -19,7 +19,7 @@ distance to move between blocks.
 Similarity of the two code segments.
 */
 
-class construct; // forward ref
+namespace srcmove {
 
 struct move_candidate_part {
 
@@ -51,4 +51,5 @@ struct move_candidate {
   float calc_move_likelyhood(move_candidate original, move_candidate modified);
 };
 
+} // namespace srcmove
 #endif
