@@ -9,6 +9,7 @@
 #include "move_registry.hpp"
 #include "move_candidate.hpp"
 #include "move_candidate_part.hpp"
+
 #include <iostream>
 #include <memory>
 #include <unordered_map>
