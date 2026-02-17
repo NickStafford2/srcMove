@@ -1,3 +1,6 @@
+#ifndef INCLUDED_MOVE_CANDIDATE_PART_HPP
+#define INCLUDED_MOVE_CANDIDATE_PART_HPP
+
 #include <string>
 #include <utility>
 
@@ -40,3 +43,4 @@ struct move_candidate_part {
 };
 
 } // namespace srcmove
+#endif
