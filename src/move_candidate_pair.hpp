@@ -1,10 +1,10 @@
-#ifndef INCLUDED_MOVE_CANDIDATE_HPP
-#define INCLUDED_MOVE_CANDIDATE_HPP
+#ifndef INCLUDED_MOVE_CANDIDATE_PAIR_HPP
+#define INCLUDED_MOVE_CANDIDATE_PAIR_HPP
 
 #include <cstddef>
 #include <string>
 
-#include "move_candidate_part.hpp"
+#include "move_candidate.hpp"
 
 namespace srcmove {
 
