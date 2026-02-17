@@ -1,4 +1,5 @@
 #include <cstddef>
+#include <string>
 
 #include "move_candidate.hpp"
 
@@ -15,4 +16,6 @@ float move_candidate::calc_move_likelyhood(move_candidate_part original,
 }
 
 std::size_t move_candidate::hash() { return 0; }
+
+std::string move_candidate::debug_id() { return "todo later."; }
 } // namespace srcmove
