@@ -51,6 +51,4 @@ struct move_candidate {
   float calc_move_likelyhood(move_candidate original, move_candidate modified);
 };
 
-struct move_registry {}
-
 #endif
