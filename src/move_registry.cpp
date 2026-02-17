@@ -7,23 +7,22 @@
  * This file is part of the srcDiff Infrastructure.
  */
 #include "move_registry.hpp"
+#include "move_candidate.hpp"
 #include <iostream>
 #include <unordered_map>
 
-namespace srcdiff {
+namespace srcmove {
 
 void move_registry::add_unmatched_original_delete(
-    std::shared_ptr<const construct> del) {
+    std::shared_ptr<move_candidate> del) {
   if (!del)
-    return;
-  if (del->term(0)->is_text())
     return;
   deleted_by_hash.emplace(del->hash(), std::move(del));
   ++deletes_considered;
 }
 
 void move_registry::add_unmatched_modified_insert(
-    std::shared_ptr<const construct> ins) {
+    std::shared_ptr<move_candidate> ins) {
   if (!ins)
     return;
   if (ins->term(0)->is_text())
@@ -32,9 +31,9 @@ void move_registry::add_unmatched_modified_insert(
   ++inserts_registered;
 }
 
-std::unordered_map<int, std::pair<std::shared_ptr<const construct>,
-                                  std::shared_ptr<const construct>>>
-move_registry::find_move_pairs() {
+std::unordered_map<int, std::pair<std::shared_ptr<move_candidate>,
+                                  std::shared_ptr<move_candidate>>>
+move_registry::get_move_pairs() {
 
   // For each unmatched delete, try to find an unmatched insert with the same
   // hash.
@@ -50,8 +49,8 @@ move_registry::find_move_pairs() {
       continue;
     }
 
-    std::shared_ptr<const construct> del = del_it->second;
-    std::shared_ptr<const construct> ins = ins_it->second;
+    std::shared_ptr<move_candidate> del = del_it->second;
+    std::shared_ptr<move_candidate> ins = ins_it->second;
 
     const int move_id = ++next_move_id;
     move_pairs.emplace(move_id, std::make_pair(std::move(del), std::move(ins)));
@@ -86,8 +85,8 @@ void move_registry::debug() const {
             << "   Matched Moves:\n";
 
   for (const auto &[move_id, p] : move_pairs) {
-    const std::shared_ptr<const construct> &del = p.first;
-    const std::shared_ptr<const construct> &ins = p.second;
+    const std::shared_ptr<move_candidate> &del = p.first;
+    const std::shared_ptr<move_candidate> &ins = p.second;
 
     std::cout << "     move " << move_id << ": "
               << (del ? del->debug_id() : "<null>") << "  ->  "
@@ -112,4 +111,4 @@ std::ostream &operator<<(std::ostream &os, const move_registry &mr) {
   return os;
 }
 
-} // namespace srcdiff
+} // namespace srcmove
