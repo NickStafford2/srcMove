@@ -17,6 +17,8 @@ distance to move between blocks.
 Similarity of the two code segments.
 
 can be either original or modified.
+
+either an insert or delete operation in a source diff
 */
 struct move_candidate_part {
 
