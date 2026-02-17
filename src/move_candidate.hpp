@@ -1,5 +1,5 @@
-#ifndef INCLUDED_SRC_MOVE_HPP
-#define INCLUDED_SRC_MOVE_HPP
+#ifndef INCLUDED_MOVE_CANDIDATE_HPP
+#define INCLUDED_MOVE_CANDIDATE_HPP
 
 #include <cstddef>
 #include <string>
