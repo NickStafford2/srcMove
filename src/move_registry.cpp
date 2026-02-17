@@ -25,8 +25,6 @@ void move_registry::add_unmatched_modified_insert(
     std::shared_ptr<move_candidate> ins) {
   if (!ins)
     return;
-  if (ins->term(0)->is_text())
-    return;
   inserted_by_hash.emplace(ins->hash(), std::move(ins));
   ++inserts_registered;
 }
