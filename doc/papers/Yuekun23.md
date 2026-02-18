@@ -7,11 +7,13 @@ Comparison and Evaluation of Clone Detection Techniques with Different Code Repr
 - tree-based
 - graph-based
 
-unclear which represention is most effective/performant.
+Unclear which represention is most effective/performant.
 
 12 clone detection algorithms
   - grouped according to code representations
 
+Simple clones
+- token and tree > graph
 
 
 
