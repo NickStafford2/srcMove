@@ -19,6 +19,19 @@ Should I do everything in a second post processing step.
 Use terms to only check for moves on certain types on content
 
 
+# Move types
+## Refactor Detection
+Copy code into a new function that is then called in original section. 
+
+# User Experience
+Developer in the loop
+Due to the subjectivity of move detection, the categorization of moves ultimately should be up to the developer. 
+The program should provide sane defaults. Trivial moves should be automatic. Less obvious moves can be approved by the developer. 
+
+The confidence threshold should be configurable to the developer. 
+
+Maybe a commit can be designated as a refactor. in which a smaller threshold would be used. Can scan commit message and see
+
 - Tool can ask for feedback from user. 
   - is this a move? 80% Confidence. y/n
 
