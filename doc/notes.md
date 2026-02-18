@@ -23,6 +23,26 @@ Use terms to only check for moves on certain types on content
 ## Refactor Detection
 Copy code into a new function that is then called in original section. 
 
+## Trivial Moves
+Large code block is moved
+Same file.
+Different file.
+New file made for this new code.
+
+# Code Order
+
+alphabetize
+reorder function specifiers. 
+
+# Formatting
+- todo: list all things that prettier and similar formatters do. 
+
+## String Literals
+- String capitalization 
+- Spelling fixes
+# Whitespace changes. 
+
+
 # User Experience
 Developer in the loop
 Due to the subjectivity of move detection, the categorization of moves ultimately should be up to the developer. 
