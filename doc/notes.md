@@ -1,3 +1,5 @@
+Will probably want to present at icfme
+
 # Stack
 ## Main
 src/client/srcdiff.cpp main()
@@ -54,6 +56,7 @@ Use terms to only check for moves on certain types on content
 
 # To Discuss
 
+# Thread issue
 src/translator/translate.hpp
 translator::translate()
 threads are created and ran in sequence instead of in parallel. 
@@ -61,7 +64,40 @@ threads are created and ran in sequence instead of in parallel.
 Is this intentional?
 if we can't do in parallel, we ought to remove the treads to reduce overhead and complexity. 
 
+is_original and is_modified are never changed anywhere in the file as best i can tell. 
 
+### srcml test
+Increased throughput by 25%. 
+
+### Linux Kernel Test
+Run with Parrallel: 2:59 (179s).
+Run with Sequential: 3:35 (215s).
+Increased throughput by 20%
+
+
+# Relevant code from Line 84 of translator.hpp. translator::translate()
+## Original
+int is_original = 0;
+std::thread thread_original(std::ref(input_original), SES_DELETE, std::ref(output->nodes_original()), std::ref(is_original));
+thread_original.join();
+int is_modified = 0;
+std::thread thread_modified(std::ref(input_modified), SES_INSERT, std::ref(output->nodes_modified()), std::ref(is_modified));
+thread_modified.join();
+
+## Modified
+int is_original = 0;
+std::thread thread_original(std::ref(input_original), SES_DELETE, std::ref(output->nodes_original()), std::ref(is_original));
+int is_modified = 0;
+std::thread thread_modified(std::ref(input_modified), SES_INSERT, std::ref(output->nodes_modified()), std::ref(is_modified));
+thread_original.join();
+thread_modified.join();
+
+
+
+
+
+
+## other
 
 can we change all angle brackets for local header includes to quotes. it is better for ide tools like clangd
 
@@ -138,3 +174,24 @@ Break up existing srcDiff node traversal into two steps. Same work, but traverse
 Traversing twice. I don't think it would measureably increase speed.
 The same exact operations would be done.
 Buffer for SES would be small. 
+
+
+
+
+
+
+# Move Distance
+locality of behavior
+Use several factors to measure the confidence that something is a move.
+  assign points to each one. 
+  can change values depending on user experience feedback. 
+size of the move
+  small lines of code are more likely to be rewritten. 
+  giant functions moved across files are almost certainly moves
+distance to move in the directory tree.
+distance to move on page. rows/columns  --position
+distance to move between blocks.
+Similarity of the two code segments.
+
+
+
