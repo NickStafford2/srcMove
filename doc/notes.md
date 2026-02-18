@@ -6,7 +6,7 @@ To do cross file move detection, i will need to keep references to the srcml nod
 Must find a way to track the size of constructs, and which ones are subsets of others. 
 Cutoff should be one line. Do not care about moves smaller than one line. 
 
-Performance on large files is a consern. 
+Performance on large files is a concern.
 
 may make a nested data format to label nested xml. 
 
@@ -21,45 +21,6 @@ Use terms to only check for moves on certain types on content
 
 - Tool can ask for feedback from user. 
   - is this a move? 80% Confidence. y/n
-
-# To Discuss
-
-# Thread issue
-src/translator/translate.hpp
-translator::translate()
-threads are created and ran in sequence instead of in parallel. 
-  usually, joins are after both threads are created
-Is this intentional?
-if we can't do in parallel, we ought to remove the treads to reduce overhead and complexity. 
-
-is_original and is_modified are never changed anywhere in the file as best i can tell. 
-
-### srcml test
-Increased throughput by 25%. 
-
-### Linux Kernel Test
-Run with Parrallel: 2:59 (179s).
-Run with Sequential: 3:35 (215s).
-Increased throughput by 20%
-
-
-# Relevant code from Line 84 of translator.hpp. translator::translate()
-## Original
-int is_original = 0;
-std::thread thread_original(std::ref(input_original), SES_DELETE, std::ref(output->nodes_original()), std::ref(is_original));
-thread_original.join();
-int is_modified = 0;
-std::thread thread_modified(std::ref(input_modified), SES_INSERT, std::ref(output->nodes_modified()), std::ref(is_modified));
-thread_modified.join();
-
-## Modified
-int is_original = 0;
-std::thread thread_original(std::ref(input_original), SES_DELETE, std::ref(output->nodes_original()), std::ref(is_original));
-int is_modified = 0;
-std::thread thread_modified(std::ref(input_modified), SES_INSERT, std::ref(output->nodes_modified()), std::ref(is_modified));
-thread_original.join();
-thread_modified.join();
-
 
 
 
