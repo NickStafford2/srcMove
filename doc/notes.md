@@ -53,6 +53,8 @@ Should I do everything in a second post processing step.
 Use terms to only check for moves on certain types on content
 
 
+- Tool can ask for feedback from user. 
+  - is this a move? 80% Confidence. y/n
 
 # To Discuss
 
@@ -192,6 +194,3 @@ distance to move in the directory tree.
 distance to move on page. rows/columns  --position
 distance to move between blocks.
 Similarity of the two code segments.
-
-
-
