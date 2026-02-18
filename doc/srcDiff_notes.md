@@ -74,3 +74,18 @@ thread_modified.join();
 
 
 
+
+## other
+
+can we change all angle brackets for local header includes to quotes. it is better for ide tools like clangd
+
+created a move_registry.
+
+I'm not stuck, but I don't exactly know what to do next. SrcDiff scans the file recursively and checks for moves. It detects deletes that are large, and then scans a subset of that nodes children and does the same thing. 
+  So I need to develop a method of determining the correct delete. or maybe I simply compare everything with an unordered hash map, but I don't know about the scaling of that. 
+I also believe i need a method to find construct locations based in postprocessing with the move_registry.
+
+  maybe only register deleted and inserted lines? 
+
+It would be nice to know the simplest way to convert a construct back to simple code. useful for debugging purposes. 
+
