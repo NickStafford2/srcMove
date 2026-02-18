@@ -1,3 +1,27 @@
+@InProceedings{kapser_et_al:DagSemProc.06301.12,
+  author =	{Kapser, Cory and Anderson, Paul and Godfrey, Michael and Koschke, Rainer and Rieger, Matthias and van Rysselberghe, Filip and Wei{\ss}gerber, Peter},
+  title =	{{Subjectivity in Clone Judgment:  Can We Ever Agree?}},
+  booktitle =	{Duplication, Redundancy, and Similarity in Software},
+  pages =	{1--5},
+  series =	{Dagstuhl Seminar Proceedings (DagSemProc)},
+  ISSN =	{1862-4405},
+  year =	{2007},
+  volume =	{6301},
+  editor =	{Rainer Koschke and Ettore Merlo and Andrew Walenstein},
+  publisher =	{Schloss Dagstuhl -- Leibniz-Zentrum f{\"u}r Informatik},
+  address =	{Dagstuhl, Germany},
+  URL =		{https://drops.dagstuhl.de/entities/document/10.4230/DagSemProc.06301.12},
+  URN =		{urn:nbn:de:0030-drops-9701},
+  doi =		{10.4230/DagSemProc.06301.12},
+  annote =	{Keywords: Code clone, study, inter-rater agreement, ill-defined problem}
+}
+
+
+# Things I will likely cite 
+Suggestion of multi-point scale > binary choice.
+Subjectivity is fundimental.
+Reasons code is/ is not a clone
+
 # intro 
 Problem
 - No one agrees what a clone even is.
@@ -31,3 +55,7 @@ Why two segments of code may be considered a clone:
 – the code is generatable
 – context of the code segment made it a clone
 – the structure was the same
+
+# Conclusions
+Emphasizes the use of multi-point scale instead of binary option.
+Should use clone pairs vs clone groups.

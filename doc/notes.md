@@ -22,6 +22,13 @@ Use terms to only check for moves on certain types on content
 Moves are a type of refactor.
 Should not change functionality or behavior.
 
+# Constrained Approach
+Keep move definitions quite restricted.
+As tools are developed, developer behavior may change around it. 
+
+git file renaming is limited. So developers often do atomic commits around renames.
+
+
 # Move types
 ## Refactor Detection
 Copy code into a new function that is then called in original section. 
