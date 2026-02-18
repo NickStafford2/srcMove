@@ -18,6 +18,9 @@ Should I do everything in a second post processing step.
 
 Use terms to only check for moves on certain types on content
 
+# What is a move
+Moves are a type of refactor.
+Should not change functionality or behavior.
 
 # Move types
 ## Refactor Detection
@@ -30,9 +33,9 @@ Different file.
 New file made for this new code.
 
 # Code Order
-
 alphabetize
-reorder function specifiers. 
+reorder function specifiers.
+reorder function arguments
 
 # Formatting
 - todo: list all things that prettier and similar formatters do. 
@@ -40,7 +43,11 @@ reorder function specifiers.
 ## String Literals
 - String capitalization 
 - Spelling fixes
-# Whitespace changes. 
+
+## Whitespace changes
+- Move to new line
+- Break up function parameters to new lines.
+
 
 
 # User Experience
