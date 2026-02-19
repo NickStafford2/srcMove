@@ -10,6 +10,13 @@
 #include <iostream>
 #include <string>
 
+// uncomment to disable assert()
+// #define NDEBUG
+#include <cassert>
+
+// Use (void) to silence unused warnings.
+#define assertm(exp, msg) assert((void(msg), exp))
+
 #include "debug.cpp"
 #include "srcml_node.hpp"
 #include "srcml_reader.hpp"
@@ -44,6 +51,10 @@ std::vector<region> collect_regions(srcml_reader &reader) {
 
     // INSERT wrapper
     if (node.is_start() && node.full_name() == "diff:insert") {
+      assert((in_insert == false) &&
+             "Unexpected nested insert inside insert discovered.");
+      assert((in_delete == false) &&
+             "Unexpected nested insert inside delete discovered.");
       in_insert = true;
       insert_start = i;
     } else if (node.is_end() && node.full_name() == "diff:insert") {
@@ -56,6 +67,10 @@ std::vector<region> collect_regions(srcml_reader &reader) {
 
     // DELETE wrapper
     if (node.is_start() && node.full_name() == "diff:delete") {
+      assert((in_delete == false) &&
+             "Unexpected nested delete inside delete discovered.");
+      assert((in_insert == false) &&
+             "Unexpected nested insert inside delete discovered.");
       in_delete = true;
       delete_start = i;
     } else if (node.is_end() && node.full_name() == "diff:delete") {
