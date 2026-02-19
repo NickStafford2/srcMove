@@ -117,6 +117,7 @@ Create either:
 - Create a plan for how I want to handle move detections. 
 
 Currently, I am using srcReader to read srcDiff files as inputs. I perform simple move detection with the information in the srcml_node.
+Need to get all relevant move information from srcml_node and save it to some buffer. then compare inserts and deletes and add them to the move registry. use an unordered multimap. 
 ## Previous Plan
 Break up existing srcDiff node traversal into two steps. Same work, but traversed twice.
 1) Preprocessing
