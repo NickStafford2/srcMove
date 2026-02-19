@@ -32,20 +32,6 @@ int main(int argc, char **argv) {
   try {
     srcml_reader reader(filename);
     first_pass(reader);
-
-    // for (const srcml_node &node : reader) {
-    //   std::cout << node << "\n";
-    //
-    // // Example: print basic info
-    // if (node.is_start()) {
-    //   std::cout << "START: " << node.full_name() << "\n";
-    // } else if (node.is_end()) {
-    //   std::cout << "END:   " << node.full_name() << "\n";
-    // } else if (node.is_text() && node.content) {
-    //   std::cout << "TEXT:  '" << *node.content << "'\n";
-    // }
-    // }
-
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
     return 2;
