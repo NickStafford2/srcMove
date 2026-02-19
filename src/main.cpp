@@ -33,15 +33,15 @@ std::vector<region> collect_regions(srcml_reader &reader) {
   std::vector<region> out;
   std::string current_file;
 
-  bool in_insert = false;
-  bool in_delete = false;
-  std::size_t insert_start = 0;
-  std::size_t delete_start = 0;
+  int insert_depth = 0;
+  int delete_depth = 0;
+
+  std::vector<std::size_t> insert_starts;
+  std::vector<std::size_t> delete_starts;
 
   std::size_t i = 0;
   for (const srcml_node &node : reader) {
 
-    // grab file name when we see <unit ... filename="...">
     if (node.is_start() && node.name == "unit") {
       if (const std::string *f = node.get_attribute_value("filename"))
         current_file = *f;
@@ -49,40 +49,49 @@ std::vector<region> collect_regions(srcml_reader &reader) {
         current_file.clear();
     }
 
-    // INSERT wrapper
+    // START insert
     if (node.is_start() && node.full_name() == "diff:insert") {
-      assert((in_insert == false) &&
-             "Unexpected nested insert inside insert discovered.");
-      assert((in_delete == false) &&
-             "Unexpected nested insert inside delete discovered.");
-      in_insert = true;
-      insert_start = i;
-    } else if (node.is_end() && node.full_name() == "diff:insert") {
-      if (in_insert) {
-        region candidate{region::kind::insert, insert_start, i, current_file};
-        out.push_back(candidate);
-      }
-      in_insert = false;
+      // optional constraint for now:
+      assert(delete_depth == 0 && "insert inside delete (not handled yet?)");
+
+      insert_depth++;
+      insert_starts.push_back(i);
     }
 
-    // DELETE wrapper
+    // END insert
+    if (node.is_end() && node.full_name() == "diff:insert") {
+      assert(insert_depth > 0 && "diff:insert end without start");
+      std::size_t start = insert_starts.back();
+      insert_starts.pop_back();
+      insert_depth--;
+
+      out.push_back(region{region::kind::insert, start, i, current_file});
+    }
+
+    // START delete
     if (node.is_start() && node.full_name() == "diff:delete") {
-      assert((in_delete == false) &&
-             "Unexpected nested delete inside delete discovered.");
-      assert((in_insert == false) &&
-             "Unexpected nested insert inside delete discovered.");
-      in_delete = true;
-      delete_start = i;
-    } else if (node.is_end() && node.full_name() == "diff:delete") {
-      if (in_delete) {
-        region candidate{region::kind::del, delete_start, i, current_file};
-        out.push_back(candidate);
-      }
-      in_delete = false;
+      // optional constraint for now:
+      assert(insert_depth == 0 && "delete inside insert (not handled yet?)");
+
+      delete_depth++;
+      delete_starts.push_back(i);
+    }
+
+    // END delete
+    if (node.is_end() && node.full_name() == "diff:delete") {
+      assert(delete_depth > 0 && "diff:delete end without start");
+      std::size_t start = delete_starts.back();
+      delete_starts.pop_back();
+      delete_depth--;
+
+      out.push_back(region{region::kind::del, start, i, current_file});
     }
 
     ++i;
   }
+
+  // sanity: all regions closed
+  assert(insert_depth == 0 && delete_depth == 0);
 
   return out;
 }
