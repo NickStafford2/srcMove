@@ -4,7 +4,6 @@ Will probably want to present at icfme
 To do cross file move detection, i will need to keep references to the srcml nodes after ??? check out input_source_local.direcoty()
 
 Must find a way to track the size of constructs, and which ones are subsets of others. 
-Cutoff should be one line. Do not care about moves smaller than one line. 
 
 Performance on large files is a concern.
 
@@ -117,6 +116,7 @@ Create either:
   - After the translator, that detects moves.
 - Create a plan for how I want to handle move detections. 
 
+Currently, I am using srcReader to read srcDiff files as inputs. I perform simple move detection with the information in the srcml_node.
 ## Previous Plan
 Break up existing srcDiff node traversal into two steps. Same work, but traversed twice.
 1) Preprocessing
@@ -131,12 +131,6 @@ Break up existing srcDiff node traversal into two steps. Same work, but traverse
 3) Output
   - Retrieve Corrected SES from buffer
   - Identical output as before.
-
-### Performance Impact
-Traversing twice. I don't think it would measureably increase speed.
-The same exact operations would be done.
-Buffer for SES would be small. 
-
 
 
 
