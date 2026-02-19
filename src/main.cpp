@@ -14,11 +14,74 @@
 #include "srcml_node.hpp"
 #include "srcml_reader.hpp"
 
-void first_pass(srcml_reader &reader) {
+struct region {
+  enum class kind { insert, del };
+  kind k;
+  std::size_t start_idx;
+  std::size_t end_idx;
+  std::string file; // from unit@filename if present
+};
+
+std::vector<region> collect_regions(srcml_reader &reader) {
+  std::vector<region> out;
+  std::string current_file;
+
+  bool in_insert = false;
+  bool in_delete = false;
+  std::size_t insert_start = 0;
+  std::size_t delete_start = 0;
+
   std::size_t i = 0;
   for (const srcml_node &node : reader) {
-    print_node(node, i++);
+
+    // grab file name when we see <unit ... filename="...">
+    if (node.is_start() && node.name == "unit") {
+      if (const std::string *f = node.get_attribute_value("filename"))
+        current_file = *f;
+      else
+        current_file.clear();
+    }
+
+    // INSERT wrapper
+    if (node.is_start() && node.full_name() == "diff:insert") {
+      in_insert = true;
+      insert_start = i;
+    } else if (node.is_end() && node.full_name() == "diff:insert") {
+      if (in_insert) {
+        out.push_back(
+            region{region::kind::insert, insert_start, i, current_file});
+      }
+      in_insert = false;
+    }
+
+    // DELETE wrapper
+    if (node.is_start() && node.full_name() == "diff:delete") {
+      in_delete = true;
+      delete_start = i;
+    } else if (node.is_end() && node.full_name() == "diff:delete") {
+      if (in_delete) {
+        out.push_back(region{region::kind::del, delete_start, i, current_file});
+      }
+      in_delete = false;
+    }
+
+    ++i;
   }
+
+  return out;
+}
+
+void first_pass(srcml_reader &reader) {
+
+  auto regions = collect_regions(reader);
+  for (auto &r : regions) {
+    std::cout << (r.k == region::kind::insert ? "INS" : "DEL") << " ["
+              << r.start_idx << "," << r.end_idx << "] " << r.file << "\n";
+  }
+  // std::size_t i = 0;
+  // for (const srcml_node &node : reader) {
+  //   print_node(node, i++);
+  // }
 }
 
 int main(int argc, char **argv) {
