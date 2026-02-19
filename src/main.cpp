@@ -70,7 +70,6 @@ std::vector<region> collect_regions(srcml_reader &reader) {
 
     // START delete
     if (node.is_start() && node.full_name() == "diff:delete") {
-      // optional constraint for now:
       assert(insert_depth == 0 && "delete inside insert (not handled yet?)");
 
       delete_depth++;
@@ -90,7 +89,7 @@ std::vector<region> collect_regions(srcml_reader &reader) {
     ++i;
   }
 
-  // sanity: all regions closed
+  // all regions closed
   assert(insert_depth == 0 && delete_depth == 0);
 
   return out;
