@@ -1,0 +1,19 @@
+{
+  "version": "0.1.0",
+  "configurations": [
+    {
+      "name": "srcMove (workspace root)",
+      "type": "codelldb",
+      "request": "launch",
+      "cwd": "${workspaceFolder}",
+      "program": "${workspaceFolder}/build/srcMove",
+      "args": [
+        "test/simple/diff.xml"
+      ],
+      "terminal": "integrated",
+      "stopOnEntry": false,
+      "breakOnException": false,
+      "exceptionBreakpoints": []
+    }
+  ]
+}
