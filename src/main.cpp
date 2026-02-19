@@ -48,8 +48,8 @@ std::vector<region> collect_regions(srcml_reader &reader) {
       insert_start = i;
     } else if (node.is_end() && node.full_name() == "diff:insert") {
       if (in_insert) {
-        out.push_back(
-            region{region::kind::insert, insert_start, i, current_file});
+        region candidate{region::kind::insert, insert_start, i, current_file};
+        out.push_back(candidate);
       }
       in_insert = false;
     }
@@ -60,7 +60,8 @@ std::vector<region> collect_regions(srcml_reader &reader) {
       delete_start = i;
     } else if (node.is_end() && node.full_name() == "diff:delete") {
       if (in_delete) {
-        out.push_back(region{region::kind::del, delete_start, i, current_file});
+        region candidate{region::kind::del, delete_start, i, current_file};
+        out.push_back(candidate);
       }
       in_delete = false;
     }
