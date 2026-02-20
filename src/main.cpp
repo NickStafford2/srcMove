@@ -8,6 +8,7 @@
  */
 #include <cctype>
 #include <csetjmp>
+#include <cstddef>
 #include <iostream>
 #include <string>
 
@@ -32,10 +33,20 @@ public:
   std::string full_name;     // full_name()
   std::size_t sibling_index; // 1-based for siblings with same name under parent
   std::size_t start_index;
-  // used to calculate xpath for each sibling node inside this region
+
+  std::size_t add_child_and_get_next_id(std::string full_name) {
+    return ++child_counts[full_name];
+  }
+
 private:
   std::unordered_map<std::string, std::size_t> child_counts;
 };
+
+std::ostream &operator<<(std::ostream &os, const region &r) {
+  return os << "xpath=" << r.xpath << ", full_name=" << r.full_name
+            << ", sibling_index=" << r.sibling_index
+            << ", start_index=" << r.start_index << "]";
+}
 
 // first pass to get information about the nodes. Return information about
 // important nodes
@@ -51,6 +62,9 @@ std::vector<region> collect_regions(srcml_reader &reader) {
     std::cout << node << "\n---------------------------------------------\n";
     // update xpath builder for START first (so current_xpath includes this
     // element)
+    for (region &tag : tag_stack) {
+      std::cout << tag << "\n";
+    }
     if (node.is_start()) {
 
       // check if we are at the start of a new page
@@ -65,15 +79,18 @@ std::vector<region> collect_regions(srcml_reader &reader) {
       current.filename = current_file;
       current.start_index = 0;
       if (tag_stack.empty()) {
-        current.xpath = "/";
+        current.xpath = "/" + current.full_name;
         current.sibling_index = 0;
       } else {
         region &parent = tag_stack.back();
-        current.xpath = parent.xpath + "/" + current.full_name;
+        std::size_t next_sibling_id =
+            parent.add_child_and_get_next_id(current.full_name);
+        current.xpath = parent.xpath + "/" + current.full_name + "[" +
+                        std::to_string(next_sibling_id) + "]";
       }
       tag_stack.push_back(current);
       std::cout << "added to tag_stack: " << node << "\n";
-      // toodo implement child_counts
+      // todo implement child_counts
     }
 
     if (node.is_end()) {
@@ -92,13 +109,11 @@ std::vector<region> collect_regions(srcml_reader &reader) {
 }
 
 void first_pass(srcml_reader &reader) {
-
   auto regions = collect_regions(reader);
-  // for (auto &r : regions) {
-  //   std::cout << (r.k == region::kind::insert ? "INS" : "DEL") << " ["
-  //             << r.start_idx << "," << r.end_idx << "] " << r.filename <<
-  //             "\n";
-  // }
+  std::cout << "\n\nRegions in out:\n";
+  for (region &r : regions) {
+    std::cout << r << "\n";
+  }
 }
 
 } // namespace srcmove
