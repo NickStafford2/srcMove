@@ -8,7 +8,6 @@
 #include <type_traits>
 
 #include "srcml_node.hpp"
-#include "srcml_reader.hpp"
 
 template <typename T>
 std::string rpad(T value, std::size_t width, char fill = ' ') {
