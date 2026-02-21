@@ -59,6 +59,7 @@ std::vector<move_candidate> collect_move_candidates(srcml_reader &reader) {
       current.full_name = node.full_name();
       current.filename = current_file;
       current.start_index = 0;
+      current.content = "";
       if (tag_stack.empty()) {
         current.xpath = "/" + current.full_name;
         current.sibling_index = 0;
@@ -78,11 +79,22 @@ std::vector<move_candidate> collect_move_candidates(srcml_reader &reader) {
       assert((!tag_stack.empty()) && "tag stack is empty on end tag.");
       move_candidate &top = tag_stack.back();
       std::cout << "popping from tag_stack: " << top.full_name << "\n";
+      tag_stack.pop_back();
+      if (!tag_stack.empty()) {
+        move_candidate &parent = tag_stack.back();
+        parent.content += top.content; // propagate text upward
+      }
       if (top.full_name == "diff:insert" || top.full_name == "diff:delete") {
         out.push_back(top);
         std::cout << "pushed to out: " << node << "\n";
       }
-      tag_stack.pop_back();
+    }
+    if (node.is_text()) {
+      assert((!tag_stack.empty()) && "tag stack is empty on text tag.");
+      if (node.content) {
+        move_candidate &top = tag_stack.back();
+        top.content += *node.content;
+      }
     }
     ++i;
   }
@@ -91,9 +103,10 @@ std::vector<move_candidate> collect_move_candidates(srcml_reader &reader) {
 
 void first_pass(srcml_reader &reader) {
   auto move_candidates = collect_move_candidates(reader);
+
   std::cout << "\n\nmove_candidates in out:\n";
   for (move_candidate &r : move_candidates) {
-    std::cout << r << "\n";
+    std::cout << r << "\t\t'" << r.content << "'\n";
   }
   debug_metrics.print();
 }
