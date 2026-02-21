@@ -42,6 +42,9 @@ std::vector<move_candidate> collect_move_candidates(srcml_reader &reader) {
     //   std::cout << tag << "\n";
     // }
     // std::cout << "End Current tag_stack ---------\n";
+    //
+    if (tag_stack.size() > debug_metrics.max_tag_stack_depth)
+      debug_metrics.max_tag_stack_depth = tag_stack.size();
 
     if (node.is_start()) {
       // check if we are at the start of a new page
@@ -92,6 +95,7 @@ void first_pass(srcml_reader &reader) {
   for (move_candidate &r : move_candidates) {
     std::cout << r << "\n";
   }
+  debug_metrics.print();
 }
 
 } // namespace srcmove

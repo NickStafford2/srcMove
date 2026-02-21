@@ -103,4 +103,17 @@ void print_node(const srcml_node &node, std::size_t i = 0) {
             << " " << rpad(attrs, 10) << " " << (node.is_empty() ? "EMPTY" : "")
             << "\n";
 }
+
+struct Debug_Metrics {
+  std::size_t max_tag_stack_depth = 0;
+
+  void print() const {
+    std::cout << "[Debug_Metrics] max_tag_stack_depth = " << max_tag_stack_depth
+              << "\n";
+  }
+};
+
+// global instance (C++17 inline ensures single definition)
+inline Debug_Metrics debug_metrics;
+
 #endif
