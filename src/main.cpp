@@ -43,9 +43,7 @@ private:
 };
 
 std::ostream &operator<<(std::ostream &os, const region &r) {
-  return os << "xpath=" << r.xpath << ", full_name=" << r.full_name
-            << ", sibling_index=" << r.sibling_index
-            << ", start_index=" << r.start_index << "]";
+  return os << "xpath=" << r.xpath;
 }
 
 // first pass to get information about the nodes. Return information about
