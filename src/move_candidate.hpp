@@ -10,11 +10,31 @@
 #define INCLUDED_MOVE_CANDIDATE_HPP
 
 #include <cstddef>
-#include <cstdint>
+#include <iostream>
 #include <string>
-#include <utility>
+#include <unordered_map>
 
 namespace srcmove {
+
+class move_candidate {
+public:
+  std::string filename; // from unit@filename
+  std::string xpath;
+  std::string full_name;     // full_name()
+  std::size_t sibling_index; // 1-based for siblings with same name under parent
+  std::size_t start_index;
+
+  std::size_t add_child_and_get_next_id(std::string full_name) {
+    return ++child_counts[full_name];
+  }
+
+private:
+  std::unordered_map<std::string, std::size_t> child_counts;
+};
+
+std::ostream &operator<<(std::ostream &os, const move_candidate &r) {
+  return os << "xpath=" << r.xpath;
+}
 
 /*
 locality of behavior
@@ -32,7 +52,6 @@ Similarity of the two code segments.
 can be either original or modified.
 
 either an insert or delete operation in a source diff
-*/
 
 // This should be the output of the parser.
 struct move_candidate {
@@ -63,6 +82,7 @@ struct move_candidate {
   // Debug-friendly id.
   std::string debug_id() const;
 };
+*/
 
 } // namespace srcmove
 #endif

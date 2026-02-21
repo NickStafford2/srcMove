@@ -20,36 +20,16 @@
 #define assertm(exp, msg) assert((void(msg), exp))
 
 #include "debug.cpp"
+#include "move_candidate.hpp"
 #include "srcml_node.hpp"
 #include "srcml_reader.hpp"
 // #include "xpath_bulder.hpp"
 
 namespace srcmove {
 
-class move_candidate {
-public:
-  std::string filename; // from unit@filename
-  std::string xpath;
-  std::string full_name;     // full_name()
-  std::size_t sibling_index; // 1-based for siblings with same name under parent
-  std::size_t start_index;
-
-  std::size_t add_child_and_get_next_id(std::string full_name) {
-    return ++child_counts[full_name];
-  }
-
-private:
-  std::unordered_map<std::string, std::size_t> child_counts;
-};
-
-std::ostream &operator<<(std::ostream &os, const move_candidate &r) {
-  return os << "xpath=" << r.xpath;
-}
-
 // first pass to get information about the nodes. Return information about
 // important nodes
 std::vector<move_candidate> collect_move_candidates(srcml_reader &reader) {
-
   std::string current_file;
   std::vector<move_candidate> out;
   std::vector<move_candidate> tag_stack;
