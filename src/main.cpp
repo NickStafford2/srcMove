@@ -26,7 +26,7 @@
 
 namespace srcmove {
 
-class region {
+class move_candidate {
 public:
   std::string filename; // from unit@filename
   std::string xpath;
@@ -42,17 +42,17 @@ private:
   std::unordered_map<std::string, std::size_t> child_counts;
 };
 
-std::ostream &operator<<(std::ostream &os, const region &r) {
+std::ostream &operator<<(std::ostream &os, const move_candidate &r) {
   return os << "xpath=" << r.xpath;
 }
 
 // first pass to get information about the nodes. Return information about
 // important nodes
-std::vector<region> collect_regions(srcml_reader &reader) {
+std::vector<move_candidate> collect_move_candidates(srcml_reader &reader) {
 
   std::string current_file;
-  std::vector<region> out;
-  std::vector<region> tag_stack;
+  std::vector<move_candidate> out;
+  std::vector<move_candidate> tag_stack;
 
   std::size_t i = 0;
   for (const srcml_node &node : reader) {
@@ -60,7 +60,7 @@ std::vector<region> collect_regions(srcml_reader &reader) {
     std::cout << node << "\n---------------------------------------------\n";
     // update xpath builder for START first (so current_xpath includes this
     // element)
-    for (region &tag : tag_stack) {
+    for (move_candidate &tag : tag_stack) {
       std::cout << tag << "\n";
     }
     if (node.is_start()) {
@@ -72,7 +72,7 @@ std::vector<region> collect_regions(srcml_reader &reader) {
         else
           current_file.clear(); // not all <unit> tags are for files.
       }
-      region current;
+      move_candidate current;
       current.full_name = node.full_name();
       current.filename = current_file;
       current.start_index = 0;
@@ -80,7 +80,7 @@ std::vector<region> collect_regions(srcml_reader &reader) {
         current.xpath = "/" + current.full_name;
         current.sibling_index = 0;
       } else {
-        region &parent = tag_stack.back();
+        move_candidate &parent = tag_stack.back();
         std::size_t next_sibling_id =
             parent.add_child_and_get_next_id(current.full_name);
         current.xpath = parent.xpath + "/" + current.full_name + "[" +
@@ -93,7 +93,7 @@ std::vector<region> collect_regions(srcml_reader &reader) {
 
     if (node.is_end()) {
       assert((!tag_stack.empty()) && "tag stack is empty on end tag.");
-      region &top = tag_stack.back();
+      move_candidate &top = tag_stack.back();
       std::cout << "popping from tag_stack: " << top.full_name << "\n";
       if (top.full_name == "diff:insert" || top.full_name == "diff:delete") {
         out.push_back(top);
@@ -107,9 +107,9 @@ std::vector<region> collect_regions(srcml_reader &reader) {
 }
 
 void first_pass(srcml_reader &reader) {
-  auto regions = collect_regions(reader);
-  std::cout << "\n\nRegions in out:\n";
-  for (region &r : regions) {
+  auto move_candidates = collect_move_candidates(reader);
+  std::cout << "\n\nmove_candidates in out:\n";
+  for (move_candidate &r : move_candidates) {
     std::cout << r << "\n";
   }
 }
