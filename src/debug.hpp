@@ -1,3 +1,6 @@
+#ifndef INCLUDED_MOVE_DEBUG_HPP
+#define INCLUDED_MOVE_DEBUG_HPP
+
 #include <algorithm>
 #include <cctype>
 #include <iostream>
@@ -101,3 +104,4 @@ void print_node(const srcml_node &node, std::size_t i = 0) {
             << " " << rpad(attrs, 10) << " " << (node.is_empty() ? "EMPTY" : "")
             << "\n";
 }
+#endif
