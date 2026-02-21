@@ -1,2 +1,4 @@
 doc/papers/*.pdf
 build/
+compile_commands.json
+.cache/
