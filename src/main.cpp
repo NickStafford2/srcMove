@@ -36,15 +36,14 @@ std::vector<move_candidate> collect_move_candidates(srcml_reader &reader) {
 
   std::size_t i = 0;
   for (const srcml_node &node : reader) {
+    // std::cout << node << "\n---------------------------------------------\n";
+    // std::cout << "Current tag_stack ---------\n";
+    // for (move_candidate &tag : tag_stack) {
+    //   std::cout << tag << "\n";
+    // }
+    // std::cout << "End Current tag_stack ---------\n";
 
-    std::cout << node << "\n---------------------------------------------\n";
-    // update xpath builder for START first (so current_xpath includes this
-    // element)
-    for (move_candidate &tag : tag_stack) {
-      std::cout << tag << "\n";
-    }
     if (node.is_start()) {
-
       // check if we are at the start of a new page
       if (node.name == "unit") {
         if (const std::string *f = node.get_attribute_value("filename"))
@@ -52,6 +51,7 @@ std::vector<move_candidate> collect_move_candidates(srcml_reader &reader) {
         else
           current_file.clear(); // not all <unit> tags are for files.
       }
+      // This is the start of a normal tag. make a new node for reference.
       move_candidate current;
       current.full_name = node.full_name();
       current.filename = current_file;
@@ -95,6 +95,7 @@ void first_pass(srcml_reader &reader) {
 }
 
 } // namespace srcmove
+
 int main(int argc, char **argv) {
   if (argc != 2) {
     std::cerr << "usage: " << argv[0] << " <srcdiff.xml>\n";
