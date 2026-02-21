@@ -61,7 +61,7 @@ whereto
 not where from
 delete move_to
 to mark location, use xml id, xpath,
-filepath_filename_xpath_tag_index_
+filepath_filename_xpath_tag_index
 don't need position row/col
 class should have its name
 
@@ -69,7 +69,6 @@ Josh sent me the attribute tag that he used for eye tracking.
 
 '''
 //src:unit[@filename='_data/EL_A_CS_NI/edge_ratio_2.py']/src:function[@pos:start='14:1' and @pos:end='75:0']/src:block[@pos:start='14:66' and @pos:end='75:0']/src:block_content[@pos:start='14:67' and @pos:end='75:0']/src:expr_stmt[@pos:start='15:5' and @pos:end='29:7']/src:expr[@pos:start='15:5' and @pos:end='29:7']/src:literal[@pos:start='15:5' and @pos:end='29:7']
-  todo: whk
 '''
 
 '''
@@ -100,6 +99,13 @@ Josh sent me the attribute tag that he used for eye tracking.
             QApplication::processEvents();
         } 
 '''
+### Multiple Ids option
+srcmove:id="..." (stable id)
+srcmove:path="..." (XPath-like path for querying)
+srcmove:file="..." 
+srcmove:kind="insert|delete"
+srcmove:pair="..." (optional: id of matching partner)
+srcmove:hash="..." (optional: subtree signature)
 
 # Questions:
 SrcDiff has nested diff and delete tags. 
