@@ -66,58 +66,71 @@ std::vector<region> collect_regions(srcml_reader &reader) {
       else
         current_file.clear();
     }
-    std::string raw = reader.get_current_inner_text();
-    std::uint64_t hash = fast_hash_raw(raw);
-    std::cout << "raw: '" << raw << "---------------------------------'\n";
 
     // START insert
     if (node.is_start() && node.full_name() == "diff:insert") {
-      // optional constraint for now:
-      std::cout << "start insert raw: '" << raw << "'\n";
       assert(delete_depth == 0 && "insert inside delete (not handled yet?)");
+
+      std::string raw = reader.get_current_inner_text(); // capture subtree text
+      std::uint64_t h = fast_hash_raw(raw);
 
       insert_depth++;
       insert_starts.push_back(i);
+
+      out.push_back(
+          region{region::kind::insert, i, 0, current_file, std::move(raw), h});
     }
 
     // END insert
     if (node.is_end() && node.full_name() == "diff:insert") {
       assert(insert_depth > 0 && "diff:insert end without start");
-      std::size_t start = insert_starts.back();
-      insert_starts.pop_back();
       insert_depth--;
 
-      std::cout << "end insert raw: '" << raw << "'\n";
-      out.push_back(
-          region{region::kind::insert, start, i, current_file, raw, hash});
+      // find most recent insert region we opened and close it
+      for (auto rit = out.rbegin(); rit != out.rend(); ++rit) {
+        if (rit->k == region::kind::insert && rit->end_idx == 0) {
+          rit->end_idx = i;
+          break;
+        }
+      }
     }
 
     // START delete
     if (node.is_start() && node.full_name() == "diff:delete") {
       assert(insert_depth == 0 && "delete inside insert (not handled yet?)");
 
+      std::string raw = reader.get_current_inner_text();
+      std::uint64_t h = fast_hash_raw(raw);
+
       delete_depth++;
-      std::cout << "start delete raw: '" << raw << "'\n";
       delete_starts.push_back(i);
+
+      out.push_back(
+          region{region::kind::del, i, 0, current_file, std::move(raw), h});
     }
 
     // END delete
     if (node.is_end() && node.full_name() == "diff:delete") {
       assert(delete_depth > 0 && "diff:delete end without start");
-      std::size_t start = delete_starts.back();
-      delete_starts.pop_back();
       delete_depth--;
 
-      std::cout << "end delete raw: '" << raw << "'\n";
-      out.push_back(
-          region{region::kind::del, start, i, current_file, raw, hash});
+      for (auto rit = out.rbegin(); rit != out.rend(); ++rit) {
+        if (rit->k == region::kind::del && rit->end_idx == 0) {
+          rit->end_idx = i;
+          break;
+        }
+      }
     }
 
     ++i;
   }
 
-  // all regions closed
   assert(insert_depth == 0 && delete_depth == 0);
+
+  // sanity: ensure all regions closed
+  for (const auto &r : out) {
+    assert(r.end_idx != 0 && "region never closed (end tag missing?)");
+  }
 
   return out;
 }
