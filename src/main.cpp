@@ -7,8 +7,12 @@
  * This file is part of the srcDiff Infrastructure.
  */
 #include <cctype>
+#include <cstdint>
 #include <iostream>
 #include <string>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
 
 // uncomment to disable assert()
 // #define NDEBUG
@@ -27,7 +31,21 @@ struct region {
   std::size_t start_idx;
   std::size_t end_idx;
   std::string file; // from unit@filename if present
+  std::string full_text;
+  std::uint64_t hash;
 };
+
+// 64-bit FNV-1a
+inline std::uint64_t fast_hash_raw(std::string_view s) noexcept {
+  std::uint64_t hash = 14695981039346656037ull; // offset basis
+
+  for (unsigned char c : s) {
+    hash ^= static_cast<std::uint64_t>(c);
+    hash *= 1099511628211ull; // FNV prime
+  }
+
+  return hash;
+}
 
 std::vector<region> collect_regions(srcml_reader &reader) {
   std::vector<region> out;
@@ -48,10 +66,14 @@ std::vector<region> collect_regions(srcml_reader &reader) {
       else
         current_file.clear();
     }
+    std::string raw = reader.get_current_inner_text();
+    std::uint64_t hash = fast_hash_raw(raw);
+    std::cout << "raw: '" << raw << "---------------------------------'\n";
 
     // START insert
     if (node.is_start() && node.full_name() == "diff:insert") {
       // optional constraint for now:
+      std::cout << "start insert raw: '" << raw << "'\n";
       assert(delete_depth == 0 && "insert inside delete (not handled yet?)");
 
       insert_depth++;
@@ -65,7 +87,9 @@ std::vector<region> collect_regions(srcml_reader &reader) {
       insert_starts.pop_back();
       insert_depth--;
 
-      out.push_back(region{region::kind::insert, start, i, current_file});
+      std::cout << "end insert raw: '" << raw << "'\n";
+      out.push_back(
+          region{region::kind::insert, start, i, current_file, raw, hash});
     }
 
     // START delete
@@ -73,6 +97,7 @@ std::vector<region> collect_regions(srcml_reader &reader) {
       assert(insert_depth == 0 && "delete inside insert (not handled yet?)");
 
       delete_depth++;
+      std::cout << "start delete raw: '" << raw << "'\n";
       delete_starts.push_back(i);
     }
 
@@ -83,7 +108,9 @@ std::vector<region> collect_regions(srcml_reader &reader) {
       delete_starts.pop_back();
       delete_depth--;
 
-      out.push_back(region{region::kind::del, start, i, current_file});
+      std::cout << "end delete raw: '" << raw << "'\n";
+      out.push_back(
+          region{region::kind::del, start, i, current_file, raw, hash});
     }
 
     ++i;
@@ -95,17 +122,72 @@ std::vector<region> collect_regions(srcml_reader &reader) {
   return out;
 }
 
-void first_pass(srcml_reader &reader) {
+struct match {
+  const region *del;
+  const region *ins;
+};
 
+std::vector<match>
+find_matching_regions_by_hash(const std::vector<region> &regions,
+                              bool confirm_text_equality = true) {
+  // Bucket inserts by hash
+  std::unordered_multimap<std::uint64_t, const region *> inserts_by_hash;
+  inserts_by_hash.reserve(regions.size());
+
+  std::vector<const region *> deletes;
+  deletes.reserve(regions.size());
+
+  for (const auto &r : regions) {
+    if (r.k == region::kind::insert) {
+      inserts_by_hash.emplace(r.hash, &r);
+    } else {
+      deletes.push_back(&r);
+    }
+  }
+
+  std::vector<match> matches;
+  matches.reserve(std::min(deletes.size(), inserts_by_hash.size()));
+
+  // For each delete, find all inserts with same hash
+  for (const region *d : deletes) {
+    auto [it, end] = inserts_by_hash.equal_range(d->hash);
+    for (; it != end; ++it) {
+      const region *ins = it->second;
+
+      if (confirm_text_equality && d->full_text != ins->full_text)
+        continue;
+
+      matches.push_back(match{d, ins});
+    }
+  }
+  return matches;
+}
+
+void first_pass(srcml_reader &reader) {
   auto regions = collect_regions(reader);
+
+  // print regions
   for (auto &r : regions) {
     std::cout << (r.k == region::kind::insert ? "INS" : "DEL") << " ["
-              << r.start_idx << "," << r.end_idx << "] " << r.file << "\n";
+              << r.start_idx << "," << r.end_idx << "] " << r.file
+              << " hash=" << r.hash << "  raw.ins: '" << r.full_text << "'\n";
   }
-  // std::size_t i = 0;
-  // for (const srcml_node &node : reader) {
-  //   print_node(node, i++);
-  // }
+
+  auto matches =
+      find_matching_regions_by_hash(regions, /*confirm_text_equality=*/true);
+
+  std::cout << "\n=== HASH MATCHES (DEL -> INS) ===\n";
+  for (const auto &m : matches) {
+    std::cout << "DEL [" << m.del->start_idx << "," << m.del->end_idx << "] "
+              << m.del->file << "  ->  "
+              << "INS [" << m.ins->start_idx << "," << m.ins->end_idx << "] "
+              << m.ins->file << "  hash=" << m.del->hash
+              << "  chars(del)=" << m.del->full_text.size()
+              << "  chars(ins)=" << m.ins->full_text.size() << "\n  raw.ins: '"
+              << m.ins->full_text << "'"
+              << "\n  raw.del: '" << m.del->full_text << "'"
+              << "\n";
+  }
 }
 
 int main(int argc, char **argv) {
