@@ -1,4 +1,5 @@
 doc/papers/*.pdf
 build/
 out.txt
+compile_commands.json
 .cache/

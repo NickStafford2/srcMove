@@ -21,7 +21,7 @@
 // Use (void) to silence unused warnings.
 #define assertm(exp, msg) assert((void(msg), exp))
 
-#include "debug.cpp"
+// #include "debug.hpp"
 #include "srcml_node.hpp"
 #include "srcml_reader.hpp"
 
