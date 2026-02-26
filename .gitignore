@@ -1,2 +1,4 @@
 doc/papers/*.pdf
 build/
+out.txt
+.cache/
