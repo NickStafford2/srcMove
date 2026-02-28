@@ -195,13 +195,7 @@ static void write_with_move_annotations(const std::string &in_filename,
   }
 }
 
-void run_pipeline(const std::string &srcdiff_in_filename,
-                  const std::string &srcdiff_out_filename) {
-  // first pass
-  srcml_reader reader(srcdiff_in_filename);
-  auto regions = collect_regions(reader);
-
-  move_registry mr = build_registry(regions);
+static void debug_print_greedy_matches(const move_registry &mr) {
 
   // Debug/metrics about buckets/groups
   mr.debug(std::cout);
@@ -224,6 +218,17 @@ void run_pipeline(const std::string &srcdiff_in_filename,
               << "  chars(del)=" << d.full_text.size()
               << "  chars(ins)=" << ins.full_text.size() << "\n";
   }
+}
+
+void run_pipeline(const std::string &srcdiff_in_filename,
+                  const std::string &srcdiff_out_filename) {
+  // first pass
+  srcml_reader reader(srcdiff_in_filename);
+  auto regions = collect_regions(reader);
+
+  move_registry mr = build_registry(regions);
+
+  debug_print_greedy_matches(mr);
 
   // Assign move ids per group and write annotated output
   const auto tags = build_move_tags(mr);
