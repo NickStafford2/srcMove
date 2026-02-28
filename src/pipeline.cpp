@@ -111,9 +111,7 @@ void first_pass(srcml_reader &reader) {
   auto candidates = collect_regions(reader);
 
   for (auto &r : candidates) {
-    std::cout << (r.kind == move_candidate::Kind::insert ? "INS" : "DEL")
-              << " [" << r.start_idx << "," << r.end_idx << "] " << r.filename
-              << " hash=" << r.hash << "  raw.ins: '" << r.full_text << "'\n";
+    std::cout << r << "\n";
   }
 
   auto matches =

@@ -55,7 +55,9 @@ std::uint64_t move_candidate::fast_hash_raw(std::string_view s) {
 }
 
 std::ostream &operator<<(std::ostream &os, const move_candidate &r) {
-  return os << "xpath=" << r.xpath;
+  return os << (r.kind == move_candidate::Kind::insert ? "INS" : "DEL") << " ["
+            << r.start_idx << "," << r.end_idx << "] " << r.filename
+            << " hash=" << r.hash << "  raw.ins: '" << r.full_text << "'\n";
 }
 
 } // namespace srcmove
