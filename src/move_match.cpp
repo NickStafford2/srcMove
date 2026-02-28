@@ -17,6 +17,7 @@ namespace srcmove {
 std::vector<move_match>
 find_matching_regions(const std::vector<move_candidate> &regions,
                       bool confirm_text_equality) {
+
   std::unordered_multimap<std::uint64_t, const move_candidate *>
       inserts_by_hash;
   inserts_by_hash.reserve(regions.size());
@@ -60,19 +61,4 @@ std::ostream &operator<<(std::ostream &os, const move_match &m) {
             << tab << "text: '" << m.del->full_text << "'";
 }
 
-/*
-=== HASH MATCHES (DEL -> INS) ===
-DEL [19,59] test/simple/original.cpp|test/simple/modified.cpp  ->  INS [87,127]
-test/simple/original.cpp|test/simple/modified.cpp  hash=5785509076557761878
-chars(del)=19  chars(ins)=19 raw.ins: '  int first = 123;
-'
-  raw.del: '  int first = 123;
-'
-
-DEL [24,55] test/simple/original.cpp|test/simple/modified.cpp  ->  INS [92,123]
-test/simple/original.cpp|test/simple/modified.cpp  hash=8452670157112265760
-chars(del)=16  chars(ins)=16 raw.ins: 'int first = 123;' raw.del: 'int first =
-123;'
-*
-*/
 }; // namespace srcmove
