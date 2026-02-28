@@ -14,7 +14,8 @@
 // #define NDEBUG
 #include <cassert>
 
-#include "move_match.hpp"
+// #include "move_match.hpp"
+#include "move_registry.hpp"
 #include "pipeline.hpp"
 #include "srcml_node.hpp"
 
@@ -105,17 +106,46 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
 }
 
 void first_pass(srcml_reader &reader) {
-  auto candidates = collect_regions(reader);
+  auto regions = collect_regions(reader);
 
-  for (auto &r : candidates) {
-    std::cout << r << "\n";
+  move_registry mr;
+  mr.reserve(/*expected_deletes=*/regions.size(),
+             /*expected_inserts=*/regions.size());
+
+  // Feed registry from collected regions
+  for (auto &r : regions) {
+    if (r.kind == move_candidate::Kind::del) {
+      mr.add_delete(std::move(r));
+    } else {
+      mr.add_insert(std::move(r));
+    }
   }
 
-  auto matches = find_matching_regions(candidates);
+  // Build groups (does equality confirmation + dedupe grouping if enabled)
+  mr.finalize(/*confirm_text_equality=*/true);
 
-  std::cout << "\n=== HASH MATCHES (DEL -> INS) ===\n";
+  // Debug/metrics about buckets/groups (optional)
+  // mr.debug(std::cout);
+
+  // FAST baseline: 1-to-1 consumption inside each content group
+  auto matches = mr.match_greedy_1_to_1();
+
+  // If you want the “old output style” that prints raw pairs,
+  // you can print using ids -> candidate lookups:
+  const auto &dels = mr.deletes();
+  const auto &inss = mr.inserts();
+
+  std::cout << "\n=== GREEDY MATCHES (DEL -> INS) ===\n";
   for (const auto &m : matches) {
-    std::cout << m << "\n";
+    const auto &d = dels[m.del_id];
+    const auto &ins = inss[m.ins_id];
+
+    std::cout << "DEL [" << d.start_idx << "," << d.end_idx << "] "
+              << d.filename << "  ->  "
+              << "INS [" << ins.start_idx << "," << ins.end_idx << "] "
+              << ins.filename << "  hash=" << d.hash
+              << "  chars(del)=" << d.full_text.size()
+              << "  chars(ins)=" << ins.full_text.size() << "\n";
   }
 }
 

@@ -1,0 +1,268 @@
+/**
+ * @file move_registry.cpp
+ *
+ * @copyright Copyright (C) 2014-2024 SDML (www.srcDiff.org)
+ *
+ * This file is part of the srcDiff Infrastructure.
+ */
+// SPDX-License-Identifier: GPL-3.0-only
+#include "move_registry.hpp"
+
+#include <algorithm>
+#include <cassert>
+#include <iostream>
+#include <string>
+#include <unordered_map>
+#include <utility>
+
+namespace srcmove {
+
+void move_registry::clear() {
+  deletes_.clear();
+  inserts_.clear();
+  by_hash_.clear();
+
+  group_del_ids_.clear();
+  group_ins_ids_.clear();
+  groups_.clear();
+}
+
+void move_registry::reserve(std::size_t expected_deletes,
+                            std::size_t expected_inserts) {
+  deletes_.reserve(expected_deletes);
+  inserts_.reserve(expected_inserts);
+  // Buckets count is unknown; caller can still rely on vector reserves being
+  // the big win.
+}
+
+move_registry::id_t move_registry::add_delete(move_candidate del) {
+  const id_t id = static_cast<id_t>(deletes_.size());
+  const std::uint64_t h = del.hash;
+
+  deletes_.push_back(std::move(del));
+  auto &bucket = by_hash_[h];
+  bucket.del_ids.push_back(id);
+  return id;
+}
+
+move_registry::id_t move_registry::add_insert(move_candidate ins) {
+  const id_t id = static_cast<id_t>(inserts_.size());
+  const std::uint64_t h = ins.hash;
+
+  inserts_.push_back(std::move(ins));
+  auto &bucket = by_hash_[h];
+  bucket.ins_ids.push_back(id);
+  return id;
+}
+
+group_kind move_registry::classify_counts(std::size_t del_count,
+                                          std::size_t ins_count) {
+  if (del_count == 0 && ins_count == 0)
+    return group_kind::ambiguous;
+  if (del_count > 0 && ins_count == 0)
+    return group_kind::delete_only;
+  if (del_count == 0 && ins_count > 0)
+    return group_kind::insert_only;
+
+  // Both sides exist.
+  if (del_count == 1 && ins_count == 1)
+    return group_kind::move_1_to_1;
+
+  if (del_count == ins_count && del_count > 1)
+    return group_kind::moves_many;
+
+  // If inserts exceed deletes, it might be copy/paste or repeated insertion.
+  // If deletes exceed inserts, it might be multiple removals with one
+  // remaining.
+  return group_kind::copy_or_repeat;
+}
+
+void move_registry::add_group(std::uint64_t content_hash,
+                              const std::vector<id_t> &del_ids,
+                              const std::vector<id_t> &ins_ids) {
+  const std::uint32_t group_id = static_cast<std::uint32_t>(groups_.size());
+
+  const std::uint32_t del_begin =
+      static_cast<std::uint32_t>(group_del_ids_.size());
+  group_del_ids_.insert(group_del_ids_.end(), del_ids.begin(), del_ids.end());
+  const std::uint32_t del_end =
+      static_cast<std::uint32_t>(group_del_ids_.size());
+
+  const std::uint32_t ins_begin =
+      static_cast<std::uint32_t>(group_ins_ids_.size());
+  group_ins_ids_.insert(group_ins_ids_.end(), ins_ids.begin(), ins_ids.end());
+  const std::uint32_t ins_end =
+      static_cast<std::uint32_t>(group_ins_ids_.size());
+
+  const group_kind kind = classify_counts(del_ids.size(), ins_ids.size());
+
+  groups_.push_back(content_group_view{content_hash, group_id, del_begin,
+                                       del_end, ins_begin, ins_end, kind});
+}
+
+void move_registry::finalize(bool confirm_text_equality) {
+  group_del_ids_.clear();
+  group_ins_ids_.clear();
+  groups_.clear();
+
+  // If confirm_text_equality is false, each hash bucket becomes one group.
+  if (!confirm_text_equality) {
+    groups_.reserve(by_hash_.size());
+    for (const auto &[h, bucket] : by_hash_) {
+      add_group(h, bucket.del_ids, bucket.ins_ids);
+    }
+    return;
+  }
+
+  // confirm_text_equality == true:
+  // Split each hash bucket into subgroups by exact full_text.
+  //
+  // To avoid copying strings, key on std::string_view referencing candidates'
+  // stored full_text. This is safe because deletes_/inserts_ own the strings.
+  struct sv_hash {
+    std::size_t operator()(std::string_view s) const noexcept {
+      // Use std::hash<string_view> (fast). For fewer collisions you can use
+      // a stronger hash, but equality check remains exact anyway.
+      return std::hash<std::string_view>{}(s);
+    }
+  };
+
+  for (const auto &[h, bucket] : by_hash_) {
+    // Map exact content -> ids within this hash bucket.
+    std::unordered_map<std::string_view, std::vector<id_t>, sv_hash>
+        del_by_text;
+    std::unordered_map<std::string_view, std::vector<id_t>, sv_hash>
+        ins_by_text;
+
+    del_by_text.reserve(bucket.del_ids.size());
+    ins_by_text.reserve(bucket.ins_ids.size());
+
+    for (id_t did : bucket.del_ids) {
+      const auto &d = deletes_[did];
+      del_by_text[std::string_view(d.full_text)].push_back(did);
+    }
+    for (id_t iid : bucket.ins_ids) {
+      const auto &ins = inserts_[iid];
+      ins_by_text[std::string_view(ins.full_text)].push_back(iid);
+    }
+
+    // Union of keys from both maps: build groups for each distinct text.
+    // We do it by iterating deletes' keys, then inserts' keys not seen.
+    std::unordered_map<std::string_view, bool, sv_hash> seen;
+    seen.reserve(del_by_text.size() + ins_by_text.size());
+
+    for (auto &[text, dels] : del_by_text) {
+      (void)seen.emplace(text, true);
+      auto it = ins_by_text.find(text);
+      if (it != ins_by_text.end()) {
+        add_group(h, dels, it->second);
+      } else {
+        static const std::vector<id_t> empty;
+        add_group(h, dels, empty);
+      }
+    }
+
+    for (auto &[text, inss] : ins_by_text) {
+      if (seen.find(text) != seen.end())
+        continue;
+      static const std::vector<id_t> empty;
+      add_group(h, empty, inss);
+    }
+  }
+}
+
+std::vector<move_match> move_registry::match_greedy_1_to_1() const {
+  std::vector<move_match> out;
+
+  // Upper bound: sum over groups of min(del, ins)
+  std::size_t cap = 0;
+  for (const auto &g : groups_) {
+    cap += std::min(g.del_count(), g.ins_count());
+  }
+  out.reserve(cap);
+
+  for (const auto &g : groups_) {
+    const std::size_t n = std::min(g.del_count(), g.ins_count());
+    for (std::size_t k = 0; k < n; ++k) {
+      const id_t did =
+          group_del_ids_[g.del_begin + static_cast<std::uint32_t>(k)];
+      const id_t iid =
+          group_ins_ids_[g.ins_begin + static_cast<std::uint32_t>(k)];
+      out.push_back(move_match{did, iid});
+    }
+  }
+  return out;
+}
+
+std::vector<move_match>
+move_registry::enumerate_all_pairs(std::size_t hard_cap) const {
+  std::vector<move_match> out;
+
+  for (const auto &g : groups_) {
+    const std::size_t D = g.del_count();
+    const std::size_t I = g.ins_count();
+    if (D == 0 || I == 0)
+      continue;
+
+    // Watch for explosion: D×I
+    if (hard_cap != SIZE_MAX) {
+      const unsigned __int128 needed =
+          static_cast<unsigned __int128>(D) * static_cast<unsigned __int128>(I);
+      const unsigned __int128 remaining =
+          (hard_cap > out.size()) ? (hard_cap - out.size()) : 0;
+      if (needed > remaining)
+        break;
+    }
+
+    for (std::uint32_t di = g.del_begin; di < g.del_end; ++di) {
+      const id_t did = group_del_ids_[di];
+      for (std::uint32_t ii = g.ins_begin; ii < g.ins_end; ++ii) {
+        const id_t iid = group_ins_ids_[ii];
+        out.push_back(move_match{did, iid});
+      }
+    }
+  }
+
+  return out;
+}
+
+void move_registry::debug(std::ostream &os) const {
+  os << "move_registry:\n";
+  os << "  deletes: " << deletes_.size() << "\n";
+  os << "  inserts: " << inserts_.size() << "\n";
+  os << "  hash buckets: " << by_hash_.size() << "\n";
+  os << "  content groups: " << groups_.size() << "\n";
+
+  std::size_t move11 = 0, many = 0, delonly = 0, inonly = 0, copy = 0, amb = 0;
+  for (const auto &g : groups_) {
+    switch (g.kind) {
+    case group_kind::move_1_to_1:
+      ++move11;
+      break;
+    case group_kind::moves_many:
+      ++many;
+      break;
+    case group_kind::delete_only:
+      ++delonly;
+      break;
+    case group_kind::insert_only:
+      ++inonly;
+      break;
+    case group_kind::copy_or_repeat:
+      ++copy;
+      break;
+    case group_kind::ambiguous:
+      ++amb;
+      break;
+    }
+  }
+  os << "  group kinds:\n";
+  os << "    move_1_to_1: " << move11 << "\n";
+  os << "    moves_many: " << many << "\n";
+  os << "    delete_only: " << delonly << "\n";
+  os << "    insert_only: " << inonly << "\n";
+  os << "    copy_or_repeat: " << copy << "\n";
+  os << "    ambiguous: " << amb << "\n";
+}
+
+} // namespace srcmove
