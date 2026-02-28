@@ -18,26 +18,29 @@ std::vector<move_match>
 find_matching_regions(const std::vector<move_candidate> &regions,
                       bool confirm_text_equality) {
 
-  std::unordered_multimap<std::uint64_t, const move_candidate *>
-      inserts_by_hash;
-  inserts_by_hash.reserve(regions.size());
+  // create data structure
+  // It’s a multimap because:
+  //   - multiple inserts might have the same hash
+  //   - so one hash key can map to multiple insert regions
+  std::unordered_multimap<std::uint64_t, const move_candidate *> inserts;
+  inserts.reserve(regions.size());
 
   std::vector<const move_candidate *> deletes;
   deletes.reserve(regions.size());
 
   for (const auto &r : regions) {
     if (r.kind == move_candidate::Kind::insert) {
-      inserts_by_hash.emplace(r.hash, &r);
+      inserts.emplace(r.hash, &r);
     } else {
       deletes.push_back(&r);
     }
   }
 
   std::vector<move_match> matches;
-  matches.reserve(std::min(deletes.size(), inserts_by_hash.size()));
+  matches.reserve(std::min(deletes.size(), inserts.size()));
 
   for (const move_candidate *d : deletes) {
-    auto [it, end] = inserts_by_hash.equal_range(d->hash);
+    auto [it, end] = inserts.equal_range(d->hash);
     for (; it != end; ++it) {
       const move_candidate *ins = it->second;
 
