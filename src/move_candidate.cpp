@@ -10,7 +10,7 @@
 #include <cstddef>
 #include <sstream>
 #include <string_view>
-#include <utility> // std::move
+#include <utility>
 
 #include "move_candidate.hpp"
 
