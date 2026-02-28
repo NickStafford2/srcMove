@@ -22,18 +22,11 @@
 #define assertm(exp, msg) assert((void(msg), exp))
 
 // #include "debug.hpp"
+#include "move_candidate.hpp"
 #include "srcml_node.hpp"
 #include "srcml_reader.hpp"
 
-struct region {
-  enum class kind { insert, del };
-  kind k;
-  std::size_t start_idx;
-  std::size_t end_idx;
-  std::string file; // from unit@filename if present
-  std::string full_text;
-  std::uint64_t hash;
-};
+namespace srcmove {
 
 // 64-bit FNV-1a
 inline std::uint64_t fast_hash_raw(std::string_view s) noexcept {
@@ -47,8 +40,8 @@ inline std::uint64_t fast_hash_raw(std::string_view s) noexcept {
   return hash;
 }
 
-std::vector<region> collect_regions(srcml_reader &reader) {
-  std::vector<region> out;
+std::vector<move_candidate> collect_regions(srcml_reader &reader) {
+  std::vector<move_candidate> out;
   std::string current_file;
 
   int insert_depth = 0;
@@ -77,8 +70,15 @@ std::vector<region> collect_regions(srcml_reader &reader) {
       insert_depth++;
       insert_starts.push_back(i);
 
-      out.push_back(
-          region{region::kind::insert, i, 0, current_file, std::move(raw), h});
+      move_candidate x;
+      x.kind = move_candidate::Kind::insert;
+      x.start_idx = i;
+      x.end_idx = 0;
+      x.filename = current_file;
+      x.full_text = reader.get_current_inner_text();
+      x.hash = fast_hash_raw(x.full_text);
+
+      out.push_back(x);
     }
 
     // END insert
@@ -88,7 +88,7 @@ std::vector<region> collect_regions(srcml_reader &reader) {
 
       // find most recent insert region we opened and close it
       for (auto rit = out.rbegin(); rit != out.rend(); ++rit) {
-        if (rit->k == region::kind::insert && rit->end_idx == 0) {
+        if (rit->kind == move_candidate::Kind::insert && rit->end_idx == 0) {
           rit->end_idx = i;
           break;
         }
@@ -99,14 +99,17 @@ std::vector<region> collect_regions(srcml_reader &reader) {
     if (node.is_start() && node.full_name() == "diff:delete") {
       assert(insert_depth == 0 && "delete inside insert (not handled yet?)");
 
-      std::string raw = reader.get_current_inner_text();
-      std::uint64_t h = fast_hash_raw(raw);
-
       delete_depth++;
       delete_starts.push_back(i);
 
-      out.push_back(
-          region{region::kind::del, i, 0, current_file, std::move(raw), h});
+      move_candidate x;
+      x.kind = move_candidate::Kind::del;
+      x.start_idx = i;
+      x.end_idx = 0;
+      x.filename = current_file;
+      x.full_text = reader.get_current_inner_text();
+      x.hash = fast_hash_raw(x.full_text);
+      out.push_back(x);
     }
 
     // END delete
@@ -115,7 +118,7 @@ std::vector<region> collect_regions(srcml_reader &reader) {
       delete_depth--;
 
       for (auto rit = out.rbegin(); rit != out.rend(); ++rit) {
-        if (rit->k == region::kind::del && rit->end_idx == 0) {
+        if (rit->kind == move_candidate::Kind::del && rit->end_idx == 0) {
           rit->end_idx = i;
           break;
         }
@@ -136,22 +139,23 @@ std::vector<region> collect_regions(srcml_reader &reader) {
 }
 
 struct match {
-  const region *del;
-  const region *ins;
+  const move_candidate *del;
+  const move_candidate *ins;
 };
 
 std::vector<match>
-find_matching_regions_by_hash(const std::vector<region> &regions,
+find_matching_regions_by_hash(const std::vector<move_candidate> &regions,
                               bool confirm_text_equality = true) {
   // Bucket inserts by hash
-  std::unordered_multimap<std::uint64_t, const region *> inserts_by_hash;
+  std::unordered_multimap<std::uint64_t, const move_candidate *>
+      inserts_by_hash;
   inserts_by_hash.reserve(regions.size());
 
-  std::vector<const region *> deletes;
+  std::vector<const move_candidate *> deletes;
   deletes.reserve(regions.size());
 
   for (const auto &r : regions) {
-    if (r.k == region::kind::insert) {
+    if (r.kind == move_candidate::Kind::insert) {
       inserts_by_hash.emplace(r.hash, &r);
     } else {
       deletes.push_back(&r);
@@ -162,10 +166,10 @@ find_matching_regions_by_hash(const std::vector<region> &regions,
   matches.reserve(std::min(deletes.size(), inserts_by_hash.size()));
 
   // For each delete, find all inserts with same hash
-  for (const region *d : deletes) {
+  for (const move_candidate *d : deletes) {
     auto [it, end] = inserts_by_hash.equal_range(d->hash);
     for (; it != end; ++it) {
-      const region *ins = it->second;
+      const move_candidate *ins = it->second;
 
       if (confirm_text_equality && d->full_text != ins->full_text)
         continue;
@@ -181,8 +185,8 @@ void first_pass(srcml_reader &reader) {
 
   // print regions
   for (auto &r : regions) {
-    std::cout << (r.k == region::kind::insert ? "INS" : "DEL") << " ["
-              << r.start_idx << "," << r.end_idx << "] " << r.file
+    std::cout << (r.kind == move_candidate::Kind::insert ? "INS" : "DEL")
+              << " [" << r.start_idx << "," << r.end_idx << "] " << r.filename
               << " hash=" << r.hash << "  raw.ins: '" << r.full_text << "'\n";
   }
 
@@ -192,16 +196,19 @@ void first_pass(srcml_reader &reader) {
   std::cout << "\n=== HASH MATCHES (DEL -> INS) ===\n";
   for (const auto &m : matches) {
     std::cout << "DEL [" << m.del->start_idx << "," << m.del->end_idx << "] "
-              << m.del->file << "  ->  "
+              << m.del->filename << "  ->  "
               << "INS [" << m.ins->start_idx << "," << m.ins->end_idx << "] "
-              << m.ins->file << "  hash=" << m.del->hash
+              << m.ins->filename << "  hash=" << m.del->hash
               << "  chars(del)=" << m.del->full_text.size()
               << "  chars(ins)=" << m.ins->full_text.size() << "\n  raw.ins: '"
               << m.ins->full_text << "'"
               << "\n  raw.del: '" << m.del->full_text << "'"
               << "\n";
   }
+  int i = 1;
 }
+
+} // namespace srcmove
 
 int main(int argc, char **argv) {
   if (argc != 2) {
@@ -213,7 +220,7 @@ int main(int argc, char **argv) {
 
   try {
     srcml_reader reader(filename);
-    first_pass(reader);
+    srcmove::first_pass(reader);
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
     return 2;

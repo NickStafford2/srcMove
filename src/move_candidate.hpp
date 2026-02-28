@@ -11,6 +11,7 @@
 
 #include <boost/optional.hpp>
 #include <cstddef>
+#include <cstdint>
 #include <iostream>
 #include <string>
 #include <unordered_map>
@@ -21,12 +22,17 @@ enum srcml_node_type : unsigned int { OTHER = 0, START = 1, END = 2, TEXT = 3 };
 
 class move_candidate {
 public:
+  enum class Kind { insert, del };
+  Kind kind;
   std::string filename; // from unit@filename
   std::string xpath;
   std::string full_name;     // full_name()
   std::size_t sibling_index; // 1-based for siblings with same name under parent
   std::size_t start_index;
-  std::string content;
+  std::size_t start_idx;
+  std::size_t end_idx;
+  std::string full_text;
+  std::uint64_t hash;
 
   std::size_t add_child_and_get_next_id(std::string full_name) {
     return ++child_counts[full_name];
