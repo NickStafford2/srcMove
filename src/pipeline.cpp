@@ -45,31 +45,6 @@ move_registry build_registry(std::vector<move_candidate> &candidates) {
   return mr;
 }
 
-static void debug_print_greedy_matches(const move_registry &mr) {
-
-  // Debug/metrics about buckets/groups
-  mr.debug(std::cout);
-
-  // FAST baseline: 1-to-1 consumption inside each content group
-  auto matches = mr.match_greedy_1_to_1();
-
-  const auto &dels = mr.deletes();
-  const auto &inss = mr.inserts();
-
-  std::cout << "\n=== GREEDY MATCHES (DEL -> INS) ===\n";
-  for (const auto &m : matches) {
-    const auto &d = dels[m.del_id];
-    const auto &ins = inss[m.ins_id];
-
-    std::cout << "DEL [" << d.start_idx << "," << d.end_idx << "] "
-              << d.filename << "  ->  "
-              << "INS [" << ins.start_idx << "," << ins.end_idx << "] "
-              << ins.filename << "  hash=" << d.hash
-              << "  chars(del)=" << d.full_text.size()
-              << "  chars(ins)=" << ins.full_text.size() << "\n";
-  }
-}
-
 void run_pipeline(const std::string &srcdiff_in_filename,
                   const std::string &srcdiff_out_filename) {
   // first pass
@@ -78,7 +53,7 @@ void run_pipeline(const std::string &srcdiff_in_filename,
   auto filter_options = get_default_filter_options();
   auto candidates = filter_regions_for_registry(regions, filter_options);
   move_registry mr = build_registry(candidates);
-  debug_print_greedy_matches(mr);
+  mr.print_greedy_matches();
   annotate(regions, mr, srcdiff_in_filename, srcdiff_out_filename);
 }
 

@@ -304,4 +304,29 @@ void move_registry::debug(std::ostream &os) const {
   os << "    ambiguous: " << amb << "\n";
 }
 
+void move_registry::print_greedy_matches(std::ostream &os) const {
+
+  // Debug/metrics about buckets/groups
+  debug(std::cout);
+
+  // FAST baseline: 1-to-1 consumption inside each content group
+  auto matches = match_greedy_1_to_1();
+
+  const auto &dels = deletes();
+  const auto &inss = inserts();
+
+  std::cout << "\n=== GREEDY MATCHES (DEL -> INS) ===\n";
+  for (const auto &m : matches) {
+    const auto &d = dels[m.del_id];
+    const auto &ins = inss[m.ins_id];
+
+    std::cout << "DEL [" << d.start_idx << "," << d.end_idx << "] "
+              << d.filename << "  ->  "
+              << "INS [" << ins.start_idx << "," << ins.end_idx << "] "
+              << ins.filename << "  hash=" << d.hash
+              << "  chars(del)=" << d.full_text.size()
+              << "  chars(ins)=" << ins.full_text.size() << "\n";
+  }
+}
+
 } // namespace srcmove

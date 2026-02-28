@@ -158,7 +158,9 @@ public:
   enumerate_all_pairs(std::size_t hard_cap = SIZE_MAX) const;
 
   // Debug/metrics.
-  void debug(std::ostream &os) const;
+  void debug(std::ostream &os = std::cout) const;
+
+  void print_greedy_matches(std::ostream &os = std::cout) const;
 
 private:
   // Buckets by hash during build phase: store ids (indices) only.
