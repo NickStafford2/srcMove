@@ -8,9 +8,7 @@
  */
 #include <cctype>
 #include <iostream>
-#include <optional>
 #include <string>
-#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -18,220 +16,16 @@
 // #define NDEBUG
 #include <cassert>
 
-// #include "move_match.hpp"
 #include "move_candidate.hpp"
+#include "move_region.hpp"
 #include "move_registry.hpp"
 #include "pipeline.hpp"
 #include "srcml_node.hpp"
+#include "srcml_reader.hpp"
 #include "srcml_writer.hpp"
 #include "xpath_builder.hpp"
 
 namespace srcmove {
-
-// -----------------------------------------
-// 1) Region model collected from srcDiff
-// -----------------------------------------
-struct diff_region {
-  move_candidate::Kind kind;
-  std::string filename;
-
-  std::size_t start_idx = 0; // node stream index of START tag
-  std::size_t end_idx = 0;   // node stream index of END tag
-
-  std::string full_text;  // reader.get_current_inner_text() at START
-  std::uint64_t hash = 0; // hash(full_text) (optional for filtering)
-
-  // nesting metadata
-  std::size_t parent_id = static_cast<std::size_t>(-1);
-  std::uint32_t depth = 0;
-  bool has_diff_child = false;
-
-  bool pre_marked = false;
-  std::uint32_t existing_move_id = 0; // 0 means none/unknown
-};
-
-static constexpr std::size_t kNoParent = static_cast<std::size_t>(-1);
-
-static std::optional<move_candidate::Kind>
-diff_kind_from_full_name(std::string_view fn) {
-  if (fn == "diff:insert")
-    return move_candidate::Kind::insert;
-  if (fn == "diff:delete")
-    return move_candidate::Kind::del;
-  return std::nullopt;
-}
-
-static bool any_non_ws(std::string_view s) {
-  for (unsigned char c : s) {
-    if (!std::isspace(c))
-      return true;
-  }
-  return false;
-}
-
-// -----------------------------------------
-// 2) Collect ALL diff regions (nested-safe)
-// -----------------------------------------
-static std::vector<diff_region> collect_all_regions(srcml_reader &reader) {
-  std::vector<diff_region> regions;
-  regions.reserve(256);
-
-  std::string current_file;
-
-  // Stack of open region ids (index into `regions`).
-  std::vector<std::size_t> open;
-  open.reserve(64);
-
-  std::size_t node_index = 0;
-  for (const srcml_node &node : reader) {
-
-    // Track unit filename as you did before.
-    if (node.is_start() && node.name == "unit") {
-      if (const std::string *f = node.get_attribute_value("filename"))
-        current_file = *f;
-      else
-        current_file.clear();
-    }
-
-    const std::string fn = node.full_name();
-
-    // START diff region
-    if (node.is_start()) {
-      if (auto k = diff_kind_from_full_name(fn)) {
-        const std::size_t parent = open.empty() ? kNoParent : open.back();
-        const std::uint32_t depth = static_cast<std::uint32_t>(open.size());
-
-        if (parent != kNoParent) {
-          regions[parent].has_diff_child = true;
-        }
-
-        diff_region r;
-        r.kind = *k;
-        r.filename = current_file;
-        r.start_idx = node_index;
-        r.end_idx = 0;
-        r.full_text = reader.get_current_inner_text();
-        r.hash = move_candidate::fast_hash_raw(r.full_text);
-        r.parent_id = parent;
-        r.depth = depth;
-
-        const std::string *mv = node.get_attribute_value("move");
-        if (mv) {
-          r.pre_marked = true;
-          // best-effort parse (ignore parse errors by leaving 0)
-          try {
-            r.existing_move_id = static_cast<std::uint32_t>(std::stoul(*mv));
-          } catch (...) {
-            r.existing_move_id = 0;
-          }
-        }
-
-        regions.push_back(std::move(r));
-        open.push_back(regions.size() - 1);
-      }
-    }
-
-    // END diff region
-    if (node.is_end()) {
-      if (auto k = diff_kind_from_full_name(fn)) {
-        assert(!open.empty() && "diff end without start");
-        const std::size_t rid = open.back();
-        open.pop_back();
-
-        // Validate nesting structure: end tag should match the last opened
-        // kind.
-        assert(regions[rid].kind == *k && "diff nesting mismatch");
-        assert(regions[rid].end_idx == 0 && "region already closed");
-        regions[rid].end_idx = node_index;
-      }
-    }
-
-    ++node_index;
-  }
-
-  assert(open.empty() && "diff region never closed (missing end tag?)");
-
-#ifndef NDEBUG
-  for (const auto &r : regions) {
-    assert(r.end_idx != 0 && "diff region never closed (missing end tag?)");
-  }
-#endif
-
-  return regions;
-}
-
-// -----------------------------------------
-// 3) Filtering policy (choose move units)
-// -----------------------------------------
-enum class region_filter_policy {
-  leaf_only,      // regions with no diff children (usually best for moves)
-  top_level_only, // parent == none (outer wrappers / hunks)
-  all_regions     // everything
-};
-
-struct region_filter_options {
-  region_filter_policy policy = region_filter_policy::leaf_only;
-  // Common practical filters:
-  bool drop_whitespace_only = true;
-  bool skip_pre_marked = true;
-  std::size_t min_chars = 1; // after whitespace-only check (still raw chars)
-};
-
-// Converts selected diff_region -> move_candidate for registry.
-// (Registry doesn’t need nesting fields; it just needs text + span + file.)
-static std::vector<move_candidate>
-filter_regions_for_registry(const std::vector<diff_region> &regions,
-                            const region_filter_options &opt) {
-  std::vector<move_candidate> out;
-  out.reserve(regions.size());
-
-  for (const auto &r : regions) {
-    if (opt.skip_pre_marked && r.pre_marked)
-      continue;
-
-    bool keep = false;
-    switch (opt.policy) {
-    case region_filter_policy::leaf_only:
-      keep = !r.has_diff_child;
-      break;
-    case region_filter_policy::top_level_only:
-      keep = (r.parent_id == kNoParent);
-      break;
-    case region_filter_policy::all_regions:
-      keep = true;
-      break;
-    }
-
-    if (!keep)
-      continue;
-
-    if (opt.drop_whitespace_only && !any_non_ws(r.full_text))
-      continue;
-    if (r.full_text.size() < opt.min_chars)
-      continue;
-
-    move_candidate c(r.kind, r.start_idx, r.filename, r.full_text);
-    c.end_idx = r.end_idx; // preserve the true close position
-    out.push_back(std::move(c));
-  }
-
-  return out;
-}
-
-// -----------------------------------------
-// 4) Public entry: your existing signature
-// -----------------------------------------
-std::vector<move_candidate> collect_regions(srcml_reader &reader) {
-  // Default behavior: leaf-only move units, drop whitespace-only.
-  auto regions = collect_all_regions(reader);
-
-  region_filter_options opt;
-  opt.policy = region_filter_policy::leaf_only;
-  opt.drop_whitespace_only = true;
-  opt.min_chars = 1;
-
-  return filter_regions_for_registry(regions, opt);
-}
 
 move_registry build_registry(std::vector<move_candidate> &candidates) {
 
@@ -301,6 +95,7 @@ static tag_map build_move_tags(const move_registry &mr,
 static void write_with_move_annotations(const std::string &in_filename,
                                         const std::string &out_filename,
                                         const tag_map &tags) {
+
   srcml_reader reader(in_filename);
   srcml_writer writer(out_filename);
   xpath_builder xb;
