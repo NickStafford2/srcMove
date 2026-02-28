@@ -10,14 +10,9 @@
 #ifndef INCLUDED_MOVE_PIPELINE_HPP
 #define INCLUDED_MOVE_PIPELINE_HPP
 
-#include <vector>
-
-#include "move_candidate.hpp"
-#include "srcml_reader.hpp"
+#include <string>
 
 namespace srcmove {
-
-std::vector<move_candidate> collect_regions(srcml_reader &reader);
 
 void run_pipeline(const std::string &srcdiff_in_filename,
                   const std::string &srcdiff_out_filename);
