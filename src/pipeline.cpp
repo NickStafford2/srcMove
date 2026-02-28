@@ -6,8 +6,12 @@
  *
  * This file is part of the srcDiff Infrastructure.
  */
+#include <cctype>
 #include <iostream>
+#include <optional>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 // uncomment to disable assert()
@@ -24,19 +28,61 @@
 
 namespace srcmove {
 
-std::vector<move_candidate> collect_regions(srcml_reader &reader) {
-  std::vector<move_candidate> out;
+// -----------------------------------------
+// 1) Region model collected from srcDiff
+// -----------------------------------------
+struct diff_region {
+  move_candidate::Kind kind;
+  std::string filename;
+
+  std::size_t start_idx = 0; // node stream index of START tag
+  std::size_t end_idx = 0;   // node stream index of END tag
+
+  std::string full_text;  // reader.get_current_inner_text() at START
+  std::uint64_t hash = 0; // hash(full_text) (optional for filtering)
+
+  // nesting metadata
+  std::size_t parent_id = static_cast<std::size_t>(-1);
+  std::uint32_t depth = 0;
+  bool has_diff_child = false;
+};
+
+static constexpr std::size_t kNoParent = static_cast<std::size_t>(-1);
+
+static std::optional<move_candidate::Kind>
+diff_kind_from_full_name(std::string_view fn) {
+  if (fn == "diff:insert")
+    return move_candidate::Kind::insert;
+  if (fn == "diff:delete")
+    return move_candidate::Kind::del;
+  return std::nullopt;
+}
+
+static bool any_non_ws(std::string_view s) {
+  for (unsigned char c : s) {
+    if (!std::isspace(c))
+      return true;
+  }
+  return false;
+}
+
+// -----------------------------------------
+// 2) Collect ALL diff regions (nested-safe)
+// -----------------------------------------
+static std::vector<diff_region> collect_all_regions(srcml_reader &reader) {
+  std::vector<diff_region> regions;
+  regions.reserve(256);
+
   std::string current_file;
 
-  int insert_depth = 0;
-  int delete_depth = 0;
+  // Stack of open region ids (index into `regions`).
+  std::vector<std::size_t> open;
+  open.reserve(64);
 
-  std::vector<std::size_t> insert_starts;
-  std::vector<std::size_t> delete_starts;
-
-  std::size_t i = 0;
+  std::size_t node_index = 0;
   for (const srcml_node &node : reader) {
 
+    // Track unit filename as you did before.
     if (node.is_start() && node.name == "unit") {
       if (const std::string *f = node.get_attribute_value("filename"))
         current_file = *f;
@@ -44,78 +90,140 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
         current_file.clear();
     }
 
-    // START insert
-    if (node.is_start() && node.full_name() == "diff:insert") {
-      assert(delete_depth == 0 && "insert inside delete (not handled yet?)");
+    const std::string fn = node.full_name();
 
-      insert_depth++;
-      insert_starts.push_back(i);
+    // START diff region
+    if (node.is_start()) {
+      if (auto k = diff_kind_from_full_name(fn)) {
+        const std::size_t parent = open.empty() ? kNoParent : open.back();
+        const std::uint32_t depth = static_cast<std::uint32_t>(open.size());
 
-      move_candidate x(move_candidate::Kind::insert, i, current_file,
-                       reader.get_current_inner_text());
-      out.push_back(x);
-    }
-
-    // END insert
-    if (node.is_end() && node.full_name() == "diff:insert") {
-      assert(insert_depth > 0 && "diff:insert end without start");
-      insert_depth--;
-
-      // find most recent insert region we opened and close it
-      for (auto rit = out.rbegin(); rit != out.rend(); ++rit) {
-        if (rit->kind == move_candidate::Kind::insert && rit->end_idx == 0) {
-          rit->end_idx = i;
-          break;
+        if (parent != kNoParent) {
+          regions[parent].has_diff_child = true;
         }
+
+        diff_region r;
+        r.kind = *k;
+        r.filename = current_file;
+        r.start_idx = node_index;
+        r.end_idx = 0;
+        r.full_text = reader.get_current_inner_text();
+        r.hash = move_candidate::fast_hash_raw(r.full_text);
+        r.parent_id = parent;
+        r.depth = depth;
+
+        regions.push_back(std::move(r));
+        open.push_back(regions.size() - 1);
       }
     }
 
-    // START delete
-    if (node.is_start() && node.full_name() == "diff:delete") {
-      assert(insert_depth == 0 && "delete inside insert (not handled yet?)");
+    // END diff region
+    if (node.is_end()) {
+      if (auto k = diff_kind_from_full_name(fn)) {
+        assert(!open.empty() && "diff end without start");
+        const std::size_t rid = open.back();
+        open.pop_back();
 
-      delete_depth++;
-      delete_starts.push_back(i);
-
-      move_candidate x(move_candidate::Kind::del, i, current_file,
-                       reader.get_current_inner_text());
-      out.push_back(x);
-    }
-
-    // END delete
-    if (node.is_end() && node.full_name() == "diff:delete") {
-      assert(delete_depth > 0 && "diff:delete end without start");
-      delete_depth--;
-
-      for (auto rit = out.rbegin(); rit != out.rend(); ++rit) {
-        if (rit->kind == move_candidate::Kind::del && rit->end_idx == 0) {
-          rit->end_idx = i;
-          break;
-        }
+        // Validate nesting structure: end tag should match the last opened
+        // kind.
+        assert(regions[rid].kind == *k && "diff nesting mismatch");
+        assert(regions[rid].end_idx == 0 && "region already closed");
+        regions[rid].end_idx = node_index;
       }
     }
 
-    ++i;
+    ++node_index;
   }
 
-  assert(insert_depth == 0 && delete_depth == 0);
+  assert(open.empty() && "diff region never closed (missing end tag?)");
 
-  // ensure all regions closed
-  for (const auto &r : out) {
-    assert(r.end_idx != 0 && "region never closed (end tag missing?)");
+#ifndef NDEBUG
+  for (const auto &r : regions) {
+    assert(r.end_idx != 0 && "diff region never closed (missing end tag?)");
+  }
+#endif
+
+  return regions;
+}
+
+// -----------------------------------------
+// 3) Filtering policy (choose move units)
+// -----------------------------------------
+enum class region_filter_policy {
+  leaf_only,      // regions with no diff children (usually best for moves)
+  top_level_only, // parent == none (outer wrappers / hunks)
+  all_regions     // everything
+};
+
+struct region_filter_options {
+  region_filter_policy policy = region_filter_policy::leaf_only;
+
+  // Common practical filters:
+  bool drop_whitespace_only = true;
+  std::size_t min_chars = 1; // after whitespace-only check (still raw chars)
+};
+
+// Converts selected diff_region -> move_candidate for registry.
+// (Registry doesn’t need nesting fields; it just needs text + span + file.)
+static std::vector<move_candidate>
+filter_regions_for_registry(const std::vector<diff_region> &regions,
+                            const region_filter_options &opt) {
+  std::vector<move_candidate> out;
+  out.reserve(regions.size());
+
+  for (const auto &r : regions) {
+    bool keep = false;
+    switch (opt.policy) {
+    case region_filter_policy::leaf_only:
+      keep = !r.has_diff_child;
+      break;
+    case region_filter_policy::top_level_only:
+      keep = (r.parent_id == kNoParent);
+      break;
+    case region_filter_policy::all_regions:
+      keep = true;
+      break;
+    }
+
+    if (!keep)
+      continue;
+
+    if (opt.drop_whitespace_only && !any_non_ws(r.full_text))
+      continue;
+    if (r.full_text.size() < opt.min_chars)
+      continue;
+
+    move_candidate c(r.kind, r.start_idx, r.filename, r.full_text);
+    c.end_idx = r.end_idx; // preserve the true close position
+    out.push_back(std::move(c));
   }
 
   return out;
 }
 
-move_registry build_registry(std::vector<move_candidate> &regions) {
+// -----------------------------------------
+// 4) Public entry: your existing signature
+// -----------------------------------------
+std::vector<move_candidate> collect_regions(srcml_reader &reader) {
+  // Default behavior: leaf-only move units, drop whitespace-only.
+  auto regions = collect_all_regions(reader);
+
+  region_filter_options opt;
+  opt.policy = region_filter_policy::leaf_only;
+  opt.drop_whitespace_only = true;
+  opt.min_chars = 1;
+
+  return filter_regions_for_registry(regions, opt);
+}
+
+move_registry build_registry(std::vector<move_candidate> &candidates) {
 
   move_registry mr;
-  mr.reserve(/*expected_deletes=*/regions.size(),
-             /*expected_inserts=*/regions.size());
+  mr.reserve(/*expected_deletes=*/candidates.size(),
+             /*expected_inserts=*/candidates.size());
 
   // Feed registry from collected regions
-  for (auto &r : regions) {
+  for (auto &r : candidates) {
     if (r.kind == move_candidate::Kind::del) {
       mr.add_delete(std::move(r));
     } else {
@@ -224,9 +332,16 @@ void run_pipeline(const std::string &srcdiff_in_filename,
                   const std::string &srcdiff_out_filename) {
   // first pass
   srcml_reader reader(srcdiff_in_filename);
-  auto regions = collect_regions(reader);
+  auto all = collect_all_regions(reader);
 
-  move_registry mr = build_registry(regions);
+  region_filter_options opt;
+  // or leaf_only / all_regions
+  opt.policy = region_filter_policy::leaf_only;
+  opt.drop_whitespace_only = true;
+  opt.min_chars = 1;
+
+  auto candidates = filter_regions_for_registry(all, opt);
+  move_registry mr = build_registry(candidates);
 
   debug_print_greedy_matches(mr);
 
