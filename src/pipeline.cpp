@@ -13,6 +13,7 @@
 #include "move_region.hpp"
 #include "move_registry.hpp"
 #include "pipeline.hpp"
+#include "region_filter.hpp"
 #include "srcml_reader.hpp"
 
 namespace srcmove {
