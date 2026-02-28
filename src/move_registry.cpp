@@ -17,7 +17,7 @@ namespace srcmove {
 void move_registry::clear() {
   deletes_.clear();
   inserts_.clear();
-  by_hash_.clear();
+  buckets_by_hash_.clear();
   groups_.clear();
 }
 
@@ -28,7 +28,7 @@ void move_registry::reserve(std::size_t expected_deletes,
 
   // Hash bucket count is data-dependent, but reserving a rough upper bound
   // helps avoid rehashing during ingestion.
-  by_hash_.reserve(expected_deletes + expected_inserts);
+  buckets_by_hash_.reserve(expected_deletes + expected_inserts);
 }
 
 move_registry::id_t move_registry::add_delete(move_candidate del) {
@@ -36,7 +36,7 @@ move_registry::id_t move_registry::add_delete(move_candidate del) {
   const std::uint64_t h = del.hash;
 
   deletes_.push_back(std::move(del));
-  auto &bucket = by_hash_[h];
+  auto &bucket = buckets_by_hash_[h];
   bucket.del_ids.push_back(id);
   return id;
 }
@@ -46,14 +46,14 @@ move_registry::id_t move_registry::add_insert(move_candidate ins) {
   const std::uint64_t h = ins.hash;
 
   inserts_.push_back(std::move(ins));
-  auto &bucket = by_hash_[h];
+  auto &bucket = buckets_by_hash_[h];
   bucket.ins_ids.push_back(id);
   return id;
 }
 
 void move_registry::finalize(bool confirm_text_equality) {
   // Group building is intentionally delegated to a separate module.
-  groups_ = build_groups_from_buckets(deletes_, inserts_, by_hash_,
+  groups_ = build_groups_from_buckets(deletes_, inserts_, buckets_by_hash_,
                                       confirm_text_equality);
 }
 
@@ -139,7 +139,7 @@ void move_registry::debug(std::ostream &os) const {
   os << "move_registry:\n";
   os << "  deletes: " << deletes_.size() << "\n";
   os << "  inserts: " << inserts_.size() << "\n";
-  os << "  hash buckets: " << by_hash_.size() << "\n";
+  os << "  hash buckets: " << buckets_by_hash_.size() << "\n";
   os << "  content groups: " << groups_.groups.size() << "\n";
 
   std::size_t move11 = 0, many = 0, delonly = 0, inonly = 0, copy = 0, amb = 0;

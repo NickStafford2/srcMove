@@ -113,7 +113,7 @@ private:
   std::vector<move_candidate> inserts_;
 
   // Build-time hash buckets.
-  std::unordered_map<std::uint64_t, hash_bucket> by_hash_;
+  std::unordered_map<std::uint64_t, hash_bucket> buckets_by_hash_;
 };
 
 move_registry build_move_registry(std::vector<move_candidate> &candidates);
