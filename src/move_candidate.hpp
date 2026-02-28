@@ -24,6 +24,9 @@ enum srcml_node_type : unsigned int { OTHER = 0, START = 1, END = 2, TEXT = 3 };
 class move_candidate {
 public:
   enum class Kind { insert, del };
+
+  move_candidate(Kind kind, std::size_t start_idx, std::string filename,
+                 std::string full_text);
   Kind kind;
   std::string filename; // from unit@filename
   std::string xpath;

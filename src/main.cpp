@@ -54,13 +54,8 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
       insert_depth++;
       insert_starts.push_back(i);
 
-      move_candidate x;
-      x.kind = move_candidate::Kind::insert;
-      x.start_idx = i;
-      x.end_idx = 0;
-      x.filename = current_file;
-      x.full_text = reader.get_current_inner_text();
-      x.hash = move_candidate::fast_hash_raw(x.full_text);
+      move_candidate x(move_candidate::Kind::insert, i, current_file,
+                       reader.get_current_inner_text());
       out.push_back(x);
     }
 
@@ -85,13 +80,8 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
       delete_depth++;
       delete_starts.push_back(i);
 
-      move_candidate x;
-      x.kind = move_candidate::Kind::del;
-      x.start_idx = i;
-      x.end_idx = 0;
-      x.filename = current_file;
-      x.full_text = reader.get_current_inner_text();
-      x.hash = move_candidate::fast_hash_raw(x.full_text);
+      move_candidate x(move_candidate::Kind::del, i, current_file,
+                       reader.get_current_inner_text());
       out.push_back(x);
     }
 

@@ -10,6 +10,7 @@
 #include <cstddef>
 #include <sstream>
 #include <string_view>
+#include <utility> // std::move
 
 #include "move_candidate.hpp"
 
@@ -20,6 +21,14 @@ static std::size_t hash_combine(std::size_t seed, std::size_t v) noexcept {
   seed ^= v + 0x9e3779b97f4a7c15ULL + (seed << 6) + (seed >> 2);
   return seed;
 }
+
+move_candidate::move_candidate(Kind k, std::size_t start, std::string file,
+                               std::string text)
+    : kind(k), filename(std::move(file)), xpath(), full_name(),
+      sibling_index(0), start_index(0), start_idx(start), end_idx(0),
+      full_text(std::move(text)),
+      hash(move_candidate::fast_hash_raw(full_text)) {}
+
 bool move_candidate::operator==(const move_candidate &other) const {
   // return type == other.type && name == node.name && content == node.content;
   return full_name == other.full_name;
