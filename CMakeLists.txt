@@ -97,3 +97,29 @@ target_link_libraries(srcdiff_highlight PRIVATE
 set_target_properties(srcdiff_highlight PROPERTIES
   BUILD_RPATH "${SRCREADER_ROOT}/build/bin;${SRCML_INSTALL_PREFIX}/lib"
 )
+
+# ---- Debug tool: srcdiff_highlight_pos ----
+add_executable(srcdiff_highlight_pos
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/tools/srcdiff_highlight_pos.cpp"
+)
+
+target_include_directories(srcdiff_highlight_pos PRIVATE
+  "${SRCREADER_ROOT}/src"
+  "${SRCML_INSTALL_PREFIX}/include"
+  ${LIBXML2_INCLUDE_DIR}
+)
+
+target_link_directories(srcdiff_highlight_pos PRIVATE
+  "${SRCREADER_ROOT}/build/bin"
+  "${SRCML_INSTALL_PREFIX}/lib"
+)
+
+target_link_libraries(srcdiff_highlight_pos PRIVATE
+  srcreader
+  srcml
+  ${LIBXML2_LIBRARIES}
+)
+
+set_target_properties(srcdiff_highlight_pos PROPERTIES
+  BUILD_RPATH "${SRCREADER_ROOT}/build/bin;${SRCML_INSTALL_PREFIX}/lib"
+)

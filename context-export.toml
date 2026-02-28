@@ -21,6 +21,7 @@ important_files = [
   "context-export.toml",
   "CMakeLists.txt",
   "src/**/*.cpp",
+  "!src/tools/*.cpp",
   "src/**/*.hpp",
   # "tests/**/*.py",
 ]
