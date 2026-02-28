@@ -15,6 +15,7 @@
 #include <cassert>
 
 // #include "move_match.hpp"
+#include "move_candidate.hpp"
 #include "move_registry.hpp"
 #include "pipeline.hpp"
 #include "srcml_node.hpp"
@@ -105,8 +106,7 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
   return out;
 }
 
-void first_pass(srcml_reader &reader) {
-  auto regions = collect_regions(reader);
+move_registry build_registry(std::vector<move_candidate> &regions) {
 
   move_registry mr;
   mr.reserve(/*expected_deletes=*/regions.size(),
@@ -123,6 +123,13 @@ void first_pass(srcml_reader &reader) {
 
   // Build groups (does equality confirmation + dedupe grouping if enabled)
   mr.finalize(/*confirm_text_equality=*/true);
+  return mr;
+}
+
+void first_pass(srcml_reader &reader) {
+  auto regions = collect_regions(reader);
+
+  move_registry mr = build_registry(regions);
 
   // Debug/metrics about buckets/groups
   mr.debug(std::cout);
@@ -144,6 +151,37 @@ void first_pass(srcml_reader &reader) {
               << ins.filename << "  hash=" << d.hash
               << "  chars(del)=" << d.full_text.size()
               << "  chars(ins)=" << ins.full_text.size() << "\n";
+  }
+  // move_tag applied to the start tag of diff:insert/diff:delete
+  struct move_tag {
+    std::uint32_t move_id;
+    // xpath will be filled in pass 2 (stream-based)
+  };
+
+  std::unordered_map<std::size_t, move_tag> tag_by_start_idx;
+
+  // assign move ids only to groups that have both sides
+  std::uint32_t next_move_id = 1;
+
+  for (const auto &g : mr.groups()) {
+    if (g.del_count() == 0 || g.ins_count() == 0)
+      continue;
+
+    const std::uint32_t move_id = next_move_id++;
+
+    // apply to all deletes in this group
+    for (std::uint32_t di = g.del_begin; di < g.del_end; ++di) {
+      auto did = mr.group_del_ids_[di]; // private today
+      const auto &d = mr.deletes()[did];
+      tag_by_start_idx.emplace(d.start_idx, move_tag{move_id});
+    }
+
+    // apply to all inserts in this group
+    for (std::uint32_t ii = g.ins_begin; ii < g.ins_end; ++ii) {
+      auto iid = mr.group_ins_ids_[ii]; // private today
+      const auto &ins = mr.inserts()[iid];
+      tag_by_start_idx.emplace(ins.start_idx, move_tag{move_id});
+    }
   }
 }
 
