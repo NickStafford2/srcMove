@@ -30,7 +30,7 @@ public:
   Kind kind;
   std::string filename; // from unit@filename
   std::string xpath;
-  std::string full_name;     // full_name()
+  std::string full_name;
   std::size_t sibling_index; // 1-based for siblings with same name under parent
   std::size_t start_index;
   std::size_t start_idx;
