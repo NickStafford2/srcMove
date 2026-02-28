@@ -58,7 +58,7 @@ void move_registry::finalize(bool confirm_text_equality) {
 }
 
 move_registry::id_view
-move_registry::delete_ids(const content_group_view &g) const noexcept {
+move_registry::delete_ids(const content_group_compact &g) const noexcept {
   const id_t *b = groups_.group_del_ids.empty()
                       ? nullptr
                       : &groups_.group_del_ids[g.del_begin];
@@ -69,7 +69,7 @@ move_registry::delete_ids(const content_group_view &g) const noexcept {
 }
 
 move_registry::id_view
-move_registry::insert_ids(const content_group_view &g) const noexcept {
+move_registry::insert_ids(const content_group_compact &g) const noexcept {
   const id_t *b = groups_.group_ins_ids.empty()
                       ? nullptr
                       : &groups_.group_ins_ids[g.ins_begin];

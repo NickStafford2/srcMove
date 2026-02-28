@@ -77,7 +77,7 @@ public:
     return inserts_;
   }
 
-  const std::vector<content_group_view> &groups() const noexcept {
+  const std::vector<content_group_compact> &groups() const noexcept {
     return groups_.groups;
   }
 
@@ -94,8 +94,8 @@ public:
     const id_t &operator[](std::size_t i) const noexcept { return b[i]; }
   };
 
-  id_view delete_ids(const content_group_view &g) const noexcept;
-  id_view insert_ids(const content_group_view &g) const noexcept;
+  id_view delete_ids(const content_group_compact &g) const noexcept;
+  id_view insert_ids(const content_group_compact &g) const noexcept;
 
   std::vector<move_match> match_greedy_1_to_1() const;
 
@@ -107,7 +107,7 @@ public:
   void print_greedy_matches(std::ostream &os) const;
 
 private:
-  move_groups groups_;
+  content_group_storage groups_;
 
   std::vector<move_candidate> deletes_;
   std::vector<move_candidate> inserts_;

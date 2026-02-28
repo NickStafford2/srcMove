@@ -35,7 +35,7 @@ enum class group_kind : std::uint8_t {
  * The group does not store ids directly; instead it stores index ranges into
  * the flat arrays in move_groups.
  */
-struct content_group_view {
+struct content_group_compact {
   std::uint64_t content_hash = 0; // primary bucket key (fast_hash_raw)
   std::uint32_t group_id = 0;     // stable id within a build result
 
@@ -58,10 +58,10 @@ struct content_group_view {
  *
  * groups[i] references ranges inside group_del_ids / group_ins_ids.
  */
-struct move_groups {
+struct content_group_storage {
   std::vector<candidate_id> group_del_ids;
   std::vector<candidate_id> group_ins_ids;
-  std::vector<content_group_view> groups;
+  std::vector<content_group_compact> groups;
 
   void clear() {
     group_del_ids.clear();
