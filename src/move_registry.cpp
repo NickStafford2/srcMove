@@ -329,4 +329,24 @@ void move_registry::print_greedy_matches(std::ostream &os) const {
   }
 }
 
+move_registry build_registry(std::vector<move_candidate> &candidates) {
+
+  move_registry mr;
+  mr.reserve(/*expected_deletes=*/candidates.size(),
+             /*expected_inserts=*/candidates.size());
+
+  // Feed registry from collected regions
+  for (auto &r : candidates) {
+    if (r.kind == move_candidate::Kind::del) {
+      mr.add_delete(std::move(r));
+    } else {
+      mr.add_insert(std::move(r));
+    }
+  }
+
+  // Build groups (does equality confirmation + dedupe grouping if enabled)
+  mr.finalize(/*confirm_text_equality=*/true);
+  return mr;
+}
+
 } // namespace srcmove

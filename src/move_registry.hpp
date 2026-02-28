@@ -195,6 +195,8 @@ private:
                  const std::vector<id_t> &ins_ids);
 };
 
+move_registry build_registry(std::vector<move_candidate> &candidates);
+
 } // namespace srcmove
 
 #endif
