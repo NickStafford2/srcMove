@@ -195,9 +195,10 @@ static void write_with_move_annotations(const std::string &in_filename,
   }
 }
 
-void run_pipeline(const std::string &srcdiff_filename) {
+void run_pipeline(const std::string &srcdiff_in_filename,
+                  const std::string &srcdiff_out_filename) {
   // first pass
-  srcml_reader reader(srcdiff_filename);
+  srcml_reader reader(srcdiff_in_filename);
   auto regions = collect_regions(reader);
 
   move_registry mr = build_registry(regions);
@@ -227,10 +228,8 @@ void run_pipeline(const std::string &srcdiff_filename) {
   // Assign move ids per group and write annotated output
   const auto tags = build_move_tags(mr);
 
-  const std::string out_filename = "diff_new.xml";
-
   // second pass
-  write_with_move_annotations(srcdiff_filename, out_filename, tags);
+  write_with_move_annotations(srcdiff_in_filename, srcdiff_out_filename, tags);
 }
 
 } // namespace srcmove

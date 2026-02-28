@@ -11,19 +11,18 @@
 #include <string>
 
 #include "pipeline.hpp"
-#include "srcml_reader.hpp"
 
 int main(int argc, char **argv) {
-  if (argc != 2) {
-    std::cerr << "usage: " << argv[0] << " <srcdiff.xml>\n";
+  if (argc != 2 && argc != 3) {
+    std::cerr << "usage: " << argv[0] << " <srcdiff.xml> [out.xml]\n";
     return 1;
   }
 
-  std::string filename = argv[1];
+  const std::string in_filename = argv[1];
+  const std::string out_filename = (argc == 3) ? argv[2] : "diff_new.xml";
 
   try {
-    srcml_reader reader(filename);
-    srcmove::run_pipeline(argv[1]);
+    srcmove::run_pipeline(in_filename, out_filename);
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
     return 2;
