@@ -6,6 +6,9 @@
  *
  * This file is part of the srcDiff Infrastructure.
  */
+
+#ifndef INCLUDED_MOVE_REGION_HPP
+#define INCLUDED_MOVE_REGION_HPP
 #include <cctype>
 #include <string>
 #include <vector>
@@ -65,3 +68,5 @@ std::vector<diff_region> collect_all_regions(srcml_reader &reader);
 std::vector<move_candidate> collect_regions(srcml_reader &reader);
 
 } // namespace srcmove
+
+#endif
