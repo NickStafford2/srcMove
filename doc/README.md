@@ -16,8 +16,7 @@ srcReader
   Pass 2 
     mark all moves and add attributes
 
-  I think I can do it with two passes. Maybe three if I need information on surrounding node context
-    Type 1 and Type 2 moves
+  Type 1 and Type 2 moves
 
 
 # Psychological Considerations
