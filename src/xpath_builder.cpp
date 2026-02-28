@@ -2,12 +2,12 @@
 /**
  * @file xpath_builder.cpp
  */
-#include "xpath_builder.hpp"
 #include <string>
 #include <unordered_map>
 #include <vector>
 
 #include "srcml_node.hpp"
+#include "xpath_builder.hpp"
 
 void xpath_builder::on_node(const srcml_node &node) {
   if (node.is_start())
