@@ -125,7 +125,7 @@ void first_pass(srcml_reader &reader) {
   mr.finalize(/*confirm_text_equality=*/true);
 
   // Debug/metrics about buckets/groups (optional)
-  // mr.debug(std::cout);
+  mr.debug(std::cout);
 
   // FAST baseline: 1-to-1 consumption inside each content group
   auto matches = mr.match_greedy_1_to_1();
