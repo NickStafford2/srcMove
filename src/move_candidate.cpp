@@ -6,9 +6,12 @@
  *
  * This file is part of the srcDiff Infrastructure.
  */
-#include "move_candidate.hpp"
 
+#include <cstddef>
 #include <sstream>
+#include <string_view>
+
+#include "move_candidate.hpp"
 
 namespace srcmove {
 
@@ -28,6 +31,22 @@ std::string move_candidate::debug_id() const {
       << "page_position.second"
       << " chars=" << "number_of_characters";
   return oss.str();
+}
+
+// 64-bit FNV-1a
+std::uint64_t move_candidate::fast_hash_raw(std::string_view s) {
+  std::uint64_t hash = 14695981039346656037ull; // offset basis
+
+  for (unsigned char c : s) {
+    hash ^= static_cast<std::uint64_t>(c);
+    hash *= 1099511628211ull; // FNV prime
+  }
+
+  return hash;
+}
+
+std::ostream &operator<<(std::ostream &os, const move_candidate &r) {
+  return os << "xpath=" << r.xpath;
 }
 
 } // namespace srcmove

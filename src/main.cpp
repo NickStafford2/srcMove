@@ -10,7 +10,6 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
-#include <string_view>
 #include <unordered_map>
 #include <vector>
 
@@ -27,18 +26,6 @@
 #include "srcml_reader.hpp"
 
 namespace srcmove {
-
-// 64-bit FNV-1a
-inline std::uint64_t fast_hash_raw(std::string_view s) noexcept {
-  std::uint64_t hash = 14695981039346656037ull; // offset basis
-
-  for (unsigned char c : s) {
-    hash ^= static_cast<std::uint64_t>(c);
-    hash *= 1099511628211ull; // FNV prime
-  }
-
-  return hash;
-}
 
 std::vector<move_candidate> collect_regions(srcml_reader &reader) {
   std::vector<move_candidate> out;
@@ -64,9 +51,6 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
     if (node.is_start() && node.full_name() == "diff:insert") {
       assert(delete_depth == 0 && "insert inside delete (not handled yet?)");
 
-      std::string raw = reader.get_current_inner_text(); // capture subtree text
-      std::uint64_t h = fast_hash_raw(raw);
-
       insert_depth++;
       insert_starts.push_back(i);
 
@@ -76,8 +60,7 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
       x.end_idx = 0;
       x.filename = current_file;
       x.full_text = reader.get_current_inner_text();
-      x.hash = fast_hash_raw(x.full_text);
-
+      x.hash = move_candidate::fast_hash_raw(x.full_text);
       out.push_back(x);
     }
 
@@ -108,7 +91,7 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
       x.end_idx = 0;
       x.filename = current_file;
       x.full_text = reader.get_current_inner_text();
-      x.hash = fast_hash_raw(x.full_text);
+      x.hash = move_candidate::fast_hash_raw(x.full_text);
       out.push_back(x);
     }
 

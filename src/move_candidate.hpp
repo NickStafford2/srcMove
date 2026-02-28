@@ -14,6 +14,7 @@
 #include <cstdint>
 #include <iostream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 
 namespace srcmove {
@@ -41,14 +42,13 @@ public:
   bool operator==(const move_candidate &other) const;
 
   std::string debug_id() const;
+  static std::uint64_t fast_hash_raw(std::string_view s);
 
 private:
   std::unordered_map<std::string, std::size_t> child_counts;
 };
 
-std::ostream &operator<<(std::ostream &os, const move_candidate &r) {
-  return os << "xpath=" << r.xpath;
-}
+std::ostream &operator<<(std::ostream &os, const move_candidate &r);
 
 /*
 locality of behavior
