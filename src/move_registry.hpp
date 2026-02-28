@@ -2,7 +2,7 @@
 /**
  * @file move_registry.hpp
  *
- * High-performance registry for move/copy candidate detection.
+ * Registry for move/copy candidate detection.
  *
  * Goals:
  *  - Minimize allocations and string copies
@@ -23,6 +23,10 @@
  *    full_text is a string_view or an interned string. This implementation
  *    assumes move_candidate owns full_text (std::string) as in your project.
  *
+ * Design goals:
+ *  - stable, contiguous storage for candidates (good locality)
+ *  - avoid materializing D×I pairs unless explicitly requested
+ *  - expose ligktweight "views" of grouped candidates for downstream scoring
  */
 
 #ifndef INCLUDED_MOVE_REGISTRY_HPP
@@ -30,9 +34,7 @@
 
 #include <cstdint>
 #include <iosfwd>
-#include <string_view>
 #include <unordered_map>
-#include <utility>
 #include <vector>
 
 #include "move_candidate.hpp"
@@ -55,9 +57,19 @@ enum class group_kind : std::uint8_t {
   ambiguous       // everything else / policy-specific
 };
 
+/**
+ * A compact view over one "content group".
+ *
+ * A content group represents candidates that share the same primary hash and,
+ * when exact matching is enabled, the same exact full_text.
+ *
+ * The group does not store ids directly; instead it stores index ranges into
+ * internal flat arrays (group_del_ids_ / group_ins_ids_). This keeps the group
+ * itself small and avoids iterator invalidation issues.
+ */
 struct content_group_view {
   std::uint64_t content_hash; // primary bucket key (fast_hash_raw)
-  std::uint32_t group_id;     // stable id within registry
+  std::uint32_t group_id;     // stable id within registry instance
 
   // ranges into internal vectors of ids (not iterators to avoid invalidation)
   std::uint32_t del_begin, del_end; // [begin, end)
@@ -81,21 +93,28 @@ public:
   // Clear all stored state.
   void clear();
 
-  // Optional: reserve to reduce allocations.
+  // Optional: reduce reallocations during ingestion.
   void reserve(std::size_t expected_deletes, std::size_t expected_inserts);
 
-  // Add candidates (registry owns them).
+  // Add candidates (the registry owns them).
   id_t add_delete(move_candidate del);
   id_t add_insert(move_candidate ins);
 
-  // Build internal grouping structures.
-  //
-  // confirm_text_equality:
-  //  - true  => split hash buckets into exact-text groups to avoid hash
-  //  collisions
-  //  - false => treat all same-hash as a single group (fastest, less accurate)
-  //
-  // After finalize(), groups() becomes valid until next clear()/finalize().
+  /**
+   * Build grouping structures from the ingested candidates.
+   *
+   * If confirm_text_equality is false, each hash bucket becomes one group.
+   * If true, each hash bucket is refined into exact-text subgroups, which
+   * prevents false matches due to hash collisions.
+   *
+   * After finalize(), groups() is valid until the next clear() or finalize().
+   *
+   * builds the internal grouping structure that all matching logic depends on
+   * It constructs:
+   *   group_del_ids_ (flat array of delete ids)
+   *   group_ins_ids_ (flat array of insert ids)
+   *   groups_        (vector of content_group_view)
+   */
   void finalize(bool confirm_text_equality = true);
 
   // Accessors for stored candidates (contiguous, stable until clear()).

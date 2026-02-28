@@ -1,18 +1,14 @@
+// SPDX-License-Identifier: GPL-3.0-only
 /**
  * @file move_registry.cpp
- *
- * @copyright Copyright (C) 2014-2024 SDML (www.srcDiff.org)
- *
- * This file is part of the srcDiff Infrastructure.
  */
-// SPDX-License-Identifier: GPL-3.0-only
+
 #include "move_registry.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <iostream>
-#include <string>
-#include <unordered_map>
+#include <string_view>
 #include <utility>
 
 namespace srcmove {
@@ -31,8 +27,10 @@ void move_registry::reserve(std::size_t expected_deletes,
                             std::size_t expected_inserts) {
   deletes_.reserve(expected_deletes);
   inserts_.reserve(expected_inserts);
-  // Buckets count is unknown; caller can still rely on vector reserves being
-  // the big win.
+
+  // Hash bucket count is data-dependent, but reserving a rough upper bound
+  // helps avoid rehashing during ingestion.
+  by_hash_.reserve(expected_deletes + expected_inserts);
 }
 
 move_registry::id_t move_registry::add_delete(move_candidate del) {
@@ -57,8 +55,10 @@ move_registry::id_t move_registry::add_insert(move_candidate ins) {
 
 group_kind move_registry::classify_counts(std::size_t del_count,
                                           std::size_t ins_count) {
-  if (del_count == 0 && ins_count == 0)
+  if (del_count == 0 && ins_count == 0) {
+    // A correctly-constructed group should never be empty on both sides.
     return group_kind::ambiguous;
+  }
   if (del_count > 0 && ins_count == 0)
     return group_kind::delete_only;
   if (del_count == 0 && ins_count > 0)
@@ -96,8 +96,15 @@ void move_registry::add_group(std::uint64_t content_hash,
 
   const group_kind kind = classify_counts(del_ids.size(), ins_ids.size());
 
-  groups_.push_back(content_group_view{content_hash, group_id, del_begin,
-                                       del_end, ins_begin, ins_end, kind});
+  groups_.push_back(content_group_view{
+      content_hash,
+      group_id,
+      del_begin,
+      del_end,
+      ins_begin,
+      ins_end,
+      kind,
+  });
 }
 
 void move_registry::finalize(bool confirm_text_equality) {
@@ -105,9 +112,10 @@ void move_registry::finalize(bool confirm_text_equality) {
   group_ins_ids_.clear();
   groups_.clear();
 
-  // If confirm_text_equality is false, each hash bucket becomes one group.
+  groups_.reserve(by_hash_.size());
+
+  // Fast path: one group per hash bucket.
   if (!confirm_text_equality) {
-    groups_.reserve(by_hash_.size());
     for (const auto &[h, bucket] : by_hash_) {
       add_group(h, bucket.del_ids, bucket.ins_ids);
     }
@@ -118,7 +126,9 @@ void move_registry::finalize(bool confirm_text_equality) {
   // Split each hash bucket into subgroups by exact full_text.
   //
   // To avoid copying strings, key on std::string_view referencing candidates'
-  // stored full_text. This is safe because deletes_/inserts_ own the strings.
+  // stored full_text.
+  // This is safe because deletes_/inserts_ own the strings for the lifetime of
+  // the registry (until clear()).
   struct sv_hash {
     std::size_t operator()(std::string_view s) const noexcept {
       // Use std::hash<string_view> (fast). For fewer collisions you can use
@@ -126,6 +136,8 @@ void move_registry::finalize(bool confirm_text_equality) {
       return std::hash<std::string_view>{}(s);
     }
   };
+
+  static const std::vector<id_t> kEmpty;
 
   for (const auto &[h, bucket] : by_hash_) {
     // Map exact content -> ids within this hash bucket.
@@ -151,6 +163,7 @@ void move_registry::finalize(bool confirm_text_equality) {
     std::unordered_map<std::string_view, bool, sv_hash> seen;
     seen.reserve(del_by_text.size() + ins_by_text.size());
 
+    // Build groups for delete keys first.
     for (auto &[text, dels] : del_by_text) {
       (void)seen.emplace(text, true);
       auto it = ins_by_text.find(text);
@@ -162,6 +175,7 @@ void move_registry::finalize(bool confirm_text_equality) {
       }
     }
 
+    // Then groups for insert-only keys.
     for (auto &[text, inss] : ins_by_text) {
       if (seen.find(text) != seen.end())
         continue;
@@ -169,6 +183,13 @@ void move_registry::finalize(bool confirm_text_equality) {
       add_group(h, empty, inss);
     }
   }
+
+#ifndef NDEBUG
+  // groups should never be empty on both sides.
+  for (const auto &g : groups_) {
+    assert(g.del_count() + g.ins_count() > 0);
+  }
+#endif
 }
 
 std::vector<move_match> move_registry::match_greedy_1_to_1() const {
@@ -191,6 +212,7 @@ std::vector<move_match> move_registry::match_greedy_1_to_1() const {
       out.push_back(move_match{did, iid});
     }
   }
+
   return out;
 }
 
@@ -256,6 +278,7 @@ void move_registry::debug(std::ostream &os) const {
       break;
     }
   }
+
   os << "  group kinds:\n";
   os << "    move_1_to_1: " << move11 << "\n";
   os << "    moves_many: " << many << "\n";
