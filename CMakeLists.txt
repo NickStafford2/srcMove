@@ -19,10 +19,7 @@ set(SRCML_INSTALL_PREFIX "${WORKSPACE_ROOT}/srcML-install" CACHE PATH "srcML ins
 # Dependencies
 find_package(LibXml2 REQUIRED)
 
-add_executable(srcMove
-  src/main.cpp
-  src/move_candidate.cpp
-)
+add_executable(srcMovesrc/main.cpp)
 
 target_include_directories(srcMove PRIVATE
   "${SRCREADER_ROOT}/src"
