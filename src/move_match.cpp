@@ -48,7 +48,7 @@ find_matching_regions(const std::vector<move_candidate> &regions) {
     for (; it != end; ++it) {
       const move_candidate *ins = it->second;
 
-      assert(d->full_text != ins->full_text && "HASH COLLISION!!!!");
+      assert(d->full_text == ins->full_text && "HASH COLLISION!!!!");
 
       matches.push_back(move_match{d, ins});
     }
