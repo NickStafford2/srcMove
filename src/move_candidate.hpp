@@ -52,20 +52,6 @@ private:
 };
 
 std::ostream &operator<<(std::ostream &os, const move_candidate &r);
-
-/*
-locality of behavior
-Use several factors to measure the confidence that something is a move.
-  assign points to each one.
-  can change values depending on user experience feedback.
-size of the move
-  small lines of code are more likely to be rewritten.
-  giant functions moved across files are almost certainly moves
-distance to move in the directory tree.
-distance to move on page. rows/columns  --position
-distance to move between blocks.
-Similarity of the two code segments.
-*/
 } // namespace srcmove
 
 #endif
