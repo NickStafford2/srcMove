@@ -42,6 +42,8 @@ find_matching_regions(const std::vector<move_candidate> &regions) {
 
   // For each delete, find candidate inserts
   for (const move_candidate *d : deletes) {
+    // it points to the first insert with matching hash
+    // end marks the stopping point
     auto [it, end] = inserts.equal_range(d->hash);
 
     // Check each candidate insert
