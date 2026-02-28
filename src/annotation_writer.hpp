@@ -13,15 +13,10 @@
 #include <string>
 #include <vector>
 
-#include "annotation_plan.hpp"
 #include "move_region.hpp"
 #include "move_registry.hpp"
 
 namespace srcmove {
-
-static void write_with_move_annotations(const std::string &in_filename,
-                                        const std::string &out_filename,
-                                        const tag_map &tags);
 
 void annotate(std::vector<diff_region> regions, move_registry mr,
               std::string srcdiff_in_filename,
