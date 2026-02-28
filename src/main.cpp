@@ -23,7 +23,7 @@ int main(int argc, char **argv) {
 
   try {
     srcml_reader reader(filename);
-    srcmove::first_pass(reader);
+    srcmove::run_pipeline(argv[1]);
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
     return 2;

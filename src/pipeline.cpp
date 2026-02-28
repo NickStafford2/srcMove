@@ -19,6 +19,8 @@
 #include "move_registry.hpp"
 #include "pipeline.hpp"
 #include "srcml_node.hpp"
+#include "srcml_writer.hpp"
+#include "xpath_builder.hpp"
 
 namespace srcmove {
 
@@ -126,7 +128,76 @@ move_registry build_registry(std::vector<move_candidate> &regions) {
   return mr;
 }
 
-void first_pass(srcml_reader &reader) {
+struct move_tag {
+  std::uint32_t move_id;
+};
+
+// Map: start_idx (node index where diff:insert/delete START occurs) -> move tag
+using tag_map = std::unordered_map<std::size_t, move_tag>;
+
+static tag_map build_move_tags(const move_registry &mr) {
+  tag_map tags;
+
+  std::uint32_t next_move_id = 1;
+
+  for (const auto &g : mr.groups()) {
+    if (g.del_count() == 0 || g.ins_count() == 0)
+      continue; // only groups with both sides get a move id
+
+    const std::uint32_t move_id = next_move_id++;
+
+    // Apply to all deletes in group
+    for (auto did : mr.delete_ids(g)) {
+      const auto &d = mr.deletes()[did];
+      tags.emplace(d.start_idx, move_tag{move_id});
+    }
+
+    // Apply to all inserts in group
+    for (auto iid : mr.insert_ids(g)) {
+      const auto &ins = mr.inserts()[iid];
+      tags.emplace(ins.start_idx, move_tag{move_id});
+    }
+  }
+
+  return tags;
+}
+
+static void write_with_move_annotations(const std::string &in_filename,
+                                        const std::string &out_filename,
+                                        const tag_map &tags) {
+  srcml_reader reader(in_filename);
+  srcml_writer writer(out_filename);
+  xpath_builder xb;
+
+  std::size_t i = 0;
+  for (const srcml_node &node : reader) {
+    xb.on_node(node);
+
+    // Patch only START tags of diff:insert / diff:delete when we have a tag.
+    if (node.is_start()) {
+      const auto fn = node.full_name();
+      if (fn == "diff:insert" || fn == "diff:delete") {
+        auto it = tags.find(i);
+        if (it != tags.end()) {
+          srcml_node patched =
+              node; // copy so we don't mutate reader-owned node
+          patched.set_attribute("move", std::to_string(it->second.move_id));
+          patched.set_attribute("xpath", xb.current_xpath());
+          writer.write(patched);
+          ++i;
+          continue;
+        }
+      }
+    }
+
+    writer.write(node);
+    ++i;
+  }
+}
+
+void run_pipeline(const std::string &srcdiff_filename) {
+  // first pass
+  srcml_reader reader(srcdiff_filename);
   auto regions = collect_regions(reader);
 
   move_registry mr = build_registry(regions);
@@ -152,37 +223,14 @@ void first_pass(srcml_reader &reader) {
               << "  chars(del)=" << d.full_text.size()
               << "  chars(ins)=" << ins.full_text.size() << "\n";
   }
-  // move_tag applied to the start tag of diff:insert/diff:delete
-  struct move_tag {
-    std::uint32_t move_id;
-    // xpath will be filled in pass 2 (stream-based)
-  };
 
-  std::unordered_map<std::size_t, move_tag> tag_by_start_idx;
+  // Assign move ids per group and write annotated output
+  const auto tags = build_move_tags(mr);
 
-  // assign move ids only to groups that have both sides
-  std::uint32_t next_move_id = 1;
+  const std::string out_filename = "diff_new.xml";
 
-  for (const auto &g : mr.groups()) {
-    if (g.del_count() == 0 || g.ins_count() == 0)
-      continue;
-
-    const std::uint32_t move_id = next_move_id++;
-
-    // apply to all deletes in this group
-    for (std::uint32_t di = g.del_begin; di < g.del_end; ++di) {
-      auto did = mr.group_del_ids_[di]; // private today
-      const auto &d = mr.deletes()[did];
-      tag_by_start_idx.emplace(d.start_idx, move_tag{move_id});
-    }
-
-    // apply to all inserts in this group
-    for (std::uint32_t ii = g.ins_begin; ii < g.ins_end; ++ii) {
-      auto iid = mr.group_ins_ids_[ii]; // private today
-      const auto &ins = mr.inserts()[iid];
-      tag_by_start_idx.emplace(ins.start_idx, move_tag{move_id});
-    }
-  }
+  // second pass
+  write_with_move_annotations(srcdiff_filename, out_filename, tags);
 }
 
 } // namespace srcmove

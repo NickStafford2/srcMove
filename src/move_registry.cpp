@@ -192,6 +192,22 @@ void move_registry::finalize(bool confirm_text_equality) {
 #endif
 }
 
+move_registry::id_view
+move_registry::delete_ids(const content_group_view &g) const noexcept {
+  const id_t *b =
+      group_del_ids_.empty() ? nullptr : &group_del_ids_[g.del_begin];
+  const id_t *e = group_del_ids_.empty() ? nullptr : &group_del_ids_[g.del_end];
+  return id_view{b, e};
+}
+
+move_registry::id_view
+move_registry::insert_ids(const content_group_view &g) const noexcept {
+  const id_t *b =
+      group_ins_ids_.empty() ? nullptr : &group_ins_ids_[g.ins_begin];
+  const id_t *e = group_ins_ids_.empty() ? nullptr : &group_ins_ids_[g.ins_end];
+  return id_view{b, e};
+}
+
 std::vector<move_match> move_registry::match_greedy_1_to_1() const {
   std::vector<move_match> out;
 

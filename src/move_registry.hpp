@@ -130,6 +130,22 @@ public:
     return groups_;
   }
 
+  // Lightweight view over a contiguous id range.
+  struct id_view {
+    const id_t *b = nullptr;
+    const id_t *e = nullptr;
+
+    const id_t *begin() const noexcept { return b; }
+    const id_t *end() const noexcept { return e; }
+    std::size_t size() const noexcept {
+      return static_cast<std::size_t>(e - b);
+    }
+    const id_t &operator[](std::size_t i) const noexcept { return b[i]; }
+  };
+
+  id_view delete_ids(const content_group_view &g) const noexcept;
+  id_view insert_ids(const content_group_view &g) const noexcept;
+
   // Fast baseline: within each content group, pair min(del_count, ins_count)
   // greedily in insertion order (1-to-1 consumption). O(total candidates).
   //
@@ -157,6 +173,7 @@ private:
   // groups_ refers into these arrays:
   std::vector<id_t> group_del_ids_;
   std::vector<id_t> group_ins_ids_;
+
   std::vector<content_group_view> groups_;
 
   // Owned candidates.

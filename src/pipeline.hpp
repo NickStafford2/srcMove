@@ -19,7 +19,7 @@ namespace srcmove {
 
 std::vector<move_candidate> collect_regions(srcml_reader &reader);
 
-void first_pass(srcml_reader &reader);
+void run_pipeline(const std::string &srcdiff_filename);
 
 } // namespace srcmove
 
