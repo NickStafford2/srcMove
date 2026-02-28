@@ -108,16 +108,16 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
 }
 
 void first_pass(srcml_reader &reader) {
-  auto regions = collect_regions(reader);
+  auto candidates = collect_regions(reader);
 
-  for (auto &r : regions) {
+  for (auto &r : candidates) {
     std::cout << (r.kind == move_candidate::Kind::insert ? "INS" : "DEL")
               << " [" << r.start_idx << "," << r.end_idx << "] " << r.filename
               << " hash=" << r.hash << "  raw.ins: '" << r.full_text << "'\n";
   }
 
   auto matches =
-      find_matching_regions_by_hash(regions, /*confirm_text_equality=*/true);
+      find_matching_regions_by_hash(candidates, /*confirm_text_equality=*/true);
 
   std::cout << "\n=== HASH MATCHES (DEL -> INS) ===\n";
   for (const auto &m : matches) {
