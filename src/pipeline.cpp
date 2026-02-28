@@ -108,7 +108,7 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
   return out;
 }
 
-std::vector<match>
+std::vector<move_match>
 find_matching_regions_by_hash(const std::vector<move_candidate> &regions,
                               bool confirm_text_equality) {
   std::unordered_multimap<std::uint64_t, const move_candidate *>
@@ -126,7 +126,7 @@ find_matching_regions_by_hash(const std::vector<move_candidate> &regions,
     }
   }
 
-  std::vector<match> matches;
+  std::vector<move_match> matches;
   matches.reserve(std::min(deletes.size(), inserts_by_hash.size()));
 
   for (const move_candidate *d : deletes) {
@@ -137,7 +137,7 @@ find_matching_regions_by_hash(const std::vector<move_candidate> &regions,
       if (confirm_text_equality && d->full_text != ins->full_text)
         continue;
 
-      matches.push_back(match{d, ins});
+      matches.push_back(move_match{d, ins});
     }
   }
   return matches;
