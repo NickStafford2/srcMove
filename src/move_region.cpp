@@ -19,7 +19,6 @@
 
 #include "move_candidate.hpp"
 #include "move_region.hpp"
-#include "pipeline.hpp"
 #include "srcml_node.hpp"
 
 namespace srcmove {
