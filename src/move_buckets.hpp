@@ -17,7 +17,7 @@ namespace srcmove {
 using candidate_id = std::uint32_t;
 
 // Hash bucket used during ingestion: ids only (indices into deletes/inserts).
-struct hash_bucket {
+struct bucket_ids {
   std::vector<candidate_id> del_ids;
   std::vector<candidate_id> ins_ids;
 };

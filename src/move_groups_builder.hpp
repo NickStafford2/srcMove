@@ -31,7 +31,7 @@ namespace srcmove {
 move_groups build_groups_from_buckets(
     const std::vector<move_candidate> &deletes,
     const std::vector<move_candidate> &inserts,
-    const std::unordered_map<std::uint64_t, hash_bucket> &by_hash,
+    const std::unordered_map<std::uint64_t, bucket_ids> &by_hash,
     bool confirm_text_equality);
 
 } // namespace srcmove

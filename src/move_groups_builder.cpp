@@ -71,7 +71,7 @@ static void add_group(move_groups &out, std::uint64_t content_hash,
 move_groups build_groups_from_buckets(
     const std::vector<move_candidate> &deletes,
     const std::vector<move_candidate> &inserts,
-    const std::unordered_map<std::uint64_t, hash_bucket> &by_hash,
+    const std::unordered_map<std::uint64_t, bucket_ids> &by_hash,
     bool confirm_text_equality) {
 
   move_groups out;
