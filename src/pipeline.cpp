@@ -45,6 +45,9 @@ struct diff_region {
   std::size_t parent_id = static_cast<std::size_t>(-1);
   std::uint32_t depth = 0;
   bool has_diff_child = false;
+
+  bool pre_marked = false;
+  std::uint32_t existing_move_id = 0; // 0 means none/unknown
 };
 
 static constexpr std::size_t kNoParent = static_cast<std::size_t>(-1);
@@ -112,6 +115,17 @@ static std::vector<diff_region> collect_all_regions(srcml_reader &reader) {
         r.parent_id = parent;
         r.depth = depth;
 
+        const std::string *mv = node.get_attribute_value("move");
+        if (mv) {
+          r.pre_marked = true;
+          // best-effort parse (ignore parse errors by leaving 0)
+          try {
+            r.existing_move_id = static_cast<std::uint32_t>(std::stoul(*mv));
+          } catch (...) {
+            r.existing_move_id = 0;
+          }
+        }
+
         regions.push_back(std::move(r));
         open.push_back(regions.size() - 1);
       }
@@ -157,9 +171,9 @@ enum class region_filter_policy {
 
 struct region_filter_options {
   region_filter_policy policy = region_filter_policy::leaf_only;
-
   // Common practical filters:
   bool drop_whitespace_only = true;
+  bool skip_pre_marked = true;
   std::size_t min_chars = 1; // after whitespace-only check (still raw chars)
 };
 
@@ -172,6 +186,9 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
   out.reserve(regions.size());
 
   for (const auto &r : regions) {
+    if (opt.skip_pre_marked && r.pre_marked)
+      continue;
+
     bool keep = false;
     switch (opt.policy) {
     case region_filter_policy::leaf_only:
@@ -243,10 +260,21 @@ struct move_tag {
 // Map: start_idx (node index where diff:insert/delete START occurs) -> move tag
 using tag_map = std::unordered_map<std::size_t, move_tag>;
 
-static tag_map build_move_tags(const move_registry &mr) {
+static std::uint32_t
+max_existing_move_id(const std::vector<diff_region> &regions) {
+  std::uint32_t mx = 0;
+  for (const auto &r : regions) {
+    if (r.pre_marked && r.existing_move_id > mx)
+      mx = r.existing_move_id;
+  }
+  return mx;
+}
+
+static tag_map build_move_tags(const move_registry &mr,
+                               std::uint32_t start_id) {
   tag_map tags;
 
-  std::uint32_t next_move_id = 1;
+  std::uint32_t next_move_id = start_id;
 
   for (const auto &g : mr.groups()) {
     if (g.del_count() == 0 || g.ins_count() == 0)
@@ -285,6 +313,17 @@ static void write_with_move_annotations(const std::string &in_filename,
     if (node.is_start()) {
       const auto fn = node.full_name();
       if (fn == "diff:insert" || fn == "diff:delete") {
+        // If srcDiff already marked it, never overwrite.
+        if (node.get_attribute_value("move")) {
+          srcml_node patched =
+              node; // copy so we don't mutate reader-owned node
+          // still write xpath, even if node already exists.
+          patched.set_attribute("xpath", xb.current_xpath());
+          writer.write(patched);
+          ++i;
+          continue;
+        }
+
         auto it = tags.find(i);
         if (it != tags.end()) {
           srcml_node patched =
@@ -332,21 +371,23 @@ void run_pipeline(const std::string &srcdiff_in_filename,
                   const std::string &srcdiff_out_filename) {
   // first pass
   srcml_reader reader(srcdiff_in_filename);
-  auto all = collect_all_regions(reader);
+  auto regions = collect_all_regions(reader);
 
   region_filter_options opt;
   // or leaf_only / all_regions
   opt.policy = region_filter_policy::leaf_only;
   opt.drop_whitespace_only = true;
+  opt.skip_pre_marked = true;
   opt.min_chars = 1;
 
-  auto candidates = filter_regions_for_registry(all, opt);
+  auto candidates = filter_regions_for_registry(regions, opt);
   move_registry mr = build_registry(candidates);
 
   debug_print_greedy_matches(mr);
 
   // Assign move ids per group and write annotated output
-  const auto tags = build_move_tags(mr);
+  std::uint32_t start_move_id = max_existing_move_id(regions) + 1;
+  const auto tags = build_move_tags(mr, start_move_id);
 
   // second pass
   write_with_move_annotations(srcdiff_in_filename, srcdiff_out_filename, tags);
