@@ -61,6 +61,8 @@ struct region_filter_options {
   std::size_t min_chars = 1; // after whitespace-only check (still raw chars)
 };
 
+region_filter_options get_default_filter_options();
+
 std::vector<move_candidate>
 filter_regions_for_registry(const std::vector<diff_region> &regions,
                             const region_filter_options &opt);

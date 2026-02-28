@@ -75,19 +75,10 @@ void run_pipeline(const std::string &srcdiff_in_filename,
   // first pass
   srcml_reader reader(srcdiff_in_filename);
   auto regions = collect_all_regions(reader);
-
-  region_filter_options opt;
-  // or leaf_only / all_regions
-  opt.policy = region_filter_policy::leaf_only;
-  opt.drop_whitespace_only = true;
-  opt.skip_pre_marked = true;
-  opt.min_chars = 1;
-
-  auto candidates = filter_regions_for_registry(regions, opt);
+  auto filter_options = get_default_filter_options();
+  auto candidates = filter_regions_for_registry(regions, filter_options);
   move_registry mr = build_registry(candidates);
-
   debug_print_greedy_matches(mr);
-
   annotate(regions, mr, srcdiff_in_filename, srcdiff_out_filename);
 }
 

@@ -172,6 +172,15 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
   return out;
 }
 
+region_filter_options get_default_filter_options() {
+  region_filter_options opt;
+  opt.policy = region_filter_policy::leaf_only;
+  opt.drop_whitespace_only = true;
+  opt.skip_pre_marked = true;
+  opt.min_chars = 1;
+  return opt;
+}
+
 std::vector<move_candidate> collect_regions(srcml_reader &reader) {
   // Default behavior: leaf-only move units, drop whitespace-only.
   auto regions = collect_all_regions(reader);
