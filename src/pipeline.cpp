@@ -115,7 +115,7 @@ void first_pass(srcml_reader &reader) {
   }
 
   auto matches =
-      find_matching_regions_by_hash(candidates, /*confirm_text_equality=*/true);
+      find_matching_regions(candidates, /*confirm_text_equality=*/true);
 
   std::cout << "\n=== HASH MATCHES (DEL -> INS) ===\n";
   for (const auto &m : matches) {
