@@ -30,35 +30,42 @@ Output is a new XML file (default: `diff_new.xml`) you can feed into downstream 
   - `srcReader` (sibling repository)
   - a built/installed `srcML` (expected at `srcML-install`)
 
-The project assumes a workspace layout like:
+### Recommended: use the workspace installer (SrcMLBuildTemplate)
 
+[SrcMLBuildTemplate](https://github.com/NickStafford2/SrcMLBuildTemplate)
+
+This project is designed to live inside a srcML workspace alongside its dependencies. While you can configure paths manually, the recommended setup is to use my installer repo, **SrcMLBuildTemplate**, which bootstraps a reproducible workspace.
+
+Typical layout:
+
+```text
+srcMLBuildTemplate/    # installer root (recommended)
+  srcML/
+  srcML-install/      # local srcML install prefix
+  srcReader/          # dependency
+  srcDiff/            # to generate input XML
+  srcMove/            # this repo
 ```
-WORKSPACE_ROOT/
-srcMove/           # this repo
-srcReader/         # dependency repo
-srcML-install/     # srcML install prefix (include/ and lib/)
 
-````
-
-You can override these paths at configure time (see below).
-
-### Build
-
+### Configure and build with CMake + Ninja:
 From the repository root:
 
 ```bash
-cmake -S . -B build
-cmake --build build -j
+cmake -S . -B build \
+  -G Ninja
+ninja -C build
 ````
 
 If your workspace layout differs, configure with:
 
 ```bash
 cmake -S . -B build \
+  -G Ninja \
   -DWORKSPACE_ROOT=/path/to/workspace \
   -DSRCREADER_ROOT=/path/to/srcReader \
   -DSRCML_INSTALL_PREFIX=/path/to/srcML-install
-cmake --build build -j
+
+ninja -C build
 ```
 
 ### Run
@@ -72,8 +79,6 @@ Optionally specify an output filename:
 ```bash
 ./build/srcMove path/to/srcdiff.xml out.xml
 ```
-
-If no output file is provided, `srcMove` writes `diff_new.xml` in the current working directory.
 
 ## Example: run against included tests
 
@@ -93,7 +98,7 @@ Or:
 
 Each `test/*/` directory contains an `original.cpp` and `modified.cpp` plus `diff.xml` (and in many cases an example `diff_new.xml`) to make it easy to see what changed.
 
-## How it works (high level)
+## How it works
 
 The pipeline (see `src/pipeline.cpp`) is intentionally simple and streaming-friendly:
 
@@ -135,6 +140,17 @@ This design keeps memory usage predictable and avoids generating the full D×I p
 * `xpath="<path>"` is written even if `move` already existed
 
 The produced output remains valid srcDiff XML and should be usable anywhere the original was used.
+
+```XML
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" language="C++" filename="test/simple/original.cpp|test/simple/modified.cpp"><function><type><name>int</name></type> <name>main</name><parameter_list>()</parameter_list> <block>{<block_content>
+<diff:delete><diff:ws>  </diff:ws><diff:delete move="1" xpath="/unit[1]/function[1]/block[1]/block_content[1]/diff:delete[1]/diff:delete[1]"><decl_stmt><decl><type><name>int</name></type><diff:ws> </diff:ws><name>first</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="number">123</literal></expr></init></decl>;</decl_stmt></diff:delete><diff:ws>
+</diff:ws></diff:delete>  <decl_stmt><decl><type><name>int</name></type> <name>second</name> <init>= <expr><literal type="number">456</literal></expr></init></decl>;</decl_stmt>
+<diff:insert><diff:ws>  </diff:ws><diff:insert move="1" xpath="/unit[1]/function[1]/block[1]/block_content[1]/diff:insert[1]/diff:insert[1]"><decl_stmt><decl><type><name>int</name></type><diff:ws> </diff:ws><name>first</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="number">123</literal></expr></init></decl>;</decl_stmt></diff:insert><diff:ws>
+</diff:ws></diff:insert>  <return>return <expr><literal type="number">0</literal></expr>;</return>
+</block_content>}</block></function>
+</unit>
+```
 
 ## Included developer tools
 
