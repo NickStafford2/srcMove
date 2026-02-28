@@ -28,6 +28,7 @@ find_matching_regions(const std::vector<move_candidate> &regions,
   std::vector<const move_candidate *> deletes;
   deletes.reserve(regions.size());
 
+  // Partition regions into inserts and deletes
   for (const auto &r : regions) {
     if (r.kind == move_candidate::Kind::insert) {
       inserts.emplace(r.hash, &r);
@@ -36,11 +37,15 @@ find_matching_regions(const std::vector<move_candidate> &regions,
     }
   }
 
+  // Prepare result vector
   std::vector<move_match> matches;
   matches.reserve(std::min(deletes.size(), inserts.size()));
 
+  // For each delete, find candidate inserts
   for (const move_candidate *d : deletes) {
     auto [it, end] = inserts.equal_range(d->hash);
+
+    // Check each candidate insert
     for (; it != end; ++it) {
       const move_candidate *ins = it->second;
 
