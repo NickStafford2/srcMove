@@ -10,10 +10,6 @@
 #include <string>
 #include <vector>
 
-// uncomment to disable assert()
-// #define NDEBUG
-#include <cassert>
-
 #include "annotation.hpp"
 #include "move_region.hpp"
 #include "move_registry.hpp"
