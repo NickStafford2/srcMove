@@ -97,7 +97,7 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
 
   assert(insert_depth == 0 && delete_depth == 0);
 
-  // sanity: ensure all regions closed
+  // ensure all regions closed
   for (const auto &r : out) {
     assert(r.end_idx != 0 && "region never closed (end tag missing?)");
   }
@@ -124,14 +124,12 @@ void first_pass(srcml_reader &reader) {
   // Build groups (does equality confirmation + dedupe grouping if enabled)
   mr.finalize(/*confirm_text_equality=*/true);
 
-  // Debug/metrics about buckets/groups (optional)
+  // Debug/metrics about buckets/groups
   mr.debug(std::cout);
 
   // FAST baseline: 1-to-1 consumption inside each content group
   auto matches = mr.match_greedy_1_to_1();
 
-  // If you want the “old output style” that prints raw pairs,
-  // you can print using ids -> candidate lookups:
   const auto &dels = mr.deletes();
   const auto &inss = mr.inserts();
 
