@@ -115,7 +115,7 @@ public:
    *   group_ins_ids_ (flat array of insert ids)
    *   groups_        (vector of content_group_view)
    */
-  void finalize(bool confirm_text_equality = true);
+  void build_content_groups(bool confirm_text_equality = true);
 
   // Accessors for stored candidates (contiguous, stable until clear()).
   const std::vector<move_candidate> &deletes() const noexcept {

@@ -107,7 +107,7 @@ void move_registry::add_group(std::uint64_t content_hash,
   });
 }
 
-void move_registry::finalize(bool confirm_text_equality) {
+void move_registry::build_content_groups(bool confirm_text_equality) {
   group_del_ids_.clear();
   group_ins_ids_.clear();
   groups_.clear();
@@ -345,7 +345,7 @@ move_registry build_move_registry(std::vector<move_candidate> &candidates) {
   }
 
   // Build groups (does equality confirmation + dedupe grouping if enabled)
-  mr.finalize(/*confirm_text_equality=*/true);
+  mr.build_content_groups(/*confirm_text_equality=*/true);
   return mr;
 }
 
