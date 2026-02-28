@@ -19,15 +19,6 @@ namespace srcmove {
 
 std::vector<move_candidate> collect_regions(srcml_reader &reader);
 
-struct move_match {
-  const move_candidate *del;
-  const move_candidate *ins;
-};
-
-std::vector<move_match>
-find_matching_regions_by_hash(const std::vector<move_candidate> &regions,
-                              bool confirm_text_equality = true);
-
 void first_pass(srcml_reader &reader);
 
 } // namespace srcmove
