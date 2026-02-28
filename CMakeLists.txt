@@ -21,6 +21,7 @@ find_package(LibXml2 REQUIRED)
 
 add_executable(srcMove
   src/main.cpp
+  src/move_candidate.cpp
 )
 
 target_include_directories(srcMove PRIVATE
