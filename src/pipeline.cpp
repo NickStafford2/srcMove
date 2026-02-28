@@ -14,9 +14,6 @@
 // #define NDEBUG
 #include <cassert>
 
-// Use (void) to silence unused warnings.
-#define assertm(exp, msg) assert((void(msg), exp))
-
 #include "move_match.hpp"
 #include "pipeline.hpp"
 #include "srcml_node.hpp"
@@ -114,8 +111,7 @@ void first_pass(srcml_reader &reader) {
     std::cout << r << "\n";
   }
 
-  auto matches =
-      find_matching_regions(candidates, /*confirm_text_equality=*/true);
+  auto matches = find_matching_regions(candidates);
 
   std::cout << "\n=== HASH MATCHES (DEL -> INS) ===\n";
   for (const auto &m : matches) {

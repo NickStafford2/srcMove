@@ -15,8 +15,7 @@
 namespace srcmove {
 
 std::vector<move_match>
-find_matching_regions(const std::vector<move_candidate> &regions,
-                      bool confirm_text_equality) {
+find_matching_regions(const std::vector<move_candidate> &regions) {
 
   // create data structure
   // It’s a multimap because:
@@ -49,8 +48,7 @@ find_matching_regions(const std::vector<move_candidate> &regions,
     for (; it != end; ++it) {
       const move_candidate *ins = it->second;
 
-      if (confirm_text_equality && d->full_text != ins->full_text)
-        continue;
+      assert(d->full_text != ins->full_text && "HASH COLLISION!!!!");
 
       matches.push_back(move_match{d, ins});
     }
