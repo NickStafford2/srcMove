@@ -19,7 +19,11 @@ set(SRCML_INSTALL_PREFIX "${WORKSPACE_ROOT}/srcML-install" CACHE PATH "srcML ins
 # Dependencies
 find_package(LibXml2 REQUIRED)
 
-add_executable(srcMovesrc/main.cpp)
+file(GLOB SRC_FILES CONFIGURE_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+)
+
+add_executable(srcMove ${SRC_FILES})
 
 target_include_directories(srcMove PRIVATE
   "${SRCREADER_ROOT}/src"
