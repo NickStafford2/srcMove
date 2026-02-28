@@ -48,4 +48,17 @@ find_matching_regions_by_hash(const std::vector<move_candidate> &regions,
   }
   return matches;
 }
+
+std::ostream &operator<<(std::ostream &os, const move_match &m) {
+
+  return os << "DEL [" << m.del->start_idx << "," << m.del->end_idx << "] "
+            << m.del->filename << "  ->  "
+            << "INS [" << m.ins->start_idx << "," << m.ins->end_idx << "] "
+            << m.ins->filename << "  hash=" << m.del->hash
+            << "  chars(del)=" << m.del->full_text.size()
+            << "  chars(ins)=" << m.ins->full_text.size() << "\n  raw.ins: '"
+            << m.ins->full_text << "'"
+            << "\n  raw.del: '" << m.del->full_text << "'"
+            << "\n";
+}
 }; // namespace srcmove

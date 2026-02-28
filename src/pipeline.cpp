@@ -119,15 +119,7 @@ void first_pass(srcml_reader &reader) {
 
   std::cout << "\n=== HASH MATCHES (DEL -> INS) ===\n";
   for (const auto &m : matches) {
-    std::cout << "DEL [" << m.del->start_idx << "," << m.del->end_idx << "] "
-              << m.del->filename << "  ->  "
-              << "INS [" << m.ins->start_idx << "," << m.ins->end_idx << "] "
-              << m.ins->filename << "  hash=" << m.del->hash
-              << "  chars(del)=" << m.del->full_text.size()
-              << "  chars(ins)=" << m.ins->full_text.size() << "\n  raw.ins: '"
-              << m.ins->full_text << "'"
-              << "\n  raw.del: '" << m.del->full_text << "'"
-              << "\n";
+    std::cout << m << "\n";
   }
 }
 

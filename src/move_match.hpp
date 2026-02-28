@@ -20,4 +20,7 @@ struct move_match {
 std::vector<move_match>
 find_matching_regions_by_hash(const std::vector<move_candidate> &regions,
                               bool confirm_text_equality);
+
+std::ostream &operator<<(std::ostream &os, const move_match &m);
+
 }; // namespace srcmove
