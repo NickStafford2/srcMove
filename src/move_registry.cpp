@@ -329,7 +329,7 @@ void move_registry::print_greedy_matches(std::ostream &os) const {
   }
 }
 
-move_registry build_registry(std::vector<move_candidate> &candidates) {
+move_registry build_move_registry(std::vector<move_candidate> &candidates) {
 
   move_registry mr;
   mr.reserve(/*expected_deletes=*/candidates.size(),
