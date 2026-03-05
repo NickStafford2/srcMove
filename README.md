@@ -30,7 +30,7 @@ Output is a new XML file (default: `diff_new.xml`) you can feed into downstream 
   - `srcReader` (sibling repository)
   - a built/installed `srcML` (expected at `srcML-install`)
 
-### Recommended: use the workspace installer (SrcMLBuildTemplate)
+### Recommended: use the workspace installer
 
 [SrcMLBuildTemplate](https://github.com/NickStafford2/SrcMLBuildTemplate)
 
