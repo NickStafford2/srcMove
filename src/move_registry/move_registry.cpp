@@ -59,24 +59,22 @@ void move_registry::finalize(bool confirm_text_equality) {
 
 move_registry::id_view
 move_registry::delete_ids(const content_group_compact &g) const noexcept {
-  const id_t *b = groups_.group_del_ids.empty()
-                      ? nullptr
-                      : &groups_.group_del_ids[g.del_begin];
-  const id_t *e = groups_.group_del_ids.empty()
-                      ? nullptr
-                      : &groups_.group_del_ids[g.del_end];
-  return id_view{b, e};
+  const std::uint32_t n = g.del_end - g.del_begin;
+  if (n == 0)
+    return id_view{nullptr, 0};
+
+  return id_view{&groups_.group_del_ids[g.del_begin],
+                 static_cast<std::size_t>(n)};
 }
 
 move_registry::id_view
 move_registry::insert_ids(const content_group_compact &g) const noexcept {
-  const id_t *b = groups_.group_ins_ids.empty()
-                      ? nullptr
-                      : &groups_.group_ins_ids[g.ins_begin];
-  const id_t *e = groups_.group_ins_ids.empty()
-                      ? nullptr
-                      : &groups_.group_ins_ids[g.ins_end];
-  return id_view{b, e};
+  const std::uint32_t n = g.ins_end - g.ins_begin;
+  if (n == 0)
+    return id_view{nullptr, 0};
+
+  return id_view{&groups_.group_ins_ids[g.ins_begin],
+                 static_cast<std::size_t>(n)};
 }
 
 std::vector<move_match> move_registry::match_greedy_1_to_1() const {
