@@ -83,15 +83,19 @@ public:
 
   // Lightweight view over a contiguous id range.
   struct id_view {
-    const id_t *b = nullptr;
-    const id_t *e = nullptr;
+    const id_t *data = nullptr;
+    std::size_t count = 0;
 
-    const id_t *begin() const noexcept { return b; }
-    const id_t *end() const noexcept { return e; }
-    std::size_t size() const noexcept {
-      return static_cast<std::size_t>(e - b);
+    const id_t *begin() const noexcept { return data; }
+    const id_t *end() const noexcept { return data + count; }
+    std::size_t size() const noexcept { return count; }
+
+    const id_t &operator[](std::size_t i) const noexcept { return data[i]; }
+
+    const id_t &at(std::size_t i) const {
+      assert(i < count);
+      return data[i];
     }
-    const id_t &operator[](std::size_t i) const noexcept { return b[i]; }
   };
 
   id_view delete_ids(const content_group_compact &g) const noexcept;
