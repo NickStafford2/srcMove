@@ -12,7 +12,7 @@
 #include "annotation_plan.hpp"
 #include "move_candidate.hpp"
 #include "move_region.hpp"
-#include "move_registry.hpp"
+#include "move_registry/move_registry.hpp"
 
 namespace srcmove {
 

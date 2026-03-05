@@ -21,11 +21,13 @@ find_package(LibXml2 REQUIRED)
 
 file(GLOB SRC_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/move_registry/*.cpp"
 )
 
 add_executable(srcMove ${SRC_FILES})
 
 target_include_directories(srcMove PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/src"
   "${SRCREADER_ROOT}/src"
   "${SRCML_INSTALL_PREFIX}/include"
   ${LIBXML2_INCLUDE_DIR}
