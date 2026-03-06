@@ -7,4 +7,4 @@ cmake -S . -B build
 ninja -C build
 
 cd build
-ctest --output-on-failure
+ctest --output-on-failure -V
