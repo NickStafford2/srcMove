@@ -10,8 +10,8 @@
 #include <utility>
 #include <vector>
 
-#include "diff_region.hpp"
 #include "move_candidate.hpp"
+#include "parse/diff_region.hpp"
 #include "region_filter.hpp"
 
 namespace srcmove {
@@ -78,8 +78,8 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
       continue;
     if (r.raw_text.size() < opt.min_chars)
       continue;
-    move_candidate c(r.kind, r.start_idx, r.filename,
-                    r.raw_text, r.canonical_text);
+    move_candidate c(r.kind, r.start_idx, r.filename, r.raw_text,
+                     r.canonical_text);
     c.end_idx = r.end_idx; // preserve the true close position
     out.push_back(std::move(c));
   }

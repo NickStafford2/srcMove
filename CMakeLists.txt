@@ -63,6 +63,7 @@ endfunction()
 file(GLOB SRC_FILES CONFIGURE_DEPENDS
   "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/move_registry/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/parse/*.cpp"
   "${CMAKE_CURRENT_SOURCE_DIR}/src/writer/*.cpp"
 )
 
@@ -96,8 +97,8 @@ enable_testing()
 
 add_executable(test_canonical_subtree_unit
   test/canonical/test_canonical_subtree.cpp
-  src/canonical_subtree.cpp
-  src/diff_region.cpp
+  src/parse/canonical_subtree.cpp
+  src/parse/diff_region.cpp
   src/move_candidate.cpp
   src/region_filter.cpp
 )

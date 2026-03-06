@@ -13,9 +13,9 @@
 #include <string>
 #include <vector>
 
-#include "diff_region.hpp"
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/move_groups.hpp"
+#include "parse/diff_region.hpp"
 #include "summary.hpp"
 
 namespace srcmove {

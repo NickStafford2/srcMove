@@ -13,8 +13,8 @@ from pathlib import Path
 class CaseResult:
     name: str
     ok: bool
-    expected_moves: int | None
-    actual_moves: int | None
+    expected_move_count: int | None
+    actual_move_count: int | None
     message: str = ""
 
 
@@ -40,7 +40,7 @@ def find_case_dirs(archives_root: Path) -> list[Path]:
     return out
 
 
-def load_expected_moves(case_dir: Path) -> int:
+def load_expected_move_count(case_dir: Path) -> int:
     oracle_path = case_dir / "oracle.json"
     if not oracle_path.is_file():
         raise RuntimeError(f"missing oracle.json: {oracle_path}")
@@ -48,31 +48,35 @@ def load_expected_moves(case_dir: Path) -> int:
     with oracle_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    if "moves" not in data:
-        raise RuntimeError(f"oracle.json missing 'moves': {oracle_path}")
+    if "move_count" not in data:
+        raise RuntimeError(f"oracle.json missing 'move_count': {oracle_path}")
 
-    moves = data["moves"]
-    if not isinstance(moves, int):
-        raise RuntimeError(f"oracle.json field 'moves' is not an int: {oracle_path}")
+    move_count = data["move_count"]
+    if not isinstance(move_count, int):
+        raise RuntimeError(
+            f"oracle.json field 'move_count' is not an int: {oracle_path}"
+        )
 
-    return moves
+    return move_count
 
 
-def load_actual_moves(results_path: Path) -> int:
+def load_actual_move_count(results_path: Path) -> int:
     if not results_path.is_file():
         raise RuntimeError(f"missing results file: {results_path}")
 
     with results_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    if "moves" not in data:
-        raise RuntimeError(f"results.json missing 'moves': {results_path}")
+    if "move_count" not in data:
+        raise RuntimeError(f"results.json missing 'move_count': {results_path}")
 
-    moves = data["moves"]
-    if not isinstance(moves, int):
-        raise RuntimeError(f"results.json field 'moves' is not an int: {results_path}")
+    move_count = data["move_count"]
+    if not isinstance(move_count, int):
+        raise RuntimeError(
+            f"results.json field 'move_count' is not an int: {results_path}"
+        )
 
-    return moves
+    return move_count
 
 
 def run_case(
@@ -86,13 +90,13 @@ def run_case(
     results_json = case_dir / "results.json"
 
     try:
-        expected_moves = load_expected_moves(case_dir)
+        expected_move_count = load_expected_move_count(case_dir)
     except Exception as e:
         return CaseResult(
             name=name,
             ok=False,
-            expected_moves=None,
-            actual_moves=None,
+            expected_move_count=None,
+            actual_move_count=None,
             message=str(e),
         )
 
@@ -113,8 +117,8 @@ def run_case(
         return CaseResult(
             name=name,
             ok=False,
-            expected_moves=expected_moves,
-            actual_moves=None,
+            expected_move_count=expected_move_count,
+            actual_move_count=None,
             message="srcdiff failed",
         )
 
@@ -122,8 +126,8 @@ def run_case(
         return CaseResult(
             name=name,
             ok=False,
-            expected_moves=expected_moves,
-            actual_moves=None,
+            expected_move_count=expected_move_count,
+            actual_move_count=None,
             message="srcdiff did not create diff.xml",
         )
 
@@ -140,36 +144,36 @@ def run_case(
         return CaseResult(
             name=name,
             ok=False,
-            expected_moves=expected_moves,
-            actual_moves=None,
+            expected_move_count=expected_move_count,
+            actual_move_count=None,
             message="srcMove failed",
         )
 
     try:
-        actual_moves = load_actual_moves(results_json)
+        actual_move_count = load_actual_move_count(results_json)
     except Exception as e:
         return CaseResult(
             name=name,
             ok=False,
-            expected_moves=expected_moves,
-            actual_moves=None,
+            expected_move_count=expected_move_count,
+            actual_move_count=None,
             message=str(e),
         )
 
-    if actual_moves != expected_moves:
+    if actual_move_count != expected_move_count:
         return CaseResult(
             name=name,
             ok=False,
-            expected_moves=expected_moves,
-            actual_moves=actual_moves,
+            expected_move_count=expected_move_count,
+            actual_move_count=actual_move_count,
             message="move count mismatch",
         )
 
     return CaseResult(
         name=name,
         ok=True,
-        expected_moves=expected_moves,
-        actual_moves=actual_moves,
+        expected_move_count=expected_move_count,
+        actual_move_count=actual_move_count,
         message="",
     )
 
@@ -208,11 +212,11 @@ def main() -> int:
         results.append(result)
 
         if result.ok:
-            print(f"[PASS] {result.name}: moves={result.actual_moves}")
+            print(f"[PASS] {result.name}: move_count={result.actual_move_count}")
         else:
             print(
                 f"[FAIL] {result.name}: {result.message}"
-                f" (expected={result.expected_moves}, actual={result.actual_moves})"
+                f" (expected={result.expected_move_count}, actual={result.actual_move_count})"
             )
 
     failed = [r for r in results if not r.ok]

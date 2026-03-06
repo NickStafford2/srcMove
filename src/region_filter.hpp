@@ -9,8 +9,8 @@
 #include <cctype>
 #include <vector>
 
-#include "diff_region.hpp"
 #include "move_candidate.hpp"
+#include "parse/diff_region.hpp"
 #include "srcml_reader.hpp"
 
 namespace srcmove {

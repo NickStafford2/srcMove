@@ -32,9 +32,9 @@
 #include <utility>
 #include <vector>
 
-#include "canonical_subtree.hpp"
 #include "diff_region.hpp"
 #include "move_candidate.hpp"
+#include "parse/canonical_subtree.hpp"
 #include "srcml_node.hpp"
 
 namespace srcmove {
