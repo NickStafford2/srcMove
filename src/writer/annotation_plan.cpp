@@ -1,0 +1,57 @@
+// SPDX-License-Identifier: GPL-3.0-only
+/**
+ * @file annotation.cpp
+ *
+ * @copyright Copyright (C) 2014-2024 SDML (www.srcDiff.org)
+ *
+ * This file is part of the srcDiff Infrastructure.
+ */
+#include <cctype>
+#include <vector>
+
+#include "annotation_plan.hpp"
+#include "move_candidate.hpp"
+#include "move_registry/move_groups.hpp"
+#include "parse/diff_region.hpp"
+
+namespace srcmove {
+
+std::uint32_t max_existing_move_id(const std::vector<diff_region> &regions) {
+  std::uint32_t mx = 0;
+  for (const auto &r : regions) {
+    if (r.pre_marked && r.existing_move_id > mx)
+      mx = r.existing_move_id;
+  }
+  return mx;
+}
+
+tag_map build_move_tags(const content_groups &groups,
+                        const candidate_registry &registry,
+                        std::uint32_t start_id) {
+  tag_map tags;
+
+  std::uint32_t next_move_id = start_id;
+
+  for (const auto &g : groups.groups()) {
+    if (g.del_count() == 0 || g.ins_count() == 0)
+      continue; // only groups with both sides get a move id
+
+    const std::uint32_t move_id = next_move_id++;
+
+    // Apply to all deletes in group
+    for (auto did : groups.delete_ids(g)) {
+      const auto &d = registry.candidate(did);
+      tags.emplace(d.start_idx, move_tag{move_id, d.raw_text});
+    }
+
+    // Apply to all inserts in group
+    for (auto iid : groups.insert_ids(g)) {
+      const auto &ins = registry.candidate(iid);
+      tags.emplace(ins.start_idx, move_tag{move_id, ins.raw_text});
+    }
+  }
+
+  return tags;
+}
+
+} // namespace srcmove

@@ -1,0 +1,54 @@
+{
+  "move_count": 3,
+  "moves": [
+    {
+      "move_id": 1,
+      "from_xpaths": [
+        "/unit[1]/unit[4]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/unit[3]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}"
+      ],
+      "to_raw_texts": [
+        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}\n\n"
+      ]
+    },
+    {
+      "move_id": 2,
+      "from_xpaths": [
+        "/unit[1]/unit[4]/diff:delete[2]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/unit[2]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+        "char delcaration_moved();\n"
+      ],
+      "to_raw_texts": [
+        "char delcaration_moved();\n"
+      ]
+    },
+    {
+      "move_id": 3,
+      "from_xpaths": [
+        "/unit[1]/unit[3]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/unit[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+        "\nchar definition_moved() {\n  char d = 'd';\n  char e = 'e';\n  return d + e;\n}\n"
+      ],
+      "to_raw_texts": [
+        "char definition_moved() {\n  char d = 'd';\n\n  char e = 'e';\n  return d + e;\n}\n"
+      ]
+    }
+  ],
+  "annotated_regions": 6,
+  "regions_total": 7,
+  "candidates_total": 7,
+  "groups_total": 4
+}

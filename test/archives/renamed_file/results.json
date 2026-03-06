@@ -1,0 +1,24 @@
+{
+  "move_count": 1,
+  "moves": [
+    {
+      "move_id": 1,
+      "from_xpaths": [
+        "/unit[1]/unit[2]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/unit[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}\n"
+      ],
+      "to_raw_texts": [
+        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}\n"
+      ]
+    }
+  ],
+  "annotated_regions": 2,
+  "regions_total": 2,
+  "candidates_total": 2,
+  "groups_total": 1
+}

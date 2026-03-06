@@ -1,0 +1,113 @@
+{
+  "move_count": 8,
+  "moves": [
+    {
+      "move_id": 8,
+      "from_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[5]/decl[1]/type[1]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[5]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
+      ]
+    },
+    {
+      "move_id": 7,
+      "from_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[4]/decl[1]/type[1]/diff:delete[2]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[4]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
+      ]
+    },
+    {
+      "move_id": 6,
+      "from_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[4]/decl[1]/type[1]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[4]/decl[1]/type[1]/diff:insert[1]/diff:insert[2]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
+      ]
+    },
+    {
+      "move_id": 5,
+      "from_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[3]/decl[1]/type[1]/diff:delete[2]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[3]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
+      ]
+    },
+    {
+      "move_id": 4,
+      "from_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[3]/decl[1]/type[1]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[3]/decl[1]/type[1]/diff:insert[1]/diff:insert[2]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
+      ]
+    },
+    {
+      "move_id": 3,
+      "from_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[2]/decl[1]/type[1]/diff:delete[2]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[2]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
+      ]
+    },
+    {
+      "move_id": 2,
+      "from_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[2]/decl[1]/type[1]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[2]/decl[1]/type[1]/diff:insert[1]/diff:insert[2]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
+      ]
+    },
+    {
+      "move_id": 1,
+      "from_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[1]/decl[1]/type[1]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[1]/decl[1]/type[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
+      ]
+    }
+  ],
+  "annotated_regions": 16,
+  "regions_total": 26,
+  "candidates_total": 0,
+  "groups_total": 0
+}

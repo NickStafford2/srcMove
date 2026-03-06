@@ -8,7 +8,9 @@
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/build/srcMove",
       "args": [
-        "test/simple/diff.xml"
+        "test/archives/file_split/diff.xml",
+        "--results",
+        "results.json"
       ],
       "terminal": "integrated",
       "stopOnEntry": false,

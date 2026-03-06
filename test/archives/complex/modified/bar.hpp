@@ -1,0 +1,1 @@
+char delcaration_moved();
