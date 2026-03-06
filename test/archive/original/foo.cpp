@@ -6,3 +6,9 @@ char unchanged_function() {
   char c = 'c';
   return a + b + c;
 }
+
+char definition_moved() {
+  char d = 'd';
+  char e = 'e';
+  return d + e;
+}

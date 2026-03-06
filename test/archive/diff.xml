@@ -1,6 +1,13 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" url="test/archive/original|test/archive/modified">
 
+<unit revision="1.0.0" language="C++" filename="bar.cpp"><diff:insert><function><type><name>char</name></type><diff:ws> </diff:ws><name>definition_moved</name><parameter_list>()</parameter_list><diff:ws> </diff:ws><block>{<block_content><diff:ws>
+  </diff:ws><decl_stmt><decl><type><name>char</name></type><diff:ws> </diff:ws><name>d</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="char">'d'</literal></expr></init></decl>;</decl_stmt><diff:ws>
+  </diff:ws><decl_stmt><decl><type><name>char</name></type><diff:ws> </diff:ws><name>e</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="char">'e'</literal></expr></init></decl>;</decl_stmt><diff:ws>
+  </diff:ws><return>return<diff:ws> </diff:ws><expr><name>d</name><diff:ws> </diff:ws><operator>+</operator><diff:ws> </diff:ws><name>e</name></expr>;</return><diff:ws>
+</diff:ws></block_content>}</block></function><diff:ws>
+</diff:ws></diff:insert></unit>
+
 <unit revision="1.0.0" language="C++" filename="bar.hpp"><diff:insert><function_decl><type><name>char</name></type><diff:ws> </diff:ws><name>delcaration_moved</name><parameter_list>()</parameter_list>;</function_decl><diff:ws>
 </diff:ws></diff:insert></unit>
 
@@ -18,9 +25,17 @@
   <decl_stmt><decl><type><name>char</name></type> <name>c</name> <init>= <expr><literal type="char">'c'</literal></expr></init></decl>;</decl_stmt>
   <return>return <expr><name>a</name> <operator>+</operator> <name>b</name> <operator>+</operator> <name>c</name></expr>;</return>
 </block_content>}</block></function>
-</unit>
+<diff:delete><diff:ws>
+</diff:ws><function><type><name>char</name></type><diff:ws> </diff:ws><name>definition_moved</name><parameter_list>()</parameter_list><diff:ws> </diff:ws><block>{<block_content><diff:ws>
+  </diff:ws><decl_stmt><decl><type><name>char</name></type><diff:ws> </diff:ws><name>d</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="char">'d'</literal></expr></init></decl>;</decl_stmt><diff:ws>
+  </diff:ws><decl_stmt><decl><type><name>char</name></type><diff:ws> </diff:ws><name>e</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="char">'e'</literal></expr></init></decl>;</decl_stmt><diff:ws>
+  </diff:ws><return>return<diff:ws> </diff:ws><expr><name>d</name><diff:ws> </diff:ws><operator>+</operator><diff:ws> </diff:ws><name>e</name></expr>;</return><diff:ws>
+</diff:ws></block_content>}</block></function><diff:ws>
+</diff:ws></diff:delete></unit>
 
-<unit revision="1.0.0" language="C++" filename="foo.hpp"><diff:delete type="replace"><function><type><name>int</name></type><diff:ws> </diff:ws><name>changed_function</name><parameter_list>()</parameter_list><diff:ws> </diff:ws><block>{<block_content><diff:ws>
+<unit revision="1.0.0" language="C++" filename="foo.hpp"><comment type="line">// This currently can not be captured because srcdiff deletes the function tag</comment>
+<comment type="line">// and not the block.</comment>
+<diff:delete type="replace"><function><type><name>int</name></type><diff:ws> </diff:ws><name>changed_function</name><parameter_list>()</parameter_list><diff:ws> </diff:ws><block>{<block_content><diff:ws>
   </diff:ws><decl_stmt><decl><type><name>int</name></type><diff:ws> </diff:ws><name>x</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="number">123</literal></expr></init></decl>;</decl_stmt><diff:ws>
   </diff:ws><decl_stmt><decl><type><name>int</name></type><diff:ws> </diff:ws><name>y</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="number">456</literal></expr></init></decl>;</decl_stmt><diff:ws>
   </diff:ws><return>return<diff:ws> </diff:ws><expr><name>x</name></expr>;</return><diff:ws>
