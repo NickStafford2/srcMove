@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /**
- * @file move_registry.hpp
+ * @file grouped_candidates.hpp
  *
  * Registry for move/copy candidate detection.
  * This class owns candidates and build-time hash buckets.
@@ -30,8 +30,8 @@
  *  - expose ligktweight "views" of grouped candidates for downstream scoring
  */
 
-#ifndef INCLUDED_MOVE_REGISTRY_HPP
-#define INCLUDED_MOVE_REGISTRY_HPP
+#ifndef INCLUDED_MOVE_REGISTRY_GROUPED_CANDIDATES_HPP
+#define INCLUDED_MOVE_REGISTRY_GROUPED_CANDIDATES_HPP
 
 #include <cstdint>
 #include <unordered_map>

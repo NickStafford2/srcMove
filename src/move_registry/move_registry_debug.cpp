@@ -2,8 +2,8 @@
 
 #include <ostream>
 
+#include "grouped_candidates.hpp"
 #include "move_matcher.hpp"
-#include "move_registry.hpp"
 #include "move_registry_debug.hpp"
 
 namespace srcmove {

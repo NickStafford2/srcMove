@@ -1,9 +1,9 @@
-// src/move_registry.cpp
+// src/grouped_candidates.cpp
 // SPDX-License-Identifier: GPL-3.0-only
 /**
  * @file move_registry.cpp
  */
-#include "move_registry.hpp"
+#include "grouped_candidates.hpp"
 
 #include <cassert>
 #include <utility>

@@ -14,7 +14,7 @@
 #include <vector>
 
 #include "move_region.hpp"
-#include "move_registry/move_registry.hpp"
+#include "move_registry/grouped_candidates.hpp"
 
 namespace srcmove {
 

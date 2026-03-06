@@ -11,7 +11,7 @@
 
 #include "annotation_writer.hpp"
 #include "move_region.hpp"
-#include "move_registry/move_registry.hpp"
+#include "move_registry/grouped_candidates.hpp"
 #include "move_registry/move_registry_debug.hpp"
 #include "pipeline.hpp"
 #include "region_filter.hpp"

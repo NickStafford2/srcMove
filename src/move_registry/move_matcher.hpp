@@ -5,7 +5,7 @@
 #include <cstddef>
 #include <vector>
 
-#include "move_registry.hpp"
+#include "grouped_candidates.hpp"
 
 namespace srcmove {
 
