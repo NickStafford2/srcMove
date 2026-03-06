@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:cpp="http://www.srcML.org/srcML/cpp" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" language="C++" filename="original.cpp|modified.cpp"><cpp:include>#<cpp:directive>include</cpp:directive> <cpp:file>&lt;string&gt;</cpp:file></cpp:include>
+
+<function><type><name>int</name></type> <name>foo</name><parameter_list>()</parameter_list> <block>{<block_content>
+  <decl_stmt><decl><type><name>int</name></type> <name>x</name> <init>= <expr><literal type="number">123</literal></expr></init></decl>;</decl_stmt>
+<diff:delete move="3" xpath="/unit[1]/function[1]/block[1]/block_content[1]/diff:delete[1]"><diff:ws>  </diff:ws><decl_stmt><decl><type><name><name>std</name><operator>::</operator><name>string</name></name></type><diff:ws> </diff:ws><name>move_me</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="string">"I<diff:ws> </diff:ws>should<diff:ws> </diff:ws>be<diff:ws> </diff:ws>moved."</literal></expr></init></decl>;</decl_stmt><diff:ws>
+</diff:ws></diff:delete>  <return>return <expr><name>x</name></expr>;</return>
+</block_content>}</block></function>
+
+<function><type><name>int</name></type> <name>bar</name><parameter_list>()</parameter_list> <block>{<block_content>
+  <decl_stmt><decl><type><name>int</name></type> <name>y</name> <init>= <expr><literal type="number">456</literal></expr></init></decl>;</decl_stmt>
+  <comment type="line">// srcdiff can not move this.</comment>
+<diff:insert move="3" xpath="/unit[1]/function[2]/block[1]/block_content[1]/diff:insert[1]"><diff:ws>  </diff:ws><decl_stmt><decl><type><name><name>std</name><operator>::</operator><name>string</name></name></type><diff:ws> </diff:ws><name>move_me</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="string">"I<diff:ws> </diff:ws>should<diff:ws> </diff:ws>be<diff:ws> </diff:ws>moved."</literal></expr></init></decl>;</decl_stmt><diff:ws>
+</diff:ws></diff:insert>  <return>return <expr><name>y</name></expr>;</return>
+</block_content>}</block></function>
+
+<function><type><name>int</name></type> <name>main</name><parameter_list>()</parameter_list> <block>{<block_content>
+  <comment type="line">// This should be moved by srcdiff. but xml should be added.</comment>
+<diff:delete><diff:ws>  </diff:ws><diff:delete move="1" xpath="/unit[1]/function[3]/block[1]/block_content[1]/diff:delete[1]/diff:delete[1]"><expr_stmt><expr><call><name>bar</name><argument_list>()</argument_list></call></expr>;</expr_stmt></diff:delete><diff:ws>
+
+  </diff:ws><diff:delete move="2" xpath="/unit[1]/function[3]/block[1]/block_content[1]/diff:delete[1]/diff:delete[2]"><comment type="line">//<diff:ws> </diff:ws>This<diff:ws> </diff:ws>should<diff:ws> </diff:ws>be<diff:ws> </diff:ws>moved<diff:ws> </diff:ws>by<diff:ws> </diff:ws>srcdiff.<diff:ws> </diff:ws>but<diff:ws> </diff:ws>xml<diff:ws> </diff:ws>should<diff:ws> </diff:ws>be<diff:ws> </diff:ws>added.</comment></diff:delete><diff:ws>
+</diff:ws></diff:delete>  <expr_stmt><expr><call><name>foo</name><argument_list>()</argument_list></call></expr>;</expr_stmt>
+
+<diff:insert><diff:ws>  </diff:ws><diff:insert move="2" xpath="/unit[1]/function[3]/block[1]/block_content[1]/diff:insert[1]/diff:insert[1]"><comment type="line">//<diff:ws> </diff:ws>This<diff:ws> </diff:ws>should<diff:ws> </diff:ws>be<diff:ws> </diff:ws>moved<diff:ws> </diff:ws>by<diff:ws> </diff:ws>srcdiff.<diff:ws> </diff:ws>but<diff:ws> </diff:ws>xml<diff:ws> </diff:ws>should<diff:ws> </diff:ws>be<diff:ws> </diff:ws>added.</comment></diff:insert><diff:ws>
+  </diff:ws><diff:insert move="1" xpath="/unit[1]/function[3]/block[1]/block_content[1]/diff:insert[1]/diff:insert[2]"><expr_stmt><expr><call><name>bar</name><argument_list>()</argument_list></call></expr>;</expr_stmt></diff:insert><diff:ws>
+
+</diff:ws></diff:insert>  <return>return <expr><literal type="number">0</literal></expr>;</return>
+</block_content>}</block></function>
+</unit>
