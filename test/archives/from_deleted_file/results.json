@@ -1,5 +1,16 @@
 {
-  "moves": 1,
+  "move_count": 1,
+  "moves": [
+    {
+      "move_id": 1,
+      "from_xpaths": [
+        "/unit[1]/unit[1]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/unit[2]/diff:insert[1]"
+      ]
+    }
+  ],
   "annotated_regions": 2,
   "regions_total": 3,
   "candidates_total": 3,

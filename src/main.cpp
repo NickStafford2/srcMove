@@ -55,7 +55,42 @@ int main(int argc, char **argv) {
       }
 
       out << "{\n";
-      out << "  \"moves\": " << summ.moves << ",\n";
+      out << "  \"move_count\": " << summ.move_count << ",\n";
+
+      out << "  \"moves\": [\n";
+
+      for (size_t i = 0; i < summ.moves.size(); ++i) {
+        const auto &m = summ.moves[i];
+
+        out << "    {\n";
+        out << "      \"move_id\": " << m.move_id << ",\n";
+
+        out << "      \"from_xpaths\": [\n";
+        for (size_t j = 0; j < m.from_xpaths.size(); ++j) {
+          out << "        \"" << m.from_xpaths[j] << "\"";
+          if (j + 1 < m.from_xpaths.size())
+            out << ",";
+          out << "\n";
+        }
+        out << "      ],\n";
+
+        out << "      \"to_xpaths\": [\n";
+        for (size_t j = 0; j < m.to_xpaths.size(); ++j) {
+          out << "        \"" << m.to_xpaths[j] << "\"";
+          if (j + 1 < m.to_xpaths.size())
+            out << ",";
+          out << "\n";
+        }
+        out << "      ]\n";
+
+        out << "    }";
+        if (i + 1 < summ.moves.size())
+          out << ",";
+        out << "\n";
+      }
+
+      out << "  ],\n";
+
       out << "  \"annotated_regions\": " << summ.annotated_regions << ",\n";
       out << "  \"regions_total\": " << summ.regions_total << ",\n";
       out << "  \"candidates_total\": " << summ.candidates_total << ",\n";

@@ -52,13 +52,15 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
 
   print_greedy_matches(registry, groups, std::cout);
 
-  result.annotated_regions = annotate(
-      regions, registry, groups, srcdiff_in_filename, srcdiff_out_filename);
+  auto moves = annotate(regions, registry, groups, srcdiff_in_filename,
+                        srcdiff_out_filename);
 
+  result.moves = std::move(moves);
+  result.move_count = result.moves.size();
+  result.annotated_regions = result.move_count * 2;
   result.regions_total = regions.size();
   result.candidates_total = registry.active_candidate_count();
   result.groups_total = groups.group_count();
-  result.moves = count_move_groups(groups);
   return result;
 }
 

@@ -20,43 +20,74 @@
 #include "srcml_node.hpp"
 #include "srcml_reader.hpp"
 #include "srcml_writer.hpp"
+#include "summary.hpp"
 #include "xpath_builder.hpp"
 
 namespace srcmove {
 
 namespace {
 
-void write_with_move_annotations(const std::string &in_filename,
-                                 const std::string &out_filename,
-                                 const tag_map &tags) {
+std::unordered_map<std::uint32_t, move_entry>
+write_with_move_annotations(const std::string &in_filename,
+                            const std::string &out_filename,
+                            const tag_map &tags) {
   srcml_reader reader(in_filename);
   srcml_writer writer(out_filename);
   xpath_builder xb;
+  std::unordered_map<std::uint32_t, move_entry> moves;
 
   std::size_t i = 0;
   for (const srcml_node &node : reader) {
     xb.on_node(node);
 
-    // Patch only START tags of diff:insert / diff:delete when we have a tag.
     if (node.is_start()) {
       const std::string fn = node.full_name();
-      if (fn == "diff:insert" || fn == "diff:delete") {
-        srcml_node patched = node; // copy so we don't mutate reader-owned node
 
-        // If srcDiff already marked it, never overwrite move,
-        // but still attach xpath.
-        if (node.get_attribute_value("move")) {
-          patched.set_attribute("xpath", xb.current_xpath());
+      if (fn == "diff:insert" || fn == "diff:delete") {
+        srcml_node patched = node;
+        const std::string xpath = xb.current_xpath();
+
+        if (const std::string *existing_move =
+                node.get_attribute_value("move")) {
+          patched.set_attribute("xpath", xpath);
           writer.write(patched);
+
+          try {
+            const std::uint32_t move_id =
+                static_cast<std::uint32_t>(std::stoul(*existing_move));
+
+            auto &entry = moves[move_id];
+            entry.move_id = move_id;
+
+            if (fn == "diff:delete") {
+              entry.from_xpaths.push_back(xpath);
+            } else {
+              entry.to_xpaths.push_back(xpath);
+            }
+          } catch (...) {
+          }
+
           ++i;
           continue;
         }
 
         auto it = tags.find(i);
         if (it != tags.end()) {
-          patched.set_attribute("move", std::to_string(it->second.move_id));
-          patched.set_attribute("xpath", xb.current_xpath());
+          const std::uint32_t move_id = it->second.move_id;
+
+          patched.set_attribute("move", std::to_string(move_id));
+          patched.set_attribute("xpath", xpath);
           writer.write(patched);
+
+          auto &entry = moves[move_id];
+          entry.move_id = move_id;
+
+          if (fn == "diff:delete") {
+            entry.from_xpaths.push_back(xpath);
+          } else {
+            entry.to_xpaths.push_back(xpath);
+          }
+
           ++i;
           continue;
         }
@@ -66,20 +97,29 @@ void write_with_move_annotations(const std::string &in_filename,
     writer.write(node);
     ++i;
   }
+
+  return moves;
 }
 
 } // namespace
 
-int annotate(const std::vector<diff_region> &regions,
-             const candidate_registry &registry, const content_groups &groups,
-             const std::string &srcdiff_in_filename,
-             const std::string &srcdiff_out_filename) {
+std::vector<move_entry> annotate(const std::vector<diff_region> &regions,
+                                 const candidate_registry &registry,
+                                 const content_groups &groups,
+                                 const std::string &srcdiff_in_filename,
+                                 const std::string &srcdiff_out_filename) {
   const std::uint32_t start_move_id = max_existing_move_id(regions) + 1;
   const auto tags = build_move_tags(groups, registry, start_move_id);
 
   // second pass
-  write_with_move_annotations(srcdiff_in_filename, srcdiff_out_filename, tags);
-  return tags.size();
+  auto moves_map = write_with_move_annotations(srcdiff_in_filename,
+                                               srcdiff_out_filename, tags);
+  std::vector<move_entry> moves;
+  moves.reserve(moves_map.size());
+
+  for (auto &kv : moves_map)
+    moves.push_back(std::move(kv.second));
+  return moves;
 }
 
 } // namespace srcmove

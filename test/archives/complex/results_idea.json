@@ -1,0 +1,30 @@
+{
+  "move_count": 3,
+  "moves": [
+    {
+      "move_id": 1,
+      "from_xpath": "some xpath here",
+      "to_xpath": "some xpath here"
+    },
+    {
+      "move_id": 2,
+      "from_xpath": "some xpath here",
+      "to_xpath": "some xpath here"
+    },
+    // or maybe if my code works better with this format: 
+    {
+      "move_id": 2,
+      "from_xpaths": [
+        "some xpath here"
+      ],
+      "to_xpaths": [
+        "some xpath here",
+        "some other xpath here"
+      ]
+    }
+  ],
+  "annotated_regions": 6,
+  "regions_total": 7,
+  "candidates_total": 7,
+  "groups_total": 4
+}

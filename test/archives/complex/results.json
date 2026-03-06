@@ -1,5 +1,34 @@
 {
-  "moves": 3,
+  "move_count": 3,
+  "moves": [
+    {
+      "move_id": 1,
+      "from_xpaths": [
+        "/unit[1]/unit[4]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/unit[3]/diff:insert[1]"
+      ]
+    },
+    {
+      "move_id": 2,
+      "from_xpaths": [
+        "/unit[1]/unit[4]/diff:delete[2]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/unit[2]/diff:insert[1]"
+      ]
+    },
+    {
+      "move_id": 3,
+      "from_xpaths": [
+        "/unit[1]/unit[3]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/unit[1]/diff:insert[1]"
+      ]
+    }
+  ],
   "annotated_regions": 6,
   "regions_total": 7,
   "candidates_total": 7,
