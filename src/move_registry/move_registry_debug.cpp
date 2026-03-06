@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "move_registry_debug.hpp"
 
-#include <algorithm>
 #include <ostream>
 
 #include "move_matcher.hpp"

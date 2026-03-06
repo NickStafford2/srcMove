@@ -34,7 +34,6 @@
 #define INCLUDED_MOVE_REGISTRY_HPP
 
 #include <cstdint>
-#include <iosfwd>
 #include <unordered_map>
 #include <vector>
 
