@@ -23,7 +23,7 @@ important_files = [
   "src/**/*.cpp",
   "!src/tools/*.cpp",
   "src/**/*.hpp",
-  "context-export.toml",
+  "!context-export.toml",
   # "tests/**/*.py",
 ]
 
