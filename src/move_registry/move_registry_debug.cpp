@@ -1,10 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
-#include "move_registry_debug.hpp"
 
 #include <ostream>
 
 #include "move_matcher.hpp"
 #include "move_registry.hpp"
+#include "move_registry_debug.hpp"
 
 namespace srcmove {
 
