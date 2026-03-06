@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" language="C++" filename="/home/nick/Projects/srcMLBuildTemplate/srcMove/test/archives/standalone_blocks_function/original.cpp|/home/nick/Projects/srcMLBuildTemplate/srcMove/test/archives/standalone_blocks_function/modified.cpp"><function><type><name>int</name></type> <name>foo</name><parameter_list>()</parameter_list> <block>{<block_content> <return>return <expr><literal type="number">123</literal></expr>;</return> </block_content>}</block></function>
+<function><type><name>int</name></type> <name>bar</name><parameter_list>()</parameter_list> <block>{<block_content> <return>return <expr><literal type="number">456</literal></expr>;</return> </block_content>}</block></function>
+
+<function><type><name>int</name></type> <name>main</name><parameter_list>()</parameter_list> <block>{<block_content>
+<diff:delete><diff:ws>  </diff:ws><diff:delete move="1" xpath="/unit[1]/function[3]/block[1]/block_content[1]/diff:delete[1]/diff:delete[1]"><block>{<block_content><diff:ws>
+    </diff:ws><expr_stmt><expr><call><name>foo</name><argument_list>()</argument_list></call></expr>;</expr_stmt><diff:ws>
+  </diff:ws></block_content>}</block></diff:delete><diff:ws>
+</diff:ws></diff:delete>  <block>{<block_content>
+    <expr_stmt><expr><call><name>bar</name><argument_list>()</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block>
+<diff:insert><diff:ws>  </diff:ws><diff:insert move="1" xpath="/unit[1]/function[3]/block[1]/block_content[1]/diff:insert[1]/diff:insert[1]"><block>{<block_content><diff:ws>
+    </diff:ws><expr_stmt><expr><call><name>foo</name><argument_list>()</argument_list></call></expr>;</expr_stmt><diff:ws>
+  </diff:ws></block_content>}</block></diff:insert><diff:ws>
+</diff:ws></diff:insert>  <return>return <expr><literal type="number">0</literal></expr>;</return>
+</block_content>}</block></function>
+</unit>
