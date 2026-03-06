@@ -24,6 +24,8 @@ important_files = [
   "!src/tools/*.cpp",
   "src/**/*.hpp",
   "!context-export.toml",
+  "!move_registry_debug.cpp",
+  "!move_registry_debug.hpp",
   # "tests/**/*.py",
 ]
 
