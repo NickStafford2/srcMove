@@ -29,4 +29,18 @@ content_groups::insert_ids(const content_group &g) const noexcept {
   return id_view{&group_ins_ids_[g.ins_begin], static_cast<std::size_t>(n)};
 }
 
+std::uint32_t content_groups::append_delete_ids(const std::vector<id_t> &ids) {
+  const std::uint32_t begin = static_cast<std::uint32_t>(group_del_ids_.size());
+  group_del_ids_.insert(group_del_ids_.end(), ids.begin(), ids.end());
+  return begin;
+}
+
+std::uint32_t content_groups::append_insert_ids(const std::vector<id_t> &ids) {
+  const std::uint32_t begin = static_cast<std::uint32_t>(group_ins_ids_.size());
+  group_ins_ids_.insert(group_ins_ids_.end(), ids.begin(), ids.end());
+  return begin;
+}
+
+void content_groups::append_group(content_group g) { groups_.push_back(g); }
+
 } // namespace srcmove

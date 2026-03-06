@@ -2,11 +2,25 @@
 /**
  * @file move_groups.hpp
  *
- * Grouping model produced from hash buckets:
- * - flat id arrays (stable storage)
- * - lightweight views that reference ranges in the flat arrays
+ * Compact representation of "content groups".
+ *
+ * A content group represents candidates that share the same hash
+ * (and optionally identical full text).
+ *
+ * Design goals:
+ * - avoid storing candidate objects repeatedly
+ * - keep contiguous arrays of candidate ids for cache locality
+ * - allow efficient iteration over delete/insert sides of each group
+ *
+ * Layout:
+ *   group_del_ids_   flat array of delete candidate ids
+ *   group_ins_ids_   flat array of insert candidate ids
+ *   groups_          metadata describing ranges inside those arrays
+ *
+ * Each group stores index ranges into the flat arrays instead of
+ * owning its own vectors. This keeps memory compact and iteration fast.
  */
-// SPDX-License-Identifier: GPL-3.0-only
+
 #ifndef INCLUDED_MOVE_GROUPS_HPP
 #define INCLUDED_MOVE_GROUPS_HPP
 
@@ -15,11 +29,8 @@
 #include <vector>
 
 #include "move_buckets.hpp"
-#include "move_registry/candidate_registry.hpp"
 
 namespace srcmove {
-
-class candidate_registry;
 
 enum class group_kind : std::uint8_t {
   move_1_to_1,    // del=1 ins=1
@@ -34,6 +45,7 @@ struct content_group {
   std::uint64_t content_hash = 0;
   std::uint32_t group_id = 0;
 
+  // Ranges inside group_del_ids_ and group_ins_ids_
   std::uint32_t del_begin = 0;
   std::uint32_t del_end = 0;
   std::uint32_t ins_begin = 0;
@@ -54,6 +66,10 @@ class content_groups {
 public:
   using id_t = candidate_id;
 
+  /**
+   * Lightweight non-owning view over a contiguous id range.
+   * Used to iterate group delete/insert ids without copying.
+   */
   struct id_view {
     const id_t *data = nullptr;
     std::size_t count = 0;
@@ -69,31 +85,26 @@ public:
 
   const std::vector<content_group> &groups() const noexcept { return groups_; }
 
+  // Access delete ids belonging to a group.
   id_view delete_ids(const content_group &g) const noexcept;
+
+  // Access insert ids belonging to a group.
   id_view insert_ids(const content_group &g) const noexcept;
 
   std::size_t group_count() const noexcept { return groups_.size(); }
 
-  std::uint32_t append_delete_ids(const std::vector<id_t> &ids) {
-    const std::uint32_t begin =
-        static_cast<std::uint32_t>(group_del_ids_.size());
-    group_del_ids_.insert(group_del_ids_.end(), ids.begin(), ids.end());
-    return begin;
-  }
+  // ----- Builder-facing helpers -----
 
-  std::uint32_t append_insert_ids(const std::vector<id_t> &ids) {
-    const std::uint32_t begin =
-        static_cast<std::uint32_t>(group_ins_ids_.size());
-    group_ins_ids_.insert(group_ins_ids_.end(), ids.begin(), ids.end());
-    return begin;
-  }
+  void reserve_groups(std::size_t n) { groups_.reserve(n); }
 
-  void append_group(content_group g) { groups_.push_back(g); }
+  // Append ids and return the starting index of the inserted range.
+  std::uint32_t append_delete_ids(const std::vector<id_t> &ids);
+
+  std::uint32_t append_insert_ids(const std::vector<id_t> &ids);
+
+  void append_group(content_group g);
 
 private:
-  friend content_groups build_content_groups(const candidate_registry &registry,
-                                             bool confirm_text_equality);
-
   std::vector<id_t> group_del_ids_;
   std::vector<id_t> group_ins_ids_;
   std::vector<content_group> groups_;
