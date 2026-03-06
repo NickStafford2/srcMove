@@ -35,6 +35,17 @@ static bool any_non_ws(std::string_view s) {
   return false;
 }
 
+static std::string trim_ws(std::string s) {
+  auto not_space = [](unsigned char ch) { return !std::isspace(ch); };
+
+  auto begin = std::find_if(s.begin(), s.end(), not_space);
+  auto end = std::find_if(s.rbegin(), s.rend(), not_space).base();
+
+  if (begin >= end)
+    return "";
+  return std::string(begin, end);
+}
+
 // Converts selected diff_region -> move_candidate for registry.
 // (Registry doesn’t need nesting fields; it just needs text + span + file.)
 std::vector<move_candidate>
@@ -68,7 +79,7 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
     if (r.full_text.size() < opt.min_chars)
       continue;
 
-    move_candidate c(r.kind, r.start_idx, r.filename, r.full_text);
+    move_candidate c(r.kind, r.start_idx, r.filename, trim_ws(r.full_text));
     c.end_idx = r.end_idx; // preserve the true close position
     out.push_back(std::move(c));
   }
