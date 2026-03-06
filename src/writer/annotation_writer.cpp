@@ -70,15 +70,16 @@ void write_with_move_annotations(const std::string &in_filename,
 
 } // namespace
 
-void annotate(const std::vector<diff_region> &regions,
-              const candidate_registry &registry, const content_groups &groups,
-              const std::string &srcdiff_in_filename,
-              const std::string &srcdiff_out_filename) {
+int annotate(const std::vector<diff_region> &regions,
+             const candidate_registry &registry, const content_groups &groups,
+             const std::string &srcdiff_in_filename,
+             const std::string &srcdiff_out_filename) {
   const std::uint32_t start_move_id = max_existing_move_id(regions) + 1;
   const auto tags = build_move_tags(groups, registry, start_move_id);
 
   // second pass
   write_with_move_annotations(srcdiff_in_filename, srcdiff_out_filename, tags);
+  return tags.size();
 }
 
 } // namespace srcmove

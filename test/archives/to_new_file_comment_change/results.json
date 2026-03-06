@@ -1,3 +1,7 @@
 {
-  "moves": 3
+  "moves": 0,
+  "annotated_regions": 0,
+  "regions_total": 3,
+  "candidates_total": 3,
+  "groups_total": 3
 }

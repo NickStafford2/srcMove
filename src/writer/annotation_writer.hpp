@@ -19,10 +19,10 @@
 
 namespace srcmove {
 
-void annotate(const std::vector<diff_region> &regions,
-              const candidate_registry &registry, const content_groups &groups,
-              const std::string &srcdiff_in_filename,
-              const std::string &srcdiff_out_filename);
+int annotate(const std::vector<diff_region> &regions,
+             const candidate_registry &registry, const content_groups &groups,
+             const std::string &srcdiff_in_filename,
+             const std::string &srcdiff_out_filename);
 
 } // namespace srcmove
 #endif

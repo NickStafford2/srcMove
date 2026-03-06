@@ -25,6 +25,16 @@
 
 namespace srcmove {
 
+std::size_t count_move_groups(const content_groups &groups) {
+  std::size_t count = 0;
+  for (const auto &g : groups.groups()) {
+    if (g.del_count() > 0 && g.ins_count() > 0) {
+      ++count;
+    }
+  }
+  return count;
+}
+
 summary run_pipeline(const std::string &srcdiff_in_filename,
                      const std::string &srcdiff_out_filename) {
   srcmove::summary result;
@@ -41,10 +51,14 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   const content_groups groups = build_content_groups(registry, true);
 
   print_greedy_matches(registry, groups, std::cout);
-  result.moves = groups.groups().size();
 
-  annotate(regions, registry, groups, srcdiff_in_filename,
-           srcdiff_out_filename);
+  result.annotated_regions = annotate(
+      regions, registry, groups, srcdiff_in_filename, srcdiff_out_filename);
+
+  result.regions_total = regions.size();
+  result.candidates_total = registry.active_candidate_count();
+  result.groups_total = groups.group_count();
+  result.moves = count_move_groups(groups);
   return result;
 }
 

@@ -1,4 +1,3 @@
-#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <string>
@@ -44,7 +43,8 @@ int main(int argc, char **argv) {
   }
 
   try {
-    srcmove::summary summ = srcmove::run_pipeline(in_filename, out_filename);
+    const srcmove::summary summ =
+        srcmove::run_pipeline(in_filename, out_filename);
 
     if (!results_path.empty()) {
       std::ofstream out(results_path);
@@ -55,7 +55,11 @@ int main(int argc, char **argv) {
       }
 
       out << "{\n";
-      out << "  \"moves\": " << summ.moves << "\n";
+      out << "  \"moves\": " << summ.moves << ",\n";
+      out << "  \"annotated_regions\": " << summ.annotated_regions << ",\n";
+      out << "  \"regions_total\": " << summ.regions_total << ",\n";
+      out << "  \"candidates_total\": " << summ.candidates_total << ",\n";
+      out << "  \"groups_total\": " << summ.groups_total << "\n";
       out << "}\n";
     }
   } catch (const std::exception &e) {
