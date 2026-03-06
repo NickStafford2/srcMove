@@ -14,13 +14,13 @@
 #include <utility>
 #include <vector>
 
-#include "annotation_writer.hpp"
 #include "move_region.hpp"
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/content_group_builder.hpp"
 #include "move_registry/move_registry_debug.hpp"
 #include "region_filter.hpp"
 #include "srcml_reader.hpp"
+#include "writer/annotation_writer.hpp"
 
 namespace srcmove {
 

@@ -22,6 +22,7 @@ find_package(LibXml2 REQUIRED)
 file(GLOB SRC_FILES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/src/move_registry/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/writer/*.cpp"
 )
 
 add_executable(srcMove ${SRC_FILES})
