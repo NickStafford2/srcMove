@@ -26,8 +26,8 @@ move_candidate::move_candidate(Kind k, std::size_t start, std::string file,
                                std::string text)
     : kind(k), filename(std::move(file)), xpath(), full_name(),
       sibling_index(0), start_index(0), start_idx(start), end_idx(0),
-      full_text(std::move(text)),
-      hash(move_candidate::fast_hash_raw(full_text)) {}
+      raw_text(std::move(text)), hash(move_candidate::fast_hash_raw(raw_text)) {
+}
 
 bool move_candidate::operator==(const move_candidate &other) const {
   // return type == other.type && name == node.name && content == node.content;
@@ -57,7 +57,7 @@ std::uint64_t move_candidate::fast_hash_raw(std::string_view s) {
 std::ostream &operator<<(std::ostream &os, const move_candidate &r) {
   return os << (r.kind == move_candidate::Kind::insert ? "INS" : "DEL") << " ["
             << r.start_idx << "," << r.end_idx << "] " << r.filename
-            << " hash=" << r.hash << "  raw.ins: '" << r.full_text << "'\n";
+            << " hash=" << r.hash << "  raw.ins: '" << r.raw_text << "'\n";
 }
 
 } // namespace srcmove

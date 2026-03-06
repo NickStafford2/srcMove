@@ -96,7 +96,7 @@ void print_candidate_line(const candidate_registry &registry, candidate_id id,
      << "active=" << (record.active ? "yes" : "no ") << " "
      << "hash=" << c.hash << " "
      << "file=\"" << c.filename << "\" "
-     << "text=\"" << clean_text(c.full_text, preview_len) << "\"\n";
+     << "text=\"" << clean_text(c.raw_text, preview_len) << "\"\n";
 }
 
 struct file_stats {
@@ -339,10 +339,10 @@ void print_greedy_matches(const candidate_registry &registry,
     os << "DEL [" << d.start_idx << "," << d.end_idx << "] " << d.filename
        << " -> "
        << "INS [" << ins.start_idx << "," << ins.end_idx << "] " << ins.filename
-       << " hash=" << d.hash << " chars(del)=" << d.full_text.size()
-       << " chars(ins)=" << ins.full_text.size() << " del_text=\""
-       << clean_text(d.full_text, 40) << "\""
-       << " ins_text=\"" << clean_text(ins.full_text, 40) << "\""
+       << " hash=" << d.hash << " chars(del)=" << d.raw_text.size()
+       << " chars(ins)=" << ins.raw_text.size() << " del_text=\""
+       << clean_text(d.raw_text, 40) << "\""
+       << " ins_text=\"" << clean_text(ins.raw_text, 40) << "\""
        << "\n";
   }
 
