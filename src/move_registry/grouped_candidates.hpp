@@ -33,8 +33,6 @@
 #ifndef INCLUDED_MOVE_REGISTRY_GROUPED_CANDIDATES_HPP
 #define INCLUDED_MOVE_REGISTRY_GROUPED_CANDIDATES_HPP
 
-#include <cstdint>
-#include <unordered_map>
 #include <vector>
 
 #include "move_buckets.hpp"
