@@ -37,7 +37,8 @@ struct diff_region {
   std::size_t start_idx = 0;
   std::size_t end_idx = 0;
 
-  std::string full_text;
+  std::string raw_text;
+  std::string canonical_text;
   std::uint64_t hash = 0;
 
   std::size_t parent_id = static_cast<std::size_t>(-1);

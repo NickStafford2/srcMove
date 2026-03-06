@@ -95,7 +95,7 @@ content_groups build_content_groups(const candidate_registry &registry,
         continue;
       }
       const auto &candidate = record.candidate;
-      del_by_text[std::string_view(candidate.raw_text)].push_back(id);
+      del_by_text[std::string_view(candidate.canonical_text)].push_back(id);
     }
 
     for (candidate_id id : bucket.ins_ids) {
@@ -104,7 +104,7 @@ content_groups build_content_groups(const candidate_registry &registry,
         continue;
       }
       const auto &candidate = record.candidate;
-      ins_by_text[std::string_view(candidate.raw_text)].push_back(id);
+      ins_by_text[std::string_view(candidate.canonical_text)].push_back(id);
     }
 
     std::unordered_map<std::string_view, bool, sv_hash> seen;

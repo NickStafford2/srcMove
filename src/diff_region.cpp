@@ -32,11 +32,17 @@
 #include <utility>
 #include <vector>
 
+#include "canonical_subtree.hpp"
 #include "diff_region.hpp"
 #include "move_candidate.hpp"
 #include "srcml_node.hpp"
 
 namespace srcmove {
+
+struct open_region_capture {
+  std::size_t region_id;
+  std::vector<srcml_node> nodes;
+};
 
 static constexpr std::size_t kNoParent = static_cast<std::size_t>(-1);
 
@@ -81,7 +87,7 @@ root_mode detect_root_mode(const srcml_node &root_unit) {
 }
 
 void open_diff_region(std::vector<diff_region> &regions,
-                      std::vector<std::size_t> &open_region_stack,
+                      std::vector<open_region_capture> &open_region_stack,
                       const srcml_node &node, srcml_reader &reader,
                       const std::string &filename, std::size_t node_index) {
   const auto kind = diff_kind_from_full_name(node.full_name());
@@ -89,8 +95,9 @@ void open_diff_region(std::vector<diff_region> &regions,
     return;
   }
 
-  const std::size_t parent_id =
-      open_region_stack.empty() ? kNoParent : open_region_stack.back();
+  const std::size_t parent_id = open_region_stack.empty()
+                                    ? kNoParent
+                                    : open_region_stack.back().region_id;
   const std::uint32_t depth =
       static_cast<std::uint32_t>(open_region_stack.size());
 
@@ -103,8 +110,7 @@ void open_diff_region(std::vector<diff_region> &regions,
   region.filename = filename;
   region.start_idx = node_index;
   region.end_idx = 0;
-  region.full_text = reader.get_current_inner_text();
-  region.hash = move_candidate::fast_hash_raw(region.full_text);
+  region.raw_text = reader.get_current_inner_text();
   region.parent_id = parent_id;
   region.depth = depth;
 
@@ -118,19 +124,21 @@ void open_diff_region(std::vector<diff_region> &regions,
   }
 
   regions.push_back(std::move(region));
-  open_region_stack.push_back(regions.size() - 1);
+  open_region_stack.push_back(open_region_capture{regions.size() - 1, {}});
 }
 
 void close_diff_region(std::vector<diff_region> &regions,
-                       std::vector<std::size_t> &open_region_stack,
+                       std::vector<open_region_capture> &open_region_stack,
                        move_candidate::Kind expected_kind,
                        std::size_t node_index) {
   if (open_region_stack.empty()) {
     throw std::runtime_error("diff end tag without matching diff start tag");
   }
 
-  const std::size_t rid = open_region_stack.back();
+  open_region_capture capture = std::move(open_region_stack.back());
   open_region_stack.pop_back();
+
+  const std::size_t rid = capture.region_id;
 
   if (regions[rid].kind != expected_kind) {
     throw std::runtime_error("mismatched diff nesting");
@@ -141,6 +149,9 @@ void close_diff_region(std::vector<diff_region> &regions,
   }
 
   regions[rid].end_idx = node_index;
+  regions[rid].canonical_text = canonicalize_diff_region_subtree(capture.nodes);
+  regions[rid].hash =
+      move_candidate::fast_hash_raw(regions[rid].canonical_text);
 }
 
 void advance(reader_iter &it, std::size_t &node_index) {
@@ -172,7 +183,7 @@ void read_file_unit(reader_iter &it, reader_iter &end, srcml_reader &reader,
     throw std::runtime_error("read_file_unit: unexpected end of stream");
   }
 
-  std::vector<std::size_t> open_region_stack;
+  std::vector<open_region_capture> open_region_stack;
   open_region_stack.reserve(32);
 
   // Consume the starting <unit ...>.
@@ -194,11 +205,19 @@ void read_file_unit(reader_iter &it, reader_iter &end, srcml_reader &reader,
                          node_index);
       }
 
+      for (auto &open_region : open_region_stack) {
+        open_region.nodes.push_back(node);
+      }
+
       advance(it, node_index);
       continue;
     }
 
     if (node.is_end()) {
+      for (auto &open_region : open_region_stack) {
+        open_region.nodes.push_back(node);
+      }
+
       if (const auto kind = diff_kind_from_full_name(full_name)) {
         close_diff_region(regions, open_region_stack, *kind, node_index);
         advance(it, node_index);
@@ -222,6 +241,10 @@ void read_file_unit(reader_iter &it, reader_iter &end, srcml_reader &reader,
     }
 
     // TEXT / OTHER
+    for (auto &open_region : open_region_stack) {
+      open_region.nodes.push_back(node);
+    }
+
     advance(it, node_index);
   }
 

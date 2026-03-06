@@ -3,6 +3,7 @@
 
 <unit revision="1.0.0" language="C++" filename="bar.cpp"><diff:insert move="3" xpath="/unit[1]/unit[1]/diff:insert[1]"><function><type><name>char</name></type><diff:ws> </diff:ws><name>definition_moved</name><parameter_list>()</parameter_list><diff:ws> </diff:ws><block>{<block_content><diff:ws>
   </diff:ws><decl_stmt><decl><type><name>char</name></type><diff:ws> </diff:ws><name>d</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="char">'d'</literal></expr></init></decl>;</decl_stmt><diff:ws>
+
   </diff:ws><decl_stmt><decl><type><name>char</name></type><diff:ws> </diff:ws><name>e</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="char">'e'</literal></expr></init></decl>;</decl_stmt><diff:ws>
   </diff:ws><return>return<diff:ws> </diff:ws><expr><name>d</name><diff:ws> </diff:ws><operator>+</operator><diff:ws> </diff:ws><name>e</name></expr>;</return><diff:ws>
 </diff:ws></block_content>}</block></function><diff:ws>

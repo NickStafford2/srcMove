@@ -26,7 +26,9 @@ public:
   enum class Kind { insert, del };
 
   move_candidate(Kind kind, std::size_t start_idx, std::string filename,
-                 std::string full_text);
+                 std::string raw_text,
+                 std::string canonical_text);
+
   Kind kind;
   std::string filename; // from unit@filename
   std::string xpath;
@@ -35,7 +37,8 @@ public:
   std::size_t start_index;
   std::size_t start_idx;
   std::size_t end_idx;
-  std::string raw_text; // exact region inner text, for debug
+  std::string raw_text;       // exact region inner text, for debug
+  std::string canonical_text; // normalized subtree identity, for matching
   std::uint64_t hash;
 
   std::size_t add_child_and_get_next_id(std::string full_name) {

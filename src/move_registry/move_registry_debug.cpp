@@ -96,7 +96,8 @@ void print_candidate_line(const candidate_registry &registry, candidate_id id,
      << "active=" << (record.active ? "yes" : "no ") << " "
      << "hash=" << c.hash << " "
      << "file=\"" << c.filename << "\" "
-     << "text=\"" << clean_text(c.raw_text, preview_len) << "\"\n";
+     << " raw=\"" << clean_text(c.raw_text, preview_len) << "\""
+     << " canon=\"" << clean_text(c.canonical_text, preview_len) << "\"\n";
 }
 
 struct file_stats {
@@ -337,13 +338,15 @@ void print_greedy_matches(const candidate_registry &registry,
     const auto &ins = registry.candidate(m.ins_id);
 
     os << "DEL [" << d.start_idx << "," << d.end_idx << "] " << d.filename
-       << " -> "
+       << " -> \n"
        << "INS [" << ins.start_idx << "," << ins.end_idx << "] " << ins.filename
-       << " hash=" << d.hash << " chars(del)=" << d.raw_text.size()
-       << " chars(ins)=" << ins.raw_text.size() << " del_text=\""
-       << clean_text(d.raw_text, 40) << "\""
-       << " ins_text=\"" << clean_text(ins.raw_text, 40) << "\""
-       << "\n";
+       << "\n hash=" << d.hash << " chars(del)=" << d.raw_text.size()
+       << " chars(ins)=" << ins.raw_text.size() << "\n  del_raw_text=\""
+       << clean_text(d.raw_text, 80) << "\""
+       << "\n  ins_raw_text=\"" << clean_text(ins.raw_text, 80) << "\""
+       << "\n  del_can_text=\"" << clean_text(d.canonical_text, 80) << "\""
+       << "\n  ins_can_text=\"" << clean_text(ins.canonical_text, 80) << "\""
+       << "\n\n";
   }
 
   os << "\n=== UNMATCHED ACTIVE CANDIDATES ===\n";
