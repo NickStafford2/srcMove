@@ -8,6 +8,10 @@
       ],
       "to_xpaths": [
         "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[5]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
       ]
     },
     {
@@ -17,6 +21,10 @@
       ],
       "to_xpaths": [
         "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[4]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
       ]
     },
     {
@@ -26,6 +34,10 @@
       ],
       "to_xpaths": [
         "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[4]/decl[1]/type[1]/diff:insert[1]/diff:insert[2]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
       ]
     },
     {
@@ -35,6 +47,10 @@
       ],
       "to_xpaths": [
         "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[3]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
       ]
     },
     {
@@ -44,6 +60,10 @@
       ],
       "to_xpaths": [
         "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[3]/decl[1]/type[1]/diff:insert[1]/diff:insert[2]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
       ]
     },
     {
@@ -53,6 +73,10 @@
       ],
       "to_xpaths": [
         "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[2]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
       ]
     },
     {
@@ -62,6 +86,10 @@
       ],
       "to_xpaths": [
         "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[2]/decl[1]/type[1]/diff:insert[1]/diff:insert[2]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
       ]
     },
     {
@@ -71,6 +99,10 @@
       ],
       "to_xpaths": [
         "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[1]/decl[1]/type[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+      ],
+      "to_raw_texts": [
       ]
     }
   ],

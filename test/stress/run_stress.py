@@ -55,10 +55,19 @@ def load_case_config(info_json: Path) -> dict:
     }
 
 
-def clone_repo(repo_url: str, clone_dir: Path, depth: int) -> None:
-    if clone_dir.exists():
-        shutil.rmtree(clone_dir)
+def is_git_repo(path: Path) -> bool:
+    return (path / ".git").exists()
 
+
+def get_origin_url(repo_dir: Path) -> str | None:
+    result = run(["git", "remote", "get-url", "origin"], cwd=repo_dir)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
+
+
+def clone_repo(repo_url: str, clone_dir: Path, depth: int) -> None:
+    clone_dir.parent.mkdir(parents=True, exist_ok=True)
     cmd = [
         "git",
         "clone",
@@ -71,15 +80,94 @@ def clone_repo(repo_url: str, clone_dir: Path, depth: int) -> None:
     require_ok(result, "git clone")
 
 
+def update_repo(repo_dir: Path, repo_url: str, depth: int) -> None:
+    current_origin = get_origin_url(repo_dir)
+    if current_origin != repo_url:
+        result = run(["git", "remote", "set-url", "origin", repo_url], cwd=repo_dir)
+        require_ok(result, "git remote set-url origin")
+
+    fetch_cmd = [
+        "git",
+        "fetch",
+        "origin",
+        "--tags",
+        "--prune",
+        "--depth",
+        str(depth),
+    ]
+    result = run(fetch_cmd, cwd=repo_dir)
+    require_ok(result, "git fetch origin")
+
+
+def ensure_repo(repo_url: str, clone_dir: Path, depth: int) -> None:
+    if not clone_dir.exists():
+        print("      repo not present; cloning")
+        clone_repo(repo_url, clone_dir, depth)
+        return
+
+    if not is_git_repo(clone_dir):
+        raise RuntimeError(f"existing path is not a git repo: {clone_dir}")
+
+    print("      repo already present; updating")
+    update_repo(clone_dir, repo_url, depth)
+
+
 def fetch_tags(repo_dir: Path) -> None:
-    result = run(["git", "fetch", "--tags"], cwd=repo_dir)
-    require_ok(result, "git fetch --tags")
+    result = run(["git", "fetch", "--tags", "--prune"], cwd=repo_dir)
+    require_ok(result, "git fetch --tags --prune")
+
+
+def is_shallow_repo(repo_dir: Path) -> bool:
+    result = run(["git", "rev-parse", "--is-shallow-repository"], cwd=repo_dir)
+    require_ok(result, "git rev-parse --is-shallow-repository")
+    return result.stdout.strip() == "true"
+
+
+def deepen_repo(repo_dir: Path, amount: int) -> None:
+    result = run(
+        ["git", "fetch", "origin", "--tags", "--prune", f"--deepen={amount}"],
+        cwd=repo_dir,
+    )
+    require_ok(result, f"git fetch --deepen={amount}")
+
+
+def unshallow_repo(repo_dir: Path) -> None:
+    result = run(
+        ["git", "fetch", "origin", "--tags", "--prune", "--unshallow"],
+        cwd=repo_dir,
+    )
+    require_ok(result, "git fetch --unshallow")
+
+
+def try_resolve_commit(repo_dir: Path, rev: str) -> str | None:
+    result = run(["git", "rev-parse", rev], cwd=repo_dir)
+    if result.returncode != 0:
+        return None
+    return result.stdout.strip()
 
 
 def resolve_commit(repo_dir: Path, rev: str) -> str:
-    result = run(["git", "rev-parse", rev], cwd=repo_dir)
-    require_ok(result, f"git rev-parse {rev}")
-    return result.stdout.strip()
+    commit = try_resolve_commit(repo_dir, rev)
+    if commit is not None:
+        return commit
+
+    if not is_shallow_repo(repo_dir):
+        raise RuntimeError(f"git rev-parse {rev} failed")
+
+    for amount in (200, 1000, 5000):
+        deepen_repo(repo_dir, amount)
+        commit = try_resolve_commit(repo_dir, rev)
+        if commit is not None:
+            return commit
+
+    unshallow_repo(repo_dir)
+    commit = try_resolve_commit(repo_dir, rev)
+    if commit is not None:
+        return commit
+
+    raise RuntimeError(
+        f"could not resolve revision after deepening/unshallowing: {rev}"
+    )
 
 
 def export_commit(repo_dir: Path, commit: str, out_dir: Path) -> None:
@@ -124,7 +212,7 @@ def export_commit(repo_dir: Path, commit: str, out_dir: Path) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(
-        description="Stress-test srcMove on two revisions of a GitHub repo."
+        description="Stress-test srcMove on two revisions of a Git repo."
     )
     parser.add_argument(
         "case",
@@ -144,12 +232,17 @@ def main() -> int:
         "--clone-depth",
         type=int,
         default=None,
-        help="git clone depth (overrides info.json)",
+        help="initial/update fetch depth (overrides info.json)",
     )
     parser.add_argument(
         "--keep-work",
         action="store_true",
         help="keep generated working files instead of deleting old ones first",
+    )
+    parser.add_argument(
+        "--refresh-repo",
+        action="store_true",
+        help="force a git fetch even if the repo already exists locally",
     )
     args = parser.parse_args()
 
@@ -196,16 +289,32 @@ def main() -> int:
     report_json = work_root / "report.json"
 
     if not args.keep_work and work_root.exists():
-        shutil.rmtree(work_root)
+        if clone_dir.exists() and is_git_repo(clone_dir):
+            temp_repo_dir = case_dir / ".repo_tmp_preserve"
+            if temp_repo_dir.exists():
+                shutil.rmtree(temp_repo_dir)
+            shutil.move(str(clone_dir), str(temp_repo_dir))
+
+            shutil.rmtree(work_root)
+            work_root.mkdir(parents=True, exist_ok=True)
+
+            shutil.move(str(temp_repo_dir), str(clone_dir))
+        else:
+            shutil.rmtree(work_root)
+
     work_root.mkdir(parents=True, exist_ok=True)
 
-    print(f"[1/5] cloning {repo_url}")
-    clone_repo(repo_url, clone_dir, clone_depth)
+    print(f"[1/6] preparing repo {repo_url}")
+    ensure_repo(repo_url, clone_dir, clone_depth)
 
-    print("[2/5] fetching tags")
+    if args.refresh_repo:
+        print("      refreshing existing repo")
+        update_repo(clone_dir, repo_url, clone_depth)
+
+    print("[2/6] fetching tags")
     fetch_tags(clone_dir)
 
-    print("[3/5] resolving revisions")
+    print("[3/6] resolving revisions")
     old_commit = resolve_commit(clone_dir, old_rev)
     new_commit = resolve_commit(clone_dir, new_rev)
 
@@ -214,7 +323,7 @@ def main() -> int:
     print(f"      old commit: {old_commit}")
     print(f"      new commit: {new_commit}")
 
-    print("[4/5] exporting revisions")
+    print("[4/6] exporting revisions")
     export_commit(clone_dir, old_commit, original_dir)
     export_commit(clone_dir, new_commit, modified_dir)
 
@@ -270,6 +379,7 @@ def main() -> int:
         "srcmove_seconds": move_end - move_start,
         "move_count": move_count,
         "paths": {
+            "repo_dir": str(clone_dir),
             "original_dir": str(original_dir),
             "modified_dir": str(modified_dir),
             "diff_xml": str(diff_xml),
@@ -286,6 +396,7 @@ def main() -> int:
 
     print()
     print("done")
+    print(f"repo         : {clone_dir}")
     print(f"old_rev      : {old_rev}")
     print(f"new_rev      : {new_rev}")
     print(f"srcdiff time : {report['srcdiff_seconds']:.3f}s")

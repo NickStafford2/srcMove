@@ -11,6 +11,7 @@
 #define INCLUDED_MOVE_ANNOTATION_PLAN_HPP
 
 #include <cctype>
+#include <string>
 
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/move_groups.hpp"
@@ -20,6 +21,7 @@ namespace srcmove {
 
 struct move_tag {
   std::uint32_t move_id;
+  std::string raw_text;
 };
 
 // Map: start_idx (node index where diff:insert/delete START occurs) -> move tag

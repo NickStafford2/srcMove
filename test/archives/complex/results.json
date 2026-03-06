@@ -8,6 +8,12 @@
       ],
       "to_xpaths": [
         "/unit[1]/unit[3]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}"
+      ],
+      "to_raw_texts": [
+        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}\n\n"
       ]
     },
     {
@@ -17,6 +23,12 @@
       ],
       "to_xpaths": [
         "/unit[1]/unit[2]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+        "char delcaration_moved();\n"
+      ],
+      "to_raw_texts": [
+        "char delcaration_moved();\n"
       ]
     },
     {
@@ -26,6 +38,12 @@
       ],
       "to_xpaths": [
         "/unit[1]/unit[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+        "\nchar definition_moved() {\n  char d = 'd';\n  char e = 'e';\n  return d + e;\n}\n"
+      ],
+      "to_raw_texts": [
+        "char definition_moved() {\n  char d = 'd';\n\n  char e = 'e';\n  return d + e;\n}\n"
       ]
     }
   ],

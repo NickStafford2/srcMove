@@ -12,6 +12,8 @@ exclude_from_dir_list = [
   "dist/",
   "build/",
   "node_modules/",
+  "test/stress/",
+  "test/stress/**/*",
 ]
 
 # Files whose contents will always be included under "IMPORTANT FILE CONTENTS".
@@ -20,6 +22,9 @@ important_files = [
   # "README.md",
   "context-export.toml",
   "CMakeLists.txt",
+  "!test/stress/**/CMakeLists.txt",
+  "!test/stress/",
+  "!test/stress/**/*",
   "src/**/*.cpp",
   "!src/tools/*.cpp",
   "src/**/*.hpp",

@@ -8,6 +8,12 @@
       ],
       "to_xpaths": [
         "/unit[1]/function[1]/block[1]/block_content[1]/return[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+        "456"
+      ],
+      "to_raw_texts": [
+        "456"
       ]
     },
     {
@@ -17,6 +23,12 @@
       ],
       "to_xpaths": [
         "/unit[1]/function[2]/block[1]/block_content[1]/return[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+        "123"
+      ],
+      "to_raw_texts": [
+        "123"
       ]
     }
   ],

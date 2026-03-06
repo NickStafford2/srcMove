@@ -12,6 +12,8 @@ struct move_entry {
   std::uint32_t move_id;
   std::vector<std::string> from_xpaths;
   std::vector<std::string> to_xpaths;
+  std::vector<std::string> from_raw_texts;
+  std::vector<std::string> to_raw_texts;
 };
 
 struct summary {

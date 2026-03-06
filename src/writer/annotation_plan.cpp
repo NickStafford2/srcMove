@@ -41,13 +41,13 @@ tag_map build_move_tags(const content_groups &groups,
     // Apply to all deletes in group
     for (auto did : groups.delete_ids(g)) {
       const auto &d = registry.candidate(did);
-      tags.emplace(d.start_idx, move_tag{move_id});
+      tags.emplace(d.start_idx, move_tag{move_id, d.raw_text});
     }
 
     // Apply to all inserts in group
     for (auto iid : groups.insert_ids(g)) {
       const auto &ins = registry.candidate(iid);
-      tags.emplace(ins.start_idx, move_tag{move_id});
+      tags.emplace(ins.start_idx, move_tag{move_id, ins.raw_text});
     }
   }
 

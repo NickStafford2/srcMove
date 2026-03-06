@@ -74,6 +74,7 @@ write_with_move_annotations(const std::string &in_filename,
         auto it = tags.find(i);
         if (it != tags.end()) {
           const std::uint32_t move_id = it->second.move_id;
+          const std::string &raw_text = it->second.raw_text;
 
           patched.set_attribute("move", std::to_string(move_id));
           patched.set_attribute("xpath", xpath);
@@ -84,8 +85,10 @@ write_with_move_annotations(const std::string &in_filename,
 
           if (fn == "diff:delete") {
             entry.from_xpaths.push_back(xpath);
+            entry.from_raw_texts.push_back(raw_text);
           } else {
             entry.to_xpaths.push_back(xpath);
+            entry.to_raw_texts.push_back(raw_text);
           }
 
           ++i;
