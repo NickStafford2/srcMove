@@ -6,11 +6,9 @@
 #include "move_registry.hpp"
 
 #include <cassert>
-#include <iostream>
 #include <utility>
 
 #include "move_groups_builder.hpp"
-#include "move_matcher.hpp"
 
 namespace srcmove {
 
