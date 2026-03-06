@@ -7,7 +7,7 @@
 
 namespace srcmove {
 
-std::vector<move_match> greedy_match_1_to_1(const move_registry &mr) {
+std::vector<move_match> greedy_match_1_to_1(const grouped_candidates &mr) {
   std::vector<move_match> out;
 
   const auto &groups = mr.groups();
@@ -32,7 +32,7 @@ std::vector<move_match> greedy_match_1_to_1(const move_registry &mr) {
   return out;
 }
 
-std::vector<move_match> enumerate_all_pairs(const move_registry &mr,
+std::vector<move_match> enumerate_all_pairs(const grouped_candidates &mr,
                                             std::size_t hard_cap) {
   std::vector<move_match> out;
 

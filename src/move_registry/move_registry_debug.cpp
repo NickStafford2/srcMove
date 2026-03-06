@@ -8,7 +8,7 @@
 
 namespace srcmove {
 
-void print_registry_summary(const move_registry &mr, std::ostream &os) {
+void print_registry_summary(const grouped_candidates &mr, std::ostream &os) {
   os << "move_registry:\n";
   os << "  deletes: " << mr.delete_count() << "\n";
   os << "  inserts: " << mr.insert_count() << "\n";
@@ -48,7 +48,7 @@ void print_registry_summary(const move_registry &mr, std::ostream &os) {
   os << "    ambiguous: " << amb << "\n";
 }
 
-void print_greedy_matches(const move_registry &mr, std::ostream &os) {
+void print_greedy_matches(const grouped_candidates &mr, std::ostream &os) {
   print_registry_summary(mr, os);
 
   const auto matches = greedy_match_1_to_1(mr);

@@ -18,7 +18,7 @@
 
 namespace srcmove {
 
-void annotate(std::vector<diff_region> regions, move_registry mr,
+void annotate(std::vector<diff_region> regions, grouped_candidates mr,
               std::string srcdiff_in_filename,
               std::string srcdiff_out_filename);
 

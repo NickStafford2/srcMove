@@ -48,15 +48,16 @@ struct move_match {
   candidate_id ins_id; // index into inserts()
 };
 
-class move_registry {
+class grouped_candidates {
 public:
   using id_t = candidate_id;
 
-  move_registry() = default;
+  grouped_candidates() = default;
 
   // Main construction entry point (policy is explicit at call site).
-  static move_registry from_candidates(std::vector<move_candidate> candidates,
-                                       bool confirm_text_equality = true);
+  static grouped_candidates
+  from_candidates(std::vector<move_candidate> candidates,
+                  bool confirm_text_equality = true);
 
   /**
    * Build grouping structures from the ingested candidates + buckets.
@@ -64,10 +65,10 @@ public:
    * If confirm_text_equality is false, each hash bucket becomes one group.
    * If true, each hash bucket is refined into exact-text subgroups.
    *
-   * After build_groups(), groups() is valid until the next clear() or
-   * build_groups().
+   * After finalize_groups(), groups() is valid until the next clear() or
+   * finalize_groups().
    */
-  void build_groups(bool confirm_text_equality = true);
+  void finalize_groups(bool confirm_text_equality = true);
 
   // Read-only accessors used by matchers/debug/annotation planning.
   const std::vector<move_candidate> &deletes() const noexcept {
@@ -102,7 +103,7 @@ public:
 
   std::size_t delete_count() const noexcept { return deletes_.size(); }
   std::size_t insert_count() const noexcept { return inserts_.size(); }
-  std::size_t bucket_count() const noexcept { return buckets_by_hash_.size(); }
+  std::size_t bucket_count() const noexcept { return hash_index_.size(); }
   std::size_t group_count() const noexcept { return groups_.groups.size(); }
 
 private:
@@ -110,12 +111,12 @@ private:
   void reserve(std::size_t expected_deletes, std::size_t expected_inserts);
   id_t add_delete(move_candidate del);
   id_t add_insert(move_candidate ins);
-  content_group_storage groups_;
+  grouped_id_storage groups_;
   std::vector<move_candidate> deletes_;
   std::vector<move_candidate> inserts_;
 
   // Build-time hash buckets.
-  std::unordered_map<std::uint64_t, bucket_ids> buckets_by_hash_;
+  std::unordered_map<std::uint64_t, bucket_ids> hash_index_;
 };
 
 } // namespace srcmove

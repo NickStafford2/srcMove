@@ -26,7 +26,7 @@ using tag_map = std::unordered_map<std::size_t, move_tag>;
 
 std::uint32_t max_existing_move_id(const std::vector<diff_region> &regions);
 
-tag_map build_move_tags(const move_registry &mr, std::uint32_t start_id);
+tag_map build_move_tags(const grouped_candidates &mr, std::uint32_t start_id);
 
 } // namespace srcmove
 

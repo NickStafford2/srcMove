@@ -28,7 +28,7 @@ namespace srcmove {
  *   - each hash bucket is split into subgroups by exact full_text
  *     (prevents false matches from hash collisions)
  */
-content_group_storage build_groups_from_buckets(
+grouped_id_storage build_groups_from_buckets(
     const std::vector<move_candidate> &deletes,
     const std::vector<move_candidate> &inserts,
     const std::unordered_map<std::uint64_t, bucket_ids> &by_hash,

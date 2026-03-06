@@ -58,7 +58,7 @@ struct content_group_compact {
  *
  * groups[i] references ranges inside group_del_ids / group_ins_ids.
  */
-struct content_group_storage {
+struct grouped_id_storage {
   std::vector<candidate_id> group_del_ids;
   std::vector<candidate_id> group_ins_ids;
   std::vector<content_group_compact> groups;

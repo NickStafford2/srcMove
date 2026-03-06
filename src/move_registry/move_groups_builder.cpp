@@ -36,7 +36,7 @@ static group_kind classify_counts(std::size_t del_count,
   return group_kind::copy_or_repeat;
 }
 
-static void add_group(content_group_storage &out, std::uint64_t content_hash,
+static void add_group(grouped_id_storage &out, std::uint64_t content_hash,
                       const std::vector<candidate_id> &del_ids,
                       const std::vector<candidate_id> &ins_ids) {
   const std::uint32_t group_id = static_cast<std::uint32_t>(out.groups.size());
@@ -68,13 +68,13 @@ static void add_group(content_group_storage &out, std::uint64_t content_hash,
   });
 }
 
-content_group_storage build_groups_from_buckets(
+grouped_id_storage build_groups_from_buckets(
     const std::vector<move_candidate> &deletes,
     const std::vector<move_candidate> &inserts,
     const std::unordered_map<std::uint64_t, bucket_ids> &by_hash,
     bool confirm_text_equality) {
 
-  content_group_storage out;
+  grouped_id_storage out;
   out.groups.reserve(by_hash.size());
 
   // Fast path: one group per hash bucket.

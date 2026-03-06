@@ -25,7 +25,7 @@ std::uint32_t max_existing_move_id(const std::vector<diff_region> &regions) {
   return mx;
 }
 
-tag_map build_move_tags(const move_registry &mr, std::uint32_t start_id) {
+tag_map build_move_tags(const grouped_candidates &mr, std::uint32_t start_id) {
   tag_map tags;
 
   std::uint32_t next_move_id = start_id;

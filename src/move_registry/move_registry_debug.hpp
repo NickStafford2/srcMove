@@ -7,8 +7,8 @@
 
 namespace srcmove {
 
-void print_registry_summary(const move_registry &mr, std::ostream &os);
-void print_greedy_matches(const move_registry &mr, std::ostream &os);
+void print_registry_summary(const grouped_candidates &mr, std::ostream &os);
+void print_greedy_matches(const grouped_candidates &mr, std::ostream &os);
 
 } // namespace srcmove
 
