@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" language="C++" filename="test/nested_insert/original.cpp|test/nested_insert/modified.cpp"><function><type><name>int</name></type> <name>main</name><parameter_list>()</parameter_list> <block>{<block_content>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" language="C++" filename="/home/nick/Projects/srcMLBuildTemplate/srcMove/test/archives/nested_insert/original.cpp|/home/nick/Projects/srcMLBuildTemplate/srcMove/test/archives/nested_insert/modified.cpp"><function><type><name>int</name></type> <name>main</name><parameter_list>()</parameter_list> <block>{<block_content>
 <diff:insert><diff:ws>  </diff:ws><if_stmt><if>if<diff:ws> </diff:ws><condition>(<expr><literal type="number">1</literal></expr>)</condition><diff:ws> </diff:ws><block>{<block_content><diff:ws>
   </diff:ws><diff:common>  <decl_stmt><decl><type><name>int</name></type> <name>a</name> <init>= <expr><literal type="number">0</literal></expr></init></decl>;</decl_stmt>
   <diff:insert><diff:ws>  </diff:ws></diff:insert><decl_stmt><decl><type><name>int</name></type> <name>b</name> <init>= <expr><literal type="number">0</literal></expr></init></decl>;</decl_stmt>

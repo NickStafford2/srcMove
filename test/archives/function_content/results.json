@@ -1,0 +1,27 @@
+{
+  "move_count": 2,
+  "moves": [
+    {
+      "move_id": 1,
+      "from_xpaths": [
+        "/unit[1]/function[2]/block[1]/block_content[1]/return[1]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/function[1]/block[1]/block_content[1]/return[1]/diff:insert[1]"
+      ]
+    },
+    {
+      "move_id": 2,
+      "from_xpaths": [
+        "/unit[1]/function[1]/block[1]/block_content[1]/return[1]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/unit[1]/function[2]/block[1]/block_content[1]/return[1]/diff:insert[1]"
+      ]
+    }
+  ],
+  "annotated_regions": 4,
+  "regions_total": 4,
+  "candidates_total": 4,
+  "groups_total": 2
+}
