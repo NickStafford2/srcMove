@@ -66,7 +66,7 @@ content_groups build_content_groups(const candidate_registry &registry,
   content_groups out;
 
   const auto &by_hash = registry.hash_buckets();
-  out.groups_.reserve(by_hash.size());
+  out.reserve_groups(by_hash.size());
 
   if (!confirm_text_equality) {
     for (const auto &kv : by_hash) {
