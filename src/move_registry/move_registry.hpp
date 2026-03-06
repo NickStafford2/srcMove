@@ -66,9 +66,10 @@ public:
    * If confirm_text_equality is false, each hash bucket becomes one group.
    * If true, each hash bucket is refined into exact-text subgroups.
    *
-   * After finalize(), groups() is valid until the next clear() or finalize().
+   * After build_groups(), groups() is valid until the next clear() or
+   * build_groups().
    */
-  void finalize(bool confirm_text_equality = true);
+  void build_groups(bool confirm_text_equality = true);
 
   const std::vector<move_candidate> &deletes() const noexcept {
     return deletes_;

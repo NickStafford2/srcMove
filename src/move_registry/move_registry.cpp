@@ -51,7 +51,7 @@ move_registry::id_t move_registry::add_insert(move_candidate ins) {
   return id;
 }
 
-void move_registry::finalize(bool confirm_text_equality) {
+void move_registry::build_groups(bool confirm_text_equality) {
   // Group building is intentionally delegated to a separate module.
   groups_ = build_groups_from_buckets(deletes_, inserts_, buckets_by_hash_,
                                       confirm_text_equality);
@@ -213,7 +213,7 @@ move_registry build_move_registry(std::vector<move_candidate> &candidates) {
   }
 
   // Build groups (does equality confirmation + dedupe grouping if enabled)
-  mr.finalize(/*confirm_text_equality=*/true);
+  mr.build_groups(/*confirm_text_equality=*/true);
   return mr;
 }
 
