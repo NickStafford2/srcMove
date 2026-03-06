@@ -47,6 +47,30 @@ write_with_move_annotations(const std::string &in_filename,
         srcml_node patched = node;
         const std::string xpath = xb.current_xpath();
 
+        if (const std::string *existing_move =
+                node.get_attribute_value("move")) {
+          patched.set_attribute("xpath", xpath);
+          writer.write(patched);
+
+          try {
+            const std::uint32_t move_id =
+                static_cast<std::uint32_t>(std::stoul(*existing_move));
+
+            auto &entry = moves[move_id];
+            entry.move_id = move_id;
+
+            if (fn == "diff:delete") {
+              entry.from_xpaths.push_back(xpath);
+            } else {
+              entry.to_xpaths.push_back(xpath);
+            }
+          } catch (...) {
+          }
+
+          ++i;
+          continue;
+        }
+
         auto it = tags.find(i);
         if (it != tags.end()) {
           const std::uint32_t move_id = it->second.move_id;
@@ -70,11 +94,6 @@ write_with_move_annotations(const std::string &in_filename,
           ++i;
           continue;
         }
-
-        patched.set_attribute("xpath", xpath);
-        writer.write(patched);
-        ++i;
-        continue;
       }
     }
 
@@ -92,14 +111,12 @@ std::vector<move_entry> annotate(const std::vector<diff_region> &regions,
                                  const content_groups &groups,
                                  const std::string &srcdiff_in_filename,
                                  const std::string &srcdiff_out_filename) {
-  // const std::uint32_t start_move_id = max_existing_move_id(regions) + 1;
-  const std::uint32_t start_move_id = 1;
-
+  const std::uint32_t start_move_id = max_existing_move_id(regions) + 1;
   const auto tags = build_move_tags(groups, registry, start_move_id);
 
+  // second pass
   auto moves_map = write_with_move_annotations(srcdiff_in_filename,
                                                srcdiff_out_filename, tags);
-  // second pass
   std::vector<move_entry> moves;
   moves.reserve(moves_map.size());
 
