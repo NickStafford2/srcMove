@@ -10,6 +10,15 @@ from pathlib import Path
 
 
 @dataclass
+class CaseSpec:
+    name: str
+    case_dir: Path
+    original: Path
+    modified: Path
+    is_archive: bool
+
+
+@dataclass
 class CaseResult:
     name: str
     ok: bool
@@ -27,15 +36,65 @@ def run_command(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess:
     )
 
 
-def find_case_dirs(archives_root: Path) -> list[Path]:
-    out: list[Path] = []
+def is_archive_case(case_dir: Path) -> bool:
+    return (case_dir / "original").is_dir() and (case_dir / "modified").is_dir()
+
+
+def find_single_file_pair(case_dir: Path) -> tuple[Path, Path] | None:
+    originals = []
+    modifieds = []
+
+    for child in case_dir.iterdir():
+        if not child.is_file():
+            continue
+
+        if child.stem == "original":
+            originals.append(child)
+        elif child.stem == "modified":
+            modifieds.append(child)
+
+    if len(originals) == 1 and len(modifieds) == 1:
+        return originals[0], modifieds[0]
+
+    if len(originals) == 0 and len(modifieds) == 0:
+        return None
+
+    raise RuntimeError(
+        f"{case_dir}: expected exactly one original.* and one modified.* file"
+    )
+
+
+def find_cases(archives_root: Path) -> list[CaseSpec]:
+    out: list[CaseSpec] = []
 
     for child in sorted(archives_root.iterdir()):
         if not child.is_dir():
             continue
 
-        if (child / "original").is_dir() and (child / "modified").is_dir():
-            out.append(child)
+        if is_archive_case(child):
+            out.append(
+                CaseSpec(
+                    name=child.name,
+                    case_dir=child,
+                    original=child / "original",
+                    modified=child / "modified",
+                    is_archive=True,
+                )
+            )
+            continue
+
+        pair = find_single_file_pair(child)
+        if pair is not None:
+            original_file, modified_file = pair
+            out.append(
+                CaseSpec(
+                    name=child.name,
+                    case_dir=child,
+                    original=original_file,
+                    modified=modified_file,
+                    is_archive=False,
+                )
+            )
 
     return out
 
@@ -48,14 +107,19 @@ def load_expected_move_count(case_dir: Path) -> int:
     with oracle_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    if "move_count" not in data:
-        raise RuntimeError(f"oracle.json missing 'move_count': {oracle_path}")
+    move_count = None
 
-    move_count = data["move_count"]
-    if not isinstance(move_count, int):
+    if "move_count" in data:
+        move_count = data["move_count"]
+    elif "moves" in data:
+        move_count = data["moves"]
+    else:
         raise RuntimeError(
-            f"oracle.json field 'move_count' is not an int: {oracle_path}"
+            f"oracle.json missing 'move_count' or legacy 'moves': {oracle_path}"
         )
+
+    if not isinstance(move_count, int):
+        raise RuntimeError(f"oracle.json move count field is not an int: {oracle_path}")
 
     return move_count
 
@@ -80,11 +144,10 @@ def load_actual_move_count(results_path: Path) -> int:
 
 
 def run_case(
-    case_dir: Path, repo_root: Path, srcdiff_bin: str, srcmove_bin: str
+    case: CaseSpec, repo_root: Path, srcdiff_bin: str, srcmove_bin: str
 ) -> CaseResult:
-    name = case_dir.name
-    original_dir = case_dir / "original"
-    modified_dir = case_dir / "modified"
+    name = case.name
+    case_dir = case.case_dir
     diff_xml = case_dir / "diff.xml"
     diff_new_xml = case_dir / "diff_new.xml"
     results_json = case_dir / "results.json"
@@ -106,20 +169,21 @@ def run_case(
 
     srcdiff_cmd = [
         srcdiff_bin,
-        str(original_dir),
-        str(modified_dir),
+        str(case.original),
+        str(case.modified),
         "-o",
         str(diff_xml),
     ]
     srcdiff_result = run_command(srcdiff_cmd, cwd=repo_root)
 
     if srcdiff_result.returncode != 0:
+        case_kind = "archive" if case.is_archive else "single-file"
         return CaseResult(
             name=name,
             ok=False,
             expected_move_count=expected_move_count,
             actual_move_count=None,
-            message="srcdiff failed",
+            message=f"srcdiff failed ({case_kind} case)",
         )
 
     if not diff_xml.is_file():
@@ -193,18 +257,23 @@ def main() -> int:
         print(f"error: srcMove binary not found: {srcmove_bin}", file=sys.stderr)
         return 1
 
-    case_dirs = find_case_dirs(archives_root)
-    if not case_dirs:
-        print(f"error: no archive cases found under {archives_root}", file=sys.stderr)
+    try:
+        cases = find_cases(archives_root)
+    except Exception as e:
+        print(f"error: {e}", file=sys.stderr)
         return 1
 
-    print(f"Found {len(case_dirs)} archive case(s)")
+    if not cases:
+        print(f"error: no test cases found under {archives_root}", file=sys.stderr)
+        return 1
+
+    print(f"Found {len(cases)} case(s)")
 
     results: list[CaseResult] = []
 
-    for case_dir in case_dirs:
+    for case in cases:
         result = run_case(
-            case_dir=case_dir,
+            case=case,
             repo_root=repo_root,
             srcdiff_bin=srcdiff_bin,
             srcmove_bin=str(srcmove_bin),
