@@ -6,14 +6,12 @@
  *
  * This file is part of the srcDiff Infrastructure.
  */
-#include <cctype>
-#include <string>
-
+#include "pipeline.hpp"
 #include "annotation_writer.hpp"
 #include "move_region.hpp"
-#include "move_registry/move_registry.hpp"
+#include "move_registry/candidate_registry.hpp"
+#include "move_registry/content_group_builder.hpp"
 #include "move_registry/move_registry_debug.hpp"
-#include "pipeline.hpp"
 #include "region_filter.hpp"
 #include "srcml_reader.hpp"
 
@@ -21,16 +19,17 @@ namespace srcmove {
 
 void run_pipeline(const std::string &srcdiff_in_filename,
                   const std::string &srcdiff_out_filename) {
-  // first pass
   srcml_reader reader(srcdiff_in_filename);
+
   auto regions = collect_all_regions(reader);
   auto filter_options = get_default_filter_options();
   auto candidates = filter_regions_for_registry(regions, filter_options);
-  grouped_candidates mr =
-      grouped_candidates::from_candidates(std::move(candidates));
-  print_greedy_matches(mr, std::cout);
-  // second pass
-  annotate(regions, mr, srcdiff_in_filename, srcdiff_out_filename);
+  candidate_registry registry;
+  registry.add_candidates_for_file(srcdiff_in_filename, std::move(candidates));
+  content_groups groups = build_content_groups(registry, true);
+  print_greedy_matches(registry, groups, std::cout);
+  annotate(regions, registry, groups, srcdiff_in_filename,
+           srcdiff_out_filename);
 }
 
 } // namespace srcmove

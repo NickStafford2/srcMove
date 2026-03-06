@@ -14,13 +14,15 @@
 #include <vector>
 
 #include "move_region.hpp"
-#include "move_registry/move_registry.hpp"
+#include "move_registry/candidate_registry.hpp"
+#include "move_registry/move_groups.hpp"
 
 namespace srcmove {
 
-void annotate(std::vector<diff_region> regions, grouped_candidates mr,
-              std::string srcdiff_in_filename,
-              std::string srcdiff_out_filename);
+void annotate(const std::vector<diff_region> &regions,
+              const candidate_registry &registry, const content_groups &groups,
+              const std::string &srcdiff_in_filename,
+              const std::string &srcdiff_out_filename);
 
 } // namespace srcmove
 #endif

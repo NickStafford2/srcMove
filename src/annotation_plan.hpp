@@ -13,7 +13,7 @@
 #include <cctype>
 
 #include "move_region.hpp"
-#include "move_registry/move_registry.hpp"
+#include "move_registry/move_groups.hpp"
 
 namespace srcmove {
 
@@ -26,7 +26,9 @@ using tag_map = std::unordered_map<std::size_t, move_tag>;
 
 std::uint32_t max_existing_move_id(const std::vector<diff_region> &regions);
 
-tag_map build_move_tags(const grouped_candidates &mr, std::uint32_t start_id);
+tag_map build_move_tags(const content_groups &groups,
+                        const candidate_registry &registry,
+                        std::uint32_t start_id);
 
 } // namespace srcmove
 

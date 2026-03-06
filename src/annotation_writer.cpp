@@ -16,7 +16,8 @@
 
 #include "annotation_plan.hpp"
 #include "move_region.hpp"
-#include "move_registry/move_registry.hpp"
+#include "move_registry/candidate_registry.hpp"
+#include "move_registry/move_groups.hpp"
 #include "srcml_node.hpp"
 #include "srcml_reader.hpp"
 #include "srcml_writer.hpp"
@@ -69,13 +70,14 @@ static void write_with_move_annotations(const std::string &in_filename,
   }
 }
 
-void annotate(std::vector<diff_region> regions, grouped_candidates mr,
-              std::string srcdiff_in_filename,
-              std::string srcdiff_out_filename) {
+void annotate(const std::vector<diff_region> &regions,
+              const candidate_registry &registry, const content_groups &groups,
+              const std::string &srcdiff_in_filename,
+              const std::string &srcdiff_out_filename) {
 
   // Assign move ids per group and write annotated output
   std::uint32_t start_move_id = max_existing_move_id(regions) + 1;
-  const auto tags = build_move_tags(mr, start_move_id);
+  const auto tags = build_move_tags(groups, registry, start_move_id);
 
   // second pass
   write_with_move_annotations(srcdiff_in_filename, srcdiff_out_filename, tags);

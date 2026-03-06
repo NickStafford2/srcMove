@@ -1,22 +1,29 @@
 // SPDX-License-Identifier: GPL-3.0-only
+#include "move_registry_debug.hpp"
 
 #include <ostream>
 
 #include "move_matcher.hpp"
-#include "move_registry.hpp"
-#include "move_registry_debug.hpp"
 
 namespace srcmove {
 
-void print_registry_summary(const grouped_candidates &mr, std::ostream &os) {
-  os << "move_registry:\n";
-  os << "  deletes: " << mr.delete_count() << "\n";
-  os << "  inserts: " << mr.insert_count() << "\n";
-  os << "  hash buckets: " << mr.bucket_count() << "\n";
-  os << "  content groups: " << mr.group_count() << "\n";
+void print_registry_summary(const candidate_registry &registry,
+                            const content_groups &groups, std::ostream &os) {
+  os << "candidate_registry:\n";
+  os << "  files: " << registry.file_count() << "\n";
+  os << "  total records: " << registry.total_record_count() << "\n";
+  os << "  active candidates: " << registry.active_candidate_count() << "\n";
+  os << "  hash buckets: " << registry.bucket_count() << "\n";
+  os << "  content groups: " << groups.group_count() << "\n";
 
-  std::size_t move11 = 0, many = 0, delonly = 0, inonly = 0, copy = 0, amb = 0;
-  for (const auto &g : mr.groups()) {
+  std::size_t move11 = 0;
+  std::size_t many = 0;
+  std::size_t delonly = 0;
+  std::size_t inonly = 0;
+  std::size_t copy = 0;
+  std::size_t amb = 0;
+
+  for (const auto &g : groups.groups()) {
     switch (g.kind) {
     case group_kind::move_1_to_1:
       ++move11;
@@ -48,18 +55,16 @@ void print_registry_summary(const grouped_candidates &mr, std::ostream &os) {
   os << "    ambiguous: " << amb << "\n";
 }
 
-void print_greedy_matches(const grouped_candidates &mr, std::ostream &os) {
-  print_registry_summary(mr, os);
+void print_greedy_matches(const candidate_registry &registry,
+                          const content_groups &groups, std::ostream &os) {
+  print_registry_summary(registry, groups, os);
 
-  const auto matches = greedy_match_1_to_1(mr);
-
-  const auto &dels = mr.deletes();
-  const auto &inss = mr.inserts();
+  const auto matches = greedy_match_1_to_1(groups);
 
   os << "\n=== GREEDY MATCHES (DEL -> INS) ===\n";
   for (const auto &m : matches) {
-    const auto &d = dels[m.del_id];
-    const auto &ins = inss[m.ins_id];
+    const auto &d = registry.candidate(m.del_id);
+    const auto &ins = registry.candidate(m.ins_id);
 
     os << "DEL [" << d.start_idx << "," << d.end_idx << "] " << d.filename
        << "  ->  "

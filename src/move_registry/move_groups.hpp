@@ -1,4 +1,3 @@
-// src/move_groups.hpp
 // SPDX-License-Identifier: GPL-3.0-only
 /**
  * @file move_groups.hpp
@@ -7,15 +6,20 @@
  * - flat id arrays (stable storage)
  * - lightweight views that reference ranges in the flat arrays
  */
+// SPDX-License-Identifier: GPL-3.0-only
 #ifndef INCLUDED_MOVE_GROUPS_HPP
 #define INCLUDED_MOVE_GROUPS_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <vector>
 
 #include "move_buckets.hpp"
+#include "move_registry/candidate_registry.hpp"
 
 namespace srcmove {
+
+class candidate_registry;
 
 enum class group_kind : std::uint8_t {
   move_1_to_1,    // del=1 ins=1
@@ -26,48 +30,73 @@ enum class group_kind : std::uint8_t {
   ambiguous       // everything else / policy-specific
 };
 
-/**
- * A compact view over one "content group".
- *
- * A content group represents candidates that share the same primary hash and
- * (if exact confirmation is enabled) the same exact full_text.
- *
- * The group does not store ids directly; instead it stores index ranges into
- * the flat arrays in move_groups.
- */
-struct content_group_compact {
-  std::uint64_t content_hash = 0; // primary bucket key (fast_hash_raw)
-  std::uint32_t group_id = 0;     // stable id within a build result
+struct content_group {
+  std::uint64_t content_hash = 0;
+  std::uint32_t group_id = 0;
 
-  // ranges into internal vectors of ids (not iterators to avoid invalidation)
-  std::uint32_t del_begin = 0, del_end = 0; // [begin, end)
-  std::uint32_t ins_begin = 0, ins_end = 0; // [begin, end)
+  std::uint32_t del_begin = 0;
+  std::uint32_t del_end = 0;
+  std::uint32_t ins_begin = 0;
+  std::uint32_t ins_end = 0;
 
   group_kind kind = group_kind::ambiguous;
 
-  std::size_t del_count() const {
+  std::size_t del_count() const noexcept {
     return static_cast<std::size_t>(del_end - del_begin);
   }
-  std::size_t ins_count() const {
+
+  std::size_t ins_count() const noexcept {
     return static_cast<std::size_t>(ins_end - ins_begin);
   }
 };
 
-/**
- * Result of building groups from hash buckets.
- *
- * groups[i] references ranges inside group_del_ids / group_ins_ids.
- */
-struct grouped_id_storage {
-  std::vector<candidate_id> group_del_ids;
-  std::vector<candidate_id> group_ins_ids;
-  std::vector<content_group_compact> groups;
+class content_groups {
+public:
+  using id_t = candidate_id;
 
-  void clear() {
-    group_del_ids.clear();
-    group_ins_ids.clear();
-    groups.clear();
+  struct id_view {
+    const id_t *data = nullptr;
+    std::size_t count = 0;
+
+    const id_t *begin() const noexcept { return data; }
+    const id_t *end() const noexcept { return data + count; }
+    std::size_t size() const noexcept { return count; }
+
+    const id_t &operator[](std::size_t i) const noexcept { return data[i]; }
+  };
+
+  void clear();
+
+  const std::vector<content_group> &groups() const noexcept { return groups_; }
+
+  id_view delete_ids(const content_group &g) const noexcept;
+  id_view insert_ids(const content_group &g) const noexcept;
+
+  std::size_t group_count() const noexcept { return groups_.size(); }
+
+  std::uint32_t append_delete_ids(const std::vector<id_t> &ids) {
+    const std::uint32_t begin =
+        static_cast<std::uint32_t>(group_del_ids_.size());
+    group_del_ids_.insert(group_del_ids_.end(), ids.begin(), ids.end());
+    return begin;
   }
+
+  std::uint32_t append_insert_ids(const std::vector<id_t> &ids) {
+    const std::uint32_t begin =
+        static_cast<std::uint32_t>(group_ins_ids_.size());
+    group_ins_ids_.insert(group_ins_ids_.end(), ids.begin(), ids.end());
+    return begin;
+  }
+
+  void append_group(content_group g) { groups_.push_back(g); }
+
+private:
+  friend content_groups build_content_groups(const candidate_registry &registry,
+                                             bool confirm_text_equality);
+
+  std::vector<id_t> group_del_ids_;
+  std::vector<id_t> group_ins_ids_;
+  std::vector<content_group> groups_;
 };
 
 } // namespace srcmove
