@@ -99,13 +99,8 @@ public:
     }
   };
 
-  id_view delete_ids(const content_group_compact &g) const noexcept;
-  id_view insert_ids(const content_group_compact &g) const noexcept;
-
-  std::vector<move_match> match_greedy_1_to_1() const;
-
-  std::vector<move_match>
-  enumerate_all_pairs(std::size_t hard_cap = SIZE_MAX) const;
+  id_view group_delete_ids(const content_group_compact &g) const noexcept;
+  id_view group_insert_ids(const content_group_compact &g) const noexcept;
 
   void debug(std::ostream &os) const;
 

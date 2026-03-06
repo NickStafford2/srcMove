@@ -5,12 +5,12 @@
  */
 #include "move_registry.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <iostream>
 #include <utility>
 
 #include "move_groups_builder.hpp"
+#include "move_matcher.hpp"
 
 namespace srcmove {
 
@@ -58,7 +58,7 @@ void move_registry::build_groups(bool confirm_text_equality) {
 }
 
 move_registry::id_view
-move_registry::delete_ids(const content_group_compact &g) const noexcept {
+move_registry::group_delete_ids(const content_group_compact &g) const noexcept {
   const std::uint32_t n = g.del_end - g.del_begin;
   if (n == 0)
     return id_view{nullptr, 0};
@@ -68,69 +68,13 @@ move_registry::delete_ids(const content_group_compact &g) const noexcept {
 }
 
 move_registry::id_view
-move_registry::insert_ids(const content_group_compact &g) const noexcept {
+move_registry::group_insert_ids(const content_group_compact &g) const noexcept {
   const std::uint32_t n = g.ins_end - g.ins_begin;
   if (n == 0)
     return id_view{nullptr, 0};
 
   return id_view{&groups_.group_ins_ids[g.ins_begin],
                  static_cast<std::size_t>(n)};
-}
-
-std::vector<move_match> move_registry::match_greedy_1_to_1() const {
-  std::vector<move_match> out;
-
-  // Upper bound: sum over groups of min(del, ins)
-  std::size_t cap = 0;
-  for (const auto &g : groups_.groups) {
-    cap += std::min(g.del_count(), g.ins_count());
-  }
-  out.reserve(cap);
-
-  for (const auto &g : groups_.groups) {
-    const std::size_t n = std::min(g.del_count(), g.ins_count());
-    for (std::size_t k = 0; k < n; ++k) {
-      const id_t did =
-          groups_.group_del_ids[g.del_begin + static_cast<std::uint32_t>(k)];
-      const id_t iid =
-          groups_.group_ins_ids[g.ins_begin + static_cast<std::uint32_t>(k)];
-      out.push_back(move_match{did, iid});
-    }
-  }
-
-  return out;
-}
-
-std::vector<move_match>
-move_registry::enumerate_all_pairs(std::size_t hard_cap) const {
-  std::vector<move_match> out;
-
-  for (const auto &g : groups_.groups) {
-    const std::size_t D = g.del_count();
-    const std::size_t I = g.ins_count();
-    if (D == 0 || I == 0)
-      continue;
-
-    // Watch for explosion: D×I
-    if (hard_cap != SIZE_MAX) {
-      const unsigned __int128 needed =
-          static_cast<unsigned __int128>(D) * static_cast<unsigned __int128>(I);
-      const unsigned __int128 remaining =
-          (hard_cap > out.size()) ? (hard_cap - out.size()) : 0;
-      if (needed > remaining)
-        break;
-    }
-
-    for (std::uint32_t di = g.del_begin; di < g.del_end; ++di) {
-      const id_t did = groups_.group_del_ids[di];
-      for (std::uint32_t ii = g.ins_begin; ii < g.ins_end; ++ii) {
-        const id_t iid = groups_.group_ins_ids[ii];
-        out.push_back(move_match{did, iid});
-      }
-    }
-  }
-
-  return out;
 }
 
 void move_registry::debug(std::ostream &os) const {
@@ -179,7 +123,7 @@ void move_registry::print_greedy_matches(std::ostream &os) const {
   debug(os);
 
   // FAST baseline: 1-to-1 consumption inside each content group
-  auto matches = match_greedy_1_to_1();
+  auto matches = greedy_match_1_to_1(*this);
 
   const auto &dels = deletes();
   const auto &inss = inserts();

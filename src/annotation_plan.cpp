@@ -37,13 +37,13 @@ tag_map build_move_tags(const move_registry &mr, std::uint32_t start_id) {
     const std::uint32_t move_id = next_move_id++;
 
     // Apply to all deletes in group
-    for (auto did : mr.delete_ids(g)) {
+    for (auto did : mr.group_delete_ids(g)) {
       const auto &d = mr.deletes()[did];
       tags.emplace(d.start_idx, move_tag{move_id});
     }
 
     // Apply to all inserts in group
-    for (auto iid : mr.insert_ids(g)) {
+    for (auto iid : mr.group_insert_ids(g)) {
       const auto &ins = mr.inserts()[iid];
       tags.emplace(ins.start_idx, move_tag{move_id});
     }
