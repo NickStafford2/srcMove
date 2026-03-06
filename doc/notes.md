@@ -149,14 +149,6 @@ Similarity of the two code segments.
 
 
 
-# Meeting Notes
-## Present 
-using srcReader
-show 
-  test/archive/file_split/diff.xml
-  test/archive/file_split/diff_new.xml
-  test/archive/file_split/diff_new.xml
-  test/archive/file_split/results.json
 
 ## Questions
 What exactly do we want on the output
@@ -188,4 +180,7 @@ do we want any access to the original srcML
 what annotations
 
 ## Examples 
+
+# Notes
+They use XPath for querying everything. 
 
