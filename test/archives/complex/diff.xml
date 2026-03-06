@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" url="test/archive/original|test/archive/modified">
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" url="/home/nick/Projects/srcMLBuildTemplate/srcMove/test/archives/complex/original|/home/nick/Projects/srcMLBuildTemplate/srcMove/test/archives/complex/modified">
 
 <unit revision="1.0.0" language="C++" filename="bar.cpp"><diff:insert><function><type><name>char</name></type><diff:ws> </diff:ws><name>definition_moved</name><parameter_list>()</parameter_list><diff:ws> </diff:ws><block>{<block_content><diff:ws>
   </diff:ws><decl_stmt><decl><type><name>char</name></type><diff:ws> </diff:ws><name>d</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="char">'d'</literal></expr></init></decl>;</decl_stmt><diff:ws>
