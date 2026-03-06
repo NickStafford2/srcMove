@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /**
- * @file move_region.cpp
+ * @file diff_region.cpp
  *
  * Structure-aware srcDiff parser.
  *
@@ -32,8 +32,8 @@
 #include <utility>
 #include <vector>
 
+#include "diff_region.hpp"
 #include "move_candidate.hpp"
-#include "move_region.hpp"
 #include "srcml_node.hpp"
 
 namespace srcmove {

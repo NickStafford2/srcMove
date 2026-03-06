@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /**
- * @file move_region.hpp
+ * @file diff_region.hpp
  *
  * Diff-region collection from srcDiff XML.
  *
@@ -17,8 +17,8 @@
  * collect_all_regions() detects which form it is parsing from the root unit.
  */
 
-#ifndef INCLUDED_MOVE_REGION_HPP
-#define INCLUDED_MOVE_REGION_HPP
+#ifndef INCLUDED_DIFF_REGION_HPP
+#define INCLUDED_DIFF_REGION_HPP
 #include <cctype>
 #include <string>
 #include <vector>

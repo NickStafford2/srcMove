@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "annotation_plan.hpp"
+#include "diff_region.hpp"
 #include "move_candidate.hpp"
-#include "move_region.hpp"
 #include "move_registry/move_groups.hpp"
 
 namespace srcmove {

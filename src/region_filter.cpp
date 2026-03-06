@@ -10,8 +10,8 @@
 #include <utility>
 #include <vector>
 
+#include "diff_region.hpp"
 #include "move_candidate.hpp"
-#include "move_region.hpp"
 #include "region_filter.hpp"
 
 namespace srcmove {

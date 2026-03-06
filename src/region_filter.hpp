@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /**
- * @file move_region.hpp
+ * @file region_filter.hpp
  *
  */
 
@@ -9,8 +9,8 @@
 #include <cctype>
 #include <vector>
 
+#include "diff_region.hpp"
 #include "move_candidate.hpp"
-#include "move_region.hpp"
 #include "srcml_reader.hpp"
 
 namespace srcmove {

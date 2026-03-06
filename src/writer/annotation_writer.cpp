@@ -14,7 +14,7 @@
 #include <cassert>
 
 #include "annotation_plan.hpp"
-#include "move_region.hpp"
+#include "diff_region.hpp"
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/move_groups.hpp"
 #include "srcml_node.hpp"

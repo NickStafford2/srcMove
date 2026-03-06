@@ -102,7 +102,7 @@ Each `test/*/` directory contains an `original.cpp` and `modified.cpp` plus `dif
 
 The pipeline (see `src/pipeline.cpp`) is intentionally simple and streaming-friendly:
 
-* `collect_all_regions` (`src/move_region.*`)
+* `collect_all_regions` (`src/diff_region.*`)
 
   * single pass over `srcml_reader`
   * records every diff region with nesting metadata and inner text
@@ -123,7 +123,7 @@ The pipeline (see `src/pipeline.cpp`) is intentionally simple and streaming-frie
   * optionally confirms equality by exact `full_text` to avoid hash collisions
   * produces “content groups” that can be classified (1-to-1, many-to-many, etc.)
 
-* `annotation_plan` + writer (`src/annotation_plan.*`, `src/annotation_writer.*`)
+* `annotation_plan` + writer (`src/writer/annotation_plan.*`, `src/writer/annotation_writer.*`)
 
   * assigns a new `move` id per group that has both deletes and inserts
   * rewrites the XML in a second pass
