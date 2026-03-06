@@ -89,10 +89,10 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
 
 region_filter_options get_default_filter_options() {
   region_filter_options opt;
-  opt.policy = region_filter_policy::leaf_only;
+  opt.policy = region_filter_policy::all_regions;
   opt.drop_whitespace_only = true;
   opt.skip_pre_marked = true;
-  opt.min_chars = 1;
+  opt.min_chars = 12;
   return opt;
 }
 
