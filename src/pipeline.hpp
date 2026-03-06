@@ -10,12 +10,13 @@
 #ifndef INCLUDED_MOVE_PIPELINE_HPP
 #define INCLUDED_MOVE_PIPELINE_HPP
 
+#include "summary.hpp"
 #include <string>
 
 namespace srcmove {
 
-void run_pipeline(const std::string &srcdiff_in_filename,
-                  const std::string &srcdiff_out_filename);
+summary run_pipeline(const std::string &srcdiff_in_filename,
+                     const std::string &srcdiff_out_filename);
 
 } // namespace srcmove
 

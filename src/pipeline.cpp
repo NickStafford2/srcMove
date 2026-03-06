@@ -20,12 +20,14 @@
 #include "move_registry/move_registry_debug.hpp"
 #include "region_filter.hpp"
 #include "srcml_reader.hpp"
+#include "summary.hpp"
 #include "writer/annotation_writer.hpp"
 
 namespace srcmove {
 
-void run_pipeline(const std::string &srcdiff_in_filename,
-                  const std::string &srcdiff_out_filename) {
+summary run_pipeline(const std::string &srcdiff_in_filename,
+                     const std::string &srcdiff_out_filename) {
+  srcmove::summary result;
   srcml_reader reader(srcdiff_in_filename);
 
   const auto regions = collect_all_regions(reader);
@@ -39,9 +41,11 @@ void run_pipeline(const std::string &srcdiff_in_filename,
   const content_groups groups = build_content_groups(registry, true);
 
   print_greedy_matches(registry, groups, std::cout);
+  result.moves = groups.groups().size();
 
   annotate(regions, registry, groups, srcdiff_in_filename,
            srcdiff_out_filename);
+  return result;
 }
 
 } // namespace srcmove
