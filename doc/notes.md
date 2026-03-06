@@ -134,10 +134,7 @@ Break up existing srcDiff node traversal into two steps. Same work, but traverse
   - Identical output as before.
 
 
-
-
-
-# Move Distance
+# Idea: Move Distance
 locality of behavior
 Use several factors to measure the confidence that something is a move.
   assign points to each one. 
@@ -149,3 +146,38 @@ distance to move in the directory tree.
 distance to move on page. rows/columns  --position
 distance to move between blocks.
 Similarity of the two code segments.
+
+
+
+# Meeting Notes
+## Present 
+using srcReader
+show 
+  test/archive/file_split/diff.xml
+  test/archive/file_split/diff_new.xml
+  test/archive/file_split/diff_new.xml
+  test/archive/file_split/results.json
+
+## Questions
+What exactly do we want on the output
+Tell me more about srcSAX
+What are some good github repos to test
+You want to query this. What information do you want?
+How to empirically measure memory usage
+Do we consider comments inside moves
+
+## Comments
+srcDiff output for different file types are sometimes tough to interpret. 
+1/10 the time as srcDiff
+
+## Problems
+blocks in nexted inside diff blocks also need checked. 
+
+
+## Only have access to info on srcDiff
+do we want any access to the original srcML
+
+## Output Notes
+what annotations
+
+## Examples 
