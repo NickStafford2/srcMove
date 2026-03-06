@@ -160,7 +160,9 @@ show
 
 ## Questions
 What exactly do we want on the output
-Tell me more about srcSAX
+Don't know what I don't know
+  Tell me more about srcSAX
+  Tell me more about dispatcher
 What are some good github repos to test
 You want to query this. What information do you want?
 How to empirically measure memory usage
@@ -168,10 +170,15 @@ Do we consider comments inside moves
 
 ## Comments
 srcDiff output for different file types are sometimes tough to interpret. 
+  srcDiff already marks moves for very tags. (function specifiers)
 1/10 the time as srcDiff
+I have a filtering system. 
+  What do we want to ignore.
 
 ## Problems
-blocks in nexted inside diff blocks also need checked. 
+exact format of srcDiff files is difficult to understand.
+blocks in nexted inside diff blocks also need checked.
+
 
 
 ## Only have access to info on srcDiff
@@ -181,3 +188,4 @@ do we want any access to the original srcML
 what annotations
 
 ## Examples 
+
