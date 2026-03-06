@@ -52,7 +52,7 @@ set_target_properties(srcMove PROPERTIES
 )
 # ---- Debug tool: srcdiff_render ----
 add_executable(srcdiff_render
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/tools/srcdiff_render.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tools/srcdiff_render.cpp"
 )
 
 target_include_directories(srcdiff_render PRIVATE
@@ -77,7 +77,7 @@ set_target_properties(srcdiff_render PROPERTIES
 )
 # ---- Debug tool: srcdiff_highlight ----
 add_executable(srcdiff_highlight
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/tools/srcdiff_highlight.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tools/srcdiff_highlight.cpp"
 )
 
 target_include_directories(srcdiff_highlight PRIVATE
@@ -103,7 +103,7 @@ set_target_properties(srcdiff_highlight PROPERTIES
 
 # ---- Debug tool: srcdiff_highlight_pos ----
 add_executable(srcdiff_highlight_pos
-  "${CMAKE_CURRENT_SOURCE_DIR}/src/tools/srcdiff_highlight_pos.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/tools/srcdiff_highlight_pos.cpp"
 )
 
 target_include_directories(srcdiff_highlight_pos PRIVATE
