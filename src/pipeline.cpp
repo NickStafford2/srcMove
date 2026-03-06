@@ -26,7 +26,7 @@ void run_pipeline(const std::string &srcdiff_in_filename,
   auto regions = collect_all_regions(reader);
   auto filter_options = get_default_filter_options();
   auto candidates = filter_regions_for_registry(regions, filter_options);
-  move_registry mr = build_move_registry(candidates);
+  move_registry mr = move_registry::from_candidates(std::move(candidates));
   print_greedy_matches(mr, std::cout);
   // second pass
   annotate(regions, mr, srcdiff_in_filename, srcdiff_out_filename);

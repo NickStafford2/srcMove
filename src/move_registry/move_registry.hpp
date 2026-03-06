@@ -52,12 +52,11 @@ class move_registry {
 public:
   using id_t = candidate_id;
 
-  void clear();
+  move_registry() = default;
 
-  void reserve(std::size_t expected_deletes, std::size_t expected_inserts);
-
-  id_t add_delete(move_candidate del);
-  id_t add_insert(move_candidate ins);
+  // Main construction entry point (policy is explicit at call site).
+  static move_registry from_candidates(std::vector<move_candidate> candidates,
+                                       bool confirm_text_equality = true);
 
   /**
    * Build grouping structures from the ingested candidates + buckets.
@@ -70,13 +69,13 @@ public:
    */
   void build_groups(bool confirm_text_equality = true);
 
+  // Read-only accessors used by matchers/debug/annotation planning.
   const std::vector<move_candidate> &deletes() const noexcept {
     return deletes_;
   }
   const std::vector<move_candidate> &inserts() const noexcept {
     return inserts_;
   }
-
   const std::vector<content_group_compact> &groups() const noexcept {
     return groups_.groups;
   }
@@ -107,16 +106,17 @@ public:
   std::size_t group_count() const noexcept { return groups_.groups.size(); }
 
 private:
+  void clear();
+  void reserve(std::size_t expected_deletes, std::size_t expected_inserts);
+  id_t add_delete(move_candidate del);
+  id_t add_insert(move_candidate ins);
   content_group_storage groups_;
-
   std::vector<move_candidate> deletes_;
   std::vector<move_candidate> inserts_;
 
   // Build-time hash buckets.
   std::unordered_map<std::uint64_t, bucket_ids> buckets_by_hash_;
 };
-
-move_registry build_move_registry(std::vector<move_candidate> &candidates);
 
 } // namespace srcmove
 

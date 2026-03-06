@@ -75,23 +75,20 @@ move_registry::group_insert_ids(const content_group_compact &g) const noexcept {
                  static_cast<std::size_t>(n)};
 }
 
-move_registry build_move_registry(std::vector<move_candidate> &candidates) {
-
+move_registry
+move_registry::from_candidates(std::vector<move_candidate> candidates,
+                               bool confirm_text_equality) {
   move_registry mr;
-  mr.reserve(/*expected_deletes=*/candidates.size(),
-             /*expected_inserts=*/candidates.size());
+  mr.reserve(candidates.size(), candidates.size());
 
-  // Feed registry from collected regions
-  for (auto &r : candidates) {
-    if (r.kind == move_candidate::Kind::del) {
-      mr.add_delete(std::move(r));
-    } else {
-      mr.add_insert(std::move(r));
-    }
+  for (auto &c : candidates) {
+    if (c.kind == move_candidate::Kind::del)
+      mr.add_delete(std::move(c));
+    else
+      mr.add_insert(std::move(c));
   }
 
-  // Build groups (does equality confirmation + dedupe grouping if enabled)
-  mr.build_groups(/*confirm_text_equality=*/true);
+  mr.build_groups(confirm_text_equality);
   return mr;
 }
 
