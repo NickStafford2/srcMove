@@ -54,24 +54,7 @@ int main(int argc, char **argv) {
                   << "\n";
         return 2;
       }
-      out << "{\n";
-      out << "  \"move_count\": " << summ.move_count << ",\n";
-      out << "  \"moves\": [\n";
-
-      for (size_t i = 0; i < summ.moves.size(); ++i) {
-        srcmove::json::write_move_entry(out, summ.moves[i], 4);
-        if (i + 1 < summ.moves.size()) {
-          out << ",";
-        }
-        out << "\n";
-      }
-
-      out << "  ],\n";
-      out << "  \"annotated_regions\": " << summ.annotated_regions << ",\n";
-      out << "  \"regions_total\": " << summ.regions_total << ",\n";
-      out << "  \"candidates_total\": " << summ.candidates_total << ",\n";
-      out << "  \"groups_total\": " << summ.groups_total << "\n";
-      out << "}\n";
+      srcmove::json::write_summary(out, summ);
     }
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";

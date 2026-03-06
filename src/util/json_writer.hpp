@@ -91,6 +91,26 @@ inline void write_move_entry(std::ostream &out, const move_entry &m,
   out << pad << "}";
 }
 
+inline void write_summary(std::ostream &out, const summary &summ) {
+  out << "{\n";
+  out << "  \"move_count\": " << summ.move_count << ",\n";
+  out << "  \"moves\": [\n";
+
+  for (std::size_t i = 0; i < summ.moves.size(); ++i) {
+    write_move_entry(out, summ.moves[i], 4);
+    if (i + 1 < summ.moves.size())
+      out << ",";
+    out << "\n";
+  }
+
+  out << "  ],\n";
+  out << "  \"annotated_regions\": " << summ.annotated_regions << ",\n";
+  out << "  \"regions_total\": " << summ.regions_total << ",\n";
+  out << "  \"candidates_total\": " << summ.candidates_total << ",\n";
+  out << "  \"groups_total\": " << summ.groups_total << "\n";
+  out << "}\n";
+}
+
 } // namespace srcmove::json
 
 #endif
