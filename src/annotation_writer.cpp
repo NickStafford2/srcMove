@@ -2,9 +2,8 @@
 /**
  * @file annotation_writer.cpp
  *
- * @copyright Copyright (C) 2014-2024 SDML (www.srcDiff.org)
- *
- * This file is part of the srcDiff Infrastructure.
+ * Writes the annotated srcDiff document by copying the input stream and
+ * patching move-related attributes onto diff start tags.
  */
 #include <cctype>
 #include <string>
@@ -25,10 +24,11 @@
 
 namespace srcmove {
 
-static void write_with_move_annotations(const std::string &in_filename,
-                                        const std::string &out_filename,
-                                        const tag_map &tags) {
+namespace {
 
+void write_with_move_annotations(const std::string &in_filename,
+                                 const std::string &out_filename,
+                                 const tag_map &tags) {
   srcml_reader reader(in_filename);
   srcml_writer writer(out_filename);
   xpath_builder xb;
@@ -39,13 +39,13 @@ static void write_with_move_annotations(const std::string &in_filename,
 
     // Patch only START tags of diff:insert / diff:delete when we have a tag.
     if (node.is_start()) {
-      const auto fn = node.full_name();
+      const std::string fn = node.full_name();
       if (fn == "diff:insert" || fn == "diff:delete") {
-        // If srcDiff already marked it, never overwrite.
+        srcml_node patched = node; // copy so we don't mutate reader-owned node
+
+        // If srcDiff already marked it, never overwrite move,
+        // but still attach xpath.
         if (node.get_attribute_value("move")) {
-          srcml_node patched =
-              node; // copy so we don't mutate reader-owned node
-          // still write xpath, even if node already exists.
           patched.set_attribute("xpath", xb.current_xpath());
           writer.write(patched);
           ++i;
@@ -54,8 +54,6 @@ static void write_with_move_annotations(const std::string &in_filename,
 
         auto it = tags.find(i);
         if (it != tags.end()) {
-          srcml_node patched =
-              node; // copy so we don't mutate reader-owned node
           patched.set_attribute("move", std::to_string(it->second.move_id));
           patched.set_attribute("xpath", xb.current_xpath());
           writer.write(patched);
@@ -70,13 +68,13 @@ static void write_with_move_annotations(const std::string &in_filename,
   }
 }
 
+} // namespace
+
 void annotate(const std::vector<diff_region> &regions,
               const candidate_registry &registry, const content_groups &groups,
               const std::string &srcdiff_in_filename,
               const std::string &srcdiff_out_filename) {
-
-  // Assign move ids per group and write annotated output
-  std::uint32_t start_move_id = max_existing_move_id(regions) + 1;
+  const std::uint32_t start_move_id = max_existing_move_id(regions) + 1;
   const auto tags = build_move_tags(groups, registry, start_move_id);
 
   // second pass

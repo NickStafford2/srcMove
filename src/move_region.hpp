@@ -2,6 +2,19 @@
 /**
  * @file move_region.hpp
  *
+ * Diff-region collection from srcDiff XML.
+ *
+ * Supports:
+ * - single-file srcDiff:
+ *     <unit filename="original.cpp|modified.cpp"> ... </unit>
+ *
+ * - multi-file archive srcDiff:
+ *     <unit url="orig_dir|mod_dir">
+ *       <unit filename="foo.cpp"> ... </unit>
+ *       <unit filename="bar.hpp"> ... </unit>
+ *     </unit>
+ *
+ * collect_all_regions() detects which form it is parsing from the root unit.
  */
 
 #ifndef INCLUDED_MOVE_REGION_HPP
@@ -10,8 +23,6 @@
 #include <string>
 #include <vector>
 
-// uncomment to disable assert()
-// #define NDEBUG
 #include <cassert>
 
 #include "move_candidate.hpp"
@@ -19,24 +30,22 @@
 
 namespace srcmove {
 
-// Region model collected from srcDiff
 struct diff_region {
   move_candidate::Kind kind;
   std::string filename;
 
-  std::size_t start_idx = 0; // node stream index of START tag
-  std::size_t end_idx = 0;   // node stream index of END tag
+  std::size_t start_idx = 0;
+  std::size_t end_idx = 0;
 
-  std::string full_text;  // reader.get_current_inner_text() at START
-  std::uint64_t hash = 0; // hash(full_text) (optional for filtering)
+  std::string full_text;
+  std::uint64_t hash = 0;
 
-  // nesting metadata
   std::size_t parent_id = static_cast<std::size_t>(-1);
   std::uint32_t depth = 0;
   bool has_diff_child = false;
 
   bool pre_marked = false;
-  std::uint32_t existing_move_id = 0; // 0 means none/unknown
+  std::uint32_t existing_move_id = 0;
 };
 
 std::vector<diff_region> collect_all_regions(srcml_reader &reader);
