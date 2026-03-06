@@ -59,17 +59,6 @@ public:
   from_candidates(std::vector<move_candidate> candidates,
                   bool confirm_text_equality = true);
 
-  /**
-   * Build grouping structures from the ingested candidates + buckets.
-   *
-   * If confirm_text_equality is false, each hash bucket becomes one group.
-   * If true, each hash bucket is refined into exact-text subgroups.
-   *
-   * After finalize_groups(), groups() is valid until the next clear() or
-   * finalize_groups().
-   */
-  void finalize_groups(bool confirm_text_equality = true);
-
   // Read-only accessors used by matchers/debug/annotation planning.
   const std::vector<move_candidate> &deletes() const noexcept {
     return deletes_;
@@ -103,20 +92,17 @@ public:
 
   std::size_t delete_count() const noexcept { return deletes_.size(); }
   std::size_t insert_count() const noexcept { return inserts_.size(); }
-  std::size_t bucket_count() const noexcept { return hash_index_.size(); }
   std::size_t group_count() const noexcept { return groups_.groups.size(); }
 
 private:
-  void clear();
-  void reserve(std::size_t expected_deletes, std::size_t expected_inserts);
-  id_t add_delete(move_candidate del);
-  id_t add_insert(move_candidate ins);
+  friend class grouped_candidates_builder;
+  grouped_candidates(std::vector<move_candidate> dels,
+                     std::vector<move_candidate> ins,
+                     grouped_id_storage groups);
+
   grouped_id_storage groups_;
   std::vector<move_candidate> deletes_;
   std::vector<move_candidate> inserts_;
-
-  // Build-time hash buckets.
-  std::unordered_map<std::uint64_t, bucket_ids> hash_index_;
 };
 
 } // namespace srcmove

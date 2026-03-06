@@ -12,7 +12,7 @@ void print_registry_summary(const grouped_candidates &mr, std::ostream &os) {
   os << "move_registry:\n";
   os << "  deletes: " << mr.delete_count() << "\n";
   os << "  inserts: " << mr.insert_count() << "\n";
-  os << "  hash buckets: " << mr.bucket_count() << "\n";
+  // os << "  hash buckets: " << mr.bucket_count() << "\n";
   os << "  content groups: " << mr.group_count() << "\n";
 
   std::size_t move11 = 0, many = 0, delonly = 0, inonly = 0, copy = 0, amb = 0;
