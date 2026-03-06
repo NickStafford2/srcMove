@@ -42,7 +42,7 @@ public:
   bool has_file(const file_key &file) const;
   std::size_t file_count() const noexcept;
 
-  // Access to authoritative candidate state
+  // Unified authoritative storage
   const std::vector<candidate_record> &records() const noexcept {
     return records_;
   }
@@ -71,7 +71,7 @@ public:
 private:
   id_t append_candidate(move_candidate candidate);
   void activate_in_bucket(id_t id);
-  void deactivate_in_bucket(id_t id);
+  void rebuild_hash_buckets();
 
   std::vector<candidate_record> records_;
   std::unordered_map<file_key, std::vector<id_t>> file_to_candidate_ids_;

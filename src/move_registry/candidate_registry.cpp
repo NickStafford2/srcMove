@@ -46,7 +46,7 @@ void candidate_registry::add_candidates_for_file(
   ids.reserve(ids.size() + candidates.size());
 
   for (auto &candidate : candidates) {
-    id_t id = append_candidate(std::move(candidate));
+    const id_t id = append_candidate(std::move(candidate));
     ids.push_back(id);
   }
 }
@@ -67,17 +67,7 @@ void candidate_registry::remove_candidates_for_file(const file_key &file) {
   }
 
   file_to_candidate_ids_.erase(it);
-
-  // Rebuild hash buckets from active records.
-  hash_buckets_.clear();
-  hash_buckets_.reserve(active_count_);
-
-  for (id_t id = 0; id < static_cast<id_t>(records_.size()); ++id) {
-    if (!records_[id].active) {
-      continue;
-    }
-    activate_in_bucket(id);
-  }
+  rebuild_hash_buckets();
 }
 
 void candidate_registry::replace_candidates_for_file(
@@ -89,11 +79,9 @@ void candidate_registry::replace_candidates_for_file(
 candidate_registry::id_t
 candidate_registry::append_candidate(move_candidate candidate) {
   const id_t id = static_cast<id_t>(records_.size());
-
   records_.push_back(candidate_record{std::move(candidate), true});
   ++active_count_;
   activate_in_bucket(id);
-
   return id;
 }
 
@@ -108,9 +96,16 @@ void candidate_registry::activate_in_bucket(id_t id) {
   }
 }
 
-void candidate_registry::deactivate_in_bucket(id_t /*id*/) {
-  // Intentionally unused in this first refactor.
-  // We rebuild buckets after removals to keep the logic simple and correct.
+void candidate_registry::rebuild_hash_buckets() {
+  hash_buckets_.clear();
+  hash_buckets_.reserve(active_count_);
+
+  for (id_t id = 0; id < static_cast<id_t>(records_.size()); ++id) {
+    if (!records_[id].active) {
+      continue;
+    }
+    activate_in_bucket(id);
+  }
 }
 
 } // namespace srcmove
