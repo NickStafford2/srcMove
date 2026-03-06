@@ -12,6 +12,7 @@
 #include "annotation_writer.hpp"
 #include "move_region.hpp"
 #include "move_registry/move_registry.hpp"
+#include "move_registry/move_registry_debug.hpp"
 #include "pipeline.hpp"
 #include "region_filter.hpp"
 #include "srcml_reader.hpp"
@@ -26,7 +27,7 @@ void run_pipeline(const std::string &srcdiff_in_filename,
   auto filter_options = get_default_filter_options();
   auto candidates = filter_regions_for_registry(regions, filter_options);
   move_registry mr = build_move_registry(candidates);
-  mr.print_greedy_matches(std::cout);
+  print_greedy_matches(mr, std::cout);
   // second pass
   annotate(regions, mr, srcdiff_in_filename, srcdiff_out_filename);
 }

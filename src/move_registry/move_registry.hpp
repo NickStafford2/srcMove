@@ -102,9 +102,10 @@ public:
   id_view group_delete_ids(const content_group_compact &g) const noexcept;
   id_view group_insert_ids(const content_group_compact &g) const noexcept;
 
-  void debug(std::ostream &os) const;
-
-  void print_greedy_matches(std::ostream &os) const;
+  std::size_t delete_count() const noexcept { return deletes_.size(); }
+  std::size_t insert_count() const noexcept { return inserts_.size(); }
+  std::size_t bucket_count() const noexcept { return buckets_by_hash_.size(); }
+  std::size_t group_count() const noexcept { return groups_.groups.size(); }
 
 private:
   content_group_storage groups_;
