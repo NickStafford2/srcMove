@@ -27,8 +27,8 @@ namespace srcmove {
 
 namespace {
 
-constexpr const char *kMvNsUri = "http://www.srcML.org/srcMove";
-constexpr const char *kMvNsDeclAttr = "xmlns:mv";
+constexpr const char *kMvNamespaceUri = "http://www.srcML.org/srcMove";
+constexpr const char *kMvXmlnsAttr = "xmlns:mv";
 constexpr const char *kMvMoveAttr = "mv:move";
 constexpr const char *kMvXpathAttr = "mv:xpath";
 
@@ -47,8 +47,8 @@ srcml_node patch_root_unit_namespace(const srcml_node &node) {
   srcml_node patched = node;
 
   // Only add it if it is not already present.
-  if (patched.get_attribute_value(kMvNsDeclAttr) == nullptr) {
-    patched.set_attribute(kMvNsDeclAttr, kMvNsUri);
+  if (patched.get_attribute_value(kMvXmlnsAttr) == nullptr) {
+    patched.set_attribute(kMvXmlnsAttr, kMvNamespaceUri);
   }
 
   return patched;
