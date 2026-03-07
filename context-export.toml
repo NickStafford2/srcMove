@@ -13,6 +13,8 @@ exclude_from_dir_list = [
   "build/",
   "node_modules/",
   "test/stress/",
+  "test/",
+  "doc/",
   "test/stress/**/*",
 ]
 
