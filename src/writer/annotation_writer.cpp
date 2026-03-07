@@ -7,6 +7,7 @@
  */
 #include <cctype>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 // uncomment to disable assert()
@@ -26,6 +27,33 @@ namespace srcmove {
 
 namespace {
 
+constexpr const char *kMvNsUri = "http://www.srcML.org/srcMove";
+constexpr const char *kMvNsDeclAttr = "xmlns:mv";
+constexpr const char *kMvMoveAttr = "mv:move";
+constexpr const char *kMvXpathAttr = "mv:xpath";
+
+bool is_root_unit_start(const srcml_node &node, std::size_t index) {
+  return index == 0 && node.is_start() && node.name == "unit";
+}
+
+const std::string *get_existing_move_attr(const srcml_node &node) {
+  if (const std::string *mv = node.get_attribute_value(kMvMoveAttr)) {
+    return mv;
+  }
+  return node.get_attribute_value("move");
+}
+
+srcml_node patch_root_unit_namespace(const srcml_node &node) {
+  srcml_node patched = node;
+
+  // Only add it if it is not already present.
+  if (patched.get_attribute_value(kMvNsDeclAttr) == nullptr) {
+    patched.set_attribute(kMvNsDeclAttr, kMvNsUri);
+  }
+
+  return patched;
+}
+
 std::unordered_map<std::uint32_t, move_entry>
 write_with_move_annotations(const std::string &in_filename,
                             const std::string &out_filename,
@@ -36,6 +64,11 @@ write_with_move_annotations(const std::string &in_filename,
 
   std::size_t i = 0;
   for (const srcml_node &node : reader) {
+    if (is_root_unit_start(node, i)) {
+      writer.write(patch_root_unit_namespace(node));
+      ++i;
+      continue;
+    }
 
     if (node.is_start()) {
       const std::string fn = node.full_name();
@@ -44,9 +77,8 @@ write_with_move_annotations(const std::string &in_filename,
         srcml_node patched = node;
         const std::string xpath = reader.get_current_xpath();
 
-        if (const std::string *existing_move =
-                node.get_attribute_value("move")) {
-          patched.set_attribute("xpath", xpath);
+        if (const std::string *existing_move = get_existing_move_attr(node)) {
+          patched.set_attribute(kMvXpathAttr, xpath);
           writer.write(patched);
 
           try {
@@ -73,8 +105,8 @@ write_with_move_annotations(const std::string &in_filename,
           const std::uint32_t move_id = it->second.move_id;
           const std::string &raw_text = it->second.raw_text;
 
-          patched.set_attribute("move", std::to_string(move_id));
-          patched.set_attribute("xpath", xpath);
+          patched.set_attribute(kMvMoveAttr, std::to_string(move_id));
+          patched.set_attribute(kMvXpathAttr, xpath);
           writer.write(patched);
 
           auto &entry = moves[move_id];
