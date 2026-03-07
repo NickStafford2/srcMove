@@ -21,7 +21,6 @@
 #include "srcml_reader.hpp"
 #include "srcml_writer.hpp"
 #include "summary.hpp"
-#include "xpath_builder.hpp"
 
 namespace srcmove {
 
@@ -33,19 +32,17 @@ write_with_move_annotations(const std::string &in_filename,
                             const tag_map &tags) {
   srcml_reader reader(in_filename);
   srcml_writer writer(out_filename);
-  xpath_builder xb;
   std::unordered_map<std::uint32_t, move_entry> moves;
 
   std::size_t i = 0;
   for (const srcml_node &node : reader) {
-    xb.on_node(node);
 
     if (node.is_start()) {
       const std::string fn = node.full_name();
 
       if (fn == "diff:insert" || fn == "diff:delete") {
         srcml_node patched = node;
-        const std::string xpath = xb.current_xpath();
+        const std::string xpath = reader.get_current_xpath();
 
         if (const std::string *existing_move =
                 node.get_attribute_value("move")) {

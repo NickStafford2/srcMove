@@ -8,11 +8,7 @@ This document defines the structural and XPath requirements for all XML files ge
 
 All generated XML must be **valid srcML-compatible XML** that preserves **srcDiff structure** and adds **srcMove metadata** without breaking existing XPath queries.
 
-In other words:
-
 srcMove = srcDiff + move annotations
-
-The document must remain a valid srcDiff-style document while providing additional attributes in the srcMove namespace.
 
 ---
 
@@ -25,12 +21,6 @@ xmlns="http://www.srcML.org/srcML/src"
 xmlns:diff="http://www.srcML.org/srcDiff"
 xmlns:mv="http://www.srcML.org/srcMove"
 ````
-
-Optional language namespaces may appear (example):
-
-```xml
-xmlns:cpp="http://www.srcML.org/srcML/cpp"
-```
 
 Namespace meanings:
 
@@ -268,3 +258,15 @@ The XML must satisfy these goals:
 ```xpath
 //diff:delete[@move]
 /src:unit/src:unit[@filename="foo.cpp"]//diff:insert[@move]
+```
+# IDEA: Consider using this instead
+```xpath
+<diff:delete move="7" inserts="2" deletes="3"
+             mv:partner="/src:unit/.../diff:insert[1]">
+             mv:partners="/src:unit/.../diff:insert[1];/src:unit/.../diff:insert[2]">
+
+<diff:delete move="7" mv:partner="/src:unit/.../diff:insert[1]">
+```
+Maybe have 1x1 moves do this? 
+```xpath
+```
