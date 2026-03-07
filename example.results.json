@@ -5,7 +5,7 @@
       "move_id": 1,
       "from_xpaths": [
         "/src:unit[1]/src:unit[1][@filename="filename"]/diff:delete[1]"
-        // also want function names talk to josh
+        // need lots of information in here as well. not just a normal xpath
       ],
       "to_xpaths": [
         "/unit[1]/unit[2]/diff:insert[1]"

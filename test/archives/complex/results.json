@@ -4,10 +4,10 @@
     {
       "move_id": 1,
       "from_xpaths": [
-        "/unit[1]/unit[4]/diff:delete[1]"
+        "/src:unit/src:unit[@filename=\"foo.hpp\"]/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/unit[1]/unit[3]/diff:insert[1]"
+        "/src:unit/src:unit[@filename=\"foo.cpp\"]/diff:insert"
       ],
       "from_raw_texts": [
         "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}"
@@ -19,10 +19,10 @@
     {
       "move_id": 2,
       "from_xpaths": [
-        "/unit[1]/unit[4]/diff:delete[2]"
+        "/src:unit/src:unit[@filename=\"foo.hpp\"]/diff:delete[2]"
       ],
       "to_xpaths": [
-        "/unit[1]/unit[2]/diff:insert[1]"
+        "/src:unit/src:unit[@filename=\"bar.hpp\"]/diff:insert"
       ],
       "from_raw_texts": [
         "char delcaration_moved();\n"
@@ -34,10 +34,10 @@
     {
       "move_id": 3,
       "from_xpaths": [
-        "/unit[1]/unit[3]/diff:delete[1]"
+        "/src:unit/src:unit[@filename=\"foo.cpp\"]/diff:delete"
       ],
       "to_xpaths": [
-        "/unit[1]/unit[1]/diff:insert[1]"
+        "/src:unit/src:unit[@filename=\"bar.cpp\"]/diff:insert"
       ],
       "from_raw_texts": [
         "\nchar definition_moved() {\n  char d = 'd';\n  char e = 'e';\n  return d + e;\n}\n"

@@ -4,10 +4,10 @@
     {
       "move_id": 8,
       "from_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[5]/decl[1]/type[1]/diff:delete[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[5]/src:decl[src:name=\"foo5\"]/src:type/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[5]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[5]/src:decl[src:name=\"foo5\"]/src:type/diff:insert/diff:insert"
       ],
       "from_raw_texts": [
       ],
@@ -17,10 +17,10 @@
     {
       "move_id": 7,
       "from_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[4]/decl[1]/type[1]/diff:delete[2]/diff:delete[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[4]/src:decl[src:name=\"foo4\"]/src:type/diff:delete[2]/diff:delete"
       ],
       "to_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[4]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[4]/src:decl[src:name=\"foo4\"]/src:type/diff:insert/diff:insert[1]"
       ],
       "from_raw_texts": [
       ],
@@ -30,10 +30,10 @@
     {
       "move_id": 6,
       "from_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[4]/decl[1]/type[1]/diff:delete[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[4]/src:decl[src:name=\"foo4\"]/src:type/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[4]/decl[1]/type[1]/diff:insert[1]/diff:insert[2]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[4]/src:decl[src:name=\"foo4\"]/src:type/diff:insert/diff:insert[2]"
       ],
       "from_raw_texts": [
       ],
@@ -43,10 +43,10 @@
     {
       "move_id": 5,
       "from_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[3]/decl[1]/type[1]/diff:delete[2]/diff:delete[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[3]/src:decl[src:name=\"foo3\"]/src:type/diff:delete[2]/diff:delete"
       ],
       "to_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[3]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[3]/src:decl[src:name=\"foo3\"]/src:type/diff:insert/diff:insert[1]"
       ],
       "from_raw_texts": [
       ],
@@ -56,10 +56,10 @@
     {
       "move_id": 4,
       "from_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[3]/decl[1]/type[1]/diff:delete[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[3]/src:decl[src:name=\"foo3\"]/src:type/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[3]/decl[1]/type[1]/diff:insert[1]/diff:insert[2]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[3]/src:decl[src:name=\"foo3\"]/src:type/diff:insert/diff:insert[2]"
       ],
       "from_raw_texts": [
       ],
@@ -69,10 +69,10 @@
     {
       "move_id": 3,
       "from_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[2]/decl[1]/type[1]/diff:delete[2]/diff:delete[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[2]/src:decl[src:name=\"foo2\"]/src:type/diff:delete[2]/diff:delete"
       ],
       "to_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[2]/decl[1]/type[1]/diff:insert[1]/diff:insert[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[2]/src:decl[src:name=\"foo2\"]/src:type/diff:insert/diff:insert[1]"
       ],
       "from_raw_texts": [
       ],
@@ -82,10 +82,10 @@
     {
       "move_id": 2,
       "from_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[2]/decl[1]/type[1]/diff:delete[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[2]/src:decl[src:name=\"foo2\"]/src:type/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[2]/decl[1]/type[1]/diff:insert[1]/diff:insert[2]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[2]/src:decl[src:name=\"foo2\"]/src:type/diff:insert/diff:insert[2]"
       ],
       "from_raw_texts": [
       ],
@@ -95,10 +95,10 @@
     {
       "move_id": 1,
       "from_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[1]/decl[1]/type[1]/diff:delete[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[1]/src:decl[src:name=\"foo1\"]/src:type/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/unit[1]/struct[1]/block[1]/public[1]/decl_stmt[1]/decl[1]/type[1]/diff:insert[1]"
+        "/src:unit/src:struct/src:block/src:public/src:decl_stmt[1]/src:decl[src:name=\"foo1\"]/src:type/diff:insert[1]"
       ],
       "from_raw_texts": [
       ],

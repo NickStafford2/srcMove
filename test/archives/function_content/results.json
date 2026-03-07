@@ -4,10 +4,10 @@
     {
       "move_id": 1,
       "from_xpaths": [
-        "/unit[1]/function[2]/block[1]/block_content[1]/return[1]/diff:delete[1]"
+        "/src:unit/src:function[src:name=\"bar\"]/src:block/src:block_content/src:return/diff:delete"
       ],
       "to_xpaths": [
-        "/unit[1]/function[1]/block[1]/block_content[1]/return[1]/diff:insert[1]"
+        "/src:unit/src:function[src:name=\"foo\"]/src:block/src:block_content/src:return/diff:insert"
       ],
       "from_raw_texts": [
         "456"
@@ -19,10 +19,10 @@
     {
       "move_id": 2,
       "from_xpaths": [
-        "/unit[1]/function[1]/block[1]/block_content[1]/return[1]/diff:delete[1]"
+        "/src:unit/src:function[src:name=\"foo\"]/src:block/src:block_content/src:return/diff:delete"
       ],
       "to_xpaths": [
-        "/unit[1]/function[2]/block[1]/block_content[1]/return[1]/diff:insert[1]"
+        "/src:unit/src:function[src:name=\"bar\"]/src:block/src:block_content/src:return/diff:insert"
       ],
       "from_raw_texts": [
         "123"
