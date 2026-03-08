@@ -4,6 +4,7 @@ import json
 import subprocess
 from pathlib import Path
 from typing import Any
+import xml.etree.ElementTree as ET
 
 
 def load_json(path: Path) -> Any:
@@ -230,4 +231,19 @@ def validate_results(
     failures: list[str] = []
     failures.extend(check_summary_fields(results_json, expected))
     failures.extend(validate_moves(expected, results_json))
+    return failures
+
+
+def assert_no_inline_xmlns(xml_path):
+    tree = ET.parse(xml_path)
+    root = tree.getroot()
+
+    failures = []
+
+    for node in root.iter():
+        tag = node.tag.split("}")[-1]
+
+        if tag in ("delete", "insert") and "xmlns" in node.attrib:
+            failures.append(f"{tag} node contains inline xmlns")
+
     return failures

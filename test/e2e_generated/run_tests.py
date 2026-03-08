@@ -16,6 +16,7 @@ from testlib import (
     load_json,
     run_command,
     validate_results,
+    assert_no_inline_xmlns,
 )
 
 
@@ -181,6 +182,7 @@ def run_case(
     try:
         results = load_json(results_json)
         failures = validate_results(expected, results)
+        failures.extend(assert_no_inline_xmlns(diff_new_xml))
     except Exception as e:
         return CaseResult(
             name=case.name,

@@ -90,6 +90,10 @@ def main() -> int:
             expected = load_json(expected_path)
             results_json = load_json(out_json)
             failures = validate_results(expected, results_json)
+
+            from testlib import assert_no_inline_xmlns
+
+            failures.extend(assert_no_inline_xmlns(out_xml))
         except Exception as e:
             print(f"FAIL  {xml_file.name}")
             print(f"  exception while validating: {e}")
