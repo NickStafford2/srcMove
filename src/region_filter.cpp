@@ -92,7 +92,7 @@ region_filter_options get_default_filter_options() {
   opt.policy = region_filter_policy::leaf_only;
   opt.drop_whitespace_only = true;
   opt.skip_pre_marked = true;
-  opt.min_chars = 1;
+  opt.min_chars = 2;
   return opt;
 }
 

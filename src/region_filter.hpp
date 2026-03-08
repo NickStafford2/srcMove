@@ -34,7 +34,7 @@ struct region_filter_options {
   // Common practical filters:
   bool drop_whitespace_only = true;
   bool skip_pre_marked = true;
-  std::size_t min_chars = 1; // after whitespace-only check (still raw chars)
+  std::size_t min_chars = 2; // after whitespace-only check (still raw chars)
 };
 
 region_filter_options get_default_filter_options();
