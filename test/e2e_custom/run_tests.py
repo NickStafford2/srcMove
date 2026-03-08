@@ -1,171 +1,21 @@
 #!/usr/bin/env python3
-# run_move_tests.py
+from __future__ import annotations
 
 import os
-import json
-import subprocess
 import sys
 from pathlib import Path
-import xml.etree.ElementTree as ET
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+TEST_ROOT = SCRIPT_DIR.parent
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
 
-DIFF_NS = "http://www.srcML.org/srcDiff"
-MV_NS = "http://www.srcML.org/srcMove"
-
-NS = {
-    "diff": DIFF_NS,
-    "mv": MV_NS,
-}
-
-
-def find_diff_nodes(root: ET.Element):
-    inserts = root.findall(".//diff:insert", NS)
-    deletes = root.findall(".//diff:delete", NS)
-    return inserts, deletes
-
-
-def get_attr(elem: ET.Element, ns: str, local: str):
-    return elem.attrib.get(f"{{{ns}}}{local}")
-
-
-def split_partners(value: str):
-    if not value:
-        return []
-    return [part for part in value.split(";") if part]
-
-
-def analyze_output_xml(xml_path: Path):
-    tree = ET.parse(xml_path)
-    root = tree.getroot()
-
-    inserts, deletes = find_diff_nodes(root)
-    all_nodes = deletes + inserts
-
-    annotated_deletes = 0
-    annotated_inserts = 0
-    partner_attr_count = 0
-    partners_attr_count = 0
-
-    delete_partner_sizes = []
-    insert_partner_sizes = []
-
-    for elem in deletes:
-        has_move = (
-            elem.attrib.get("move") is not None
-            or get_attr(elem, MV_NS, "move") is not None
-        )
-        if has_move:
-            annotated_deletes += 1
-
-        partner = get_attr(elem, MV_NS, "partner")
-        partners = get_attr(elem, MV_NS, "partners")
-
-        if partner is not None:
-            partner_attr_count += 1
-            delete_partner_sizes.append(1)
-        elif partners is not None:
-            partners_attr_count += 1
-            delete_partner_sizes.append(len(split_partners(partners)))
-
-    for elem in inserts:
-        has_move = (
-            elem.attrib.get("move") is not None
-            or get_attr(elem, MV_NS, "move") is not None
-        )
-        if has_move:
-            annotated_inserts += 1
-
-        partner = get_attr(elem, MV_NS, "partner")
-        partners = get_attr(elem, MV_NS, "partners")
-
-        if partner is not None:
-            partner_attr_count += 1
-            insert_partner_sizes.append(1)
-        elif partners is not None:
-            partners_attr_count += 1
-            insert_partner_sizes.append(len(split_partners(partners)))
-
-    return {
-        "total_inserts": len(inserts),
-        "total_deletes": len(deletes),
-        "annotated_inserts": annotated_inserts,
-        "annotated_deletes": annotated_deletes,
-        "partner_attr_count": partner_attr_count,
-        "partners_attr_count": partners_attr_count,
-        "delete_partner_sizes": delete_partner_sizes,
-        "insert_partner_sizes": insert_partner_sizes,
-        "total_diff_nodes": len(all_nodes),
-    }
-
-
-def load_json(path: Path):
-    with path.open("r", encoding="utf-8") as f:
-        return json.load(f)
-
-
-def compare_scalar(actual, expected, key, failures):
-    if actual != expected:
-        failures.append(f"{key}: expected {expected!r}, got {actual!r}")
-
-
-def compare_list(actual, expected, key, failures, sort_before_compare=False):
-    a = list(actual)
-    e = list(expected)
-    if sort_before_compare:
-        a = sorted(a)
-        e = sorted(e)
-    if a != e:
-        failures.append(f"{key}: expected {e!r}, got {a!r}")
-
-
-def check_expected(summary_json, xml_analysis, expected):
-    failures = []
-
-    summary_checks = {
-        "move_count": summary_json.get("move_count"),
-        "annotated_regions": summary_json.get("annotated_regions"),
-        "regions_total": summary_json.get("regions_total"),
-        "candidates_total": summary_json.get("candidates_total"),
-        "groups_total": summary_json.get("groups_total"),
-    }
-
-    for key, actual_value in summary_checks.items():
-        if key in expected:
-            compare_scalar(actual_value, expected[key], key, failures)
-
-    xml_checks = {
-        "total_inserts": xml_analysis["total_inserts"],
-        "total_deletes": xml_analysis["total_deletes"],
-        "annotated_inserts": xml_analysis["annotated_inserts"],
-        "annotated_deletes": xml_analysis["annotated_deletes"],
-        "partner_attr_count": xml_analysis["partner_attr_count"],
-        "partners_attr_count": xml_analysis["partners_attr_count"],
-        "total_diff_nodes": xml_analysis["total_diff_nodes"],
-    }
-
-    for key, actual_value in xml_checks.items():
-        if key in expected:
-            compare_scalar(actual_value, expected[key], key, failures)
-
-    if "delete_partner_sizes" in expected:
-        compare_list(
-            xml_analysis["delete_partner_sizes"],
-            expected["delete_partner_sizes"],
-            "delete_partner_sizes",
-            failures,
-            sort_before_compare=True,
-        )
-
-    if "insert_partner_sizes" in expected:
-        compare_list(
-            xml_analysis["insert_partner_sizes"],
-            expected["insert_partner_sizes"],
-            "insert_partner_sizes",
-            failures,
-            sort_before_compare=True,
-        )
-
-    return failures
+from testlib import (
+    format_process_failure,
+    load_json,
+    run_command,
+    validate_results,
+)
 
 
 def run_case(srcmove_path: Path, xml_file: Path, out_dir: Path):
@@ -180,12 +30,11 @@ def run_case(srcmove_path: Path, xml_file: Path, out_dir: Path):
         "--results",
         str(out_json),
     ]
-
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = run_command(cmd)
     return proc, out_xml, out_json
 
 
-def main():
+def main() -> int:
     script_dir = Path(__file__).resolve().parent
     out_dir = script_dir / "test_out"
 
@@ -196,7 +45,7 @@ def main():
 
     if not srcmove_path.exists():
         print(f"error: srcMove not found at {srcmove_path}", file=sys.stderr)
-        sys.exit(2)
+        return 2
 
     out_dir.mkdir(exist_ok=True)
 
@@ -206,7 +55,7 @@ def main():
 
     if not xml_files:
         print(f"No .xml test files found in {script_dir}.")
-        sys.exit(0)
+        return 0
 
     total = 0
     passed = 0
@@ -226,21 +75,8 @@ def main():
 
         if proc.returncode != 0:
             print(f"FAIL  {xml_file.name}")
-            print(f"  srcMove exited with {proc.returncode}")
-            if proc.stdout.strip():
-                print("  stdout:")
-                for line in proc.stdout.strip().splitlines():
-                    print(f"    {line}")
-            if proc.stderr.strip():
-                print("  stderr:")
-                for line in proc.stderr.strip().splitlines():
-                    print(f"    {line}")
-            failed += 1
-            continue
-
-        if not out_xml.exists():
-            print(f"FAIL  {xml_file.name}")
-            print("  missing output xml")
+            for line in format_process_failure("srcMove", proc).splitlines():
+                print(f"  {line}")
             failed += 1
             continue
 
@@ -252,9 +88,8 @@ def main():
 
         try:
             expected = load_json(expected_path)
-            summary_json = load_json(out_json)
-            xml_analysis = analyze_output_xml(out_xml)
-            failures = check_expected(summary_json, xml_analysis, expected)
+            results_json = load_json(out_json)
+            failures = validate_results(expected, results_json)
         except Exception as e:
             print(f"FAIL  {xml_file.name}")
             print(f"  exception while validating: {e}")
@@ -272,9 +107,8 @@ def main():
 
     print()
     print(f"total={total} passed={passed} failed={failed} skipped={skipped}")
-
-    sys.exit(1 if failed else 0)
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())
