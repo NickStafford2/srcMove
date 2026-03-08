@@ -16,7 +16,7 @@ ninja -C build
 
 echo ""
 echo "=== Running Generated end-to-end tests ==="
-if python test/archives/run_end_to_end.py; then
+if python test/e2e_generated/run_tests.py; then
   echo -e "${GREEN}Generated tests passed${RESET}"
 else
   echo -e "${RED}Generated tests FAILED${RESET}"
@@ -25,7 +25,7 @@ fi
 
 echo ""
 echo "=== Running Simple end-to-end tests ==="
-if python test/custom/run_move_tests.py; then
+if python test/e2e_custom/run_tests.py; then
   echo -e "${GREEN}Simple tests passed${RESET}"
 else
   echo -e "${RED}Simple tests FAILED${RESET}"
