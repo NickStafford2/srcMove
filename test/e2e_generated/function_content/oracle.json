@@ -1,3 +1,39 @@
 {
-  "move_count": 2
+  "move_count": 2,
+  "moves": [
+    {
+      "move_id": 1,
+      "from_xpaths": [
+        "/src:unit/src:function[src:name=\"bar\"]/src:block/src:block_content/src:return/diff:delete"
+      ],
+      "to_xpaths": [
+        "/src:unit/src:function[src:name=\"foo\"]/src:block/src:block_content/src:return/diff:insert"
+      ],
+      "from_raw_texts": [
+        "456"
+      ],
+      "to_raw_texts": [
+        "456"
+      ]
+    },
+    {
+      "move_id": 2,
+      "from_xpaths": [
+        "/src:unit/src:function[src:name=\"foo\"]/src:block/src:block_content/src:return/diff:delete"
+      ],
+      "to_xpaths": [
+        "/src:unit/src:function[src:name=\"bar\"]/src:block/src:block_content/src:return/diff:insert"
+      ],
+      "from_raw_texts": [
+        "123"
+      ],
+      "to_raw_texts": [
+        "123"
+      ]
+    }
+  ],
+  "annotated_regions": 4,
+  "regions_total": 4,
+  "candidates_total": 4,
+  "groups_total": 2
 }

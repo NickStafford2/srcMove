@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" language="C++" filename="/home/nick/Projects/srcMLBuildTemplate/srcMove/test/archives/standalone_blocks_comment/original.cpp|/home/nick/Projects/srcMLBuildTemplate/srcMove/test/archives/standalone_blocks_comment/modified.cpp"><function><type><name>int</name></type> <name>main</name><parameter_list>()</parameter_list> <block>{<block_content>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" language="C++" filename="/home/nick/Projects/srcMLBuildTemplate/srcMove/test/e2e_generated/standalone_blocks_comment/original.cpp|/home/nick/Projects/srcMLBuildTemplate/srcMove/test/e2e_generated/standalone_blocks_comment/modified.cpp"><function><type><name>int</name></type> <name>main</name><parameter_list>()</parameter_list> <block>{<block_content>
 <diff:delete><diff:ws>  </diff:ws><diff:delete move="1"><block>{<block_content><diff:ws>
     </diff:ws><comment type="line">//<diff:ws> </diff:ws>int<diff:ws> </diff:ws>first<diff:ws> </diff:ws>=<diff:ws> </diff:ws>123;</comment><diff:ws>
   </diff:ws></block_content>}</block></diff:delete><diff:ws>

@@ -11,19 +11,27 @@ exclude_from_dir_list = [
   "__pycache__/",
   "dist/",
   "build/",
-  "node_modules/",
-  "alphabetize/*",
-  "clones/*",
+  "stress/",
+  "stress/**/*",
+  "alphabetize",
+  "clones",
+  "context-export.toml",
 ]
 
 # Files whose contents will always be included under "IMPORTANT FILE CONTENTS".
 # Globs are allowed.
 important_files = [
   # "README.md",
-  "nested_insert/",
-  "!alphabetize/",
-  "!clones/",
-  # "tests/**/*.py",
+  "!context-export.toml",
+  "*.py",
+  "01_1x1_basic.expected.json",
+  "01_1x1_basic.xml",
+  "e2e_generated/complex/*",
+  # "stress/**/CMakeLists.txt",
+  # "stress/",
+  # "stress/**/*",
+  # "src/**/*.cpp",
+  # "src/**/*.hpp",
 ]
 
 # If true, also apply patterns from the project's root .gitignore to the FILE LIST.

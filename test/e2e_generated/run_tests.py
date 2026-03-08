@@ -7,6 +7,7 @@ import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 
 @dataclass
@@ -27,13 +28,35 @@ class CaseResult:
     message: str = ""
 
 
-def run_command(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess:
+def run_command(cmd: list[str], cwd: Path) -> subprocess.CompletedProcess[str]:
     return subprocess.run(
         cmd,
         cwd=str(cwd),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
+        text=True,
+        capture_output=True,
     )
+
+
+def format_process_failure(
+    label: str, result: subprocess.CompletedProcess[str], extra: str = ""
+) -> str:
+    parts: list[str] = [f"{label} failed"]
+    if extra:
+        parts.append(extra)
+    parts.append(f"exit code: {result.returncode}")
+
+    stdout = result.stdout.strip()
+    stderr = result.stderr.strip()
+
+    if stdout:
+        parts.append("stdout:")
+        parts.extend(f"  {line}" for line in stdout.splitlines())
+
+    if stderr:
+        parts.append("stderr:")
+        parts.extend(f"  {line}" for line in stderr.splitlines())
+
+    return "\n".join(parts)
 
 
 def is_archive_case(case_dir: Path) -> bool:
@@ -71,6 +94,9 @@ def find_cases(archives_root: Path) -> list[CaseSpec]:
         if not child.is_dir():
             continue
 
+        if child.name == "__pycache__":
+            continue
+
         if is_archive_case(child):
             out.append(
                 CaseSpec(
@@ -99,7 +125,12 @@ def find_cases(archives_root: Path) -> list[CaseSpec]:
     return out
 
 
-def load_expected_move_count(case_dir: Path) -> int:
+def expect_type(value: Any, expected_type: type, what: str) -> None:
+    if not isinstance(value, expected_type):
+        raise RuntimeError(f"{what} must be a {expected_type.__name__}")
+
+
+def load_oracle(case_dir: Path) -> dict[str, Any]:
     oracle_path = case_dir / "oracle.json"
     if not oracle_path.is_file():
         raise RuntimeError(f"missing oracle.json: {oracle_path}")
@@ -107,40 +138,176 @@ def load_expected_move_count(case_dir: Path) -> int:
     with oracle_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
-    move_count = None
+    if not isinstance(data, dict):
+        raise RuntimeError(f"oracle.json root must be an object: {oracle_path}")
 
-    if "move_count" in data:
-        move_count = data["move_count"]
-    elif "moves" in data:
-        move_count = data["moves"]
-    else:
+    if "move_count" in data and not isinstance(data["move_count"], int):
         raise RuntimeError(
-            f"oracle.json missing 'move_count' or legacy 'moves': {oracle_path}"
+            f"oracle.json field 'move_count' is not an int: {oracle_path}"
         )
 
-    if not isinstance(move_count, int):
-        raise RuntimeError(f"oracle.json move count field is not an int: {oracle_path}")
+    if "moves" in data:
+        expect_type(data["moves"], list, f"{oracle_path}: 'moves'")
+        for i, move in enumerate(data["moves"], start=1):
+            expect_type(move, dict, f"{oracle_path}: moves[{i}]")
 
-    return move_count
+            for key in ("from_xpaths", "to_xpaths", "from_files", "to_files"):
+                if key in move:
+                    expect_type(move[key], list, f"{oracle_path}: moves[{i}].{key}")
+                    for j, item in enumerate(move[key], start=1):
+                        expect_type(
+                            item,
+                            str,
+                            f"{oracle_path}: moves[{i}].{key}[{j}]",
+                        )
+
+    return data
 
 
-def load_actual_move_count(results_path: Path) -> int:
+def load_results(results_path: Path) -> dict[str, Any]:
     if not results_path.is_file():
         raise RuntimeError(f"missing results file: {results_path}")
 
     with results_path.open("r", encoding="utf-8") as f:
         data = json.load(f)
 
+    if not isinstance(data, dict):
+        raise RuntimeError(f"results.json root must be an object: {results_path}")
+
     if "move_count" not in data:
         raise RuntimeError(f"results.json missing 'move_count': {results_path}")
 
-    move_count = data["move_count"]
-    if not isinstance(move_count, int):
+    if not isinstance(data["move_count"], int):
         raise RuntimeError(
             f"results.json field 'move_count' is not an int: {results_path}"
         )
 
-    return move_count
+    moves = data.get("moves", [])
+    if not isinstance(moves, list):
+        raise RuntimeError(f"results.json field 'moves' is not a list: {results_path}")
+
+    return data
+
+
+def normalize_xpath_list(values: list[str] | None) -> list[str]:
+    if not values:
+        return []
+    return sorted(str(v) for v in values)
+
+
+def xpaths_to_files(xpaths: list[str] | None) -> list[str]:
+    if not xpaths:
+        return []
+
+    files: list[str] = []
+    seen: set[str] = set()
+
+    needle = '[@filename="'
+    for xpath in xpaths:
+        start = xpath.find(needle)
+        if start == -1:
+            continue
+        start += len(needle)
+        end = xpath.find('"]', start)
+        if end == -1:
+            continue
+        filename = xpath[start:end]
+        if filename not in seen:
+            seen.add(filename)
+            files.append(filename)
+
+    return sorted(files)
+
+
+def normalize_move_record(move: dict[str, Any]) -> dict[str, list[str]]:
+    from_xpaths = normalize_xpath_list(move.get("from_xpaths"))
+    to_xpaths = normalize_xpath_list(move.get("to_xpaths"))
+
+    from_files = normalize_xpath_list(move.get("from_files"))
+    to_files = normalize_xpath_list(move.get("to_files"))
+
+    if not from_files:
+        from_files = xpaths_to_files(from_xpaths)
+    if not to_files:
+        to_files = xpaths_to_files(to_xpaths)
+
+    return {
+        "from_xpaths": from_xpaths,
+        "to_xpaths": to_xpaths,
+        "from_files": from_files,
+        "to_files": to_files,
+    }
+
+
+def move_matches_expectation(
+    actual: dict[str, list[str]], expected: dict[str, Any]
+) -> tuple[bool, str]:
+    for key in ("from_files", "to_files", "from_xpaths", "to_xpaths"):
+        if key not in expected:
+            continue
+
+        expected_list = sorted(str(v) for v in expected[key])
+        actual_list = actual[key]
+
+        if actual_list != expected_list:
+            return (
+                False,
+                f"{key}: expected {expected_list!r}, got {actual_list!r}",
+            )
+
+    return True, ""
+
+
+def validate_moves(oracle: dict[str, Any], results: dict[str, Any]) -> list[str]:
+    failures: list[str] = []
+
+    expected_move_count = oracle.get("move_count")
+    actual_move_count = results.get("move_count")
+
+    if expected_move_count is not None and actual_move_count != expected_move_count:
+        failures.append(
+            f"move_count mismatch: expected {expected_move_count}, got {actual_move_count}"
+        )
+
+    expected_moves = oracle.get("moves")
+    actual_moves_raw = results.get("moves", [])
+
+    if expected_moves is None:
+        return failures
+
+    actual_moves = [normalize_move_record(m) for m in actual_moves_raw]
+
+    used_indices: set[int] = set()
+
+    for expected_index, expected_move in enumerate(expected_moves, start=1):
+        match_index = None
+        mismatch_reasons: list[str] = []
+
+        for actual_index, actual_move in enumerate(actual_moves):
+            if actual_index in used_indices:
+                continue
+
+            ok, reason = move_matches_expectation(actual_move, expected_move)
+            if ok:
+                match_index = actual_index
+                break
+            mismatch_reasons.append(
+                f"candidate actual move {actual_index + 1} mismatch: {reason}"
+            )
+
+        if match_index is None:
+            details = (
+                "; ".join(mismatch_reasons[:4]) if mismatch_reasons else "no moves"
+            )
+            failures.append(
+                f"expected move {expected_index} not found"
+                f"{': ' + details if details else ''}"
+            )
+            continue
+
+        used_indices.add(match_index)
+
+    return failures
 
 
 def run_case(
@@ -153,7 +320,7 @@ def run_case(
     results_json = case_dir / "results.json"
 
     try:
-        expected_move_count = load_expected_move_count(case_dir)
+        oracle = load_oracle(case_dir)
     except Exception as e:
         return CaseResult(
             name=name,
@@ -162,6 +329,8 @@ def run_case(
             actual_move_count=None,
             message=str(e),
         )
+
+    expected_move_count = oracle.get("move_count")
 
     for path in (diff_xml, diff_new_xml, results_json):
         if path.exists():
@@ -183,7 +352,9 @@ def run_case(
             ok=False,
             expected_move_count=expected_move_count,
             actual_move_count=None,
-            message=f"srcdiff failed ({case_kind} case)",
+            message=format_process_failure(
+                "srcdiff", srcdiff_result, extra=f"case type: {case_kind}"
+            ),
         )
 
     if not diff_xml.is_file():
@@ -210,11 +381,12 @@ def run_case(
             ok=False,
             expected_move_count=expected_move_count,
             actual_move_count=None,
-            message="srcMove failed",
+            message=format_process_failure("srcMove", srcmove_result),
         )
 
     try:
-        actual_move_count = load_actual_move_count(results_json)
+        results = load_results(results_json)
+        failures = validate_moves(oracle, results)
     except Exception as e:
         return CaseResult(
             name=name,
@@ -224,13 +396,15 @@ def run_case(
             message=str(e),
         )
 
-    if actual_move_count != expected_move_count:
+    actual_move_count = results["move_count"]
+
+    if failures:
         return CaseResult(
             name=name,
             ok=False,
             expected_move_count=expected_move_count,
             actual_move_count=actual_move_count,
-            message="move count mismatch",
+            message=" | ".join(failures),
         )
 
     return CaseResult(

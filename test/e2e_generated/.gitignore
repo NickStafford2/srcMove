@@ -1,0 +1,8 @@
+# srcdiff output
+diff.xml
+
+# srcMove annotated output
+diff_new.xml
+
+# srcMove results
+results.json

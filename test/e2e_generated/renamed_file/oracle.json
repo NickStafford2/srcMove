@@ -1,3 +1,24 @@
 {
-  "move_count": 1
+  "move_count": 1,
+  "moves": [
+    {
+      "move_id": 1,
+      "from_xpaths": [
+        "/src:unit/src:unit[@filename=\"foo.hpp|\"]/diff:delete"
+      ],
+      "to_xpaths": [
+        "/src:unit/src:unit[@filename=\"|bar.hpp\"]/diff:insert"
+      ],
+      "from_raw_texts": [
+        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}\n"
+      ],
+      "to_raw_texts": [
+        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}\n"
+      ]
+    }
+  ],
+  "annotated_regions": 2,
+  "regions_total": 2,
+  "candidates_total": 2,
+  "groups_total": 1
 }
