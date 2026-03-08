@@ -25,11 +25,12 @@ std::uint32_t max_existing_move_id(const std::vector<diff_region> &regions) {
   return mx;
 }
 
-tag_map build_move_tags(const content_groups &groups,
-                        const candidate_registry &registry,
-                        std::uint32_t start_id) {
+tag_map
+build_move_tags(const content_groups &groups,
+                const candidate_registry &registry,
+                const std::unordered_map<std::size_t, std::string> &xpaths,
+                std::uint32_t start_id) {
   tag_map tags;
-
   std::uint32_t next_move_id = start_id;
 
   for (const auto &g : groups.groups()) {
@@ -38,16 +39,52 @@ tag_map build_move_tags(const content_groups &groups,
 
     const std::uint32_t move_id = next_move_id++;
 
-    // Apply to all deletes in group
+    std::vector<std::string> del_xpaths;
+    std::vector<std::string> ins_xpaths;
+
+    del_xpaths.reserve(g.del_count());
+    ins_xpaths.reserve(g.ins_count());
+
     for (auto did : groups.delete_ids(g)) {
       const auto &d = registry.candidate(did);
-      tags.emplace(d.start_idx, move_tag{move_id, d.raw_text});
+      auto it = xpaths.find(d.start_idx);
+      if (it != xpaths.end()) {
+        del_xpaths.push_back(it->second);
+      }
     }
 
-    // Apply to all inserts in group
     for (auto iid : groups.insert_ids(g)) {
       const auto &ins = registry.candidate(iid);
-      tags.emplace(ins.start_idx, move_tag{move_id, ins.raw_text});
+      auto it = xpaths.find(ins.start_idx);
+      if (it != xpaths.end()) {
+        ins_xpaths.push_back(it->second);
+      }
+    }
+
+    for (auto did : groups.delete_ids(g)) {
+      const auto &d = registry.candidate(did);
+
+      move_tag tag;
+      tag.move_id = move_id;
+      tag.inserts = static_cast<std::uint32_t>(g.ins_count());
+      tag.deletes = static_cast<std::uint32_t>(g.del_count());
+      tag.partner_xpaths = ins_xpaths;
+      tag.raw_text = d.raw_text;
+
+      tags.emplace(d.start_idx, std::move(tag));
+    }
+
+    for (auto iid : groups.insert_ids(g)) {
+      const auto &ins = registry.candidate(iid);
+
+      move_tag tag;
+      tag.move_id = move_id;
+      tag.inserts = static_cast<std::uint32_t>(g.ins_count());
+      tag.deletes = static_cast<std::uint32_t>(g.del_count());
+      tag.partner_xpaths = del_xpaths;
+      tag.raw_text = ins.raw_text;
+
+      tags.emplace(ins.start_idx, std::move(tag));
     }
   }
 

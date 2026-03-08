@@ -1,23 +1,8 @@
 {
-  "move_count": 3,
+  "move_count": 2,
   "moves": [
     {
       "move_id": 1,
-      "from_xpaths": [
-        "/src:unit/src:unit[@filename=\"foo.hpp\"]/diff:delete[1]"
-      ],
-      "to_xpaths": [
-        "/src:unit/src:unit[@filename=\"foo.cpp\"]/diff:insert"
-      ],
-      "from_raw_texts": [
-        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}"
-      ],
-      "to_raw_texts": [
-        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}\n\n"
-      ]
-    },
-    {
-      "move_id": 2,
       "from_xpaths": [
         "/src:unit/src:unit[@filename=\"foo.hpp\"]/diff:delete[2]"
       ],
@@ -32,23 +17,23 @@
       ]
     },
     {
-      "move_id": 3,
+      "move_id": 2,
       "from_xpaths": [
         "/src:unit/src:unit[@filename=\"foo.cpp\"]/diff:delete"
       ],
       "to_xpaths": [
-        "/src:unit/src:unit[@filename=\"bar.cpp\"]/diff:insert"
+        "/src:unit/src:unit[@filename=\"bar.cpp\"]/diff:insert[1]"
       ],
       "from_raw_texts": [
         "\nchar definition_moved() {\n  char d = 'd';\n  char e = 'e';\n  return d + e;\n}\n"
       ],
       "to_raw_texts": [
-        "char definition_moved() {\n  char d = 'd';\n\n  char e = 'e';\n  return d + e;\n}\n"
+        "char definition_moved() {\n  char d = 'd';\n\n  char e = 'e';\n  return d + e;\n}"
       ]
     }
   ],
-  "annotated_regions": 6,
-  "regions_total": 7,
-  "candidates_total": 7,
-  "groups_total": 4
+  "annotated_regions": 4,
+  "regions_total": 9,
+  "candidates_total": 8,
+  "groups_total": 6
 }

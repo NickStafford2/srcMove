@@ -54,6 +54,16 @@ srcml_node patch_root_unit_namespace(const srcml_node &node) {
   return patched;
 }
 
+std::string join_semicolon(const std::vector<std::string> &values) {
+  std::string out;
+  for (std::size_t i = 0; i < values.size(); ++i) {
+    if (i != 0)
+      out += ";";
+    out += values[i];
+  }
+  return out;
+}
+
 std::unordered_map<std::uint32_t, move_entry>
 write_with_move_annotations(const std::string &in_filename,
                             const std::string &out_filename,
@@ -78,7 +88,6 @@ write_with_move_annotations(const std::string &in_filename,
         const std::string xpath = reader.get_current_xpath();
 
         if (const std::string *existing_move = get_existing_move_attr(node)) {
-          patched.set_attribute(kMvXpathAttr, xpath);
           writer.write(patched);
 
           try {
@@ -102,11 +111,21 @@ write_with_move_annotations(const std::string &in_filename,
 
         auto it = tags.find(i);
         if (it != tags.end()) {
-          const std::uint32_t move_id = it->second.move_id;
-          const std::string &raw_text = it->second.raw_text;
+          const move_tag &tag = it->second;
+          const std::uint32_t move_id = tag.move_id;
+          const std::string &raw_text = tag.raw_text;
 
-          patched.set_attribute(kMvMoveAttr, std::to_string(move_id));
-          patched.set_attribute(kMvXpathAttr, xpath);
+          patched.set_attribute(kMvMoveAttr, std::to_string(tag.move_id));
+          patched.set_attribute("inserts", std::to_string(tag.inserts));
+          patched.set_attribute("deletes", std::to_string(tag.deletes));
+
+          if (tag.partner_xpaths.size() == 1) {
+            patched.set_attribute("mv:partner", tag.partner_xpaths.front());
+          } else if (!tag.partner_xpaths.empty()) {
+            patched.set_attribute("mv:partners",
+                                  join_semicolon(tag.partner_xpaths));
+          }
+
           writer.write(patched);
 
           auto &entry = moves[move_id];
@@ -133,6 +152,25 @@ write_with_move_annotations(const std::string &in_filename,
   return moves;
 }
 
+std::unordered_map<std::size_t, std::string>
+collect_diff_region_xpaths(const std::string &in_filename) {
+  srcml_reader reader(in_filename);
+  std::unordered_map<std::size_t, std::string> out;
+
+  std::size_t i = 0;
+  for (const srcml_node &node : reader) {
+    if (node.is_start()) {
+      const std::string fn = node.full_name();
+      if (fn == "diff:insert" || fn == "diff:delete") {
+        out.emplace(i, reader.get_current_xpath());
+      }
+    }
+    ++i;
+  }
+
+  return out;
+}
+
 } // namespace
 
 std::vector<move_entry> annotate(const std::vector<diff_region> &regions,
@@ -140,8 +178,10 @@ std::vector<move_entry> annotate(const std::vector<diff_region> &regions,
                                  const content_groups &groups,
                                  const std::string &srcdiff_in_filename,
                                  const std::string &srcdiff_out_filename) {
+
   const std::uint32_t start_move_id = max_existing_move_id(regions) + 1;
-  const auto tags = build_move_tags(groups, registry, start_move_id);
+  const auto xpaths = collect_diff_region_xpaths(srcdiff_in_filename);
+  const auto tags = build_move_tags(groups, registry, xpaths, start_move_id);
 
   // second pass
   auto moves_map = write_with_move_annotations(srcdiff_in_filename,

@@ -6,5 +6,7 @@ int changed_function() {
   return x;
 }
 
+char coppied_function() { return 'a'; }
+
 char unchanged_function();
 char delcaration_moved();

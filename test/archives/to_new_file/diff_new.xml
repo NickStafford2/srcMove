@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" url="/home/nick/Projects/srcMLBuildTemplate/srcMove/test/archives/to_new_file/original|/home/nick/Projects/srcMLBuildTemplate/srcMove/test/archives/to_new_file/modified">
 
-<unit revision="1.0.0" language="C++" filename="|foo.hpp"><diff:insert mv:move="1" mv:xpath="/src:unit/src:unit[@filename=&quot;|foo.hpp&quot;]/diff:insert" xmlns="http://www.srcML.org/srcML/src"><function><type><name>int</name></type><diff:ws> </diff:ws><name>changed_function</name><parameter_list>()</parameter_list><diff:ws> </diff:ws><block>{<block_content><diff:ws>
+<unit revision="1.0.0" language="C++" filename="|foo.hpp"><diff:insert deletes="1" inserts="1" mv:move="1" mv:partner="/src:unit/src:unit[@filename=&quot;main.cpp&quot;]/diff:delete" xmlns="http://www.srcML.org/srcML/src"><function><type><name>int</name></type><diff:ws> </diff:ws><name>changed_function</name><parameter_list>()</parameter_list><diff:ws> </diff:ws><block>{<block_content><diff:ws>
   </diff:ws><decl_stmt><decl><type><name>int</name></type><diff:ws> </diff:ws><name>x</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="number" xmlns="http://www.srcML.org/srcML/src">123</literal></expr></init></decl>;</decl_stmt><diff:ws>
   </diff:ws><decl_stmt><decl><type><name>int</name></type><diff:ws> </diff:ws><name>y</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="number" xmlns="http://www.srcML.org/srcML/src">456</literal></expr></init></decl>;</decl_stmt><diff:ws>
   </diff:ws><return>return<diff:ws> </diff:ws><expr><name>x</name></expr>;</return><diff:ws>
 </diff:ws></block_content>}</block></function><diff:ws>
 </diff:ws></diff:insert></unit>
 
-<unit xmlns:cpp="http://www.srcML.org/srcML/cpp" revision="1.0.0" language="C++" filename="main.cpp"><diff:delete mv:move="1" mv:xpath="/src:unit/src:unit[@filename=&quot;main.cpp&quot;]/diff:delete" type="replace" xmlns="http://www.srcML.org/srcML/src"><function><type><name>int</name></type><diff:ws> </diff:ws><name>changed_function</name><parameter_list>()</parameter_list><diff:ws> </diff:ws><block>{<block_content><diff:ws>
+<unit xmlns:cpp="http://www.srcML.org/srcML/cpp" revision="1.0.0" language="C++" filename="main.cpp"><diff:delete deletes="1" inserts="1" mv:move="1" mv:partner="/src:unit/src:unit[@filename=&quot;|foo.hpp&quot;]/diff:insert" type="replace" xmlns="http://www.srcML.org/srcML/src"><function><type><name>int</name></type><diff:ws> </diff:ws><name>changed_function</name><parameter_list>()</parameter_list><diff:ws> </diff:ws><block>{<block_content><diff:ws>
   </diff:ws><decl_stmt><decl><type><name>int</name></type><diff:ws> </diff:ws><name>x</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="number" xmlns="http://www.srcML.org/srcML/src">123</literal></expr></init></decl>;</decl_stmt><diff:ws>
   </diff:ws><decl_stmt><decl><type><name>int</name></type><diff:ws> </diff:ws><name>y</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="number" xmlns="http://www.srcML.org/srcML/src">456</literal></expr></init></decl>;</decl_stmt><diff:ws>
   </diff:ws><return>return<diff:ws> </diff:ws><expr><name>x</name></expr>;</return><diff:ws>
