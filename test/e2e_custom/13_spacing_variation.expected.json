@@ -1,13 +1,24 @@
 {
   "move_count": 1,
-  "annotated_deletes": 1,
-  "annotated_inserts": 1,
-  "partner_attr_count": 2,
-  "partners_attr_count": 0,
-  "delete_partner_sizes": [
-    1
+  "moves": [
+    {
+      "move_id": 1,
+      "from_xpaths": [
+        "/src:unit/diff:delete"
+      ],
+      "to_xpaths": [
+        "/src:unit/diff:insert"
+      ],
+      "from_raw_texts": [
+        "\n    int a;\n  "
+      ],
+      "to_raw_texts": [
+        "int a;"
+      ]
+    }
   ],
-  "insert_partner_sizes": [
-    1
-  ]
+  "annotated_regions": 2,
+  "regions_total": 2,
+  "candidates_total": 2,
+  "groups_total": 1
 }

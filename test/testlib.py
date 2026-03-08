@@ -98,27 +98,25 @@ def normalize_move_record(move: dict[str, Any]) -> dict[str, list[str] | int | N
 def move_matches_expectation(
     actual: dict[str, list[str] | int | None], expected: dict[str, Any]
 ) -> tuple[bool, str]:
-    scalar_keys = ("move_id",)
-    list_keys = (
-        "from_files",
-        "to_files",
+    required_move_keys = (
+        "move_id",
         "from_xpaths",
         "to_xpaths",
         "from_raw_texts",
         "to_raw_texts",
     )
 
-    for key in scalar_keys:
+    for key in required_move_keys:
         if key not in expected:
-            continue
+            return False, f"expected move missing required field {key!r}"
 
-        if actual[key] != expected[key]:
-            return False, f"{key}: expected {expected[key]!r}, got {actual[key]!r}"
+    if actual["move_id"] != expected["move_id"]:
+        return (
+            False,
+            f"move_id: expected {expected['move_id']!r}, got {actual['move_id']!r}",
+        )
 
-    for key in list_keys:
-        if key not in expected:
-            continue
-
+    for key in ("from_xpaths", "to_xpaths", "from_raw_texts", "to_raw_texts"):
         expected_list = sorted(str(v) for v in expected[key])
         actual_list = actual[key]
 
@@ -132,6 +130,21 @@ def check_summary_fields(
     results_json: dict[str, Any], expected: dict[str, Any]
 ) -> list[str]:
     failures: list[str] = []
+
+    required_top_level_keys = (
+        "move_count",
+        "moves",
+        "annotated_regions",
+        "regions_total",
+        "candidates_total",
+        "groups_total",
+    )
+
+    for key in required_top_level_keys:
+        if key not in expected:
+            failures.append(f"expected.json missing required field {key!r}")
+        if key not in results_json:
+            failures.append(f"results.json missing required field {key!r}")
 
     summary_checks = {
         "move_count": results_json.get("move_count"),
@@ -151,19 +164,38 @@ def check_summary_fields(
 def validate_moves(expected: dict[str, Any], results: dict[str, Any]) -> list[str]:
     failures: list[str] = []
 
-    expected_moves = expected.get("moves")
-    if expected_moves is None:
+    if "moves" not in expected:
+        failures.append("expected.json missing required field 'moves'")
         return failures
 
-    actual_moves_raw = results.get("moves", [])
+    if "moves" not in results:
+        failures.append("results.json missing required field 'moves'")
+        return failures
+
+    expected_moves = expected["moves"]
+    actual_moves_raw = results["moves"]
+
+    if not isinstance(expected_moves, list):
+        failures.append("expected.json field 'moves' is not a list")
+        return failures
+
     if not isinstance(actual_moves_raw, list):
         failures.append("results.json field 'moves' is not a list")
         return failures
+
+    if len(actual_moves_raw) != len(expected_moves):
+        failures.append(
+            f"moves length: expected {len(expected_moves)}, got {len(actual_moves_raw)}"
+        )
 
     actual_moves = [normalize_move_record(m) for m in actual_moves_raw]
     used_indices: set[int] = set()
 
     for expected_index, expected_move in enumerate(expected_moves, start=1):
+        if not isinstance(expected_move, dict):
+            failures.append(f"expected.json moves[{expected_index}] is not an object")
+            continue
+
         match_index = None
         mismatch_reasons: list[str] = []
 

@@ -1,5 +1,8 @@
 {
   "move_count": 0,
-  "annotated_deletes": 0,
-  "annotated_inserts": 0
+  "moves": [],
+  "annotated_regions": 0,
+  "regions_total": 2,
+  "candidates_total": 0,
+  "groups_total": 0
 }
