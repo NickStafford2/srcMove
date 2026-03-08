@@ -22,15 +22,15 @@ exclude_from_dir_list = [
 # Globs are allowed.
 important_files = [
   # "README.md",
-  "context-export.toml",
+  # "context-export.toml",
   "CMakeLists.txt",
   "!test/stress/**/CMakeLists.txt",
   "!test/stress/",
   "!test/stress/**/*",
   "src/**/*.cpp",
-  "!src/tools/*.cpp",
   "src/**/*.hpp",
   "!context-export.toml",
+  "!src/tools/*.cpp",
   "!move_registry_debug.cpp",
   "!move_registry_debug.hpp",
   # "tests/**/*.py",
