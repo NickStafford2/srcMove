@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 # run_move_tests.py
 
+import os
 import json
 import subprocess
 import sys
@@ -185,13 +186,13 @@ def run_case(srcmove_path: Path, xml_file: Path, out_dir: Path):
 
 
 def main():
-    cwd = Path.cwd()
-    out_dir = cwd / "test_out"
+    script_dir = Path(__file__).resolve().parent
+    out_dir = script_dir / "test_out"
 
     if len(sys.argv) > 1:
         srcmove_path = Path(sys.argv[1]).resolve()
     else:
-        srcmove_path = Path("./build/srcMove").resolve()
+        srcmove_path = (Path(os.getcwd()) / "build" / "srcMove").resolve()
 
     if not srcmove_path.exists():
         print(f"error: srcMove not found at {srcmove_path}", file=sys.stderr)
@@ -199,10 +200,12 @@ def main():
 
     out_dir.mkdir(exist_ok=True)
 
-    xml_files = sorted(p for p in cwd.glob("*.xml") if not p.name.endswith(".out.xml"))
+    xml_files = sorted(
+        p for p in script_dir.glob("*.xml") if not p.name.endswith(".out.xml")
+    )
 
     if not xml_files:
-        print("No .xml test files found in current directory.")
+        print(f"No .xml test files found in {script_dir}.")
         sys.exit(0)
 
     total = 0
