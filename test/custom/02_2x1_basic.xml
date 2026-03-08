@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src"
+      xmlns:diff="http://www.srcML.org/srcDiff"
+      language="C++"
+      filename="many_to_one.cpp">
+
+  <diff:delete>int a;</diff:delete>
+  <diff:delete>int a;</diff:delete>
+  <diff:insert>int a;</diff:insert>
+
+</unit>

@@ -1,0 +1,13 @@
+{
+  "move_count": 1,
+  "annotated_deletes": 1,
+  "annotated_inserts": 1,
+  "partner_attr_count": 2,
+  "partners_attr_count": 0,
+  "delete_partner_sizes": [
+    1
+  ],
+  "insert_partner_sizes": [
+    1
+  ]
+}
