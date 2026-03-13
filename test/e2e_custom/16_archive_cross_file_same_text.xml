@@ -1,10 +1,11 @@
-<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" url="old|new">
-  <unit language="C++" filename="a.cpp">
+
+<unit revision="1.0.0" language="C++" filename="a.cpp">
     <diff:delete>int a;</diff:delete>
   </unit>
 
-  <unit language="C++" filename="b.cpp">
+<unit revision="1.0.0" language="C++" filename="b.cpp">
     <diff:insert>int a;</diff:insert>
   </unit>
 
