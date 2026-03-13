@@ -4,10 +4,10 @@
     {
       "move_id": 1,
       "from_xpaths": [
-        "/src:unit/diff:delete[1]"
+        "/src:unit[1]/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/src:unit/diff:insert[1]"
+        "/src:unit[1]/diff:insert[1]"
       ],
       "from_raw_texts": [],
       "to_raw_texts": []

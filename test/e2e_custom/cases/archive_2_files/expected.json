@@ -4,10 +4,10 @@
     {
       "move_id": 1,
       "from_xpaths": [
-        "/src:unit/src:unit[@filename='b.cpp']/diff:delete"
+        "/src:unit[@filename='b.cpp']/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/src:unit/src:unit[@filename='b.cpp']/diff:insert"
+        "/src:unit[@filename='b.cpp']/diff:insert[1]"
       ],
       "from_raw_texts": [
         "int b;"
@@ -19,10 +19,10 @@
     {
       "move_id": 2,
       "from_xpaths": [
-        "/src:unit/src:unit[@filename='a.cpp']/diff:delete"
+        "/src:unit[@filename='a.cpp']/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/src:unit/src:unit[@filename='a.cpp']/diff:insert"
+        "/src:unit[@filename='a.cpp']/diff:insert[1]"
       ],
       "from_raw_texts": [
         "int a;"

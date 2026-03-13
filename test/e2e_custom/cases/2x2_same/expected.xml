@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="two_by_two.cpp">
 
-  <diff:delete mv:move="1" mv:partners="/src:unit/diff:insert[1];/src:unit/diff:insert[2]">int a;</diff:delete>
-  <diff:delete mv:move="1" mv:partners="/src:unit/diff:insert[1];/src:unit/diff:insert[2]">int a;</diff:delete>
+  <diff:delete mv:id="1" mv:to="/src:unit[1]/diff:insert[1] | /src:unit[1]/diff:insert[2]">int a;</diff:delete>
+  <diff:delete mv:id="1" mv:to="/src:unit[1]/diff:insert[1] | /src:unit[1]/diff:insert[2]">int a;</diff:delete>
 
-  <diff:insert mv:move="1" mv:partners="/src:unit/diff:delete[1];/src:unit/diff:delete[2]">int a;</diff:insert>
-  <diff:insert mv:move="1" mv:partners="/src:unit/diff:delete[1];/src:unit/diff:delete[2]">int a;</diff:insert>
+  <diff:insert mv:from="/src:unit[1]/diff:delete[1] | /src:unit[1]/diff:delete[2]" mv:id="1">int a;</diff:insert>
+  <diff:insert mv:from="/src:unit[1]/diff:delete[1] | /src:unit[1]/diff:delete[2]" mv:id="1">int a;</diff:insert>
 
 </unit>

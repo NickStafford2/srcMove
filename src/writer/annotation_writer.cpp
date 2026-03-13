@@ -29,11 +29,9 @@ namespace {
 
 constexpr const char *kMvNamespaceUri = "http://www.srcML.org/srcMove";
 constexpr const char *kMvXmlnsAttr    = "xmlns:mv";
-constexpr const char *kMvMoveAttr     = "mv:move";
-constexpr const char *kMvInsertsAttr  = "mv:insert_count";
-constexpr const char *kMvDeletesAttr  = "mv:delete_count";
-constexpr const char *kMvPartnerAttr  = "mv:partner";
-constexpr const char *kMvPartnersAttr = "mv:partners";
+constexpr const char *kMvMoveAttr     = "mv:id";
+constexpr const char *kMvFromAttr     = "mv:from";
+constexpr const char *kMvToAttr       = "mv:to";
 
 bool is_root_unit_start(const srcml_node &node, std::size_t index) {
   return index == 0 && node.is_start() && node.name == "unit";
@@ -57,11 +55,11 @@ srcml_node patch_root_unit_namespace(const srcml_node &node) {
   return patched;
 }
 
-std::string join_semicolon(const std::vector<std::string> &values) {
+std::string join_xpath_union(const std::vector<std::string> &values) {
   std::string out;
   for (std::size_t i = 0; i < values.size(); ++i) {
     if (i != 0)
-      out += ";";
+      out += " | ";
     out += values[i];
   }
   return out;
@@ -120,15 +118,14 @@ write_with_move_annotations(const std::string &in_filename,
 
           patched.set_attribute(kMvMoveAttr, std::to_string(tag.move_id));
 
-          if (tag.partner_xpaths.size() == 1) {
-            patched.set_attribute(kMvPartnerAttr, tag.partner_xpaths.front());
-          } else if (!tag.partner_xpaths.empty()) {
-            patched.set_attribute(kMvPartnersAttr,
-                                  join_semicolon(tag.partner_xpaths));
-            // patched.set_attribute(kMvDeletesAttr,
-            // std::to_string(tag.deletes));
-            // patched.set_attribute(kMvInsertsAttr,
-            // std::to_string(tag.inserts));
+          if (!tag.partner_xpaths.empty()) {
+            const std::string joined = join_xpath_union(tag.partner_xpaths);
+
+            if (fn == "diff:delete") {
+              patched.set_attribute(kMvToAttr, joined);
+            } else { // diff:insert
+              patched.set_attribute(kMvFromAttr, joined);
+            }
           }
 
           writer.write(patched);

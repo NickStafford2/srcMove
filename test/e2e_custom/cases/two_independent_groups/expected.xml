@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="two_groups.cpp">
 
-  <diff:delete mv:move="2" mv:partner="/src:unit/diff:insert[1]">int a;</diff:delete>
-  <diff:insert mv:move="2" mv:partner="/src:unit/diff:delete[1]">int a;</diff:insert>
+  <diff:delete mv:id="2" mv:to="/src:unit[1]/diff:insert[1]">int a;</diff:delete>
+  <diff:insert mv:from="/src:unit[1]/diff:delete[1]" mv:id="2">int a;</diff:insert>
 
-  <diff:delete mv:move="1" mv:partner="/src:unit/diff:insert[2]">int b;</diff:delete>
-  <diff:insert mv:move="1" mv:partner="/src:unit/diff:delete[2]">int b;</diff:insert>
+  <diff:delete mv:id="1" mv:to="/src:unit[1]/diff:insert[2]">int b;</diff:delete>
+  <diff:insert mv:from="/src:unit[1]/diff:delete[2]" mv:id="1">int b;</diff:insert>
 
 </unit>
