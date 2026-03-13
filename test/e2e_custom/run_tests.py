@@ -22,7 +22,7 @@ from testlib import (
 
 
 def run_case(srcmove_path: Path, xml_file: Path, out_dir: Path):
-    base = xml_file.stem
+    base = xml_file.parent.name
     out_xml = out_dir / f"{base}.out.xml"
     out_json = out_dir / f"{base}.results.json"
 
@@ -64,10 +64,15 @@ def main() -> int:
 
     out_dir.mkdir(exist_ok=True)
 
-    xml_files = sorted(p for p in script_dir.glob("*.xml") if is_input_xml(p))
+    cases_dir = script_dir / "cases"
+    if not cases_dir.is_dir():
+        print(f"error: cases directory not found: {cases_dir}", file=sys.stderr)
+        return 2
 
-    if not xml_files:
-        print(f"No .xml test files found in {script_dir}.")
+    case_dirs = sorted(p for p in cases_dir.iterdir() if p.is_dir())
+
+    if not case_dirs:
+        print(f"No test case directories found in {cases_dir}.")
         return 0
 
     total = 0
@@ -75,39 +80,44 @@ def main() -> int:
     failed = 0
     skipped = 0
 
-    for xml_file in xml_files:
+    for case_dir in case_dirs:
         total += 1
-        expected_json_path = xml_file.with_suffix(".expected.json")
-        expected_xml_path = xml_file.with_suffix(".expected.xml")
 
-        missing_expectations: list[str] = []
+        case_name = case_dir.name
+        xml_file = case_dir / "input.xml"
+        expected_json_path = case_dir / "expected.json"
+        expected_xml_path = case_dir / "expected.xml"
+
+        missing_files: list[str] = []
+        if not xml_file.exists():
+            missing_files.append("input.xml")
         if not expected_json_path.exists():
-            missing_expectations.append(expected_json_path.name)
+            missing_files.append("expected.json")
         if not expected_xml_path.exists():
-            missing_expectations.append(expected_xml_path.name)
+            missing_files.append("expected.xml")
 
-        if missing_expectations:
-            print(f"SKIP  {xml_file.name}  (missing {', '.join(missing_expectations)})")
+        if missing_files:
+            print(f"SKIP  {case_name}  (missing {', '.join(missing_files)})")
             skipped += 1
             continue
 
         proc, out_xml, out_json = run_case(srcmove_path, xml_file, out_dir)
 
         if proc.returncode != 0:
-            print(f"FAIL  {xml_file.name}")
+            print(f"FAIL  {case_name}")
             for line in format_process_failure("srcMove", proc).splitlines():
                 print(f"  {line}")
             failed += 1
             continue
 
         if not out_json.exists():
-            print(f"FAIL  {xml_file.name}")
+            print(f"FAIL  {case_name}")
             print("  missing output results json")
             failed += 1
             continue
 
         if not out_xml.exists():
-            print(f"FAIL  {xml_file.name}")
+            print(f"FAIL  {case_name}")
             print("  missing output xml")
             failed += 1
             continue
@@ -123,18 +133,18 @@ def main() -> int:
             failures.extend(assert_no_inline_xmlns(out_xml))
             failures.extend(compare_xml_files_exact(expected_xml_path, out_xml))
         except Exception as e:
-            print(f"FAIL  {xml_file.name}")
+            print(f"FAIL  {case_name}")
             print(f"  exception while validating: {e}")
             failed += 1
             continue
 
         if failures:
-            print(f"FAIL  {xml_file.name}")
+            print(f"FAIL  {case_name}")
             for msg in failures:
                 print(f"  - {msg}")
             failed += 1
         else:
-            print(f"PASS  {xml_file.name}")
+            print(f"PASS  {case_name}")
             passed += 1
 
     print()
