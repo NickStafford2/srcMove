@@ -1,8 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<unit xmlns="http://www.srcML.org/srcML/src"
-      xmlns:diff="http://www.srcML.org/srcDiff"
-      language="C++"
-      filename="longer.cpp">
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="longer.cpp">
 
   <diff:delete>int moved_function(){return 42;}</diff:delete>
   <diff:insert>int moved_function(){return 42;}</diff:insert>

@@ -11,6 +11,8 @@ if str(TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(TEST_ROOT))
 
 from testlib import (
+    assert_no_inline_xmlns,
+    compare_xml_files_exact,
     format_process_failure,
     load_json,
     run_command,
@@ -34,6 +36,18 @@ def run_case(srcmove_path: Path, xml_file: Path, out_dir: Path):
     return proc, out_xml, out_json
 
 
+def is_input_xml(path: Path) -> bool:
+    if path.suffix != ".xml":
+        return False
+
+    excluded_suffixes = (
+        ".out.xml",
+        ".expected.xml",
+    )
+
+    return not any(path.name.endswith(suffix) for suffix in excluded_suffixes)
+
+
 def main() -> int:
     script_dir = Path(__file__).resolve().parent
     out_dir = script_dir / "test_out"
@@ -49,9 +63,7 @@ def main() -> int:
 
     out_dir.mkdir(exist_ok=True)
 
-    xml_files = sorted(
-        p for p in script_dir.glob("*.xml") if not p.name.endswith(".out.xml")
-    )
+    xml_files = sorted(p for p in script_dir.glob("*.xml") if is_input_xml(p))
 
     if not xml_files:
         print(f"No .xml test files found in {script_dir}.")
@@ -64,10 +76,17 @@ def main() -> int:
 
     for xml_file in xml_files:
         total += 1
-        expected_path = xml_file.with_suffix(".expected.json")
+        expected_json_path = xml_file.with_suffix(".expected.json")
+        expected_xml_path = xml_file.with_suffix(".expected.xml")
 
-        if not expected_path.exists():
-            print(f"SKIP  {xml_file.name}  (missing {expected_path.name})")
+        missing_expectations: list[str] = []
+        if not expected_json_path.exists():
+            missing_expectations.append(expected_json_path.name)
+        if not expected_xml_path.exists():
+            missing_expectations.append(expected_xml_path.name)
+
+        if missing_expectations:
+            print(f"SKIP  {xml_file.name}  (missing {', '.join(missing_expectations)})")
             skipped += 1
             continue
 
@@ -86,14 +105,22 @@ def main() -> int:
             failed += 1
             continue
 
+        if not out_xml.exists():
+            print(f"FAIL  {xml_file.name}")
+            print("  missing output xml")
+            failed += 1
+            continue
+
         try:
-            expected = load_json(expected_path)
+            expected_json = load_json(expected_json_path)
             results_json = load_json(out_json)
-            failures = validate_results(expected, results_json)
 
             from testlib import assert_no_inline_xmlns
 
+            failures: list[str] = []
+            failures.extend(validate_results(expected_json, results_json))
             failures.extend(assert_no_inline_xmlns(out_xml))
+            failures.extend(compare_xml_files_exact(expected_xml_path, out_xml))
         except Exception as e:
             print(f"FAIL  {xml_file.name}")
             print(f"  exception while validating: {e}")

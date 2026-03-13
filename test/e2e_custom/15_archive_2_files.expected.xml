@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" url="old|new">
+
+<unit revision="1.0.0" language="C++" filename="a.cpp">
+    <diff:delete deletes="1" inserts="1" mv:move="2" mv:partner="/src:unit/src:unit[@filename=&quot;a.cpp&quot;]/diff:insert">int a;</diff:delete>
+    <diff:insert deletes="1" inserts="1" mv:move="2" mv:partner="/src:unit/src:unit[@filename=&quot;a.cpp&quot;]/diff:delete">int a;</diff:insert>
+  </unit>
+
+<unit revision="1.0.0" language="C++" filename="b.cpp">
+    <diff:delete deletes="1" inserts="1" mv:move="1" mv:partner="/src:unit/src:unit[@filename=&quot;b.cpp&quot;]/diff:insert">int b;</diff:delete>
+    <diff:insert deletes="1" inserts="1" mv:move="1" mv:partner="/src:unit/src:unit[@filename=&quot;b.cpp&quot;]/diff:delete">int b;</diff:insert>
+  </unit>
+
+</unit>

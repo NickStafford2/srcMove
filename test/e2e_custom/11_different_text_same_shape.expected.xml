@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="different_text.cpp">
+
+  <diff:delete>int a;</diff:delete>
+  <diff:insert>int b;</diff:insert>
+
+</unit>

@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<unit xmlns="http://www.srcML.org/srcML/src"
-      xmlns:diff="http://www.srcML.org/srcDiff"
-      revision="1.0.0"
-      url="old|new">
-
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" url="old|new">
   <unit language="C++" filename="a.cpp">
     <diff:delete>int a;</diff:delete>
   </unit>

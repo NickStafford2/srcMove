@@ -234,16 +234,47 @@ def validate_results(
     return failures
 
 
-def assert_no_inline_xmlns(xml_path):
+def assert_no_inline_xmlns(xml_path: Path) -> list[str]:
     tree = ET.parse(xml_path)
     root = tree.getroot()
 
-    failures = []
+    failures: list[str] = []
 
     for node in root.iter():
         tag = node.tag.split("}")[-1]
 
         if tag in ("delete", "insert") and "xmlns" in node.attrib:
             failures.append(f"{tag} node contains inline xmlns")
+
+    return failures
+
+
+def compare_xml_files_exact(expected_xml: Path, actual_xml: Path) -> list[str]:
+    if not expected_xml.exists():
+        return [f"missing expected xml file: {expected_xml.name}"]
+
+    if not actual_xml.exists():
+        return [f"missing generated xml file: {actual_xml.name}"]
+
+    expected_text = expected_xml.read_text(encoding="utf-8")
+    actual_text = actual_xml.read_text(encoding="utf-8")
+
+    if expected_text == actual_text:
+        return []
+
+    failures: list[str] = ["generated xml does not exactly match expected xml"]
+
+    expected_lines = expected_text.splitlines()
+    actual_lines = actual_text.splitlines()
+    max_lines = max(len(expected_lines), len(actual_lines))
+
+    for i in range(max_lines):
+        e = expected_lines[i] if i < len(expected_lines) else "<missing>"
+        a = actual_lines[i] if i < len(actual_lines) else "<missing>"
+        if e != a:
+            failures.append(f"first difference at line {i + 1}")
+            failures.append(f"expected: {e}")
+            failures.append(f"actual:   {a}")
+            break
 
     return failures

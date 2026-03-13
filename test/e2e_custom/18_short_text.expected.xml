@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="short.cpp">
+
+  <diff:delete deletes="1" inserts="1" mv:move="1" mv:partner="/src:unit/diff:insert" xmlns="http://www.srcML.org/srcML/src">x</diff:delete>
+  <diff:insert deletes="1" inserts="1" mv:move="1" mv:partner="/src:unit/diff:delete" xmlns="http://www.srcML.org/srcML/src">x</diff:insert>
+
+</unit>
