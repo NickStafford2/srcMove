@@ -28,6 +28,30 @@ def require_ok(result: subprocess.CompletedProcess, what: str) -> None:
         )
 
 
+def normalize_repo_subdir(value: object, info_json: Path) -> str | None:
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        raise RuntimeError(f"invalid 'directory' in {info_json}: must be a string")
+
+    subdir = value.strip()
+    if not subdir:
+        return None
+
+    subdir = subdir.replace("\\", "/").strip("/")
+
+    if subdir in (".", "./"):
+        return None
+
+    if subdir.startswith("../") or "/../" in subdir or subdir == "..":
+        raise RuntimeError(
+            f"invalid 'directory' in {info_json}: must stay within the repository"
+        )
+
+    return subdir
+
+
 def load_case_config(info_json: Path) -> dict:
     with info_json.open("r", encoding="utf-8") as f:
         data = json.load(f)
@@ -38,6 +62,7 @@ def load_case_config(info_json: Path) -> dict:
 
     old_rev = data.get("old_rev")
     new_rev = data.get("new_rev")
+    directory = normalize_repo_subdir(data.get("directory"), info_json)
 
     if old_rev is not None and (not isinstance(old_rev, str) or not old_rev):
         raise RuntimeError(f"invalid 'old_rev' in {info_json}")
@@ -48,6 +73,7 @@ def load_case_config(info_json: Path) -> dict:
         "github": repo_url,
         "old_rev": old_rev,
         "new_rev": new_rev,
+        "directory": directory,
     }
 
 
@@ -102,12 +128,17 @@ def resolve_commit(repo_dir: Path, rev: str) -> str:
     return result.stdout.strip()
 
 
-def export_commit(repo_dir: Path, commit: str, out_dir: Path) -> None:
+def export_commit(
+    repo_dir: Path, commit: str, out_dir: Path, subdir: str | None = None
+) -> None:
     if out_dir.exists():
         shutil.rmtree(out_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     archive_cmd = ["git", "archive", commit]
+    if subdir:
+        archive_cmd.append(subdir)
+
     extract_cmd = ["tar", "-x", "-C", str(out_dir)]
 
     p1 = subprocess.Popen(
@@ -132,13 +163,17 @@ def export_commit(repo_dir: Path, commit: str, out_dir: Path) -> None:
     _, err1 = p1.communicate()
 
     if p1.returncode != 0:
+        extra = f" (subdir={subdir})" if subdir else ""
         raise RuntimeError(
-            f"git archive failed for {commit}\nstderr:\n{err1.decode(errors='replace')}"
+            f"git archive failed for {commit}{extra}\n"
+            f"stderr:\n{err1.decode(errors='replace')}"
         )
 
     if p2.returncode != 0:
+        extra = f" (subdir={subdir})" if subdir else ""
         raise RuntimeError(
-            f"tar extract failed for {commit}\nstderr:\n{err2.decode(errors='replace')}"
+            f"tar extract failed for {commit}{extra}\n"
+            f"stderr:\n{err2.decode(errors='replace')}"
         )
 
 
@@ -200,10 +235,12 @@ def main() -> int:
         return 1
 
     config = load_case_config(info_json)
+    selected_dir = config["directory"]
 
     repo_url = config["github"]
     old_rev = args.old_rev if args.old_rev is not None else config["old_rev"]
     new_rev = args.new_rev if args.new_rev is not None else config["new_rev"]
+    selected_dir = config["directory"]
 
     if old_rev is None or new_rev is None:
         print(f"skipping case '{args.case}': old_rev/new_rev not specified")
@@ -254,8 +291,10 @@ def main() -> int:
     print(f"      new commit: {new_commit}")
 
     print("[4/6] exporting revisions")
-    export_commit(clone_dir, old_commit, original_dir)
-    export_commit(clone_dir, new_commit, modified_dir)
+    if selected_dir:
+        print(f"      directory : {selected_dir}")
+    export_commit(clone_dir, old_commit, original_dir, selected_dir)
+    export_commit(clone_dir, new_commit, modified_dir, selected_dir)
 
     print("[5/6] running srcdiff")
     diff_start = time.perf_counter()
@@ -302,6 +341,7 @@ def main() -> int:
         "repo_url": repo_url,
         "old_rev": old_rev,
         "new_rev": new_rev,
+        "directory": selected_dir,
         "old_commit": old_commit,
         "new_commit": new_commit,
         "srcdiff_seconds": diff_end - diff_start,
@@ -332,6 +372,8 @@ def main() -> int:
     print(f"srcMove time : {report['srcmove_seconds']:.3f}s")
     print(f"move_count   : {move_count}")
     print(f"report       : {report_json}")
+    if selected_dir:
+        print(f"directory    : {selected_dir}")
 
     return 0
 
