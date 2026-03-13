@@ -1,65 +1,34 @@
 #include <fstream>
 #include <iostream>
-#include <string>
 
+#include "cli.hpp"
 #include "pipeline.hpp"
 #include "summary.hpp"
 #include "util/json_writer.hpp"
 
 int main(int argc, char **argv) {
-  if (argc < 2) {
-    std::cerr << "usage: " << argv[0]
-              << " <srcdiff.xml> [out.xml] [--results results.json]\n";
-    return 1;
-  }
-
-  const std::string in_filename = argv[1];
-  std::string out_filename = "diff_new.xml";
-  std::string results_path;
-
-  int i = 2;
-
-  // optional positional out.xml, only if next arg is not a flag
-  if (i < argc && std::string(argv[i]).rfind("--", 0) != 0) {
-    out_filename = argv[i];
-    ++i;
-  }
-
-  // parse remaining flags
-  for (; i < argc; ++i) {
-    const std::string arg = argv[i];
-
-    if (arg == "--results") {
-      if (i + 1 >= argc) {
-        std::cerr << "Error: --results requires a file path\n";
-        return 1;
-      }
-      results_path = argv[++i];
-    } else {
-      std::cerr << "Error: unknown argument: " << arg << "\n";
-      std::cerr << "usage: " << argv[0]
-                << " <srcdiff.xml> [out.xml] [--results results.json]\n";
-      return 1;
-    }
-  }
-
   try {
-    const srcmove::summary summ =
-        srcmove::run_pipeline(in_filename, out_filename);
+    const srcmove::cli_options opts = srcmove::parse_cli(argc, argv);
 
-    if (!results_path.empty()) {
-      std::ofstream out(results_path);
+    const srcmove::summary summ =
+        srcmove::run_pipeline(opts.input_path, opts.output_path);
+
+    if (!opts.results_path.empty()) {
+      std::ofstream out(opts.results_path);
       if (!out) {
-        std::cerr << "Error: could not open results file: " << results_path
+        std::cerr << "Error: could not open results file: " << opts.results_path
                   << "\n";
         return 2;
       }
       srcmove::json::write_summary(out, summ);
     }
+
+    return 0;
+  } catch (const srcmove::cli_error &e) {
+    std::cerr << e.what() << "\n";
+    return 1;
   } catch (const std::exception &e) {
     std::cerr << "Error: " << e.what() << "\n";
     return 2;
   }
-
-  return 0;
 }
