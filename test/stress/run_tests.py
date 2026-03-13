@@ -6,9 +6,9 @@ import sys
 
 
 TESTS = [
-    ["python", "stress.py", "sqlite"],
-    # ["python", "stress.py", "opencv"],
-    # ["python", "stress.py", "firefox"],
+    ["python", "diff_and_move_repo.py", "sqlite"],
+    # ["python", "diff_and_move_repo.py", "opencv"],
+    # ["python", "diff_and_move_repo.py", "firefox"],
 ]
 
 
