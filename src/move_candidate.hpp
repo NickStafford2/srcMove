@@ -1,10 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /**
  * @file move_candidate.hpp
- *
- * @copyright Copyright (C) 2014-2024 SDML (www.srcDiff.org)
- *
- * This file is part of the srcDiff Infrastructure.
  */
 #ifndef INCLUDED_MOVE_CANDIDATE_HPP
 #define INCLUDED_MOVE_CANDIDATE_HPP
@@ -26,8 +22,7 @@ public:
   enum class Kind { insert, del };
 
   move_candidate(Kind kind, std::size_t start_idx, std::string filename,
-                 std::string raw_text,
-                 std::string canonical_text);
+                 std::string raw_text, std::string canonical_text);
 
   Kind kind;
   std::string filename; // from unit@filename
