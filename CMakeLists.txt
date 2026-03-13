@@ -96,7 +96,7 @@ configure_srcmove_target(srcdiff_highlight_pos)
 enable_testing()
 
 add_executable(test_canonical_subtree_unit
-  test/canonical/test_canonical_subtree.cpp
+  test/unit/canonical/test_canonical_subtree.cpp
   src/parse/canonical_subtree.cpp
   src/parse/diff_region.cpp
   src/move_candidate.cpp
