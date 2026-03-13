@@ -4,7 +4,7 @@ from __future__ import annotations
 import json
 import subprocess
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 import xml.etree.ElementTree as ET
 
 
@@ -44,6 +44,42 @@ def format_process_failure(
         parts.extend(f"  {line}" for line in stderr.splitlines())
 
     return "\n".join(parts)
+
+
+def print_case_pass(case_name: str, move_count: int | None = None) -> None:
+    if move_count is None:
+        print(f"PASS  {case_name}")
+    else:
+        print(f"PASS  {case_name}  (move_count={move_count})")
+
+
+def print_case_fail(
+    case_name: str,
+    messages: str | list[str],
+    *,
+    expected: int | None = None,
+    actual: int | None = None,
+) -> None:
+    print(f"FAIL  {case_name}")
+
+    if expected is not None:
+        print(f"  expected={expected}")
+    if actual is not None:
+        print(f"  actual={actual}")
+
+    if isinstance(messages, str):
+        raw_messages = [messages] if messages else []
+    else:
+        raw_messages = [msg for msg in messages if msg]
+
+    for msg in raw_messages:
+        lines = msg.splitlines()
+        if not lines:
+            continue
+
+        print(f"  - {lines[0]}")
+        for line in lines[1:]:
+            print(f"    {line}")
 
 
 def compare_scalar(actual: Any, expected: Any, key: str, failures: list[str]) -> None:
@@ -97,6 +133,17 @@ def normalize_move_record(move: dict[str, Any]) -> dict[str, list[str] | int | N
     }
 
 
+def format_list_block(label: str, values: list[str]) -> list[str]:
+    lines = [f"{label}:"]
+    if not values:
+        lines.append("  <empty>")
+        return lines
+
+    for value in values:
+        lines.append(f"  {value}")
+    return lines
+
+
 def move_matches_expectation(
     actual: dict[str, list[str] | int | None], expected: dict[str, Any]
 ) -> tuple[bool, str]:
@@ -115,15 +162,24 @@ def move_matches_expectation(
     if actual["move_id"] != expected["move_id"]:
         return (
             False,
-            f"move_id: expected {expected['move_id']!r}, got {actual['move_id']!r}",
+            "\n".join(
+                [
+                    "move_id mismatch:",
+                    f"  expected: {expected['move_id']!r}",
+                    f"  actual:   {actual['move_id']!r}",
+                ]
+            ),
         )
 
     for key in ("from_xpaths", "to_xpaths", "from_raw_texts", "to_raw_texts"):
         expected_list = sorted(str(v) for v in expected[key])
-        actual_list = actual[key]
+        actual_list = cast(list[str], actual[key])
 
         if actual_list != expected_list:
-            return False, f"{key}: expected {expected_list!r}, got {actual_list!r}"
+            lines = [f"{key} mismatch:"]
+            lines.extend(format_list_block("  expected", expected_list))
+            lines.extend(format_list_block("  actual", actual_list))
+            return False, "\n".join(lines)
 
     return True, ""
 

@@ -13,11 +13,13 @@ if str(TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(TEST_ROOT))
 
 from testlib import (
+    assert_no_inline_xmlns,
     format_process_failure,
     load_json,
+    print_case_fail,
+    print_case_pass,
     run_command,
     validate_results,
-    assert_no_inline_xmlns,
 )
 
 
@@ -251,11 +253,13 @@ def main() -> int:
         results.append(result)
 
         if result.ok:
-            print(f"[PASS] {result.name}: move_count={result.actual_move_count}")
+            print_case_pass(result.name, result.actual_move_count)
         else:
-            print(
-                f"[FAIL] {result.name}: {result.message} "
-                f"(expected={result.expected_move_count}, actual={result.actual_move_count})"
+            print_case_fail(
+                result.name,
+                result.message,
+                expected=result.expected_move_count,
+                actual=result.actual_move_count,
             )
 
     failed = [r for r in results if not r.ok]
