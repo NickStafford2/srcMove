@@ -5,45 +5,93 @@
 
 namespace srcmove {
 
-std::string usage(const std::string &progname) {
+namespace {
+
+std::string build_help(const std::string &progname) {
   std::ostringstream out;
-  out << "usage: " << progname
+  out << "srcMove - detect moved code regions in a srcDiff document\n\n";
+  out << "Usage:\n";
+  out << "  " << progname
       << " <srcdiff.xml> [out.xml] [--results results.json] [-v]\n";
+  out << "  " << progname << " --help\n";
+  out << "  " << progname << " --version\n\n";
+
+  out << "Arguments:\n";
+  out << "  <srcdiff.xml>          Input srcDiff XML file\n";
+  out << "  [out.xml]              Output annotated XML file "
+         "(default: diff_new.xml)\n\n";
+
+  out << "Options:\n";
+  out << "  --results <file>       Write summary JSON to <file>\n";
+  out << "  -v, --verbose          Enable verbose output\n";
+  out << "  -h, --help             Show this help message and exit\n";
+  out << "  --version              Show version information and exit\n";
+
   return out.str();
 }
 
+std::string build_version() { return "srcMove v0.1.1"; }
+
+} // namespace
+
+std::string usage(const std::string &progname) { return build_help(progname); }
+
 cli_options parse_cli(int argc, char **argv) {
-  if (argc < 2) {
-    throw cli_error(usage(argv[0]));
-  }
-
   cli_options opts;
-  opts.input_path = argv[1];
+  opts.output_path = "diff_new.xml";
 
-  int i = 2;
+  bool have_input = false;
+  bool have_output = false;
 
-  if (i < argc && std::string(argv[i]).rfind("-", 0) != 0) {
-    opts.output_path = argv[i];
-    ++i;
-  }
-
-  for (; i < argc; ++i) {
+  for (int i = 1; i < argc; ++i) {
     const std::string arg = argv[i];
+
+    if (arg == "-h" || arg == "--help") {
+      throw cli_error(build_help(argv[0]));
+    }
+
+    if (arg == "--version") {
+      throw cli_error(build_version());
+    }
+
+    if (arg == "-v" || arg == "--verbose") {
+      opts.verbose = true;
+      continue;
+    }
 
     if (arg == "--results") {
       if (i + 1 >= argc) {
-        throw cli_error("Error: --results requires a file path\n" +
-                        usage(argv[0]));
+        throw cli_error("Error: --results requires a file path\n\n" +
+                        build_help(argv[0]));
       }
       opts.results_path = argv[++i];
-    } else if (arg == "-v" || arg == "--verbose") {
-      opts.verbose = true;
-    } else if (arg == "-h" || arg == "--help") {
-      throw cli_error(usage(argv[0]));
-    } else {
-      throw cli_error("Error: unknown argument: " + arg + "\n" +
-                      usage(argv[0]));
+      continue;
     }
+
+    if (!arg.empty() && arg[0] == '-') {
+      throw cli_error("Error: unknown argument: " + arg + "\n\n" +
+                      build_help(argv[0]));
+    }
+
+    if (!have_input) {
+      opts.input_path = arg;
+      have_input = true;
+      continue;
+    }
+
+    if (!have_output) {
+      opts.output_path = arg;
+      have_output = true;
+      continue;
+    }
+
+    throw cli_error("Error: too many positional arguments\n\n" +
+                    build_help(argv[0]));
+  }
+
+  if (!have_input) {
+    throw cli_error("Error: missing input srcdiff.xml\n\n" +
+                    build_help(argv[0]));
   }
 
   return opts;
