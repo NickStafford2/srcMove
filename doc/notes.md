@@ -1,4 +1,12 @@
 Will probably want to present at icfme
+# ToDo
+make premarked moves add partners as well
+make moves use lowest possible ids 1...n
+make tests that run xpaths on diffs.xml
+
+Do we want every single move to have partners.
+Do we want xpaths name to be parter.
+Does anyone care if I upgrade to c++ 20
 
 # Ideas
 To do cross file move detection, i will need to keep references to the srcml nodes after ??? check out input_source_local.direcoty()
@@ -21,7 +29,7 @@ Use terms to only check for moves on certain types on content
 Moves are a type of refactor.
 Should not change functionality or behavior.
 
-# Constrained Approach
+## Constrained Approach
 Keep move definitions quite restricted.
 As tools are developed, developer behavior may change around it. 
 
