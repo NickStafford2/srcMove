@@ -18,7 +18,8 @@ bool is_diff_ws(const srcml_node &node) {
 
 bool is_whitespace_only(std::string_view s) {
   for (unsigned char c : s) {
-    if (!std::isspace(c)) return false;
+    if (!std::isspace(c))
+      return false;
   }
   return true;
 }
@@ -26,22 +27,30 @@ bool is_whitespace_only(std::string_view s) {
 void append_escaped(std::string &out, std::string_view s) {
   for (char c : s) {
     switch (c) {
-    case '\\': out += "\\\\"; break;
-    case '\n': out += "\\n"; break;
-    case '\t': out += "\\t"; break;
-    default: out.push_back(c); break;
+    case '\\':
+      out += "\\\\";
+      break;
+    case '\n':
+      out += "\\n";
+      break;
+    case '\t':
+      out += "\\t";
+      break;
+    default:
+      out.push_back(c);
+      break;
     }
   }
 }
 
 } // namespace
 
-std::string canonicalize_diff_region_subtree(
-    const std::vector<srcml_node> &nodes,
-    const canonical_options &opt) {
+std::string
+canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
+                                 const canonical_options       &opt) {
   std::string out;
-  int wrapper_depth = 0;
-  bool skipped_outer_wrapper = false;
+  int         wrapper_depth         = 0;
+  bool        skipped_outer_wrapper = false;
 
   for (const auto &node : nodes) {
     const std::string fn = node.full_name();
@@ -50,16 +59,19 @@ std::string canonicalize_diff_region_subtree(
         (fn == "diff:insert" || fn == "diff:delete")) {
       if (node.is_start()) {
         skipped_outer_wrapper = true;
-        wrapper_depth = 1;
+        wrapper_depth         = 1;
       }
       continue;
     }
 
     if (wrapper_depth > 0) {
-      if (node.is_start() && is_diff_wrapper(node)) ++wrapper_depth;
-      else if (node.is_end() && is_diff_wrapper(node)) --wrapper_depth;
+      if (node.is_start() && is_diff_wrapper(node))
+        ++wrapper_depth;
+      else if (node.is_end() && is_diff_wrapper(node))
+        --wrapper_depth;
 
-      if (wrapper_depth == 0) continue;
+      if (wrapper_depth == 0)
+        continue;
     }
 
     if (opt.ignore_diff_ws && is_diff_ws(node)) {
@@ -67,7 +79,8 @@ std::string canonicalize_diff_region_subtree(
     }
 
     if (node.is_text() && node.content) {
-      if (opt.ignore_whitespace_only_text && is_whitespace_only(*node.content)) {
+      if (opt.ignore_whitespace_only_text &&
+          is_whitespace_only(*node.content)) {
         continue;
       }
       out += "T(";

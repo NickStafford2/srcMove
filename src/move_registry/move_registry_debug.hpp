@@ -11,28 +11,33 @@
 namespace srcmove {
 
 void print_registry_summary(const candidate_registry &registry,
-                            const content_groups &groups, std::ostream &os);
+                            const content_groups     &groups,
+                            std::ostream             &os);
 
 void print_registry_by_file(const candidate_registry &registry,
-                            std::ostream &os);
+                            std::ostream             &os);
 
-void print_hash_buckets(const candidate_registry &registry, std::ostream &os,
-                        std::size_t max_buckets = SIZE_MAX,
-                        std::size_t preview_per_side = 3);
+void print_hash_buckets(const candidate_registry &registry,
+                        std::ostream             &os,
+                        std::size_t               max_buckets      = SIZE_MAX,
+                        std::size_t               preview_per_side = 3);
 
 void print_content_groups(const candidate_registry &registry,
-                          const content_groups &groups, std::ostream &os,
-                          std::size_t max_groups = SIZE_MAX,
-                          std::size_t preview_per_side = 3);
+                          const content_groups     &groups,
+                          std::ostream             &os,
+                          std::size_t               max_groups       = SIZE_MAX,
+                          std::size_t               preview_per_side = 3);
 
 void print_greedy_matches(const candidate_registry &registry,
-                          const content_groups &groups, std::ostream &os);
+                          const content_groups     &groups,
+                          std::ostream             &os);
 
 void print_full_registry_debug(const candidate_registry &registry,
-                               const content_groups &groups, std::ostream &os,
-                               std::size_t max_buckets = 20,
-                               std::size_t max_groups = 20,
-                               std::size_t preview_per_side = 3);
+                               const content_groups     &groups,
+                               std::ostream             &os,
+                               std::size_t               max_buckets      = 20,
+                               std::size_t               max_groups       = 20,
+                               std::size_t               preview_per_side = 3);
 
 } // namespace srcmove
 

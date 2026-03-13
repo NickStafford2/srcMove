@@ -87,7 +87,7 @@ candidate_registry::append_candidate(move_candidate candidate) {
 
 void candidate_registry::activate_in_bucket(id_t id) {
   const auto &candidate = records_[id].candidate;
-  auto &bucket = hash_buckets_[candidate.hash];
+  auto       &bucket    = hash_buckets_[candidate.hash];
 
   if (candidate.kind == move_candidate::Kind::del) {
     bucket.del_ids.push_back(id);

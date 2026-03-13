@@ -14,7 +14,7 @@ struct cli_options {
   std::string input_path;
   std::string output_path = "diff_new.xml";
   std::string results_path;
-  bool verbose = false;
+  bool        verbose = false;
 };
 
 class cli_error : public std::runtime_error {

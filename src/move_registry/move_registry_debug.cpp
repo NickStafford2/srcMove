@@ -54,8 +54,8 @@ std::string clean_text(std::string_view s, std::size_t max_len = 60) {
     return "";
   }
 
-  auto last = flattened.find_last_not_of(' ');
-  std::string out = flattened.substr(first, last - first + 1);
+  auto        last = flattened.find_last_not_of(' ');
+  std::string out  = flattened.substr(first, last - first + 1);
 
   if (out.size() > max_len) {
     out.resize(max_len);
@@ -86,31 +86,33 @@ const char *group_kind_name(group_kind kind) {
   return "unknown";
 }
 
-void print_candidate_line(const candidate_registry &registry, candidate_id id,
-                          std::ostream &os, std::size_t preview_len = 60) {
+void print_candidate_line(const candidate_registry &registry,
+                          candidate_id              id,
+                          std::ostream             &os,
+                          std::size_t               preview_len = 60) {
   const auto &record = registry.record(id);
-  const auto &c = record.candidate;
+  const auto &c      = record.candidate;
 
-  os << "    " << rpad(id, 5) << " " << rpad(kind_name(c.kind), 4) << " "
-     << "[" << c.start_idx << "," << c.end_idx << "] "
-     << "active=" << (record.active ? "yes" : "no ") << " "
-     << "hash=" << c.hash << " "
-     << "file=\"" << c.filename << "\" "
-     << " raw=\"" << clean_text(c.raw_text, preview_len) << "\""
-     << " canon=\"" << clean_text(c.canonical_text, preview_len) << "\"\n";
+  os << "    " << rpad(id, 5) << " " << rpad(kind_name(c.kind), 4) << " " << "["
+     << c.start_idx << "," << c.end_idx << "] "
+     << "active=" << (record.active ? "yes" : "no ") << " " << "hash=" << c.hash
+     << " " << "file=\"" << c.filename << "\" " << " raw=\""
+     << clean_text(c.raw_text, preview_len) << "\"" << " canon=\""
+     << clean_text(c.canonical_text, preview_len) << "\"\n";
 }
 
 struct file_stats {
-  std::size_t active = 0;
+  std::size_t active   = 0;
   std::size_t inactive = 0;
-  std::size_t dels = 0;
-  std::size_t ins = 0;
+  std::size_t dels     = 0;
+  std::size_t ins      = 0;
 };
 
 } // namespace
 
 void print_registry_summary(const candidate_registry &registry,
-                            const content_groups &groups, std::ostream &os) {
+                            const content_groups     &groups,
+                            std::ostream             &os) {
   os << "candidate_registry:\n";
   os << "  files: " << registry.file_count() << "\n";
   os << "  total records: " << registry.total_record_count() << "\n";
@@ -121,12 +123,12 @@ void print_registry_summary(const candidate_registry &registry,
   os << "  hash buckets: " << registry.bucket_count() << "\n";
   os << "  content groups: " << groups.group_count() << "\n";
 
-  std::size_t move11 = 0;
-  std::size_t many = 0;
+  std::size_t move11  = 0;
+  std::size_t many    = 0;
   std::size_t delonly = 0;
-  std::size_t inonly = 0;
-  std::size_t copy = 0;
-  std::size_t amb = 0;
+  std::size_t inonly  = 0;
+  std::size_t copy    = 0;
+  std::size_t amb     = 0;
 
   std::size_t total_group_del_ids = 0;
   std::size_t total_group_ins_ids = 0;
@@ -171,7 +173,7 @@ void print_registry_summary(const candidate_registry &registry,
 }
 
 void print_registry_by_file(const candidate_registry &registry,
-                            std::ostream &os) {
+                            std::ostream             &os) {
   os << "\n=== REGISTRY BY FILE ===\n";
 
   std::unordered_set<std::string> seen_files;
@@ -215,12 +217,14 @@ void print_registry_by_file(const candidate_registry &registry,
   }
 }
 
-void print_hash_buckets(const candidate_registry &registry, std::ostream &os,
-                        std::size_t max_buckets, std::size_t preview_per_side) {
+void print_hash_buckets(const candidate_registry &registry,
+                        std::ostream             &os,
+                        std::size_t               max_buckets,
+                        std::size_t               preview_per_side) {
   os << "\n=== HASH BUCKETS ===\n";
 
   struct bucket_view {
-    std::uint64_t hash = 0;
+    std::uint64_t     hash   = 0;
     const bucket_ids *bucket = nullptr;
   };
 
@@ -244,12 +248,12 @@ void print_hash_buckets(const candidate_registry &registry, std::ostream &os,
 
   const std::size_t n = std::min(max_buckets, ordered.size());
   for (std::size_t bi = 0; bi < n; ++bi) {
-    const auto &view = ordered[bi];
+    const auto &view   = ordered[bi];
     const auto &bucket = *view.bucket;
 
-    os << "bucket[" << bi << "]"
-       << " hash=" << view.hash << " dels=" << bucket.del_ids.size()
-       << " ins=" << bucket.ins_ids.size() << "\n";
+    os << "bucket[" << bi << "]" << " hash=" << view.hash
+       << " dels=" << bucket.del_ids.size() << " ins=" << bucket.ins_ids.size()
+       << "\n";
 
     const std::size_t del_preview =
         std::min(preview_per_side, bucket.del_ids.size());
@@ -278,21 +282,21 @@ void print_hash_buckets(const candidate_registry &registry, std::ostream &os,
 }
 
 void print_content_groups(const candidate_registry &registry,
-                          const content_groups &groups, std::ostream &os,
-                          std::size_t max_groups,
-                          std::size_t preview_per_side) {
+                          const content_groups     &groups,
+                          std::ostream             &os,
+                          std::size_t               max_groups,
+                          std::size_t               preview_per_side) {
   os << "\n=== CONTENT GROUPS ===\n";
 
   const std::size_t n = std::min(max_groups, groups.group_count());
   for (std::size_t gi = 0; gi < n; ++gi) {
-    const auto &g = groups.groups()[gi];
-    const auto del_ids = groups.delete_ids(g);
-    const auto ins_ids = groups.insert_ids(g);
+    const auto &g       = groups.groups()[gi];
+    const auto  del_ids = groups.delete_ids(g);
+    const auto  ins_ids = groups.insert_ids(g);
 
-    os << "group[" << gi << "]"
-       << " id=" << g.group_id << " hash=" << g.content_hash
-       << " kind=" << group_kind_name(g.kind) << " dels=" << del_ids.size()
-       << " ins=" << ins_ids.size() << "\n";
+    os << "group[" << gi << "]" << " id=" << g.group_id
+       << " hash=" << g.content_hash << " kind=" << group_kind_name(g.kind)
+       << " dels=" << del_ids.size() << " ins=" << ins_ids.size() << "\n";
 
     const std::size_t del_preview = std::min(preview_per_side, del_ids.size());
     for (std::size_t i = 0; i < del_preview; ++i) {
@@ -319,7 +323,8 @@ void print_content_groups(const candidate_registry &registry,
 }
 
 void print_greedy_matches(const candidate_registry &registry,
-                          const content_groups &groups, std::ostream &os) {
+                          const content_groups     &groups,
+                          std::ostream             &os) {
   print_registry_summary(registry, groups, os);
 
   const auto matches = greedy_match_1_to_1(groups);
@@ -334,7 +339,7 @@ void print_greedy_matches(const candidate_registry &registry,
     matched_del_ids.insert(m.del_id);
     matched_ins_ids.insert(m.ins_id);
 
-    const auto &d = registry.candidate(m.del_id);
+    const auto &d   = registry.candidate(m.del_id);
     const auto &ins = registry.candidate(m.ins_id);
 
     os << "DEL [" << d.start_idx << "," << d.end_idx << "] " << d.filename
@@ -342,11 +347,10 @@ void print_greedy_matches(const candidate_registry &registry,
        << "INS [" << ins.start_idx << "," << ins.end_idx << "] " << ins.filename
        << "\n hash=" << d.hash << " chars(del)=" << d.raw_text.size()
        << " chars(ins)=" << ins.raw_text.size() << "\n  del_raw_text=\""
-       << clean_text(d.raw_text, 80) << "\""
-       << "\n  ins_raw_text=\"" << clean_text(ins.raw_text, 80) << "\""
-       << "\n  del_can_text=\"" << clean_text(d.canonical_text, 80) << "\""
-       << "\n  ins_can_text=\"" << clean_text(ins.canonical_text, 80) << "\""
-       << "\n\n";
+       << clean_text(d.raw_text, 80) << "\"" << "\n  ins_raw_text=\""
+       << clean_text(ins.raw_text, 80) << "\"" << "\n  del_can_text=\""
+       << clean_text(d.canonical_text, 80) << "\"" << "\n  ins_can_text=\""
+       << clean_text(ins.canonical_text, 80) << "\"" << "\n\n";
   }
 
   os << "\n=== UNMATCHED ACTIVE CANDIDATES ===\n";
@@ -370,9 +374,11 @@ void print_greedy_matches(const candidate_registry &registry,
 }
 
 void print_full_registry_debug(const candidate_registry &registry,
-                               const content_groups &groups, std::ostream &os,
-                               std::size_t max_buckets, std::size_t max_groups,
-                               std::size_t preview_per_side) {
+                               const content_groups     &groups,
+                               std::ostream             &os,
+                               std::size_t               max_buckets,
+                               std::size_t               max_groups,
+                               std::size_t               preview_per_side) {
   print_registry_summary(registry, groups, os);
   print_registry_by_file(registry, os);
   print_hash_buckets(registry, os, max_buckets, preview_per_side);

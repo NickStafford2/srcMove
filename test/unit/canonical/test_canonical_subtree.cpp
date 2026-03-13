@@ -27,10 +27,10 @@ static std::vector<move_candidate> load_candidates(const std::string &xml) {
   auto regions = collect_all_regions(reader);
 
   region_filter_options opt;
-  opt.policy = region_filter_policy::leaf_only;
+  opt.policy               = region_filter_policy::leaf_only;
   opt.drop_whitespace_only = true;
-  opt.skip_pre_marked = true;
-  opt.min_chars = 1;
+  opt.skip_pre_marked      = true;
+  opt.min_chars            = 1;
 
   return filter_regions_for_registry(regions, opt);
 }
@@ -40,7 +40,7 @@ static bool expect_equal(const std::string &filename) {
   if (pos == std::string::npos)
     return false;
 
-  std::string left = filename.substr(0, pos);
+  std::string left  = filename.substr(0, pos);
   std::string right = filename.substr(pos + 2);
 
   return left.find("same") == 0 && right.find("same") == 0;

@@ -54,8 +54,8 @@ static std::string clean_text(std::string s, std::size_t max_len = 60) {
 
   // trim
   auto not_space = [](unsigned char ch) { return !std::isspace(ch); };
-  auto start = std::find_if(out.begin(), out.end(), not_space);
-  auto end = std::find_if(out.rbegin(), out.rend(), not_space).base();
+  auto start     = std::find_if(out.begin(), out.end(), not_space);
+  auto end       = std::find_if(out.rbegin(), out.rend(), not_space).base();
   if (start >= end)
     return "";
 
@@ -90,9 +90,8 @@ void print_node(const srcml_node &node, std::size_t i = 0) {
       return;
 
     std::cout << rpad(i, 6) << " " << rpad(kind, 6) << " " << rpad(name, 20)
-              << " " << rpad("attrs=-", 10) << " "
-              << "text=\"" << cleaned << "\""
-              << "\n";
+              << " " << rpad("attrs=-", 10) << " " << "text=\"" << cleaned
+              << "\"" << "\n";
     return;
   }
 

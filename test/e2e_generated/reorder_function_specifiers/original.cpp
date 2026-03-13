@@ -1,4 +1,4 @@
-struct B { 
+struct B {
   long signed int foo1;
   signed long int foo2;
   long int signed foo3;

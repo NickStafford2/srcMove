@@ -43,13 +43,13 @@ enum class group_kind : std::uint8_t {
 
 struct content_group {
   std::uint64_t content_hash = 0;
-  std::uint32_t group_id = 0;
+  std::uint32_t group_id     = 0;
 
   // Ranges inside group_del_ids_ and group_ins_ids_
   std::uint32_t del_begin = 0;
-  std::uint32_t del_end = 0;
+  std::uint32_t del_end   = 0;
   std::uint32_t ins_begin = 0;
-  std::uint32_t ins_end = 0;
+  std::uint32_t ins_end   = 0;
 
   group_kind kind = group_kind::ambiguous;
 
@@ -71,7 +71,7 @@ public:
    * Used to iterate group delete/insert ids without copying.
    */
   struct id_view {
-    const id_t *data = nullptr;
+    const id_t *data  = nullptr;
     std::size_t count = 0;
 
     const id_t *begin() const noexcept { return data; }
@@ -105,8 +105,8 @@ public:
   void append_group(content_group g);
 
 private:
-  std::vector<id_t> group_del_ids_;
-  std::vector<id_t> group_ins_ids_;
+  std::vector<id_t>          group_del_ids_;
+  std::vector<id_t>          group_ins_ids_;
   std::vector<content_group> groups_;
 };
 

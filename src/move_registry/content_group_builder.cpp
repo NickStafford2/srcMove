@@ -29,7 +29,8 @@ group_kind classify_counts(std::size_t del_count, std::size_t ins_count) {
   return group_kind::copy_or_repeat;
 }
 
-void add_group(content_groups &out, std::uint64_t content_hash,
+void add_group(content_groups                  &out,
+               std::uint64_t                    content_hash,
                const std::vector<candidate_id> &del_ids,
                const std::vector<candidate_id> &ins_ids) {
   const std::uint32_t group_id = static_cast<std::uint32_t>(out.group_count());
@@ -79,7 +80,7 @@ content_groups build_content_groups(const candidate_registry &registry,
 
   for (const auto &kv : by_hash) {
     const std::uint64_t content_hash = kv.first;
-    const bucket_ids &bucket = kv.second;
+    const bucket_ids   &bucket       = kv.second;
 
     std::unordered_map<std::string_view, std::vector<candidate_id>, sv_hash>
         del_by_text;
@@ -112,7 +113,7 @@ content_groups build_content_groups(const candidate_registry &registry,
 
     for (auto &entry : del_by_text) {
       std::string_view text = entry.first;
-      auto &dels = entry.second;
+      auto            &dels = entry.second;
 
       (void)seen.emplace(text, true);
 
@@ -126,7 +127,7 @@ content_groups build_content_groups(const candidate_registry &registry,
 
     for (auto &entry : ins_by_text) {
       std::string_view text = entry.first;
-      auto &inss = entry.second;
+      auto            &inss = entry.second;
 
       if (seen.find(text) != seen.end()) {
         continue;

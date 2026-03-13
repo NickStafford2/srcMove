@@ -41,12 +41,12 @@ namespace srcmove {
 
 class candidate_registry {
 public:
-  using id_t = candidate_id;
+  using id_t     = candidate_id;
   using file_key = std::string;
 
   struct candidate_record {
     move_candidate candidate;
-    bool active = true;
+    bool           active = true;
   };
 
   candidate_registry() = default;
@@ -64,7 +64,7 @@ public:
    * Each candidate receives a new global candidate_id and is immediately
    * inserted into the appropriate hash bucket for later grouping.
    */
-  void add_candidates_for_file(const file_key &file,
+  void add_candidates_for_file(const file_key             &file,
                                std::vector<move_candidate> candidates);
 
   /**
@@ -85,10 +85,10 @@ public:
    *   remove_candidates_for_file(file)
    *   add_candidates_for_file(file, new_candidates)
    */
-  void replace_candidates_for_file(const file_key &file,
+  void replace_candidates_for_file(const file_key             &file,
                                    std::vector<move_candidate> candidates);
 
-  bool has_file(const file_key &file) const;
+  bool        has_file(const file_key &file) const;
   std::size_t file_count() const noexcept;
 
   // ----- Candidate access -----

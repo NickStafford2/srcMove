@@ -44,9 +44,9 @@ inline void write_string(std::ostream &out, std::string_view s) {
   out << "\"" << escape(s) << "\"";
 }
 
-inline void write_string_array(std::ostream &out,
+inline void write_string_array(std::ostream                   &out,
                                const std::vector<std::string> &arr,
-                               std::size_t indent) {
+                               std::size_t                     indent) {
   const std::string pad(indent, ' ');
   const std::string item_pad(indent + 2, ' ');
 
@@ -64,8 +64,9 @@ inline void write_string_array(std::ostream &out,
   out << pad << "]";
 }
 
-inline void write_move_entry(std::ostream &out, const move_entry &m,
-                             std::size_t indent = 4) {
+inline void write_move_entry(std::ostream     &out,
+                             const move_entry &m,
+                             std::size_t       indent = 4) {
   const std::string pad(indent, ' ');
   const std::string field_pad(indent + 2, ' ');
 

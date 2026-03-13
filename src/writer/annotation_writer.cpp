@@ -28,11 +28,11 @@ namespace srcmove {
 namespace {
 
 constexpr const char *kMvNamespaceUri = "http://www.srcML.org/srcMove";
-constexpr const char *kMvXmlnsAttr = "xmlns:mv";
-constexpr const char *kMvMoveAttr = "mv:move";
-constexpr const char *kMvInsertsAttr = "mv:insert_count";
-constexpr const char *kMvDeletesAttr = "mv:delete_count";
-constexpr const char *kMvPartnerAttr = "mv:partner";
+constexpr const char *kMvXmlnsAttr    = "xmlns:mv";
+constexpr const char *kMvMoveAttr     = "mv:move";
+constexpr const char *kMvInsertsAttr  = "mv:insert_count";
+constexpr const char *kMvDeletesAttr  = "mv:delete_count";
+constexpr const char *kMvPartnerAttr  = "mv:partner";
 constexpr const char *kMvPartnersAttr = "mv:partners";
 
 bool is_root_unit_start(const srcml_node &node, std::size_t index) {
@@ -70,9 +70,9 @@ std::string join_semicolon(const std::vector<std::string> &values) {
 std::unordered_map<std::uint32_t, move_entry>
 write_with_move_annotations(const std::string &in_filename,
                             const std::string &out_filename,
-                            const tag_map &tags) {
-  srcml_reader reader(in_filename);
-  srcml_writer writer(out_filename);
+                            const tag_map     &tags) {
+  srcml_reader                                  reader(in_filename);
+  srcml_writer                                  writer(out_filename);
   std::unordered_map<std::uint32_t, move_entry> moves;
 
   std::size_t i = 0;
@@ -87,8 +87,8 @@ write_with_move_annotations(const std::string &in_filename,
       const std::string fn = node.full_name();
 
       if (fn == "diff:insert" || fn == "diff:delete") {
-        srcml_node patched = node;
-        const std::string xpath = reader.get_current_xpath();
+        srcml_node        patched = node;
+        const std::string xpath   = reader.get_current_xpath();
 
         if (const std::string *existing_move = get_existing_move_attr(node)) {
           writer.write(patched);
@@ -97,7 +97,7 @@ write_with_move_annotations(const std::string &in_filename,
             const std::uint32_t move_id =
                 static_cast<std::uint32_t>(std::stoul(*existing_move));
 
-            auto &entry = moves[move_id];
+            auto &entry   = moves[move_id];
             entry.move_id = move_id;
 
             if (fn == "diff:delete") {
@@ -114,9 +114,9 @@ write_with_move_annotations(const std::string &in_filename,
 
         auto it = tags.find(i);
         if (it != tags.end()) {
-          const move_tag &tag = it->second;
-          const std::uint32_t move_id = tag.move_id;
-          const std::string &raw_text = tag.raw_text;
+          const move_tag     &tag      = it->second;
+          const std::uint32_t move_id  = tag.move_id;
+          const std::string  &raw_text = tag.raw_text;
 
           patched.set_attribute(kMvMoveAttr, std::to_string(tag.move_id));
 
@@ -133,7 +133,7 @@ write_with_move_annotations(const std::string &in_filename,
 
           writer.write(patched);
 
-          auto &entry = moves[move_id];
+          auto &entry   = moves[move_id];
           entry.move_id = move_id;
 
           if (fn == "diff:delete") {
@@ -160,6 +160,7 @@ write_with_move_annotations(const std::string &in_filename,
 std::unordered_map<std::size_t, std::string>
 collect_diff_region_xpaths(const std::string &in_filename) {
   srcml_reader reader(in_filename);
+
   std::unordered_map<std::size_t, std::string> out;
 
   std::size_t i = 0;
@@ -179,13 +180,13 @@ collect_diff_region_xpaths(const std::string &in_filename) {
 } // namespace
 
 std::vector<move_entry> annotate(const std::vector<diff_region> &regions,
-                                 const candidate_registry &registry,
-                                 const content_groups &groups,
+                                 const candidate_registry       &registry,
+                                 const content_groups           &groups,
                                  const std::string &srcdiff_in_filename,
                                  const std::string &srcdiff_out_filename) {
 
   const std::uint32_t start_move_id = max_existing_move_id(regions) + 1;
-  const auto xpaths = collect_diff_region_xpaths(srcdiff_in_filename);
+  const auto          xpaths = collect_diff_region_xpaths(srcdiff_in_filename);
   const auto tags = build_move_tags(groups, registry, xpaths, start_move_id);
 
   // second pass

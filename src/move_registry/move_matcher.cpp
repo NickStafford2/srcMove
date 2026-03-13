@@ -30,7 +30,7 @@ std::vector<move_match> greedy_match_1_to_1(const content_groups &groups) {
 }
 
 std::vector<move_match> enumerate_all_pairs(const content_groups &groups,
-                                            std::size_t hard_cap) {
+                                            std::size_t           hard_cap) {
   std::vector<move_match> out;
 
   for (const auto &g : groups.groups()) {

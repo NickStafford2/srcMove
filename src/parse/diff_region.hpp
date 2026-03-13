@@ -32,20 +32,20 @@ namespace srcmove {
 
 struct diff_region {
   move_candidate::Kind kind;
-  std::string filename;
+  std::string          filename;
 
   std::size_t start_idx = 0;
-  std::size_t end_idx = 0;
+  std::size_t end_idx   = 0;
 
-  std::string raw_text;
-  std::string canonical_text;
+  std::string   raw_text;
+  std::string   canonical_text;
   std::uint64_t hash = 0;
 
-  std::size_t parent_id = static_cast<std::size_t>(-1);
-  std::uint32_t depth = 0;
-  bool has_diff_child = false;
+  std::size_t   parent_id      = static_cast<std::size_t>(-1);
+  std::uint32_t depth          = 0;
+  bool          has_diff_child = false;
 
-  bool pre_marked = false;
+  bool          pre_marked       = false;
   std::uint32_t existing_move_id = 0;
 };
 

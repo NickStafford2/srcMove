@@ -40,7 +40,7 @@
 namespace srcmove {
 
 struct open_region_capture {
-  std::size_t region_id;
+  std::size_t             region_id;
   std::vector<srcml_node> nodes;
 };
 
@@ -72,7 +72,7 @@ diff_kind_from_full_name(std::string_view fn) {
 }
 
 std::string require_filename_attr(const srcml_node &node,
-                                  const char *context_message) {
+                                  const char       *context_message) {
   const std::string *filename = node.get_attribute_value("filename");
   if (filename == nullptr || filename->empty()) {
     throw std::runtime_error(std::string(context_message) +
@@ -86,18 +86,20 @@ root_mode detect_root_mode(const srcml_node &root_unit) {
   return (filename != nullptr) ? root_mode::single_file : root_mode::archive;
 }
 
-void open_diff_region(std::vector<diff_region> &regions,
+void open_diff_region(std::vector<diff_region>         &regions,
                       std::vector<open_region_capture> &open_region_stack,
-                      const srcml_node &node, srcml_reader &reader,
-                      const std::string &filename, std::size_t node_index) {
+                      const srcml_node                 &node,
+                      srcml_reader                     &reader,
+                      const std::string                &filename,
+                      std::size_t                       node_index) {
   const auto kind = diff_kind_from_full_name(node.full_name());
   if (!kind) {
     return;
   }
 
-  const std::size_t parent_id = open_region_stack.empty()
-                                    ? kNoParent
-                                    : open_region_stack.back().region_id;
+  const std::size_t   parent_id = open_region_stack.empty()
+                                      ? kNoParent
+                                      : open_region_stack.back().region_id;
   const std::uint32_t depth =
       static_cast<std::uint32_t>(open_region_stack.size());
 
@@ -106,13 +108,13 @@ void open_diff_region(std::vector<diff_region> &regions,
   }
 
   diff_region region;
-  region.kind = *kind;
-  region.filename = filename;
+  region.kind      = *kind;
+  region.filename  = filename;
   region.start_idx = node_index;
-  region.end_idx = 0;
-  region.raw_text = reader.get_current_inner_text();
+  region.end_idx   = 0;
+  region.raw_text  = reader.get_current_inner_text();
   region.parent_id = parent_id;
-  region.depth = depth;
+  region.depth     = depth;
 
   if (const std::string *mv = node.get_attribute_value("move")) {
     region.pre_marked = true;
@@ -127,10 +129,10 @@ void open_diff_region(std::vector<diff_region> &regions,
   open_region_stack.push_back(open_region_capture{regions.size() - 1, {}});
 }
 
-void close_diff_region(std::vector<diff_region> &regions,
+void close_diff_region(std::vector<diff_region>         &regions,
                        std::vector<open_region_capture> &open_region_stack,
-                       move_candidate::Kind expected_kind,
-                       std::size_t node_index) {
+                       move_candidate::Kind              expected_kind,
+                       std::size_t                       node_index) {
   if (open_region_stack.empty()) {
     throw std::runtime_error("diff end tag without matching diff start tag");
   }
@@ -148,7 +150,7 @@ void close_diff_region(std::vector<diff_region> &regions,
     throw std::runtime_error("diff region was closed more than once");
   }
 
-  regions[rid].end_idx = node_index;
+  regions[rid].end_idx        = node_index;
   regions[rid].canonical_text = canonicalize_diff_region_subtree(capture.nodes);
   regions[rid].hash =
       move_candidate::fast_hash_raw(regions[rid].canonical_text);
@@ -170,10 +172,12 @@ void advance(reader_iter &it, std::size_t &node_index) {
  * - returns with iterator positioned at the node AFTER the closing </unit>
  *   of that file unit
  */
-void read_file_unit(reader_iter &it, reader_iter &end, srcml_reader &reader,
-                    const std::string &filename,
+void read_file_unit(reader_iter              &it,
+                    reader_iter              &end,
+                    srcml_reader             &reader,
+                    const std::string        &filename,
                     std::vector<diff_region> &regions,
-                    std::size_t &node_index) {
+                    std::size_t              &node_index) {
   if (it != end) {
     const srcml_node &start = *it;
     if (!is_unit_start(start)) {
@@ -190,7 +194,7 @@ void read_file_unit(reader_iter &it, reader_iter &end, srcml_reader &reader,
   advance(it, node_index);
 
   while (it != end) {
-    const srcml_node &node = *it;
+    const srcml_node &node      = *it;
     const std::string full_name = node.full_name();
 
     if (node.is_start()) {
@@ -262,9 +266,11 @@ void read_file_unit(reader_iter &it, reader_iter &end, srcml_reader &reader,
  * Exit condition:
  * - returns with iterator positioned after the archive closing </unit>
  */
-void read_archive_unit(reader_iter &it, reader_iter &end, srcml_reader &reader,
+void read_archive_unit(reader_iter              &it,
+                       reader_iter              &end,
+                       srcml_reader             &reader,
                        std::vector<diff_region> &regions,
-                       std::size_t &node_index) {
+                       std::size_t              &node_index) {
   if (it != end) {
     const srcml_node &root = *it;
     if (!is_unit_start(root)) {
@@ -321,7 +327,7 @@ std::vector<diff_region> collect_all_regions(srcml_reader &reader) {
   std::vector<diff_region> regions;
   regions.reserve(256);
 
-  reader_iter it = reader.begin();
+  reader_iter it  = reader.begin();
   reader_iter end = reader.end();
 
   if (it != end) {

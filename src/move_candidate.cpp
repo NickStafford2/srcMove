@@ -22,18 +22,14 @@ static std::size_t hash_combine(std::size_t seed, std::size_t v) noexcept {
   return seed;
 }
 
-move_candidate::move_candidate(Kind k, std::size_t start, std::string file,
-                               std::string raw, std::string canonical)
-    : kind(k),
-      filename(std::move(file)),
-      xpath(),
-      full_name(),
-      sibling_index(0),
-      start_index(0),
-      start_idx(start),
-      end_idx(0),
-      raw_text(std::move(raw)),
-      canonical_text(std::move(canonical)),
+move_candidate::move_candidate(Kind        k,
+                               std::size_t start,
+                               std::string file,
+                               std::string raw,
+                               std::string canonical)
+    : kind(k), filename(std::move(file)), xpath(), full_name(),
+      sibling_index(0), start_index(0), start_idx(start), end_idx(0),
+      raw_text(std::move(raw)), canonical_text(std::move(canonical)),
       hash(move_candidate::fast_hash_raw(canonical_text)) {}
 
 bool move_candidate::operator==(const move_candidate &other) const {
@@ -44,8 +40,7 @@ bool move_candidate::operator==(const move_candidate &other) const {
 std::string move_candidate::debug_id() const {
   std::ostringstream oss;
   oss << filename << ":" << "page_position.first" << ":"
-      << "page_position.second"
-      << " chars=" << "number_of_characters";
+      << "page_position.second" << " chars=" << "number_of_characters";
   return oss.str();
 }
 

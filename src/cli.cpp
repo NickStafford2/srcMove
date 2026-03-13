@@ -40,7 +40,7 @@ cli_options parse_cli(int argc, char **argv) {
   cli_options opts;
   opts.output_path = "diff_new.xml";
 
-  bool have_input = false;
+  bool have_input  = false;
   bool have_output = false;
 
   for (int i = 1; i < argc; ++i) {
@@ -75,13 +75,13 @@ cli_options parse_cli(int argc, char **argv) {
 
     if (!have_input) {
       opts.input_path = arg;
-      have_input = true;
+      have_input      = true;
       continue;
     }
 
     if (!have_output) {
       opts.output_path = arg;
-      have_output = true;
+      have_output      = true;
       continue;
     }
 

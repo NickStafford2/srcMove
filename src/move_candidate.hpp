@@ -21,10 +21,13 @@ class move_candidate {
 public:
   enum class Kind { insert, del };
 
-  move_candidate(Kind kind, std::size_t start_idx, std::string filename,
-                 std::string raw_text, std::string canonical_text);
+  move_candidate(Kind        kind,
+                 std::size_t start_idx,
+                 std::string filename,
+                 std::string raw_text,
+                 std::string canonical_text);
 
-  Kind kind;
+  Kind        kind;
   std::string filename; // from unit@filename
   std::string xpath;
   std::string full_name;
@@ -42,7 +45,7 @@ public:
   // std::size_t move_candidate::hash() const noexcept
   bool operator==(const move_candidate &other) const;
 
-  std::string debug_id() const;
+  std::string          debug_id() const;
   static std::uint64_t fast_hash_raw(std::string_view s);
 
 private:

@@ -39,7 +39,7 @@ static std::string trim_ws(std::string s) {
   auto not_space = [](unsigned char ch) { return !std::isspace(ch); };
 
   auto begin = std::find_if(s.begin(), s.end(), not_space);
-  auto end = std::find_if(s.rbegin(), s.rend(), not_space).base();
+  auto end   = std::find_if(s.rbegin(), s.rend(), not_space).base();
 
   if (begin >= end)
     return "";
@@ -50,7 +50,7 @@ static std::string trim_ws(std::string s) {
 // (Registry doesn’t need nesting fields; it just needs text + span + file.)
 std::vector<move_candidate>
 filter_regions_for_registry(const std::vector<diff_region> &regions,
-                            const region_filter_options &opt) {
+                            const region_filter_options    &opt) {
   std::vector<move_candidate> out;
   out.reserve(regions.size());
 
@@ -89,10 +89,10 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
 
 region_filter_options get_default_filter_options() {
   region_filter_options opt;
-  opt.policy = region_filter_policy::leaf_only;
+  opt.policy               = region_filter_policy::leaf_only;
   opt.drop_whitespace_only = true;
-  opt.skip_pre_marked = true;
-  opt.min_chars = 2;
+  opt.skip_pre_marked      = true;
+  opt.min_chars            = 2;
   return opt;
 }
 
@@ -101,9 +101,9 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
   auto regions = collect_all_regions(reader);
 
   region_filter_options opt;
-  opt.policy = region_filter_policy::leaf_only;
+  opt.policy               = region_filter_policy::leaf_only;
   opt.drop_whitespace_only = true;
-  opt.min_chars = 1;
+  opt.min_chars            = 1;
 
   return filter_regions_for_registry(regions, opt);
 }

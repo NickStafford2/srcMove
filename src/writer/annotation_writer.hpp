@@ -2,9 +2,6 @@
 /**
  * @file annotation_writer.hpp
  *
- * @copyright Copyright (C) 2014-2024 SDML (www.srcDiff.org)
- *
- * This file is part of the srcDiff Infrastructure.
  */
 #ifndef INCLUDED_MOVE_ANNOTATION_WRITER_HPP
 #define INCLUDED_MOVE_ANNOTATION_WRITER_HPP
@@ -21,8 +18,8 @@
 namespace srcmove {
 
 std::vector<move_entry> annotate(const std::vector<diff_region> &regions,
-                                 const candidate_registry &registry,
-                                 const content_groups &groups,
+                                 const candidate_registry       &registry,
+                                 const content_groups           &groups,
                                  const std::string &srcdiff_in_filename,
                                  const std::string &srcdiff_out_filename);
 
