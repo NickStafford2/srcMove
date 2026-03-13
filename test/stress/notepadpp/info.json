@@ -1,3 +1,5 @@
 {
-  "github": "https://github.com/notepad-plus-plus/notepad-plus-plus.git"
+  "github": "https://github.com/notepad-plus-plus/notepad-plus-plus.git",
+  "old_rev": "v8.8.6",
+  "new_rev": "v8.9"
 }

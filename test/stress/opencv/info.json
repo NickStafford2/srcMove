@@ -1,6 +1,5 @@
 {
   "github": "https://github.com/opencv/opencv.git",
   "old_rev": "3.4.0",
-  "new_rev": "4.9.0",
-  "clone_depth": 1000
+  "new_rev": "4.9.0"
 }
