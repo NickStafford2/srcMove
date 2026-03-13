@@ -48,8 +48,8 @@ static std::optional<diff_kind> kind_from_full_name(std::string_view fn) {
 
 static std::string trim(std::string s) {
   auto not_space = [](unsigned char c) { return !std::isspace(c); };
-  auto b = std::find_if(s.begin(), s.end(), not_space);
-  auto e = std::find_if(s.rbegin(), s.rend(), not_space).base();
+  auto b         = std::find_if(s.begin(), s.end(), not_space);
+  auto e         = std::find_if(s.rbegin(), s.rend(), not_space).base();
   if (b >= e)
     return "";
   return std::string(b, e);
@@ -74,7 +74,7 @@ static std::string normalize_ws(std::string_view in) {
   return trim(out);
 }
 
-static bool read_file_lines(const std::string &path,
+static bool read_file_lines(const std::string        &path,
                             std::vector<std::string> &lines) {
   std::ifstream ifs(path);
   if (!ifs)
@@ -89,23 +89,23 @@ static bool read_file_lines(const std::string &path,
 }
 
 struct region {
-  diff_kind kind;
+  diff_kind     kind;
   std::uint32_t move_id;
-  std::string text_raw;  // from get_current_inner_text()
-  std::string text_norm; // normalized for matching
+  std::string   text_raw;  // from get_current_inner_text()
+  std::string   text_norm; // normalized for matching
 };
 
 // [begin,end] inclusive line range
 struct line_range {
   std::size_t begin = 0;
-  std::size_t end = 0;
+  std::size_t end   = 0;
 };
 
 static std::optional<line_range>
 find_region_in_lines(const std::vector<std::string> &lines,
                      const std::vector<std::string> &lines_norm,
-                     const std::string &pattern_norm,
-                     std::size_t max_window_lines = 80) {
+                     const std::string              &pattern_norm,
+                     std::size_t                     max_window_lines = 80) {
 
   if (pattern_norm.empty())
     return std::nullopt;
@@ -147,10 +147,10 @@ find_region_in_lines(const std::vector<std::string> &lines,
 }
 
 struct highlight_span {
-  std::size_t begin = 0;
-  std::size_t end = 0;
+  std::size_t                begin = 0;
+  std::size_t                end   = 0;
   std::vector<std::uint32_t> move_ids; // can stack multiple ids on same span
-  diff_kind kind;
+  diff_kind                  kind;
 };
 
 // Merge overlapping spans of same kind; also combine move_ids.
@@ -170,8 +170,8 @@ merge_spans(std::vector<highlight_span> spans) {
   out.push_back(spans[0]);
 
   for (std::size_t i = 1; i < spans.size(); ++i) {
-    auto &cur = out.back();
-    const auto &n = spans[i];
+    auto       &cur = out.back();
+    const auto &n   = spans[i];
 
     // Only merge if overlapping AND same kind.
     if (n.kind == cur.kind && n.begin <= cur.end + 1) {
@@ -189,7 +189,7 @@ merge_spans(std::vector<highlight_span> spans) {
   return out;
 }
 
-static bool line_is_in_any_span(std::size_t line,
+static bool line_is_in_any_span(std::size_t                        line,
                                 const std::vector<highlight_span> &spans,
                                 std::size_t &span_index_out) {
   for (std::size_t i = 0; i < spans.size(); ++i) {
@@ -223,8 +223,9 @@ static std::string move_ids_label(const std::vector<std::uint32_t> &ids) {
 }
 
 static void
-print_file_with_highlights(const std::string &title, const std::string &path,
-                           const std::vector<std::string> &lines,
+print_file_with_highlights(const std::string                 &title,
+                           const std::string                 &path,
+                           const std::vector<std::string>    &lines,
                            const std::vector<highlight_span> &spans) {
 
   std::cout << "===== " << title << " =====\n";
@@ -237,7 +238,7 @@ print_file_with_highlights(const std::string &title, const std::string &path,
 
   for (std::size_t i = 0; i < lines.size(); ++i) {
     std::size_t span_idx = 0;
-    const bool hl = line_is_in_any_span(i, spans, span_idx);
+    const bool  hl       = line_is_in_any_span(i, spans, span_idx);
 
     std::ostringstream ln;
     ln << (i + 1);
@@ -250,8 +251,8 @@ print_file_with_highlights(const std::string &title, const std::string &path,
       continue;
     }
 
-    const auto &sp = spans[span_idx];
-    const char *bg = (sp.kind == diff_kind::del) ? BG_DEL : BG_INS;
+    const auto       &sp  = spans[span_idx];
+    const char       *bg  = (sp.kind == diff_kind::del) ? BG_DEL : BG_INS;
     const std::string tag = move_ids_label(sp.move_ids);
 
     // Keep the original line raw; only wrap with ANSI background.
@@ -263,12 +264,13 @@ print_file_with_highlights(const std::string &title, const std::string &path,
 }
 
 static bool split_unit_filename(const std::string &unit_filename,
-                                std::string &orig_out, std::string &mod_out) {
+                                std::string       &orig_out,
+                                std::string       &mod_out) {
   auto pos = unit_filename.find('|');
   if (pos == std::string::npos)
     return false;
   orig_out = unit_filename.substr(0, pos);
-  mod_out = unit_filename.substr(pos + 1);
+  mod_out  = unit_filename.substr(pos + 1);
   return true;
 }
 
@@ -307,7 +309,7 @@ int main(int argc, char **argv) {
         continue;
 
       const std::string fn = node.full_name();
-      auto k = kind_from_full_name(fn);
+      auto              k  = kind_from_full_name(fn);
       if (!k)
         continue;
 
@@ -325,9 +327,9 @@ int main(int argc, char **argv) {
       }
 
       region r;
-      r.kind = *k;
-      r.move_id = move_id;
-      r.text_raw = reader.get_current_inner_text();
+      r.kind      = *k;
+      r.move_id   = move_id;
+      r.text_raw  = reader.get_current_inner_text();
       r.text_norm = normalize_ws(r.text_raw);
       regions.push_back(std::move(r));
     }
@@ -371,9 +373,9 @@ int main(int argc, char **argv) {
     std::vector<highlight_span> mod_spans;
 
     for (const auto &r : regions) {
-      const bool is_del = (r.kind == diff_kind::del);
-      const auto &lines = is_del ? orig_lines : mod_lines;
-      const auto &norms = is_del ? orig_norm : mod_norm;
+      const bool  is_del = (r.kind == diff_kind::del);
+      const auto &lines  = is_del ? orig_lines : mod_lines;
+      const auto &norms  = is_del ? orig_norm : mod_norm;
 
       (void)lines; // (raw lines printed later; matching uses norms)
       auto found = find_region_in_lines(
@@ -399,8 +401,8 @@ int main(int argc, char **argv) {
 
       highlight_span sp;
       sp.begin = found->begin;
-      sp.end = found->end;
-      sp.kind = r.kind;
+      sp.end   = found->end;
+      sp.kind  = r.kind;
       sp.move_ids.push_back(r.move_id);
 
       if (is_del)
@@ -410,7 +412,7 @@ int main(int argc, char **argv) {
     }
 
     orig_spans = merge_spans(std::move(orig_spans));
-    mod_spans = merge_spans(std::move(mod_spans));
+    mod_spans  = merge_spans(std::move(mod_spans));
 
     print_file_with_highlights("ORIGINAL (deletes highlighted)", original_path,
                                orig_lines, orig_spans);

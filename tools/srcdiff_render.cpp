@@ -44,11 +44,11 @@ static const char *kind_label(diff_kind k) {
 }
 
 struct open_region {
-  diff_kind kind;
+  diff_kind   kind;
   std::string filename;
 
   std::size_t start_idx = 0;
-  std::size_t end_idx = 0;
+  std::size_t end_idx   = 0;
 
   // capture raw-ish inner text at START (as provided by srcReader)
   std::string inner_text;
@@ -89,7 +89,7 @@ int main(int argc, char **argv) {
   try {
     srcml_reader reader(in_filename);
 
-    std::string current_file;
+    std::string                       current_file;
     std::vector<srcmove::open_region> stack;
     stack.reserve(64);
 
@@ -109,9 +109,9 @@ int main(int argc, char **argv) {
       if (node.is_start()) {
         if (auto k = srcmove::diff_kind_from_full_name(fn)) {
           srcmove::open_region r;
-          r.kind = *k;
-          r.filename = current_file;
-          r.start_idx = node_index;
+          r.kind       = *k;
+          r.filename   = current_file;
+          r.start_idx  = node_index;
           r.inner_text = reader.get_current_inner_text();
 
           if (const std::string *mv = node.get_attribute_value("move"))

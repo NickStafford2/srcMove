@@ -59,12 +59,13 @@ static const char *kind_label(diff_kind k) {
 }
 
 static bool split_unit_filename(const std::string &unit_filename,
-                                std::string &orig_out, std::string &mod_out) {
+                                std::string       &orig_out,
+                                std::string       &mod_out) {
   auto pos = unit_filename.find('|');
   if (pos == std::string::npos)
     return false;
   orig_out = unit_filename.substr(0, pos);
-  mod_out = unit_filename.substr(pos + 1);
+  mod_out  = unit_filename.substr(pos + 1);
   return true;
 }
 
@@ -87,7 +88,7 @@ static bool read_lines(const std::string &path, std::vector<std::string> &out) {
 // pos "L:C"
 struct pos_point {
   std::size_t line = 0; // 1-based
-  std::size_t col = 0;  // 1-based
+  std::size_t col  = 0; // 1-based
 };
 
 static std::optional<pos_point> parse_pos_point(const std::string &s) {
@@ -113,8 +114,8 @@ struct range {
 
 // ANSI background colors
 static constexpr const char *ANSI_RESET = "\x1b[0m";
-static constexpr const char *BG_DEL = "\x1b[48;2;120;30;30m";
-static constexpr const char *BG_INS = "\x1b[48;2;25;90;45m";
+static constexpr const char *BG_DEL     = "\x1b[48;2;120;30;30m";
+static constexpr const char *BG_INS     = "\x1b[48;2;25;90;45m";
 
 static const char *bg_for_kind(diff_kind k) {
   return (k == diff_kind::del) ? BG_DEL : BG_INS;
@@ -132,11 +133,11 @@ clamp_inclusive(std::size_t a, std::size_t b, std::size_t lo, std::size_t hi) {
   return std::pair{x, y};
 }
 
-static void print_file_highlighted(const std::string &title,
-                                   const std::string &path,
+static void print_file_highlighted(const std::string              &title,
+                                   const std::string              &path,
                                    const std::vector<std::string> &lines,
-                                   const std::vector<range> &ranges,
-                                   diff_kind which_kind) {
+                                   const std::vector<range>       &ranges,
+                                   diff_kind                       which_kind) {
   std::cout << "===== " << title << " =====\n";
   std::cout << path << "\n\n";
 
@@ -155,7 +156,7 @@ static void print_file_highlighted(const std::string &title,
 
   for (std::size_t i = 0; i < lines.size(); ++i) {
     const std::size_t line_no = i + 1;
-    const auto &line = lines[i];
+    const auto       &line    = lines[i];
 
     std::ostringstream ln;
     ln << line_no;
@@ -184,7 +185,7 @@ static void print_file_highlighted(const std::string &title,
 
       // clamp to the line length in bytes/characters (simple model)
       const std::size_t hi = (line.size() == 0) ? 1 : line.size();
-      auto cl = clamp_inclusive(b, e, 1, hi);
+      auto              cl = clamp_inclusive(b, e, 1, hi);
       if (cl)
         segs.push_back(seg{cl->first, cl->second});
     }
@@ -252,7 +253,7 @@ int main(int argc, char **argv) {
   try {
     srcml_reader reader(diff_xml);
 
-    std::string unit_filename_attr;
+    std::string        unit_filename_attr;
     std::vector<range> ranges;
     ranges.reserve(128);
 
@@ -260,7 +261,7 @@ int main(int argc, char **argv) {
     // already captured a pos range for it.
     struct diff_frame {
       diff_kind kind;
-      bool captured = false;
+      bool      captured = false;
     };
     std::vector<diff_frame> stack;
     stack.reserve(64);
