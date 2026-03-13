@@ -30,7 +30,10 @@ namespace {
 constexpr const char *kMvNamespaceUri = "http://www.srcML.org/srcMove";
 constexpr const char *kMvXmlnsAttr = "xmlns:mv";
 constexpr const char *kMvMoveAttr = "mv:move";
-constexpr const char *kMvXpathAttr = "mv:xpath";
+constexpr const char *kMvInsertsAttr = "mv:insert_count";
+constexpr const char *kMvDeletesAttr = "mv:delete_count";
+constexpr const char *kMvPartnerAttr = "mv:partner";
+constexpr const char *kMvPartnersAttr = "mv:partners";
 
 bool is_root_unit_start(const srcml_node &node, std::size_t index) {
   return index == 0 && node.is_start() && node.name == "unit";
@@ -116,14 +119,16 @@ write_with_move_annotations(const std::string &in_filename,
           const std::string &raw_text = tag.raw_text;
 
           patched.set_attribute(kMvMoveAttr, std::to_string(tag.move_id));
-          patched.set_attribute("inserts", std::to_string(tag.inserts));
-          patched.set_attribute("deletes", std::to_string(tag.deletes));
 
           if (tag.partner_xpaths.size() == 1) {
-            patched.set_attribute("mv:partner", tag.partner_xpaths.front());
+            patched.set_attribute(kMvPartnerAttr, tag.partner_xpaths.front());
           } else if (!tag.partner_xpaths.empty()) {
-            patched.set_attribute("mv:partners",
+            patched.set_attribute(kMvPartnersAttr,
                                   join_semicolon(tag.partner_xpaths));
+            // patched.set_attribute(kMvDeletesAttr,
+            // std::to_string(tag.deletes));
+            // patched.set_attribute(kMvInsertsAttr,
+            // std::to_string(tag.inserts));
           }
 
           writer.write(patched);

@@ -3,13 +3,13 @@
 
   <diff:delete>
     if (x) {
-      <diff:delete deletes="1" inserts="1" mv:move="1" mv:partner="/src:unit/diff:insert/diff:insert">int a;</diff:delete>
+      <diff:delete mv:move="1" mv:partner="/src:unit/diff:insert/diff:insert">int a;</diff:delete>
     }
   </diff:delete>
 
   <diff:insert>
     if (x) {
-      <diff:insert deletes="1" inserts="1" mv:move="1" mv:partner="/src:unit/diff:delete/diff:delete">int a;</diff:insert>
+      <diff:insert mv:move="1" mv:partner="/src:unit/diff:delete/diff:delete">int a;</diff:insert>
     }
   </diff:insert>
 

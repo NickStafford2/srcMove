@@ -1,11 +1,11 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="two_by_three.cpp">
 
-  <diff:delete deletes="2" inserts="3" mv:move="1" mv:partners="/src:unit/diff:insert[1];/src:unit/diff:insert[2];/src:unit/diff:insert[3]">int a;</diff:delete>
-  <diff:delete deletes="2" inserts="3" mv:move="1" mv:partners="/src:unit/diff:insert[1];/src:unit/diff:insert[2];/src:unit/diff:insert[3]">int a;</diff:delete>
+  <diff:delete mv:move="1" mv:partners="/src:unit/diff:insert[1];/src:unit/diff:insert[2];/src:unit/diff:insert[3]">int a;</diff:delete>
+  <diff:delete mv:move="1" mv:partners="/src:unit/diff:insert[1];/src:unit/diff:insert[2];/src:unit/diff:insert[3]">int a;</diff:delete>
 
-  <diff:insert deletes="2" inserts="3" mv:move="1" mv:partners="/src:unit/diff:delete[1];/src:unit/diff:delete[2]">int a;</diff:insert>
-  <diff:insert deletes="2" inserts="3" mv:move="1" mv:partners="/src:unit/diff:delete[1];/src:unit/diff:delete[2]">int a;</diff:insert>
-  <diff:insert deletes="2" inserts="3" mv:move="1" mv:partners="/src:unit/diff:delete[1];/src:unit/diff:delete[2]">int a;</diff:insert>
+  <diff:insert mv:move="1" mv:partners="/src:unit/diff:delete[1];/src:unit/diff:delete[2]">int a;</diff:insert>
+  <diff:insert mv:move="1" mv:partners="/src:unit/diff:delete[1];/src:unit/diff:delete[2]">int a;</diff:insert>
+  <diff:insert mv:move="1" mv:partners="/src:unit/diff:delete[1];/src:unit/diff:delete[2]">int a;</diff:insert>
 
 </unit>
