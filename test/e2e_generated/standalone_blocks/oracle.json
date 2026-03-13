@@ -4,10 +4,10 @@
     {
       "move_id": 1,
       "from_xpaths": [
-        "/src:unit/src:function[src:name=\"main\"]/src:block/src:block_content/diff:delete/diff:delete"
+        "/src:unit/src:function[src:name='main']/src:block/src:block_content/diff:delete/diff:delete"
       ],
       "to_xpaths": [
-        "/src:unit/src:function[src:name=\"main\"]/src:block/src:block_content/diff:insert/diff:insert"
+        "/src:unit/src:function[src:name='main']/src:block/src:block_content/diff:insert/diff:insert"
       ],
       "from_raw_texts": [],
       "to_raw_texts": []

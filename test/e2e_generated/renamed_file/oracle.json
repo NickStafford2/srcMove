@@ -4,10 +4,10 @@
     {
       "move_id": 1,
       "from_xpaths": [
-        "/src:unit/src:unit[@filename=\"foo.hpp|\"]/diff:delete"
+        "/src:unit/src:unit[@filename='foo.hpp|']/diff:delete"
       ],
       "to_xpaths": [
-        "/src:unit/src:unit[@filename=\"|bar.hpp\"]/diff:insert"
+        "/src:unit/src:unit[@filename='|bar.hpp']/diff:insert"
       ],
       "from_raw_texts": [
         "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}\n"
