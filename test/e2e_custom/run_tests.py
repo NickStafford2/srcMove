@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# test/e2e_custom/run_tests.py
+
 from __future__ import annotations
 
 import os
@@ -11,7 +13,6 @@ if str(TEST_ROOT) not in sys.path:
     sys.path.insert(0, str(TEST_ROOT))
 
 from testlib import (
-    assert_no_inline_xmlns,
     compare_xml_files_exact,
     format_process_failure,
     load_json,

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# test/e2e_generated/run_tests.py
 from __future__ import annotations
 
 import shutil
