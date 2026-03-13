@@ -21,10 +21,13 @@ from testlib import (
 )
 
 
-def run_case(srcmove_path: Path, xml_file: Path, out_dir: Path):
-    base = xml_file.parent.name
-    out_xml = out_dir / f"{base}.out.xml"
-    out_json = out_dir / f"{base}.results.json"
+def run_case(srcmove_path: Path, xml_file: Path, out_root: Path):
+    case_name = xml_file.parent.name
+    case_out_dir = out_root / case_name
+    case_out_dir.mkdir(parents=True, exist_ok=True)
+
+    out_xml = case_out_dir / "output.xml"
+    out_json = case_out_dir / "results.json"
 
     cmd = [
         str(srcmove_path),
