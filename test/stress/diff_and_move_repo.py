@@ -29,6 +29,11 @@ def require_ok(result: subprocess.CompletedProcess, what: str) -> None:
         )
 
 
+def is_tag_clobber_error(result: subprocess.CompletedProcess) -> bool:
+    stderr = result.stderr or ""
+    return "would clobber existing tag" in stderr
+
+
 def normalize_repo_subdir(value: object, info_json: Path) -> str | None:
     if value is None:
         return None
@@ -102,6 +107,15 @@ def update_repo(repo_dir: Path, repo_url: str) -> None:
         require_ok(result, "git remote set-url origin")
 
     result = run(["git", "fetch", "origin", "--tags", "--prune"], cwd=repo_dir)
+    if result.returncode == 0:
+        return
+
+    if is_tag_clobber_error(result):
+        print("      tag conflict detected; recreating cached repo")
+        shutil.rmtree(repo_dir)
+        clone_repo(repo_url, repo_dir)
+        return
+
     require_ok(result, "git fetch origin --tags --prune")
 
 
@@ -118,8 +132,17 @@ def ensure_repo(repo_url: str, clone_dir: Path) -> None:
     update_repo(clone_dir, repo_url)
 
 
-def fetch_tags(repo_dir: Path) -> None:
+def fetch_tags(repo_dir: Path, repo_url: str) -> None:
     result = run(["git", "fetch", "origin", "--tags", "--prune"], cwd=repo_dir)
+    if result.returncode == 0:
+        return
+
+    if is_tag_clobber_error(result):
+        print("      tag conflict detected during tag fetch; recreating cached repo")
+        shutil.rmtree(repo_dir)
+        clone_repo(repo_url, repo_dir)
+        return
+
     require_ok(result, "git fetch origin --tags --prune")
 
 
@@ -280,7 +303,7 @@ def main() -> int:
         update_repo(clone_dir, repo_url)
 
     print("[2/6] fetching tags")
-    fetch_tags(clone_dir)
+    fetch_tags(clone_dir, repo_url)
 
     print("[3/6] resolving revisions")
     old_commit = resolve_commit(clone_dir, old_rev)

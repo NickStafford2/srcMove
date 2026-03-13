@@ -1,21 +1,27 @@
 #!/usr/bin/env python3
+# test/stress/diff_and_move_repo.py
+
 from __future__ import annotations
 
 import subprocess
 import sys
+from pathlib import Path
 
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+RUNNER = SCRIPT_DIR / "diff_and_move_repo.py"
 
 TESTS = [
-    ["python", "diff_and_move_repo.py", "sqlite"],
-    # ["python", "diff_and_move_repo.py", "opencv"],
-    # ["python", "diff_and_move_repo.py", "firefox"],
+    [sys.executable, str(RUNNER), "sqlite"],
+    # [sys.executable, str(RUNNER), "opencv"],
+    # [sys.executable, str(RUNNER), "firefox"],
 ]
 
 
 def run_test(cmd: list[str]) -> int:
     print(f"running: {' '.join(cmd)}")
 
-    result = subprocess.run(cmd)
+    result = subprocess.run(cmd, cwd=SCRIPT_DIR)
 
     if result.returncode == 0:
         print("  PASS\n")
@@ -40,9 +46,9 @@ def main() -> int:
     if failures == 0:
         print("ALL TESTS PASSED")
         return 0
-    else:
-        print("TESTS FAILED")
-        return 1
+
+    print("TESTS FAILED")
+    return 1
 
 
 if __name__ == "__main__":
