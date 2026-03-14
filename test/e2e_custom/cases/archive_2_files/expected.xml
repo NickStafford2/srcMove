@@ -2,13 +2,13 @@
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" url="old|new">
 
 <unit revision="1.0.0" language="C++" filename="a.cpp">
-    <diff:delete mv:id="2" mv:to="/src:unit[@filename='a.cpp']/diff:insert[1]">int a;</diff:delete>
-    <diff:insert mv:from="/src:unit[@filename='a.cpp']/diff:delete[1]" mv:id="2">int a;</diff:insert>
+    <diff:delete mv:id="c89025cc1" mv:to="/src:unit[@filename='a.cpp']/diff:insert[1]">int a;</diff:delete>
+    <diff:insert mv:from="/src:unit[@filename='a.cpp']/diff:delete[1]" mv:id="c89025cc1">int a;</diff:insert>
   </unit>
 
 <unit revision="1.0.0" language="C++" filename="b.cpp">
-    <diff:delete mv:id="1" mv:to="/src:unit[@filename='b.cpp']/diff:insert[1]">int b;</diff:delete>
-    <diff:insert mv:from="/src:unit[@filename='b.cpp']/diff:delete[1]" mv:id="1">int b;</diff:insert>
+    <diff:delete mv:id="97b1dcdaf" mv:to="/src:unit[@filename='b.cpp']/diff:insert[1]">int b;</diff:delete>
+    <diff:insert mv:from="/src:unit[@filename='b.cpp']/diff:delete[1]" mv:id="97b1dcdaf">int b;</diff:insert>
   </unit>
 
 </unit>

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="pre_marked.cpp">
 
-  <diff:delete move="7">int a;</diff:delete>
-  <diff:insert move="7">int a;</diff:insert>
+  <diff:delete move="7" mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]">int a;</diff:delete>
+  <diff:insert move="7" mv:from="/src:unit[1]/diff:delete[1]" mv:id="97b1dcdaf">int a;</diff:insert>
 
 </unit>

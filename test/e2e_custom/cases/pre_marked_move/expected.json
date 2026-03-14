@@ -2,7 +2,7 @@
   "move_count": 1,
   "moves": [
     {
-      "move_id": 7,
+      "move_id": "97b1dcdaf",
       "from_xpaths": [
         "/src:unit[1]/diff:delete[1]"
       ],
