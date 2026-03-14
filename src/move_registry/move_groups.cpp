@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
+/**
+ * @file move_groups.cpp
+ */
+
 #include "move_groups.hpp"
 
 namespace srcmove {

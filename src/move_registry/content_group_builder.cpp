@@ -1,4 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
+/**
+ * @file content_group_builder.cpp
+ */
+
 #include "content_group_builder.hpp"
 #include "move_registry/move_groups.hpp"
 
