@@ -14,7 +14,7 @@ namespace srcmove {
 
 std::uint32_t max_existing_move_id(const std::vector<diff_region> &regions) {
   std::uint32_t mx = 0;
-  for (const auto &r : regions) {
+  for (const diff_region &r : regions) {
     if (r.pre_marked && r.existing_move_id > mx)
       mx = r.existing_move_id;
   }
@@ -26,12 +26,13 @@ build_move_tags(const content_groups                               &groups,
                 const candidate_registry                           &registry,
                 const std::unordered_map<std::size_t, std::string> &xpaths,
                 std::uint32_t                                       start_id) {
+
   tag_map       tags;
   std::uint32_t next_move_id = start_id;
 
-  for (const auto &g : groups.groups()) {
+  for (const content_group &g : groups.groups()) {
     if (g.del_count() == 0 || g.ins_count() == 0)
-      continue; // only groups with both sides get a move id
+      continue;
 
     const std::uint32_t move_id = next_move_id++;
 
@@ -41,24 +42,24 @@ build_move_tags(const content_groups                               &groups,
     del_xpaths.reserve(g.del_count());
     ins_xpaths.reserve(g.ins_count());
 
-    for (auto did : groups.delete_ids(g)) {
-      const auto &d  = registry.candidate(did);
-      auto        it = xpaths.find(d.start_idx);
+    for (id_t did : groups.delete_ids(g)) {
+      const move_candidate &d  = registry.candidate(did);
+      auto                  it = xpaths.find(d.start_idx);
       if (it != xpaths.end()) {
         del_xpaths.push_back(it->second);
       }
     }
 
-    for (auto iid : groups.insert_ids(g)) {
-      const auto &ins = registry.candidate(iid);
-      auto        it  = xpaths.find(ins.start_idx);
+    for (id_t iid : groups.insert_ids(g)) {
+      const move_candidate &ins = registry.candidate(iid);
+      auto                  it  = xpaths.find(ins.start_idx);
       if (it != xpaths.end()) {
         ins_xpaths.push_back(it->second);
       }
     }
 
-    for (auto did : groups.delete_ids(g)) {
-      const auto &d = registry.candidate(did);
+    for (id_t did : groups.delete_ids(g)) {
+      const move_candidate &d = registry.candidate(did);
 
       move_tag tag;
       tag.move_id        = move_id;
@@ -70,8 +71,8 @@ build_move_tags(const content_groups                               &groups,
       tags.emplace(d.start_idx, std::move(tag));
     }
 
-    for (auto iid : groups.insert_ids(g)) {
-      const auto &ins = registry.candidate(iid);
+    for (id_t iid : groups.insert_ids(g)) {
+      const move_candidate &ins = registry.candidate(iid);
 
       move_tag tag;
       tag.move_id        = move_id;
