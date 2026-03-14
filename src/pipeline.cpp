@@ -27,16 +27,6 @@
 
 namespace srcmove {
 
-std::size_t count_move_groups(const content_groups &groups) {
-  std::size_t count = 0;
-  for (const content_group &g : groups.groups()) {
-    if (g.del_count() > 0 && g.ins_count() > 0) {
-      ++count;
-    }
-  }
-  return count;
-}
-
 summary run_pipeline(const std::string &srcdiff_in_filename,
                      const std::string &srcdiff_out_filename) {
   srcmove::summary result;
