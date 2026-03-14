@@ -14,8 +14,10 @@
 #include <utility>
 #include <vector>
 
+#include "move_candidate.hpp"
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/content_group_builder.hpp"
+#include "move_registry/content_groups.hpp"
 #include "move_registry/move_registry_debug.hpp"
 #include "parse/diff_region.hpp"
 #include "region_filter.hpp"
@@ -27,7 +29,7 @@ namespace srcmove {
 
 std::size_t count_move_groups(const content_groups &groups) {
   std::size_t count = 0;
-  for (const auto &g : groups.groups()) {
+  for (const content_group &g : groups.groups()) {
     if (g.del_count() > 0 && g.ins_count() > 0) {
       ++count;
     }
@@ -40,10 +42,10 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   srcmove::summary result;
   srcml_reader     reader(srcdiff_in_filename);
 
-  const auto regions = collect_all_regions(reader);
-
-  const auto filter_options = get_default_filter_options();
-  auto       candidates = filter_regions_for_registry(regions, filter_options);
+  const std::vector<diff_region> regions        = collect_all_regions(reader);
+  const region_filter_options    filter_options = get_default_filter_options();
+  std::vector<move_candidate>    candidates =
+      filter_regions_for_registry(regions, filter_options);
 
   candidate_registry registry;
   registry.reserve(candidates.size());
@@ -52,8 +54,8 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
 
   print_greedy_matches(registry, groups, std::cout);
 
-  auto moves = annotate(regions, registry, groups, srcdiff_in_filename,
-                        srcdiff_out_filename);
+  std::vector<move_entry> moves = annotate(
+      regions, registry, groups, srcdiff_in_filename, srcdiff_out_filename);
 
   result.moves             = std::move(moves);
   result.move_count        = result.moves.size();
