@@ -64,21 +64,21 @@ struct content_group {
 
 class content_groups {
 public:
-  using id_t = candidate_id; // todo: remove this
-
   /**
    * Lightweight non-owning view over a contiguous id range.
    * Used to iterate group delete/insert ids without copying.
    */
   struct id_view {
-    const id_t *data  = nullptr;
-    std::size_t count = 0;
+    const candidate_id *data  = nullptr;
+    std::size_t         count = 0;
 
-    const id_t *begin() const noexcept { return data; }
-    const id_t *end() const noexcept { return data + count; }
-    std::size_t size() const noexcept { return count; }
+    const candidate_id *begin() const noexcept { return data; }
+    const candidate_id *end() const noexcept { return data + count; }
+    std::size_t         size() const noexcept { return count; }
 
-    const id_t &operator[](std::size_t i) const noexcept { return data[i]; }
+    const candidate_id &operator[](std::size_t i) const noexcept {
+      return data[i];
+    }
   };
 
   void clear();
@@ -98,15 +98,15 @@ public:
   void reserve_groups(std::size_t n) { groups_.reserve(n); }
 
   // Append ids and return the starting index of the inserted range.
-  std::uint32_t append_delete_ids(const std::vector<id_t> &ids);
+  std::uint32_t append_delete_ids(const std::vector<candidate_id> &ids);
 
-  std::uint32_t append_insert_ids(const std::vector<id_t> &ids);
+  std::uint32_t append_insert_ids(const std::vector<candidate_id> &ids);
 
   void append_group(content_group g);
 
 private:
-  std::vector<id_t>          group_del_ids_;
-  std::vector<id_t>          group_ins_ids_;
+  std::vector<candidate_id>  group_del_ids_;
+  std::vector<candidate_id>  group_ins_ids_;
   std::vector<content_group> groups_;
 };
 
