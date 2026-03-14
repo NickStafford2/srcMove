@@ -4,6 +4,8 @@
  */
 
 #include "content_group_builder.hpp"
+#include "move_candidate.hpp"
+#include "move_registry/candidate_registry.hpp"
 #include "move_registry/content_groups.hpp"
 
 #include <cassert>
@@ -96,20 +98,20 @@ content_groups build_content_groups(const candidate_registry &registry,
     ins_by_text.reserve(bucket.ins_ids.size());
 
     for (candidate_id id : bucket.del_ids) {
-      const auto &record = registry.record(id);
+      const candidate_registry::candidate_record &record = registry.record(id);
       if (!record.active) {
         continue;
       }
-      const auto &candidate = record.candidate;
+      const move_candidate &candidate = record.candidate;
       del_by_text[std::string_view(candidate.canonical_text)].push_back(id);
     }
 
     for (candidate_id id : bucket.ins_ids) {
-      const auto &record = registry.record(id);
+      const candidate_registry::candidate_record &record = registry.record(id);
       if (!record.active) {
         continue;
       }
-      const auto &candidate = record.candidate;
+      const move_candidate &candidate = record.candidate;
       ins_by_text[std::string_view(candidate.canonical_text)].push_back(id);
     }
 
@@ -117,8 +119,8 @@ content_groups build_content_groups(const candidate_registry &registry,
     seen.reserve(del_by_text.size() + ins_by_text.size());
 
     for (auto &entry : del_by_text) {
-      std::string_view text = entry.first;
-      auto            &dels = entry.second;
+      std::string_view           text = entry.first;
+      std::vector<unsigned int> &dels = entry.second;
 
       (void)seen.emplace(text, true);
 
@@ -131,8 +133,8 @@ content_groups build_content_groups(const candidate_registry &registry,
     }
 
     for (auto &entry : ins_by_text) {
-      std::string_view text = entry.first;
-      auto            &inss = entry.second;
+      std::string_view           text = entry.first;
+      std::vector<unsigned int> &inss = entry.second;
 
       if (seen.find(text) != seen.end()) {
         continue;
@@ -143,7 +145,7 @@ content_groups build_content_groups(const candidate_registry &registry,
   }
 
 #ifndef NDEBUG
-  for (const auto &g : out.groups()) {
+  for (const content_group &g : out.groups()) {
     assert(g.del_count() + g.ins_count() > 0);
   }
 #endif
