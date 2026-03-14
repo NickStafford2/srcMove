@@ -2,7 +2,7 @@
   "move_count": 1,
   "moves": [
     {
-      "move_id": 1,
+      "move_id": "97b1dcdaf",
       "from_xpaths": [
         "/src:unit[@filename='main.cpp']/diff:delete[1]"
       ],
