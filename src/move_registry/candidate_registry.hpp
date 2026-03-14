@@ -34,14 +34,13 @@
 #include <unordered_map>
 #include <vector>
 
-#include "move_buckets.hpp"
 #include "move_candidate.hpp"
+#include "move_registry/move_buckets.hpp"
 
 namespace srcmove {
 
 class candidate_registry {
 public:
-  using id_t     = candidate_id;
   using file_key = std::string;
 
   struct candidate_record {

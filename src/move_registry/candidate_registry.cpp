@@ -1,5 +1,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
-#include "candidate_registry.hpp"
+/**
+ * @file candidate_registry.cpp
+ */
+#include "move_registry/candidate_registry.hpp"
+
 #include "move_candidate.hpp"
 #include "move_registry/move_buckets.hpp"
 
@@ -34,7 +38,7 @@ std::size_t candidate_registry::file_count() const noexcept {
   return file_to_candidate_ids_.size();
 }
 
-const std::vector<candidate_registry::id_t> *
+const std::vector<candidate_id> *
 candidate_registry::file_candidate_ids(const file_key &file) const {
   auto it = file_to_candidate_ids_.find(file);
   if (it == file_to_candidate_ids_.end()) {
@@ -80,8 +84,7 @@ void candidate_registry::replace_candidates_for_file(
   add_candidates_for_file(file, std::move(candidates));
 }
 
-candidate_registry::id_t
-candidate_registry::append_candidate(move_candidate candidate) {
+candidate_id candidate_registry::append_candidate(move_candidate candidate) {
   const id_t id = static_cast<id_t>(records_.size());
   records_.push_back(candidate_record{std::move(candidate), true});
   ++active_count_;
