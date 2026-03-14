@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /**
  * @file annotation_writer.hpp
- *
  */
 #ifndef INCLUDED_MOVE_ANNOTATION_WRITER_HPP
 #define INCLUDED_MOVE_ANNOTATION_WRITER_HPP
