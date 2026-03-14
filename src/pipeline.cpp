@@ -29,8 +29,7 @@ namespace srcmove {
 
 summary run_pipeline(const std::string &srcdiff_in_filename,
                      const std::string &srcdiff_out_filename) {
-  srcmove::summary result;
-  srcml_reader     reader(srcdiff_in_filename);
+  srcml_reader reader(srcdiff_in_filename);
 
   const std::vector<diff_region> regions        = collect_all_regions(reader);
   const region_filter_options    filter_options = get_default_filter_options();
@@ -47,6 +46,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   std::vector<move_entry> moves = annotate(
       regions, registry, groups, srcdiff_in_filename, srcdiff_out_filename);
 
+  srcmove::summary result;
   result.moves             = std::move(moves);
   result.move_count        = result.moves.size();
   result.annotated_regions = result.move_count * 2;
