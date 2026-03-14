@@ -64,7 +64,7 @@ struct content_group {
 
 class content_groups {
 public:
-  using id_t = candidate_id;
+  using id_t = candidate_id; // todo: remove this
 
   /**
    * Lightweight non-owning view over a contiguous id range.
