@@ -8,7 +8,7 @@
       "cwd": "${workspaceFolder}",
       "program": "${workspaceFolder}/build/srcMove",
       "args": [
-        "test/archives/complex/diff.xml",
+        "test/e2e_custom/cases/1x1_basic/input.xml",
         "--results",
         "results.json"
       ],
