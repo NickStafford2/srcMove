@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "content_group_builder.hpp"
+#include "move_registry/move_groups.hpp"
 
 #include <cassert>
 #include <string_view>
@@ -33,15 +34,14 @@ void add_group(content_groups                  &out,
                std::uint64_t                    content_hash,
                const std::vector<candidate_id> &del_ids,
                const std::vector<candidate_id> &ins_ids) {
-  const std::uint32_t group_id = static_cast<std::uint32_t>(out.group_count());
-
+  const std::uint32_t group_id  = static_cast<std::uint32_t>(out.group_count());
   const std::uint32_t del_begin = out.append_delete_ids(del_ids);
-  const std::uint32_t del_end =
-      del_begin + static_cast<std::uint32_t>(del_ids.size());
-
+  const std::uint32_t del_size  = static_cast<std::uint32_t>(del_ids.size());
+  const std::uint32_t del_end   = del_begin + del_size;
   const std::uint32_t ins_begin = out.append_insert_ids(ins_ids);
-  const std::uint32_t ins_end =
-      ins_begin + static_cast<std::uint32_t>(ins_ids.size());
+  const std::uint32_t ins_size  = static_cast<std::uint32_t>(ins_ids.size());
+  const std::uint32_t ins_end   = ins_begin + ins_size;
+  const group_kind    kind = classify_counts(del_ids.size(), ins_ids.size());
 
   out.append_group(content_group{
       content_hash,
@@ -50,7 +50,7 @@ void add_group(content_groups                  &out,
       del_end,
       ins_begin,
       ins_end,
-      classify_counts(del_ids.size(), ins_ids.size()),
+      kind,
   });
 }
 
@@ -66,11 +66,12 @@ content_groups build_content_groups(const candidate_registry &registry,
                                     bool confirm_text_equality) {
   content_groups out;
 
-  const auto &by_hash = registry.hash_buckets();
-  out.reserve_groups(by_hash.size());
+  const std::unordered_map<std::uint64_t, bucket_ids> &hash_buckets =
+      registry.hash_buckets();
+  out.reserve_groups(hash_buckets.size());
 
   if (!confirm_text_equality) {
-    for (const auto &kv : by_hash) {
+    for (const std::pair<const std::uint64_t, bucket_ids> &kv : hash_buckets) {
       add_group(out, kv.first, kv.second.del_ids, kv.second.ins_ids);
     }
     return out;
@@ -78,7 +79,7 @@ content_groups build_content_groups(const candidate_registry &registry,
 
   static const std::vector<candidate_id> kEmpty;
 
-  for (const auto &kv : by_hash) {
+  for (const auto &kv : hash_buckets) {
     const std::uint64_t content_hash = kv.first;
     const bucket_ids   &bucket       = kv.second;
 
