@@ -9,12 +9,16 @@
       "to_xpaths": [
         "/src:unit[1]/diff:insert[1]"
       ],
-      "from_raw_texts": [],
-      "to_raw_texts": []
+      "from_raw_texts": [
+        "int foo() { \n  return 123; \n}"
+      ],
+      "to_raw_texts": [
+        "int foo() {\n  return 123;\n}"
+      ]
     }
   ],
   "annotated_regions": 2,
-  "regions_total": 4,
-  "candidates_total": 0,
-  "groups_total": 0
+  "regions_total": 5,
+  "candidates_total": 2,
+  "groups_total": 1
 }
