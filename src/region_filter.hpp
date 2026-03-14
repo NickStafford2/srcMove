@@ -33,7 +33,7 @@ struct region_filter_options {
   region_filter_policy policy = region_filter_policy::leaf_only;
   // Common practical filters:
   bool        drop_whitespace_only = true;
-  bool        skip_pre_marked      = true;
+  bool        skip_pre_marked      = false;
   std::size_t min_chars = 2; // after whitespace-only check (still raw chars)
 };
 

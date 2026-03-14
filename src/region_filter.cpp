@@ -91,7 +91,7 @@ region_filter_options get_default_filter_options() {
   region_filter_options opt;
   opt.policy               = region_filter_policy::leaf_only;
   opt.drop_whitespace_only = true;
-  opt.skip_pre_marked      = true;
+  opt.skip_pre_marked      = false;
   opt.min_chars            = 2;
   return opt;
 }

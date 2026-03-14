@@ -90,24 +90,6 @@ write_with_move_annotations(const std::string &in_filename,
         srcml_node        patched = node;
         const std::string xpath   = reader.get_current_xpath();
 
-        if (const std::string *existing_move = get_existing_move_attr(node)) {
-          writer.write(patched);
-
-          const std::string &move_id = *existing_move;
-
-          move_entry &entry = moves[move_id];
-          entry.move_id     = move_id;
-
-          if (fn == "diff:delete") {
-            entry.from_xpaths.push_back(xpath);
-          } else {
-            entry.to_xpaths.push_back(xpath);
-          }
-
-          ++i;
-          continue;
-        }
-
         auto it = tags.find(i);
         if (it != tags.end()) {
           const move_tag    &tag      = it->second;
