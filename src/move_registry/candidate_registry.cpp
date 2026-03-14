@@ -1,7 +1,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 #include "candidate_registry.hpp"
+#include "move_candidate.hpp"
+#include "move_registry/move_buckets.hpp"
 
 #include <utility>
+#include <vector>
 
 namespace srcmove {
 
@@ -42,10 +45,11 @@ candidate_registry::file_candidate_ids(const file_key &file) const {
 
 void candidate_registry::add_candidates_for_file(
     const file_key &file, std::vector<move_candidate> candidates) {
-  auto &ids = file_to_candidate_ids_[file];
+
+  std::vector<unsigned int> &ids = file_to_candidate_ids_[file];
   ids.reserve(ids.size() + candidates.size());
 
-  for (auto &candidate : candidates) {
+  for (move_candidate &candidate : candidates) {
     const id_t id = append_candidate(std::move(candidate));
     ids.push_back(id);
   }
@@ -86,8 +90,8 @@ candidate_registry::append_candidate(move_candidate candidate) {
 }
 
 void candidate_registry::activate_in_bucket(id_t id) {
-  const auto &candidate = records_[id].candidate;
-  auto       &bucket    = hash_buckets_[candidate.hash];
+  const move_candidate &candidate = records_[id].candidate;
+  bucket_ids           &bucket    = hash_buckets_[candidate.hash];
 
   if (candidate.kind == move_candidate::Kind::del) {
     bucket.del_ids.push_back(id);
