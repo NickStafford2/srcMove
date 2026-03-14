@@ -24,7 +24,7 @@
 #define INCLUDED_CONTENT_GROUP_BUILDER_HPP
 
 #include "candidate_registry.hpp"
-#include "move_groups.hpp"
+#include "content_groups.hpp"
 
 namespace srcmove {
 

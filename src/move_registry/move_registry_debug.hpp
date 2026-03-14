@@ -6,7 +6,7 @@
 #include <iosfwd>
 
 #include "candidate_registry.hpp"
-#include "move_groups.hpp"
+#include "content_groups.hpp"
 
 namespace srcmove {
 

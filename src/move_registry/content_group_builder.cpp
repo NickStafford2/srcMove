@@ -4,7 +4,7 @@
  */
 
 #include "content_group_builder.hpp"
-#include "move_registry/move_groups.hpp"
+#include "move_registry/content_groups.hpp"
 
 #include <cassert>
 #include <string_view>

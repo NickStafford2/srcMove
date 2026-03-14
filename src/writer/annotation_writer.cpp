@@ -16,7 +16,7 @@
 
 #include "annotation_plan.hpp"
 #include "move_registry/candidate_registry.hpp"
-#include "move_registry/move_groups.hpp"
+#include "move_registry/content_groups.hpp"
 #include "parse/diff_region.hpp"
 #include "srcml_node.hpp"
 #include "srcml_reader.hpp"

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 /**
- * @file move_groups.hpp
+ * @file content_groups.hpp
  *
  * Compact representation of "content groups".
  *
@@ -21,8 +21,8 @@
  * owning its own vectors. This keeps memory compact and iteration fast.
  */
 
-#ifndef INCLUDED_MOVE_GROUPS_HPP
-#define INCLUDED_MOVE_GROUPS_HPP
+#ifndef INCLUDED_MOVE_CONTENT_GROUPS_HPP
+#define INCLUDED_MOVE_CONTENT_GROUPS_HPP
 
 #include <cstddef>
 #include <cstdint>

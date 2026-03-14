@@ -117,7 +117,7 @@ The pipeline (see `src/pipeline.cpp`) is intentionally simple and streaming-frie
     * skip whitespace-only regions
     * skip regions that already have a `move` attribute
 
-* `move_registry` + group builder (`src/move_registry.*`, `src/move_groups_builder.*`)
+* `move_registry` + group builder (`src/move_registry.*`, `src/content_groups_builder.*`)
 
   * buckets candidates by a fast 64-bit FNV-1a hash of raw inner text
   * optionally confirms equality by exact `full_text` to avoid hash collisions
