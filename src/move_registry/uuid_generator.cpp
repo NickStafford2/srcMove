@@ -2,35 +2,41 @@
 /**
  * @file uuid_generator.cpp
  */
-#include "uuid_generator.hpp"
+#include "move_registry/uuid_generator.hpp"
 
+#include <cstdint>
 #include <iomanip>
-#include <random>
 #include <sstream>
-#include <unordered_set>
 
 namespace srcmove {
+namespace {
+
+// Cheap deterministic 64-bit mixer.
+// This is not cryptographic. It only scrambles nearby counter values
+// so the resulting ids do not visibly look sequential.
+std::uint64_t mix64(std::uint64_t x) {
+  x ^= x >> 30;
+  x *= 0xbf58476d1ce4e5b9ULL;
+  x ^= x >> 27;
+  x *= 0x94d049bb133111ebULL;
+  x ^= x >> 31;
+  return x;
+}
+
+} // namespace
 
 std::string get_uuid() {
+  static std::uint64_t    counter = 0;
+  constexpr std::uint64_t seed    = 0x9e3779b97f4a7c15ULL;
 
-  // The 64-bit RNG from the C++ <random>
-  static std::mt19937_64                 rng(std::random_device{}());
-  static std::unordered_set<std::string> used;
+  const std::uint64_t value       = mix64(seed + counter++);
+  const std::uint64_t short_value = value & 0xFFFFFFFFFULL; // 9 hex digits
 
-  for (;;) {
-    // Generate 36 random bits for exactly 9 hexadecimal digits.
-    const std::uint64_t value = rng() & 0xFFFFFFFFFull;
+  std::ostringstream oss;
+  oss << std::hex << std::nouppercase << std::setw(9) << std::setfill('0')
+      << short_value;
 
-    std::ostringstream oss;
-    oss << std::hex << std::nouppercase << std::setw(9) << std::setfill('0')
-        << value;
-
-    std::string id = oss.str();
-
-    if (used.insert(id).second) {
-      return id;
-    }
-  }
+  return oss.str();
 }
 
 } // namespace srcmove

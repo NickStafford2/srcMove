@@ -2,14 +2,13 @@
 #define INCLUDED_MOVE_SUMMARY_HPP
 
 #include <cstddef>
-#include <cstdint>
 #include <string>
 #include <vector>
 
 namespace srcmove {
 
 struct move_entry {
-  std::uint32_t            move_id;
+  std::string              move_id;
   std::vector<std::string> from_xpaths;
   std::vector<std::string> to_xpaths;
   std::vector<std::string> from_raw_texts;

@@ -8,81 +8,110 @@
 #include "annotation_plan.hpp"
 #include "move_candidate.hpp"
 #include "move_registry/content_groups.hpp"
-#include "parse/diff_region.hpp"
+#include "move_registry/uuid_generator.hpp"
+#include "srcml_reader.hpp"
 
 namespace srcmove {
 
-std::uint32_t max_existing_move_id(const std::vector<diff_region> &regions) {
-  std::uint32_t mx = 0;
-  for (const diff_region &r : regions) {
-    if (r.pre_marked && r.existing_move_id > mx)
-      mx = r.existing_move_id;
+namespace {
+
+using xpath_map = std::unordered_map<std::size_t, std::string>;
+
+xpath_map collect_diff_region_xpaths(const std::string &in_filename) {
+  srcml_reader reader(in_filename);
+
+  xpath_map out;
+
+  std::size_t i = 0;
+  for (const srcml_node &node : reader) {
+    if (node.is_start()) {
+      const std::string fn = node.full_name();
+      if (fn == "diff:insert" || fn == "diff:delete") {
+        out.emplace(i, reader.get_current_xpath());
+      }
+    }
+    ++i;
   }
-  return mx;
+
+  return out;
 }
 
-tag_map
-build_move_tags(const content_groups                               &groups,
-                const candidate_registry                           &registry,
-                const std::unordered_map<std::size_t, std::string> &xpaths,
-                std::uint32_t                                       start_id) {
+std::vector<std::string>
+collect_group_xpaths(content_groups::id_view   ids,
+                     const candidate_registry &registry,
+                     const xpath_map          &xpaths) {
+  std::vector<std::string> out;
+  out.reserve(ids.size());
 
-  tag_map       tags;
-  std::uint32_t next_move_id = start_id;
+  for (id_t id : ids) {
+    const move_candidate &candidate = registry.candidate(id);
+    auto                  it        = xpaths.find(candidate.start_idx);
+    if (it != xpaths.end()) {
+      out.push_back(it->second);
+    }
+  }
+
+  return out;
+}
+
+move_tag make_move_tag(const std::string              &move_id,
+                       std::size_t                     ins_count,
+                       std::size_t                     del_count,
+                       const std::vector<std::string> &partner_xpaths,
+                       const std::string              &raw_text) {
+  move_tag tag;
+  tag.move_id        = move_id;
+  tag.inserts        = static_cast<std::uint32_t>(ins_count);
+  tag.deletes        = static_cast<std::uint32_t>(del_count);
+  tag.partner_xpaths = partner_xpaths;
+  tag.raw_text       = raw_text;
+  return tag;
+}
+
+void add_group_tags(tag_map                        &tags,
+                    content_groups::id_view         ids,
+                    const candidate_registry       &registry,
+                    const std::string              &move_id,
+                    std::size_t                     ins_count,
+                    std::size_t                     del_count,
+                    const std::vector<std::string> &partner_xpaths) {
+  for (id_t id : ids) {
+    const move_candidate &candidate = registry.candidate(id);
+
+    tags.emplace(candidate.start_idx,
+                 make_move_tag(move_id, ins_count, del_count, partner_xpaths,
+                               candidate.raw_text));
+  }
+}
+
+} // namespace
+
+tag_map build_move_tags(const content_groups     &groups,
+                        const candidate_registry &registry,
+                        const std::string         srcdiff_in_filename) {
+
+  const xpath_map xpaths = collect_diff_region_xpaths(srcdiff_in_filename);
+  tag_map         tags;
 
   for (const content_group &g : groups.groups()) {
     if (g.del_count() == 0 || g.ins_count() == 0)
       continue;
 
-    const std::uint32_t move_id = next_move_id++;
+    const content_groups::id_view del_ids = groups.delete_ids(g);
+    const content_groups::id_view ins_ids = groups.insert_ids(g);
 
-    std::vector<std::string> del_xpaths;
-    std::vector<std::string> ins_xpaths;
+    const std::vector<std::string> del_xpaths =
+        collect_group_xpaths(del_ids, registry, xpaths);
+    const std::vector<std::string> ins_xpaths =
+        collect_group_xpaths(ins_ids, registry, xpaths);
 
-    del_xpaths.reserve(g.del_count());
-    ins_xpaths.reserve(g.ins_count());
+    const std::string move_id = get_uuid();
 
-    for (id_t did : groups.delete_ids(g)) {
-      const move_candidate &d  = registry.candidate(did);
-      auto                  it = xpaths.find(d.start_idx);
-      if (it != xpaths.end()) {
-        del_xpaths.push_back(it->second);
-      }
-    }
+    add_group_tags(tags, del_ids, registry, move_id, g.ins_count(),
+                   g.del_count(), ins_xpaths);
 
-    for (id_t iid : groups.insert_ids(g)) {
-      const move_candidate &ins = registry.candidate(iid);
-      auto                  it  = xpaths.find(ins.start_idx);
-      if (it != xpaths.end()) {
-        ins_xpaths.push_back(it->second);
-      }
-    }
-
-    for (id_t did : groups.delete_ids(g)) {
-      const move_candidate &d = registry.candidate(did);
-
-      move_tag tag;
-      tag.move_id        = move_id;
-      tag.inserts        = static_cast<std::uint32_t>(g.ins_count());
-      tag.deletes        = static_cast<std::uint32_t>(g.del_count());
-      tag.partner_xpaths = ins_xpaths;
-      tag.raw_text       = d.raw_text;
-
-      tags.emplace(d.start_idx, std::move(tag));
-    }
-
-    for (id_t iid : groups.insert_ids(g)) {
-      const move_candidate &ins = registry.candidate(iid);
-
-      move_tag tag;
-      tag.move_id        = move_id;
-      tag.inserts        = static_cast<std::uint32_t>(g.ins_count());
-      tag.deletes        = static_cast<std::uint32_t>(g.del_count());
-      tag.partner_xpaths = del_xpaths;
-      tag.raw_text       = ins.raw_text;
-
-      tags.emplace(ins.start_idx, std::move(tag));
-    }
+    add_group_tags(tags, ins_ids, registry, move_id, g.ins_count(),
+                   g.del_count(), del_xpaths);
   }
 
   return tags;

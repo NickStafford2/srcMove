@@ -11,12 +11,11 @@
 
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/content_groups.hpp"
-#include "parse/diff_region.hpp"
 
 namespace srcmove {
 
 struct move_tag {
-  std::uint32_t            move_id = 0;
+  std::string              move_id;
   std::uint32_t            inserts = 0;
   std::uint32_t            deletes = 0;
   std::vector<std::string> partner_xpaths;
@@ -26,13 +25,9 @@ struct move_tag {
 // Map: start_idx (node index where diff:insert/delete START occurs) -> move tag
 using tag_map = std::unordered_map<std::size_t, move_tag>;
 
-std::uint32_t max_existing_move_id(const std::vector<diff_region> &regions);
-
-tag_map
-build_move_tags(const content_groups                               &groups,
-                const candidate_registry                           &registry,
-                const std::unordered_map<std::size_t, std::string> &xpaths,
-                std::uint32_t                                       start_id);
+tag_map build_move_tags(const content_groups     &groups,
+                        const candidate_registry &registry,
+                        const std::string         srcdiff_in_filename);
 
 } // namespace srcmove
 
