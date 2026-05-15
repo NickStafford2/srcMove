@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# build_example.sh
 
 set -euo pipefail
 
@@ -21,7 +22,7 @@ EOF
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$script_dir"
 stress_runner="$repo_root/test/stress/diff_and_move_repo.py"
-stress_case="opencv"
+stress_case="wowy_advanced_analytics"
 stress_work_dir="$repo_root/test/stress/$stress_case/work"
 examples_dir="$repo_root/examples"
 
@@ -30,28 +31,28 @@ use_position=0
 
 while (($# > 0)); do
   case "$1" in
-    --position)
-      use_position=1
-      shift
-      ;;
-    -h|--help)
-      usage
-      exit 0
-      ;;
-    -*)
-      echo "error: unknown option: $1" >&2
+  --position)
+    use_position=1
+    shift
+    ;;
+  -h | --help)
+    usage
+    exit 0
+    ;;
+  -*)
+    echo "error: unknown option: $1" >&2
+    usage >&2
+    exit 1
+    ;;
+  *)
+    if [[ -n "$keyword" ]]; then
+      echo "error: expected exactly one keyword argument" >&2
       usage >&2
       exit 1
-      ;;
-    *)
-      if [[ -n "$keyword" ]]; then
-        echo "error: expected exactly one keyword argument" >&2
-        usage >&2
-        exit 1
-      fi
-      keyword="$1"
-      shift
-      ;;
+    fi
+    keyword="$1"
+    shift
+    ;;
   esac
 done
 
