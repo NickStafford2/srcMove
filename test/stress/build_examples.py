@@ -278,22 +278,36 @@ def existing_outputs_for_spec(
     spec: ExampleSpec,
 ) -> tuple[Path, Path, Path] | None:
     case_dir = examples_root / spec.case
-    prefix = expected_static_prefix(spec)
 
-    reports = sorted(case_dir.glob(f"{prefix}.*.report.json"))
+    if not case_dir.is_dir():
+        return None
+
+    name = safe_filename_part(spec.name)
+    old_label = safe_filename_part(spec.old_rev)
+    new_label = safe_filename_part(spec.new_rev)
+
+    position_suffix = ".position" if spec.position else ""
+
+    report_glob = (
+        f"{spec.case}.{name}.{old_label}-to-{new_label}.*{position_suffix}.report.json"
+    )
+
+    reports = sorted(case_dir.glob(report_glob))
 
     if not reports:
         return None
 
-    # There should normally only be one. If old/new commits changed in config,
-    # --force should be used to regenerate cleanly.
     report_path = reports[-1]
 
     with report_path.open("r", encoding="utf-8") as f:
         report = json.load(f)
 
-    srcdiff_file = report.get("srcdiff_file")
-    srcmove_file = report.get("srcmove_file")
+    example = report.get("example")
+    if not isinstance(example, dict):
+        return None
+
+    srcdiff_file = example.get("srcdiff_file")
+    srcmove_file = example.get("srcmove_file")
 
     if not isinstance(srcdiff_file, str) or not isinstance(srcmove_file, str):
         return None

@@ -13,7 +13,37 @@
           "new_rev": "v000002"
         },
         {
-          "name": "early-dashboard-change",
+          "name": "mid100",
+          "old_rev": "v000100",
+          "new_rev": "v000300"
+        },
+        {
+          "name": "mid102",
+          "old_rev": "v000300",
+          "new_rev": "v000300"
+        },
+        {
+          "name": "mid103",
+          "old_rev": "v000100",
+          "new_rev": "v000200"
+        },
+        {
+          "name": "start300",
+          "old_rev": "v000001",
+          "new_rev": "v000300"
+        },
+        {
+          "name": "start200",
+          "old_rev": "v000001",
+          "new_rev": "v000200"
+        },
+        {
+          "name": "start100",
+          "old_rev": "v000001",
+          "new_rev": "v000100"
+        },
+        {
+          "name": "mid",
           "old_rev": "v000008",
           "new_rev": "v000009"
         }
