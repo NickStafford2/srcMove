@@ -25,6 +25,7 @@ class ExampleSpec:
     old_rev: str
     new_rev: str
     position: bool
+    directory: str | None
 
 
 @dataclass(frozen=True)
@@ -36,6 +37,7 @@ class BuiltExample:
     old_commit: str
     new_commit: str
     position: bool
+    directory: str | None
     srcdiff_file: str
     srcmove_file: str
     report_file: str
@@ -103,6 +105,28 @@ def require_bool(value: Any, field: str, context: str) -> bool:
     return value
 
 
+def normalize_directory(value: Any, field: str, context: str) -> str | None:
+    if value is None:
+        return None
+
+    if not isinstance(value, str):
+        raise RuntimeError(f"missing or invalid '{field}' in {context}")
+
+    directory = value.strip()
+    if not directory:
+        return None
+
+    directory = directory.replace("\\", "/").strip("/")
+
+    if directory in (".", "./"):
+        return None
+
+    if directory.startswith("../") or "/../" in directory or directory == "..":
+        raise RuntimeError(f"invalid '{field}' in {context}: must stay within the repo")
+
+    return directory
+
+
 def validate_example_name(name: str) -> None:
     allowed = set("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-")
     bad_chars = sorted(set(name) - allowed)
@@ -137,6 +161,11 @@ def load_specs(config_path: Path) -> tuple[Path, list[ExampleSpec]]:
         "defaults.position",
         str(config_path),
     )
+    default_directory = normalize_directory(
+        defaults.get("directory"),
+        "defaults.directory",
+        str(config_path),
+    )
 
     cases = config.get("cases")
     if not isinstance(cases, list):
@@ -152,6 +181,11 @@ def load_specs(config_path: Path) -> tuple[Path, list[ExampleSpec]]:
 
         case = require_str(case_data.get("case"), "case", context)
         case_position = case_data.get("position", default_position)
+        case_directory = normalize_directory(
+            case_data.get("directory", default_directory),
+            "directory",
+            context,
+        )
 
         if not isinstance(case_position, bool):
             raise RuntimeError(f"invalid 'position' in {context}: must be a boolean")
@@ -188,6 +222,11 @@ def load_specs(config_path: Path) -> tuple[Path, list[ExampleSpec]]:
                 )
 
             position = example_data.get("position", case_position)
+            directory = normalize_directory(
+                example_data.get("directory", case_directory),
+                "directory",
+                example_context,
+            )
 
             if not isinstance(position, bool):
                 raise RuntimeError(
@@ -203,6 +242,7 @@ def load_specs(config_path: Path) -> tuple[Path, list[ExampleSpec]]:
                     old_rev=old_rev,
                     new_rev=new_rev,
                     position=position,
+                    directory=directory,
                 )
             )
 
@@ -272,14 +312,26 @@ def expected_static_prefix(spec: ExampleSpec) -> str:
     return base
 
 
+def case_relative_output_dir(spec: ExampleSpec) -> Path:
+    if spec.directory is None:
+        return Path()
+
+    return Path(*spec.directory.split("/"))
+
+
+def output_dir_for_spec(*, examples_root: Path, spec: ExampleSpec) -> Path:
+    return examples_root / spec.case / case_relative_output_dir(spec)
+
+
 def existing_outputs_for_spec(
     *,
     examples_root: Path,
     spec: ExampleSpec,
 ) -> tuple[Path, Path, Path] | None:
     case_dir = examples_root / spec.case
+    output_dir = output_dir_for_spec(examples_root=examples_root, spec=spec)
 
-    if not case_dir.is_dir():
+    if not output_dir.is_dir():
         return None
 
     name = safe_filename_part(spec.name)
@@ -292,7 +344,7 @@ def existing_outputs_for_spec(
         f"{spec.case}.{name}.{old_label}-to-{new_label}.*{position_suffix}.report.json"
     )
 
-    reports = sorted(case_dir.glob(report_glob))
+    reports = sorted(output_dir.glob(report_glob))
 
     if not reports:
         return None
@@ -350,6 +402,9 @@ def run_single_example(
     if spec.position:
         cmd.append("--position")
 
+    if spec.directory:
+        cmd.extend(["--directory", spec.directory])
+
     if refresh_repo:
         cmd.append("--refresh-repo")
 
@@ -400,13 +455,14 @@ def copy_built_files(
     )
 
     case_dir = examples_root / spec.case
-    case_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = output_dir_for_spec(examples_root=examples_root, spec=spec)
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     prefix = output_prefix(spec, old_commit, new_commit)
 
-    dest_diff = case_dir / f"{prefix}.diff.xml"
-    dest_move = case_dir / f"{prefix}.move.diff.xml"
-    dest_report = case_dir / f"{prefix}.report.json"
+    dest_diff = output_dir / f"{prefix}.diff.xml"
+    dest_move = output_dir / f"{prefix}.move.diff.xml"
+    dest_report = output_dir / f"{prefix}.report.json"
 
     shutil.copy2(diff_xml, dest_diff)
     shutil.copy2(move_xml, dest_move)
@@ -430,9 +486,10 @@ def copy_built_files(
         old_commit=old_commit,
         new_commit=new_commit,
         position=spec.position,
-        srcdiff_file=dest_diff.name,
-        srcmove_file=dest_move.name,
-        report_file=dest_report.name,
+        directory=spec.directory,
+        srcdiff_file=dest_diff.relative_to(case_dir).as_posix(),
+        srcmove_file=dest_move.relative_to(case_dir).as_posix(),
+        report_file=dest_report.relative_to(case_dir).as_posix(),
         srcdiff_seconds=srcdiff_seconds,
         srcmove_seconds=srcmove_seconds,
         move_count=move_count,
@@ -443,9 +500,10 @@ def copy_built_files(
         "example": {
             "name": spec.name,
             "position": spec.position,
-            "srcdiff_file": dest_diff.name,
-            "srcmove_file": dest_move.name,
-            "report_file": dest_report.name,
+            "directory": spec.directory,
+            "srcdiff_file": built.srcdiff_file,
+            "srcmove_file": built.srcmove_file,
+            "report_file": built.report_file,
         },
     }
 
@@ -465,19 +523,22 @@ def load_existing_manifest(manifest_path: Path) -> dict[str, Any]:
     return load_json(manifest_path)
 
 
-def example_key(example: dict[str, Any]) -> tuple[str, str, bool]:
+def example_key(example: dict[str, Any]) -> tuple[str, str, str, bool]:
     case = example.get("case")
     name = example.get("name")
+    directory = example.get("directory")
     position = example.get("position")
 
     if not isinstance(case, str):
         case = ""
     if not isinstance(name, str):
         name = ""
+    if not isinstance(directory, str):
+        directory = ""
     if not isinstance(position, bool):
         position = False
 
-    return case, name, position
+    return case, name, directory, position
 
 
 def built_example_to_manifest_entry(built: BuiltExample) -> dict[str, Any]:
@@ -489,6 +550,7 @@ def built_example_to_manifest_entry(built: BuiltExample) -> dict[str, Any]:
         "old_commit": built.old_commit,
         "new_commit": built.new_commit,
         "position": built.position,
+        "directory": built.directory,
         "srcdiff_file": f"{built.case}/{built.srcdiff_file}",
         "srcmove_file": f"{built.case}/{built.srcmove_file}",
         "report_file": f"{built.case}/{built.report_file}",
@@ -510,7 +572,7 @@ def write_manifest(
     if not isinstance(existing_entries, list):
         existing_entries = []
 
-    by_key: dict[tuple[str, str, bool], dict[str, Any]] = {}
+    by_key: dict[tuple[str, str, str, bool], dict[str, Any]] = {}
 
     for entry in existing_entries:
         if isinstance(entry, dict):
@@ -526,6 +588,7 @@ def write_manifest(
         key=lambda entry: (
             str(entry.get("case", "")),
             str(entry.get("name", "")),
+            str(entry.get("directory", "")),
             str(entry.get("old_commit", "")),
             str(entry.get("new_commit", "")),
             str(entry.get("position", "")),
@@ -573,6 +636,8 @@ def build_examples(
             print(f"  old_rev : {spec.old_rev}")
             print(f"  new_rev : {spec.new_rev}")
             print(f"  position: {spec.position}")
+            if spec.directory:
+                print(f"  directory: {spec.directory}")
             continue
 
         print(f"build: {label}")

@@ -35,12 +35,12 @@ def is_tag_clobber_error(result: subprocess.CompletedProcess) -> bool:
     return "would clobber existing tag" in stderr
 
 
-def normalize_repo_subdir(value: object, info_json: Path) -> str | None:
+def normalize_repo_subdir(value: object, context: str) -> str | None:
     if value is None:
         return None
 
     if not isinstance(value, str):
-        raise RuntimeError(f"invalid 'directory' in {info_json}: must be a string")
+        raise RuntimeError(f"invalid 'directory' in {context}: must be a string")
 
     subdir = value.strip()
     if not subdir:
@@ -52,9 +52,7 @@ def normalize_repo_subdir(value: object, info_json: Path) -> str | None:
         return None
 
     if subdir.startswith("../") or "/../" in subdir or subdir == "..":
-        raise RuntimeError(
-            f"invalid 'directory' in {info_json}: must stay within the repository"
-        )
+        raise RuntimeError(f"invalid 'directory' in {context}: must stay within the repository")
 
     return subdir
 
@@ -69,7 +67,7 @@ def load_case_config(info_json: Path) -> dict:
 
     old_rev = data.get("old_rev")
     new_rev = data.get("new_rev")
-    directory = normalize_repo_subdir(data.get("directory"), info_json)
+    directory = normalize_repo_subdir(data.get("directory"), str(info_json))
 
     if old_rev is not None and (not isinstance(old_rev, str) or not old_rev):
         raise RuntimeError(f"invalid 'old_rev' in {info_json}")
@@ -260,6 +258,11 @@ def main() -> int:
         action="store_true",
         help="pass --position to srcdiff and save position-annotated diff.xml",
     )
+    parser.add_argument(
+        "--directory",
+        default=None,
+        help="limit export/srcdiff to a repository subdirectory (overrides info.json)",
+    )
     args = parser.parse_args()
 
     script_path = Path(__file__).resolve()
@@ -287,7 +290,11 @@ def main() -> int:
         return 1
 
     config = load_case_config(info_json)
-    selected_dir = config["directory"]
+    selected_dir = (
+        normalize_repo_subdir(args.directory, "--directory")
+        if args.directory is not None
+        else config["directory"]
+    )
 
     repo_url = config["github"]
     old_rev = args.old_rev if args.old_rev is not None else config["old_rev"]

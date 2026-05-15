@@ -10,12 +10,44 @@
         {
           "name": "1_2",
           "old_rev": "v000001",
-          "new_rev": "v000002"
+          "new_rev": "v000002",
+          "directory": "modules/gpu"
         },
         {
           "name": "100_200",
           "old_rev": "v000100",
-          "new_rev": "v000200"
+          "new_rev": "v000200",
+          "directory": "modules/core"
+        },
+        {
+          "name": "100_200_core_src",
+          "old_rev": "v000100",
+          "new_rev": "v000200",
+          "directory": "modules/core/src"
+        },
+        {
+          "name": "100_200_core_headers",
+          "old_rev": "v000100",
+          "new_rev": "v000200",
+          "directory": "modules/core/include/opencv2/core"
+        },
+        {
+          "name": "100_200_core_include",
+          "old_rev": "v000100",
+          "new_rev": "v000200",
+          "directory": "modules/core/include"
+        },
+        {
+          "name": "100_200_core_test",
+          "old_rev": "v000100",
+          "new_rev": "v000200",
+          "directory": "modules/core/test"
+        },
+        {
+          "name": "100_200_core_perf",
+          "old_rev": "v000100",
+          "new_rev": "v000200",
+          "directory": "modules/core/perf"
         }
       ]
     },
