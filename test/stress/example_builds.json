@@ -5,6 +5,21 @@
   },
   "cases": [
     {
+      "case": "opencv",
+      "examples": [
+        {
+          "name": "1_2",
+          "old_rev": "v000001",
+          "new_rev": "v000002"
+        },
+        {
+          "name": "100_200",
+          "old_rev": "v000100",
+          "new_rev": "v000200"
+        }
+      ]
+    },
+    {
       "case": "wowy_advanced_analytics",
       "examples": [
         {
