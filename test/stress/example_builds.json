@@ -1,0 +1,23 @@
+{
+  "examples_root": "../../examples",
+  "defaults": {
+    "position": true
+  },
+  "cases": [
+    {
+      "case": "wowy_advanced_analytics",
+      "examples": [
+        {
+          "name": "baseline",
+          "old_rev": "v000001",
+          "new_rev": "v000002"
+        },
+        {
+          "name": "early-dashboard-change",
+          "old_rev": "v000008",
+          "new_rev": "v000009"
+        }
+      ]
+    }
+  ]
+}
