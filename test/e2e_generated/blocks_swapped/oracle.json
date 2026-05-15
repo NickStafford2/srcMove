@@ -1,0 +1,24 @@
+{
+  "move_count": 1,
+  "moves": [
+    {
+      "move_id": "97b1dcdaf",
+      "from_xpaths": [
+        "/src:unit[1]/src:block[1]/src:block_content[1]/diff:delete[1]"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/src:block[2]/src:block_content[1]/diff:insert[1]"
+      ],
+      "from_raw_texts": [
+        "  int c = 1;\n"
+      ],
+      "to_raw_texts": [
+        "  int c = 1;\n"
+      ]
+    }
+  ],
+  "annotated_regions": 2,
+  "regions_total": 2,
+  "candidates_total": 2,
+  "groups_total": 1
+}
