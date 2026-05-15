@@ -3,22 +3,18 @@
   "moves": [
     {
       "move_id": "97b1dcdaf",
-      "from_xpaths": [
-        "/src:unit[1]/diff:delete[1]"
-      ],
-      "to_xpaths": [
-        "/src:unit[1]/diff:insert[1]"
-      ],
+      "from_xpaths": ["/src:unit[@filename='main.cpp']/diff:delete[1]"],
+      "to_xpaths": ["/src:unit[@filename='|foo.hpp']/diff:insert[1]"],
       "from_raw_texts": [
-        "int a;"
+        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}"
       ],
       "to_raw_texts": [
-        "int a;"
+        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}\n"
       ]
     }
   ],
   "annotated_regions": 2,
-  "regions_total": 2,
-  "candidates_total": 2,
-  "groups_total": 1
+  "regions_total": 3,
+  "candidates_total": 3,
+  "groups_total": 2
 }
