@@ -40,8 +40,8 @@
 namespace srcmove {
 
 struct open_region_capture {
-  std::size_t             region_id;
-  std::vector<srcml_node> nodes;
+  std::size_t                      region_id;
+  std::vector<captured_srcml_node> nodes;
 };
 
 static constexpr std::size_t kNoParent = static_cast<std::size_t>(-1);
@@ -151,7 +151,15 @@ void close_diff_region(std::vector<diff_region>         &regions,
   }
 
   regions[rid].end_idx        = node_index;
-  regions[rid].canonical_text = canonicalize_diff_region_subtree(capture.nodes);
+  regions[rid].captured_nodes = std::move(capture.nodes);
+
+  std::vector<srcml_node> subtree_nodes;
+  subtree_nodes.reserve(regions[rid].captured_nodes.size());
+  for (const auto &captured : regions[rid].captured_nodes) {
+    subtree_nodes.push_back(captured.node);
+  }
+
+  regions[rid].canonical_text = canonicalize_diff_region_subtree(subtree_nodes);
   regions[rid].hash =
       move_candidate::fast_hash_raw(regions[rid].canonical_text);
 }
@@ -210,7 +218,7 @@ void read_file_unit(reader_iter              &it,
       }
 
       for (auto &open_region : open_region_stack) {
-        open_region.nodes.push_back(node);
+        open_region.nodes.push_back(captured_srcml_node{node_index, node});
       }
 
       advance(it, node_index);
@@ -219,7 +227,7 @@ void read_file_unit(reader_iter              &it,
 
     if (node.is_end()) {
       for (auto &open_region : open_region_stack) {
-        open_region.nodes.push_back(node);
+        open_region.nodes.push_back(captured_srcml_node{node_index, node});
       }
 
       if (const auto kind = diff_kind_from_full_name(full_name)) {
@@ -246,7 +254,7 @@ void read_file_unit(reader_iter              &it,
 
     // TEXT / OTHER
     for (auto &open_region : open_region_stack) {
-      open_region.nodes.push_back(node);
+      open_region.nodes.push_back(captured_srcml_node{node_index, node});
     }
 
     advance(it, node_index);

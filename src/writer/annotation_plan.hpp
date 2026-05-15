@@ -16,6 +16,7 @@ namespace srcmove {
 
 struct move_tag {
   std::string              move_id;
+  move_candidate::Kind     kind = move_candidate::Kind::insert;
   std::uint32_t            inserts = 0;
   std::uint32_t            deletes = 0;
   std::vector<std::string> partner_xpaths;

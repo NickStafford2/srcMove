@@ -30,6 +30,11 @@
 
 namespace srcmove {
 
+struct captured_srcml_node {
+  std::size_t index = 0;
+  srcml_node  node;
+};
+
 struct diff_region {
   move_candidate::Kind kind;
   std::string          filename;
@@ -47,6 +52,8 @@ struct diff_region {
 
   bool          pre_marked       = false;
   std::uint32_t existing_move_id = 0;
+
+  std::vector<captured_srcml_node> captured_nodes;
 };
 
 std::vector<diff_region> collect_all_regions(srcml_reader &reader);

@@ -17,7 +17,7 @@ namespace {
 
 using xpath_map = std::unordered_map<std::size_t, std::string>;
 
-xpath_map collect_diff_region_xpaths(const std::string &in_filename) {
+xpath_map collect_start_node_xpaths(const std::string &in_filename) {
   srcml_reader reader(in_filename);
 
   xpath_map out;
@@ -25,10 +25,7 @@ xpath_map collect_diff_region_xpaths(const std::string &in_filename) {
   std::size_t i = 0;
   for (const srcml_node &node : reader) {
     if (node.is_start()) {
-      const std::string fn = node.full_name();
-      if (fn == "diff:insert" || fn == "diff:delete") {
-        out.emplace(i, reader.get_current_xpath());
-      }
+      out.emplace(i, reader.get_current_xpath());
     }
     ++i;
   }
@@ -55,12 +52,14 @@ collect_group_xpaths(content_groups::id_view   ids,
 }
 
 move_tag make_move_tag(const std::string              &move_id,
+                       move_candidate::Kind            kind,
                        std::size_t                     ins_count,
                        std::size_t                     del_count,
                        const std::vector<std::string> &partner_xpaths,
                        const std::string              &raw_text) {
   move_tag tag;
   tag.move_id        = move_id;
+  tag.kind           = kind;
   tag.inserts        = static_cast<std::uint32_t>(ins_count);
   tag.deletes        = static_cast<std::uint32_t>(del_count);
   tag.partner_xpaths = partner_xpaths;
@@ -79,8 +78,8 @@ void add_group_tags(tag_map                        &tags,
     const move_candidate &candidate = registry.candidate(id);
 
     tags.emplace(candidate.start_idx,
-                 make_move_tag(move_id, ins_count, del_count, partner_xpaths,
-                               candidate.raw_text));
+                 make_move_tag(move_id, candidate.kind, ins_count, del_count,
+                               partner_xpaths, candidate.raw_text));
   }
 }
 
@@ -90,7 +89,7 @@ tag_map build_move_tags(const content_groups     &groups,
                         const candidate_registry &registry,
                         const std::string         srcdiff_in_filename) {
 
-  const xpath_map xpaths = collect_diff_region_xpaths(srcdiff_in_filename);
+  const xpath_map xpaths = collect_start_node_xpaths(srcdiff_in_filename);
   tag_map         tags;
 
   for (const content_group &g : groups.groups()) {

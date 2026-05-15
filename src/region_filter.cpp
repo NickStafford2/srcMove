@@ -3,6 +3,7 @@
  * @file region_filter.cpp
  *
  */
+#include <algorithm>
 #include <cctype>
 #include <optional>
 #include <string>
@@ -11,6 +12,7 @@
 #include <vector>
 
 #include "move_candidate.hpp"
+#include "parse/canonical_subtree.hpp"
 #include "parse/diff_region.hpp"
 #include "region_filter.hpp"
 
@@ -46,6 +48,108 @@ static std::string trim_ws(std::string s) {
   return std::string(begin, end);
 }
 
+static bool is_structural_child_name(std::string_view name) {
+  return name == "function" || name == "function_decl" || name == "class" ||
+         name == "struct" || name == "enum" || name == "namespace" ||
+         name == "import";
+}
+
+static std::string collect_subtree_raw_text(
+    const std::vector<captured_srcml_node> &nodes) {
+  std::string out;
+
+  for (const auto &captured : nodes) {
+    if (!captured.node.is_text() || !captured.node.content) {
+      continue;
+    }
+    out += *captured.node.content;
+  }
+
+  return out;
+}
+
+static std::string collect_subtree_canonical_text(
+    const std::vector<captured_srcml_node> &nodes) {
+  std::vector<srcml_node> plain_nodes;
+  plain_nodes.reserve(nodes.size());
+
+  for (const auto &captured : nodes) {
+    plain_nodes.push_back(captured.node);
+  }
+
+  return canonicalize_diff_region_subtree(plain_nodes);
+}
+
+static bool passes_region_text_filters(const std::string          &raw_text,
+                                       const region_filter_options &opt) {
+  if (opt.drop_whitespace_only && !any_non_ws(raw_text)) {
+    return false;
+  }
+  if (raw_text.size() < opt.min_chars) {
+    return false;
+  }
+  return true;
+}
+
+static std::vector<move_candidate>
+extract_structural_child_candidates(const diff_region           &region,
+                                    const region_filter_options &opt) {
+  std::vector<move_candidate> out;
+
+  if (!opt.expand_structural_children || region.captured_nodes.size() < 3) {
+    return out;
+  }
+
+  std::vector<captured_srcml_node> current;
+  current.reserve(64);
+
+  int capturing_depth = 0;
+
+  for (std::size_t i = 1; i + 1 < region.captured_nodes.size(); ++i) {
+    const captured_srcml_node &captured = region.captured_nodes[i];
+    const srcml_node          &node     = captured.node;
+
+    if (capturing_depth == 0) {
+      if (!node.is_start() || !is_structural_child_name(node.name)) {
+        continue;
+      }
+
+      current.clear();
+      current.push_back(captured);
+      capturing_depth = 1;
+      continue;
+    }
+
+    current.push_back(captured);
+
+    if (node.is_start()) {
+      ++capturing_depth;
+    } else if (node.is_end()) {
+      --capturing_depth;
+    }
+
+    if (capturing_depth != 0) {
+      continue;
+    }
+
+    std::string raw_text = collect_subtree_raw_text(current);
+    if (!passes_region_text_filters(raw_text, opt)) {
+      current.clear();
+      continue;
+    }
+
+    std::string canonical_text = collect_subtree_canonical_text(current);
+    move_candidate candidate(region.kind, current.front().index, region.filename,
+                             std::move(raw_text), std::move(canonical_text));
+    candidate.end_idx = current.back().index;
+    out.push_back(std::move(candidate));
+
+    current.clear();
+  }
+
+  return out;
+}
+
 // Converts selected diff_region -> move_candidate for registry.
 // (Registry doesn’t need nesting fields; it just needs text + span + file.)
 std::vector<move_candidate>
@@ -74,9 +178,16 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
     if (!keep)
       continue;
 
-    if (opt.drop_whitespace_only && !any_non_ws(r.raw_text))
+    std::vector<move_candidate> child_candidates =
+        extract_structural_child_candidates(r, opt);
+    if (child_candidates.size() > 1) {
+      out.insert(out.end(),
+                 std::make_move_iterator(child_candidates.begin()),
+                 std::make_move_iterator(child_candidates.end()));
       continue;
-    if (r.raw_text.size() < opt.min_chars)
+    }
+
+    if (!passes_region_text_filters(r.raw_text, opt))
       continue;
     move_candidate c(r.kind, r.start_idx, r.filename, r.raw_text,
                      r.canonical_text);
@@ -92,6 +203,7 @@ region_filter_options get_default_filter_options() {
   opt.policy               = region_filter_policy::leaf_only;
   opt.drop_whitespace_only = true;
   opt.skip_pre_marked      = false;
+  opt.expand_structural_children = true;
   opt.min_chars            = 2;
   return opt;
 }
@@ -103,6 +215,7 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
   region_filter_options opt;
   opt.policy               = region_filter_policy::leaf_only;
   opt.drop_whitespace_only = true;
+  opt.expand_structural_children = true;
   opt.min_chars            = 1;
 
   return filter_regions_for_registry(regions, opt);

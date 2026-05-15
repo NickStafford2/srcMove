@@ -3,7 +3,7 @@
  * @file annotation_writer.cpp
  *
  * Writes the annotated srcDiff document by copying the input stream and
- * patching move-related attributes onto diff start tags.
+ * patching move-related attributes onto selected start tags.
  */
 #include <cctype>
 #include <string>
@@ -84,46 +84,42 @@ write_with_move_annotations(const std::string &in_filename,
     }
 
     if (node.is_start()) {
-      const std::string fn = node.full_name();
+      srcml_node        patched = node;
+      const std::string xpath   = reader.get_current_xpath();
 
-      if (fn == "diff:insert" || fn == "diff:delete") {
-        srcml_node        patched = node;
-        const std::string xpath   = reader.get_current_xpath();
+      auto it = tags.find(i);
+      if (it != tags.end()) {
+        const move_tag    &tag      = it->second;
+        const std::string &move_id  = tag.move_id;
+        const std::string &raw_text = tag.raw_text;
 
-        auto it = tags.find(i);
-        if (it != tags.end()) {
-          const move_tag    &tag      = it->second;
-          const std::string &move_id  = tag.move_id;
-          const std::string &raw_text = tag.raw_text;
+        patched.set_attribute(kMvMoveAttr, move_id);
 
-          patched.set_attribute(kMvMoveAttr, move_id);
+        if (!tag.partner_xpaths.empty()) {
+          const std::string joined = join_xpath_union(tag.partner_xpaths);
 
-          if (!tag.partner_xpaths.empty()) {
-            const std::string joined = join_xpath_union(tag.partner_xpaths);
-
-            if (fn == "diff:delete") {
-              patched.set_attribute(kMvToAttr, joined);
-            } else { // diff:insert
-              patched.set_attribute(kMvFromAttr, joined);
-            }
-          }
-
-          writer.write(patched);
-
-          move_entry &entry = moves[move_id];
-          entry.move_id     = move_id;
-
-          if (fn == "diff:delete") {
-            entry.from_xpaths.push_back(xpath);
-            entry.from_raw_texts.push_back(raw_text);
+          if (tag.kind == move_candidate::Kind::del) {
+            patched.set_attribute(kMvToAttr, joined);
           } else {
-            entry.to_xpaths.push_back(xpath);
-            entry.to_raw_texts.push_back(raw_text);
+            patched.set_attribute(kMvFromAttr, joined);
           }
-
-          ++i;
-          continue;
         }
+
+        writer.write(patched);
+
+        move_entry &entry = moves[move_id];
+        entry.move_id     = move_id;
+
+        if (tag.kind == move_candidate::Kind::del) {
+          entry.from_xpaths.push_back(xpath);
+          entry.from_raw_texts.push_back(raw_text);
+        } else {
+          entry.to_xpaths.push_back(xpath);
+          entry.to_raw_texts.push_back(raw_text);
+        }
+
+        ++i;
+        continue;
       }
     }
 
