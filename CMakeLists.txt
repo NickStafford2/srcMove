@@ -16,6 +16,7 @@ if(WORKSPACE_ROOT STREQUAL "")
 endif()
 
 set(SRCREADER_ROOT "${WORKSPACE_ROOT}/srcReader" CACHE PATH "Path to srcReader repo")
+set(SRCREADER_BUILD_DIR "${SRCREADER_ROOT}/build" CACHE PATH "Path to the srcReader build directory")
 set(SRCML_INSTALL_PREFIX "${WORKSPACE_ROOT}/srcML-install" CACHE PATH "srcML install prefix")
 
 find_package(LibXml2 REQUIRED)
@@ -32,7 +33,7 @@ set(COMMON_INCLUDE_DIRS
 )
 
 set(COMMON_LINK_DIRS
-  "${SRCREADER_ROOT}/build/bin"
+  "${SRCREADER_BUILD_DIR}/bin"
   "${SRCML_INSTALL_PREFIX}/lib"
 )
 
@@ -43,7 +44,7 @@ set(COMMON_LIBS
 )
 
 set(COMMON_RPATH
-  "${SRCREADER_ROOT}/build/bin;${SRCML_INSTALL_PREFIX}/lib"
+  "${SRCREADER_BUILD_DIR}/bin;${SRCML_INSTALL_PREFIX}/lib"
 )
 
 function(configure_srcmove_target TARGET)

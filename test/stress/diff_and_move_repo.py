@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # diff_and_move_repo.py
+
 from __future__ import annotations
 
 import argparse
@@ -201,6 +202,28 @@ def export_commit(
         )
 
 
+def build_srcdiff_command(
+    *,
+    srcdiff_bin: str,
+    original_dir: Path,
+    modified_dir: Path,
+    diff_xml: Path,
+    use_position: bool,
+) -> list[str]:
+    cmd = [
+        srcdiff_bin,
+        str(original_dir),
+        str(modified_dir),
+        "-o",
+        str(diff_xml),
+    ]
+
+    if use_position:
+        cmd.insert(1, "--position")
+
+    return cmd
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(
         prog="run_stress.py",
@@ -231,6 +254,11 @@ def main() -> int:
         "--refresh-repo",
         action="store_true",
         help="force a git fetch even if the repo already exists locally",
+    )
+    parser.add_argument(
+        "--position",
+        action="store_true",
+        help="pass --position to srcdiff and save position-annotated diff.xml",
     )
     args = parser.parse_args()
 
@@ -264,7 +292,6 @@ def main() -> int:
     repo_url = config["github"]
     old_rev = args.old_rev if args.old_rev is not None else config["old_rev"]
     new_rev = args.new_rev if args.new_rev is not None else config["new_rev"]
-    selected_dir = config["directory"]
 
     if old_rev is None or new_rev is None:
         print(f"skipping case '{args.case}': old_rev/new_rev not specified")
@@ -321,15 +348,18 @@ def main() -> int:
     export_commit(clone_dir, new_commit, modified_dir, selected_dir)
 
     print("[5/6] running srcdiff")
+    if args.position:
+        print("      using --position")
+
     diff_start = time.perf_counter()
     diff_result = run(
-        [
-            srcdiff_bin,
-            str(original_dir),
-            str(modified_dir),
-            "-o",
-            str(diff_xml),
-        ],
+        build_srcdiff_command(
+            srcdiff_bin=srcdiff_bin,
+            original_dir=original_dir,
+            modified_dir=modified_dir,
+            diff_xml=diff_xml,
+            use_position=args.position,
+        ),
         cwd=repo_root,
     )
     diff_end = time.perf_counter()
@@ -368,6 +398,7 @@ def main() -> int:
         "directory": selected_dir,
         "old_commit": old_commit,
         "new_commit": new_commit,
+        "srcdiff_position": args.position,
         "srcdiff_seconds": diff_end - diff_start,
         "srcmove_seconds": move_end - move_start,
         "move_count": move_count,
@@ -392,6 +423,7 @@ def main() -> int:
     print(f"repo         : {clone_dir}")
     print(f"old_rev      : {old_rev}")
     print(f"new_rev      : {new_rev}")
+    print(f"position     : {args.position}")
     print(f"srcdiff time : {report['srcdiff_seconds']:.3f}s")
     print(f"srcMove time : {report['srcmove_seconds']:.3f}s")
     print(f"move_count   : {move_count}")

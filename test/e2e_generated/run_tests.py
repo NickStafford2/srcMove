@@ -104,6 +104,13 @@ def find_cases(root: Path) -> list[CaseSpec]:
     return out
 
 
+def prepare_srcdiff_inputs(case: CaseSpec) -> tuple[str, str, Path | None]:
+    if case.is_archive:
+        return str(case.original), str(case.modified), None
+
+    return case.original.name, case.modified.name, case.case_dir
+
+
 def run_case(
     case: CaseSpec,
     repo_root: Path,
@@ -132,14 +139,28 @@ def run_case(
         if path.exists():
             path.unlink()
 
-    srcdiff_cmd = [
-        srcdiff_bin,
-        str(case.original),
-        str(case.modified),
-        "-o",
-        str(diff_xml),
-    ]
-    srcdiff_result = run_command(srcdiff_cmd, cwd=repo_root)
+    try:
+        (
+            srcdiff_original,
+            srcdiff_modified,
+            srcdiff_cwd,
+        ) = prepare_srcdiff_inputs(case)
+        srcdiff_cmd = [
+            srcdiff_bin,
+            srcdiff_original,
+            srcdiff_modified,
+            "-o",
+            str(diff_xml),
+        ]
+        srcdiff_result = run_command(srcdiff_cmd, cwd=srcdiff_cwd or repo_root)
+    except Exception as e:
+        return CaseResult(
+            name=case.name,
+            ok=False,
+            expected_move_count=expected_move_count,
+            actual_move_count=None,
+            message=str(e),
+        )
 
     if srcdiff_result.returncode != 0:
         case_kind = "archive" if case.is_archive else "single-file"
