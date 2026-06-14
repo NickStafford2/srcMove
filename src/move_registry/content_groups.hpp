@@ -41,6 +41,12 @@ enum class group_kind : std::uint8_t {
   ambiguous       // everything else / policy-specific
 };
 
+enum class match_kind : std::uint8_t {
+  exact,
+  type2,
+  unmatched
+};
+
 struct content_group {
   std::uint64_t content_hash = 0;
   std::uint32_t group_id     = 0;
@@ -52,6 +58,7 @@ struct content_group {
   std::uint32_t ins_end   = 0;
 
   group_kind kind = group_kind::ambiguous;
+  match_kind match = match_kind::unmatched;
 
   std::size_t del_count() const noexcept {
     return static_cast<std::size_t>(del_end - del_begin);

@@ -31,5 +31,9 @@
     "insert_only": 1,
     "copy_or_repeat": 0,
     "ambiguous": 0
+  },
+  "match_kinds": {
+    "exact": 1,
+    "type2": 0
   }
 }

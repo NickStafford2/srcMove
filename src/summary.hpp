@@ -24,6 +24,11 @@ struct group_kind_counts {
   std::size_t ambiguous      = 0;
 };
 
+struct match_kind_counts {
+  std::size_t exact = 0;
+  std::size_t type2 = 0;
+};
+
 struct summary {
   std::size_t             move_count = 0; // Backward-compatible alias for move_group_count.
   std::size_t             move_group_count = 0;
@@ -36,6 +41,7 @@ struct summary {
   std::size_t candidates_total  = 0;
   std::size_t groups_total      = 0;
   group_kind_counts group_kinds;
+  match_kind_counts match_kinds;
 };
 
 } // namespace srcmove

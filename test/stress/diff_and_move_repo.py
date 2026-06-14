@@ -434,6 +434,7 @@ def main() -> int:
     move_pair_count = None
     annotated_region_count = None
     group_kinds = None
+    match_kinds = None
     results_data = None
     if results_json.is_file():
         with results_json.open("r", encoding="utf-8") as f:
@@ -443,6 +444,7 @@ def main() -> int:
         move_pair_count = results_data.get("move_pair_count")
         annotated_region_count = results_data.get("annotated_region_count")
         group_kinds = results_data.get("group_kinds")
+        match_kinds = results_data.get("match_kinds")
 
     report = {
         "case": args.case,
@@ -466,6 +468,7 @@ def main() -> int:
         "move_pair_count": move_pair_count,
         "annotated_region_count": annotated_region_count,
         "group_kinds": group_kinds,
+        "match_kinds": match_kinds,
         "paths": {
             "repo_dir": str(clone_dir),
             "original_dir": str(original_dir),
@@ -496,6 +499,8 @@ def main() -> int:
     print(f"annotated    : {annotated_region_count}")
     if group_kinds:
         print(f"group_kinds  : {group_kinds}")
+    if match_kinds:
+        print(f"match_kinds  : {match_kinds}")
     print(f"report       : {report_json}")
     if selected_dir:
         print(f"directory    : {selected_dir}")

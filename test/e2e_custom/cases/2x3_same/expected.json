@@ -37,5 +37,9 @@
     "insert_only": 0,
     "copy_or_repeat": 1,
     "ambiguous": 0
+  },
+  "match_kinds": {
+    "exact": 1,
+    "type2": 0
   }
 }

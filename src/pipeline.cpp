@@ -59,6 +59,29 @@ group_kind_counts count_group_kinds(const content_groups &groups) {
   return counts;
 }
 
+match_kind_counts count_match_kinds(const content_groups &groups) {
+  match_kind_counts counts;
+
+  for (const content_group &group : groups.groups()) {
+    if (group.del_count() == 0 || group.ins_count() == 0) {
+      continue;
+    }
+
+    switch (group.match) {
+    case match_kind::exact:
+      ++counts.exact;
+      break;
+    case match_kind::type2:
+      ++counts.type2;
+      break;
+    case match_kind::unmatched:
+      break;
+    }
+  }
+
+  return counts;
+}
+
 std::size_t count_annotated_regions(const std::vector<move_entry> &moves) {
   std::size_t total = 0;
   for (const move_entry &move : moves) {
@@ -108,6 +131,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   result.candidates_total  = registry.active_candidate_count();
   result.groups_total      = groups.group_count();
   result.group_kinds       = count_group_kinds(groups);
+  result.match_kinds       = count_match_kinds(groups);
   return result;
 }
 

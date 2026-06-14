@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="type2_literal_guard.cpp">
+
+  <diff:delete><function><type><name>int</name></type> <name>get_port</name><parameter_list>()</parameter_list> <block>{<block_content>
+    <return>return <expr><literal type="number">8080</literal></expr>;</return>
+  </block_content>}</block></function></diff:delete>
+
+  <diff:insert><function><type><name>int</name></type> <name>get_timeout</name><parameter_list>()</parameter_list> <block>{<block_content>
+    <return>return <expr><literal type="number">30</literal></expr>;</return>
+  </block_content>}</block></function></diff:insert>
+
+</unit>

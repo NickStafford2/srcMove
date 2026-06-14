@@ -41,7 +41,8 @@ group_kind classify_counts(std::size_t del_count, std::size_t ins_count) {
 void add_group(content_groups                  &out,
                std::uint64_t                    content_hash,
                const std::vector<candidate_id> &del_ids,
-               const std::vector<candidate_id> &ins_ids) {
+               const std::vector<candidate_id> &ins_ids,
+               match_kind                       match) {
   const std::uint32_t group_id  = static_cast<std::uint32_t>(out.group_count());
   const std::uint32_t del_begin = out.append_delete_ids(del_ids);
   const std::uint32_t del_size  = static_cast<std::uint32_t>(del_ids.size());
@@ -59,6 +60,7 @@ void add_group(content_groups                  &out,
       ins_begin,
       ins_end,
       kind,
+      match,
   });
 }
 
@@ -70,6 +72,7 @@ struct sv_hash {
 
 struct pending_group {
   std::uint64_t              content_hash = 0;
+  match_kind                 match = match_kind::unmatched;
   std::vector<candidate_id>  del_ids;
   std::vector<candidate_id>  ins_ids;
 };
@@ -79,7 +82,7 @@ bool has_both_sides(const pending_group &group) {
 }
 
 void add_pending_group(content_groups &out, const pending_group &group) {
-  add_group(out, group.content_hash, group.del_ids, group.ins_ids);
+  add_group(out, group.content_hash, group.del_ids, group.ins_ids, group.match);
 }
 
 void mark_ids_used(const pending_group              &group,
@@ -119,7 +122,11 @@ content_groups build_content_groups(const candidate_registry &registry,
 
   if (!confirm_text_equality) {
     for (const std::pair<const std::uint64_t, bucket_ids> &kv : hash_buckets) {
-      add_group(out, kv.first, kv.second.del_ids, kv.second.ins_ids);
+      const match_kind match =
+          (!kv.second.del_ids.empty() && !kv.second.ins_ids.empty())
+              ? match_kind::exact
+              : match_kind::unmatched;
+      add_group(out, kv.first, kv.second.del_ids, kv.second.ins_ids, match);
     }
     return out;
   }
@@ -169,9 +176,11 @@ content_groups build_content_groups(const candidate_registry &registry,
 
       auto it = ins_by_text.find(text);
       if (it != ins_by_text.end()) {
-        exact_groups.push_back(pending_group{content_hash, dels, it->second});
+        exact_groups.push_back(
+            pending_group{content_hash, match_kind::exact, dels, it->second});
       } else {
-        exact_groups.push_back(pending_group{content_hash, dels, kEmpty});
+        exact_groups.push_back(
+            pending_group{content_hash, match_kind::unmatched, dels, kEmpty});
       }
     }
 
@@ -183,7 +192,8 @@ content_groups build_content_groups(const candidate_registry &registry,
         continue;
       }
 
-      exact_groups.push_back(pending_group{content_hash, kEmpty, inss});
+      exact_groups.push_back(
+          pending_group{content_hash, match_kind::unmatched, kEmpty, inss});
     }
   }
 
@@ -216,6 +226,7 @@ content_groups build_content_groups(const candidate_registry &registry,
       pending_group &type2_group =
           type2_groups[std::string_view(candidate.type2_canonical_text)];
       type2_group.content_hash = candidate.type2_hash;
+      type2_group.match = match_kind::type2;
       type2_group.del_ids.push_back(id);
     }
 
@@ -228,6 +239,7 @@ content_groups build_content_groups(const candidate_registry &registry,
       pending_group &type2_group =
           type2_groups[std::string_view(candidate.type2_canonical_text)];
       type2_group.content_hash = candidate.type2_hash;
+      type2_group.match = match_kind::type2;
       type2_group.ins_ids.push_back(id);
     }
   }
@@ -253,7 +265,7 @@ content_groups build_content_groups(const candidate_registry &registry,
       continue;
     }
 
-    add_group(out, group.content_hash, del_ids, ins_ids);
+    add_group(out, group.content_hash, del_ids, ins_ids, match_kind::unmatched);
   }
 
 #ifndef NDEBUG

@@ -120,6 +120,10 @@ inline void write_summary(std::ostream &out, const summary &summ) {
   out << "    \"insert_only\": " << summ.group_kinds.insert_only << ",\n";
   out << "    \"copy_or_repeat\": " << summ.group_kinds.copy_or_repeat << ",\n";
   out << "    \"ambiguous\": " << summ.group_kinds.ambiguous << "\n";
+  out << "  },\n";
+  out << "  \"match_kinds\": {\n";
+  out << "    \"exact\": " << summ.match_kinds.exact << ",\n";
+  out << "    \"type2\": " << summ.match_kinds.type2 << "\n";
   out << "  }\n";
   out << "}\n";
 }
