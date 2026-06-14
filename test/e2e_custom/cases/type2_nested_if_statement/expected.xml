@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="type2_nested_if_statement.cpp">
+
+  <diff:delete><if_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/src:if_stmt[1]"><if>if <condition>(<expr><name>oldFlag</name></expr>)</condition> <block>{<block_content>
+    <expr_stmt><expr><name>run_old</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></if></if_stmt></diff:delete>
+
+  <diff:insert><if_stmt mv:from="/src:unit[1]/diff:delete[1]/src:if_stmt[1]" mv:id="97b1dcdaf"><if>if <condition>(<expr><name>newFlag</name></expr>)</condition> <block>{<block_content>
+    <expr_stmt><expr><name>run_new</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></if></if_stmt></diff:insert>
+
+</unit>

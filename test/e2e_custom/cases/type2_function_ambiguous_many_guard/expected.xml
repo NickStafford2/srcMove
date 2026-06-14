@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="type2_function_ambiguous_many_guard.cpp">
+
+  <diff:delete><function><type><name>int</name></type> <name>getA</name><parameter_list>()</parameter_list> <block>{<block_content>
+    <return>return <expr><name>value</name></expr>;</return>
+  </block_content>}</block></function></diff:delete>
+
+  <diff:insert><function><type><name>int</name></type> <name>getB</name><parameter_list>()</parameter_list> <block>{<block_content>
+    <return>return <expr><name>count</name></expr>;</return>
+  </block_content>}</block></function></diff:insert>
+
+  <diff:insert><function><type><name>int</name></type> <name>getC</name><parameter_list>()</parameter_list> <block>{<block_content>
+    <return>return <expr><name>size</name></expr>;</return>
+  </block_content>}</block></function></diff:insert>
+
+</unit>
