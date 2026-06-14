@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="type2_statement_child_preferred.cpp">
+
+  <diff:delete>
+
+    <expr_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/src:expr_stmt[1]"><expr><name>run_old</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+
+  </diff:delete>
+
+  <diff:insert>
+
+    <expr_stmt mv:from="/src:unit[1]/diff:delete[1]/src:expr_stmt[1]" mv:id="97b1dcdaf"><expr><name>run_new</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+
+  </diff:insert>
+
+</unit>

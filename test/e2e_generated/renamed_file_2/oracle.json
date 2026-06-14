@@ -5,6 +5,7 @@
   "moves": [
     {
       "move_id": "97b1dcdaf",
+      "match_kind": "exact",
       "from_xpaths": [
         "/src:unit[@filename='foo.hpp|']/diff:delete[1]/src:function[src:name='changed_function']"
       ],

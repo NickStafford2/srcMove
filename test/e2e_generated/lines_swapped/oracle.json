@@ -5,11 +5,12 @@
   "moves": [
     {
       "move_id": "97b1dcdaf",
+      "match_kind": "exact",
       "from_xpaths": [
-        "/src:unit[1]/diff:delete[1]"
+        "/src:unit[1]/diff:delete[1]/src:decl_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[1]/diff:insert[1]"
+        "/src:unit[1]/diff:insert[1]/src:decl_stmt[1]"
       ],
       "from_raw_texts": [
         "int i = 1;"

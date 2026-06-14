@@ -5,18 +5,18 @@
   "moves": [
     {
       "move_id": "97b1dcdaf",
-      "match_kind": "exact",
+      "match_kind": "type2",
       "from_xpaths": [
-        "/src:unit[@filename='foo.hpp|']/diff:delete[1]/src:function[src:name='changed_function']"
+        "/src:unit[1]/diff:delete[1]/src:expr_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[@filename='|bar.hpp']/diff:insert[1]/src:function[src:name='changed_function']"
+        "/src:unit[1]/diff:insert[1]/src:expr_stmt[1]"
       ],
       "from_raw_texts": [
-        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}"
+        "run_old();"
       ],
       "to_raw_texts": [
-        "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}"
+        "run_new();"
       ]
     }
   ],
@@ -34,7 +34,7 @@
     "ambiguous": 0
   },
   "match_kinds": {
-    "exact": 1,
-    "type2": 0
+    "exact": 0,
+    "type2": 1
   }
 }

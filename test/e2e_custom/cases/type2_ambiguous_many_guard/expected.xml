@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="type2_ambiguous_many_guard.cpp">
+
+  <diff:delete><decl_stmt><decl><type><name>bool</name></type> <name>didChange</name> <init>= <expr><literal type="boolean">false</literal></expr></init></decl>;</decl_stmt></diff:delete>
+
+  <diff:insert><decl_stmt><decl><type><name>bool</name></type> <name>foldQuotes</name> <init>= <expr><literal type="boolean">false</literal></expr></init></decl>;</decl_stmt></diff:insert>
+
+  <diff:insert><decl_stmt><decl><type><name>bool</name></type> <name>result</name> <init>= <expr><literal type="boolean">false</literal></expr></init></decl>;</decl_stmt></diff:insert>
+
+</unit>

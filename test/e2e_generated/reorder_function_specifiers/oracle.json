@@ -5,6 +5,7 @@
   "moves": [
     {
       "move_id": "97b1dcdaf",
+      "match_kind": "exact",
       "from_xpaths": [
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[3]/src:decl[src:name='foo3']/src:type[1]/diff:delete[2]/diff:delete[1]",
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[4]/src:decl[src:name='foo4']/src:type[1]/diff:delete[2]/diff:delete[1]",
@@ -28,6 +29,7 @@
     },
     {
       "move_id": "c89025cc1",
+      "match_kind": "exact",
       "from_xpaths": [
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[2]/src:decl[src:name='foo2']/src:type[1]/diff:delete[1]",
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[4]/src:decl[src:name='foo4']/src:type[1]/diff:delete[1]"
@@ -47,6 +49,7 @@
     },
     {
       "move_id": "e1c9756ce",
+      "match_kind": "exact",
       "from_xpaths": [
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[1]/src:decl[src:name='foo1']/src:type[1]/diff:delete[1]",
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[2]/src:decl[src:name='foo2']/src:type[1]/diff:delete[2]/diff:delete[1]",

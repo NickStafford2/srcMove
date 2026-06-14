@@ -81,6 +81,10 @@ bool has_both_sides(const pending_group &group) {
   return !group.del_ids.empty() && !group.ins_ids.empty();
 }
 
+bool is_one_to_one(const pending_group &group) {
+  return group.del_ids.size() == 1 && group.ins_ids.size() == 1;
+}
+
 void add_pending_group(content_groups &out, const pending_group &group) {
   add_group(out, group.content_hash, group.del_ids, group.ins_ids, group.match);
 }
@@ -252,7 +256,7 @@ content_groups build_content_groups(const candidate_registry &registry,
 
   for (const auto &entry : type2_groups) {
     const pending_group &group = entry.second;
-    if (!has_both_sides(group)) {
+    if (!is_one_to_one(group)) {
       continue;
     }
 

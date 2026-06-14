@@ -66,6 +66,10 @@ static bool is_type2_eligible_name(std::string_view name) {
   return is_structural_child_name(name) || is_statement_name(name);
 }
 
+static bool is_preferred_child_candidate_name(std::string_view name) {
+  return is_type2_eligible_name(name);
+}
+
 static bool is_diff_wrapper_name(std::string_view full_name) {
   return full_name == "diff:insert" || full_name == "diff:delete" ||
          full_name == "diff:common" || full_name == "diff:ws";
@@ -136,8 +140,8 @@ static bool passes_region_text_filters(const std::string          &raw_text,
 }
 
 static std::vector<move_candidate>
-extract_structural_child_candidates(const diff_region           &region,
-                                    const region_filter_options &opt) {
+extract_preferred_child_candidates(const diff_region           &region,
+                                   const region_filter_options &opt) {
   std::vector<move_candidate> out;
 
   if (!opt.expand_structural_children || region.captured_nodes.size() < 3) {
@@ -154,7 +158,7 @@ extract_structural_child_candidates(const diff_region           &region,
     const srcml_node          &node     = captured.node;
 
     if (capturing_depth == 0) {
-      if (!node.is_start() || !is_structural_child_name(node.name)) {
+      if (!node.is_start() || !is_preferred_child_candidate_name(node.name)) {
         continue;
       }
 
@@ -227,7 +231,7 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
       continue;
 
     std::vector<move_candidate> child_candidates =
-        extract_structural_child_candidates(r, opt);
+        extract_preferred_child_candidates(r, opt);
     if (!child_candidates.empty()) {
       out.insert(out.end(),
                  std::make_move_iterator(child_candidates.begin()),
