@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="single_structural_child.cpp">
+
+  <diff:delete>
+    <comment>// old wrapper-only text</comment>
+    <function><type><name>int</name></type> <name>moved_once</name><parameter_list>()</parameter_list> <block>{<block_content>
+      <return>return <expr><literal type="number">1</literal></expr>;</return>
+    </block_content>}</block></function>
+  </diff:delete>
+
+  <diff:insert>
+    <comment>// new wrapper-only text</comment>
+    <function><type><name>int</name></type> <name>moved_once</name><parameter_list>()</parameter_list> <block>{<block_content>
+      <return>return <expr><literal type="number">1</literal></expr>;</return>
+    </block_content>}</block></function>
+  </diff:insert>
+
+</unit>
