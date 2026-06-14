@@ -16,7 +16,8 @@ TESTS = [
     # [sys.executable, str(RUNNER), "sqlite"],
     # [sys.executable, str(RUNNER), "opencv"],
     # [sys.executable, str(RUNNER), "firefox"],
-    [sys.executable, str(RUNNER), "opencv"],
+    # [sys.executable, str(RUNNER), "opencv"],
+    [sys.executable, str(RUNNER), "notepadpp"],
 ]
 
 

@@ -209,17 +209,28 @@ def build_srcdiff_command(
     modified_dir: Path,
     diff_xml: Path,
     use_position: bool,
+    use_archive: bool,
+    src_encoding: str,
 ) -> list[str]:
-    cmd = [
-        srcdiff_bin,
-        str(original_dir),
-        str(modified_dir),
-        "-o",
-        str(diff_xml),
-    ]
+    cmd = [srcdiff_bin]
 
     if use_position:
-        cmd.insert(1, "--position")
+        cmd.append("--position")
+
+    if use_archive:
+        cmd.append("--archive")
+
+    if src_encoding:
+        cmd.extend(["--src-encoding", src_encoding])
+
+    cmd.extend(
+        [
+            str(original_dir),
+            str(modified_dir),
+            "-o",
+            str(diff_xml),
+        ]
+    )
 
     return cmd
 
@@ -259,6 +270,16 @@ def main() -> int:
         "--position",
         action="store_true",
         help="pass --position to srcdiff and save position-annotated diff.xml",
+    )
+    parser.add_argument(
+        "--no-srcdiff-archive",
+        action="store_true",
+        help="do not pass --archive to srcdiff",
+    )
+    parser.add_argument(
+        "--src-encoding",
+        default="UTF-8",
+        help="source encoding passed to srcdiff --src-encoding (default: UTF-8)",
     )
     parser.add_argument(
         "--directory",
@@ -369,6 +390,10 @@ def main() -> int:
     print("[5/6] running srcdiff")
     if args.position:
         print("      using --position")
+    if not args.no_srcdiff_archive:
+        print("      using --archive")
+    if args.src_encoding:
+        print(f"      using --src-encoding {args.src_encoding}")
 
     diff_start = time.perf_counter()
     diff_result = run(
@@ -378,6 +403,8 @@ def main() -> int:
             modified_dir=modified_dir,
             diff_xml=diff_xml,
             use_position=args.position,
+            use_archive=not args.no_srcdiff_archive,
+            src_encoding=args.src_encoding,
         ),
         cwd=repo_root,
     )
@@ -418,8 +445,14 @@ def main() -> int:
         "old_commit": old_commit,
         "new_commit": new_commit,
         "srcdiff_position": args.position,
+        "srcdiff_archive": not args.no_srcdiff_archive,
+        "srcdiff_src_encoding": args.src_encoding,
         "srcdiff_seconds": diff_end - diff_start,
         "srcmove_seconds": move_end - move_start,
+        "deleted_python_files": {
+            "original": original_python_count,
+            "modified": modified_python_count,
+        },
         "move_count": move_count,
         "paths": {
             "repo_dir": str(clone_dir),
