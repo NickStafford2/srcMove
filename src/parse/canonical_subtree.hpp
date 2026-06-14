@@ -12,6 +12,7 @@ struct canonical_options {
   bool ignore_diff_ws              = true;
   bool ignore_whitespace_only_text = true;
   bool ignore_outer_diff_wrapper   = true;
+  bool normalize_names             = false;
 };
 
 std::string

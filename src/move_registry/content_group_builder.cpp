@@ -11,6 +11,8 @@
 #include <cassert>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
+#include <utility>
 #include <vector>
 
 namespace srcmove {
@@ -66,6 +68,45 @@ struct sv_hash {
   }
 };
 
+struct pending_group {
+  std::uint64_t              content_hash = 0;
+  std::vector<candidate_id>  del_ids;
+  std::vector<candidate_id>  ins_ids;
+};
+
+bool has_both_sides(const pending_group &group) {
+  return !group.del_ids.empty() && !group.ins_ids.empty();
+}
+
+void add_pending_group(content_groups &out, const pending_group &group) {
+  add_group(out, group.content_hash, group.del_ids, group.ins_ids);
+}
+
+void mark_ids_used(const pending_group              &group,
+                   std::unordered_set<candidate_id> &used_ids) {
+  if (!has_both_sides(group)) {
+    return;
+  }
+
+  used_ids.insert(group.del_ids.begin(), group.del_ids.end());
+  used_ids.insert(group.ins_ids.begin(), group.ins_ids.end());
+}
+
+std::vector<candidate_id>
+filter_unused_ids(const std::vector<candidate_id>      &ids,
+                  const std::unordered_set<candidate_id> &used_ids) {
+  std::vector<candidate_id> out;
+  out.reserve(ids.size());
+
+  for (candidate_id id : ids) {
+    if (used_ids.find(id) == used_ids.end()) {
+      out.push_back(id);
+    }
+  }
+
+  return out;
+}
+
 } // namespace
 
 content_groups build_content_groups(const candidate_registry &registry,
@@ -84,6 +125,8 @@ content_groups build_content_groups(const candidate_registry &registry,
   }
 
   static const std::vector<candidate_id> kEmpty;
+  std::vector<pending_group> exact_groups;
+  exact_groups.reserve(hash_buckets.size());
 
   for (const auto &kv : hash_buckets) {
     const std::uint64_t content_hash = kv.first;
@@ -126,9 +169,9 @@ content_groups build_content_groups(const candidate_registry &registry,
 
       auto it = ins_by_text.find(text);
       if (it != ins_by_text.end()) {
-        add_group(out, content_hash, dels, it->second);
+        exact_groups.push_back(pending_group{content_hash, dels, it->second});
       } else {
-        add_group(out, content_hash, dels, kEmpty);
+        exact_groups.push_back(pending_group{content_hash, dels, kEmpty});
       }
     }
 
@@ -140,8 +183,77 @@ content_groups build_content_groups(const candidate_registry &registry,
         continue;
       }
 
-      add_group(out, content_hash, kEmpty, inss);
+      exact_groups.push_back(pending_group{content_hash, kEmpty, inss});
     }
+  }
+
+  std::unordered_set<candidate_id> used_ids;
+  used_ids.reserve(registry.active_candidate_count());
+
+  for (const pending_group &group : exact_groups) {
+    if (!has_both_sides(group)) {
+      continue;
+    }
+
+    add_pending_group(out, group);
+    mark_ids_used(group, used_ids);
+  }
+
+  std::unordered_map<std::string_view, pending_group, sv_hash> type2_groups;
+  type2_groups.reserve(exact_groups.size());
+
+  for (const pending_group &group : exact_groups) {
+    if (has_both_sides(group)) {
+      continue;
+    }
+
+    for (candidate_id id : group.del_ids) {
+      if (used_ids.find(id) != used_ids.end()) {
+        continue;
+      }
+
+      const move_candidate &candidate = registry.candidate(id);
+      pending_group &type2_group =
+          type2_groups[std::string_view(candidate.type2_canonical_text)];
+      type2_group.content_hash = candidate.type2_hash;
+      type2_group.del_ids.push_back(id);
+    }
+
+    for (candidate_id id : group.ins_ids) {
+      if (used_ids.find(id) != used_ids.end()) {
+        continue;
+      }
+
+      const move_candidate &candidate = registry.candidate(id);
+      pending_group &type2_group =
+          type2_groups[std::string_view(candidate.type2_canonical_text)];
+      type2_group.content_hash = candidate.type2_hash;
+      type2_group.ins_ids.push_back(id);
+    }
+  }
+
+  for (const auto &entry : type2_groups) {
+    const pending_group &group = entry.second;
+    if (!has_both_sides(group)) {
+      continue;
+    }
+
+    add_pending_group(out, group);
+    mark_ids_used(group, used_ids);
+  }
+
+  for (const pending_group &group : exact_groups) {
+    if (has_both_sides(group)) {
+      continue;
+    }
+
+    std::vector<candidate_id> del_ids = filter_unused_ids(group.del_ids, used_ids);
+    std::vector<candidate_id> ins_ids = filter_unused_ids(group.ins_ids, used_ids);
+    if (del_ids.empty() && ins_ids.empty()) {
+      continue;
+    }
+
+    add_group(out, group.content_hash, del_ids, ins_ids);
   }
 
 #ifndef NDEBUG

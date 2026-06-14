@@ -1,19 +1,34 @@
 {
-  "move_count": 0,
-  "move_group_count": 0,
-  "move_pair_count": 0,
+  "move_count": 1,
+  "move_group_count": 1,
+  "move_pair_count": 1,
   "moves": [
+    {
+      "move_id": "97b1dcdaf",
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[1]/src:function[src:name='compute_total']"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[1]/src:function[src:name='compute_total']"
+      ],
+      "from_raw_texts": [
+        "int compute_total() {\n    int result = 1;\n    return result;\n  }"
+      ],
+      "to_raw_texts": [
+        "int compute_total() {\n    int value = 1;\n    return value;\n  }"
+      ]
+    }
   ],
-  "annotated_regions": 0,
-  "annotated_region_count": 0,
+  "annotated_regions": 2,
+  "annotated_region_count": 2,
   "regions_total": 2,
   "candidates_total": 2,
-  "groups_total": 2,
+  "groups_total": 1,
   "group_kinds": {
-    "move_1_to_1": 0,
+    "move_1_to_1": 1,
     "moves_many": 0,
-    "delete_only": 1,
-    "insert_only": 1,
+    "delete_only": 0,
+    "insert_only": 0,
     "copy_or_repeat": 0,
     "ambiguous": 0
   }

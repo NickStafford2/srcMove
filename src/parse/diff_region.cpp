@@ -162,6 +162,12 @@ void close_diff_region(std::vector<diff_region>         &regions,
   regions[rid].canonical_text = canonicalize_diff_region_subtree(subtree_nodes);
   regions[rid].hash =
       move_candidate::fast_hash_raw(regions[rid].canonical_text);
+  canonical_options type2_options;
+  type2_options.normalize_names = true;
+  regions[rid].type2_canonical_text =
+      canonicalize_diff_region_subtree(subtree_nodes, type2_options);
+  regions[rid].type2_hash =
+      move_candidate::fast_hash_raw(regions[rid].type2_canonical_text);
 }
 
 void advance(reader_iter &it, std::size_t &node_index) {

@@ -3,6 +3,7 @@
 #include <cctype>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <vector>
 
 namespace srcmove {
@@ -51,6 +52,8 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
   std::string out;
   int         wrapper_depth         = 0;
   bool        skipped_outer_wrapper = false;
+  int         name_depth            = 0;
+  std::unordered_map<std::string, std::size_t> normalized_names;
 
   for (const auto &node : nodes) {
     const std::string fn = node.full_name();
@@ -84,7 +87,15 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
         continue;
       }
       out += "T(";
-      append_escaped(out, *node.content);
+      if (opt.normalize_names && name_depth > 0) {
+        const auto [it, inserted] =
+            normalized_names.emplace(*node.content, normalized_names.size() + 1);
+        (void)inserted;
+        out += "$name";
+        out += std::to_string(it->second);
+      } else {
+        append_escaped(out, *node.content);
+      }
       out += ")";
       continue;
     }
@@ -93,7 +104,13 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
       out += "S(";
       out += fn;
       out += ")";
+      if (opt.normalize_names && fn == "name") {
+        ++name_depth;
+      }
     } else if (node.is_end()) {
+      if (opt.normalize_names && fn == "name" && name_depth > 0) {
+        --name_depth;
+      }
       out += "E(";
       out += fn;
       out += ")";

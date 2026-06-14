@@ -80,6 +80,20 @@ static std::string collect_subtree_canonical_text(
   return canonicalize_diff_region_subtree(plain_nodes);
 }
 
+static std::string collect_subtree_type2_canonical_text(
+    const std::vector<captured_srcml_node> &nodes) {
+  std::vector<srcml_node> plain_nodes;
+  plain_nodes.reserve(nodes.size());
+
+  for (const auto &captured : nodes) {
+    plain_nodes.push_back(captured.node);
+  }
+
+  canonical_options opt;
+  opt.normalize_names = true;
+  return canonicalize_diff_region_subtree(plain_nodes, opt);
+}
+
 static bool passes_region_text_filters(const std::string          &raw_text,
                                        const region_filter_options &opt) {
   if (opt.drop_whitespace_only && !any_non_ws(raw_text)) {
@@ -139,8 +153,11 @@ extract_structural_child_candidates(const diff_region           &region,
     }
 
     std::string canonical_text = collect_subtree_canonical_text(current);
+    std::string type2_canonical_text =
+        collect_subtree_type2_canonical_text(current);
     move_candidate candidate(region.kind, current.front().index, region.filename,
-                             std::move(raw_text), std::move(canonical_text));
+                             std::move(raw_text), std::move(canonical_text),
+                             std::move(type2_canonical_text));
     candidate.end_idx = current.back().index;
     out.push_back(std::move(candidate));
 
@@ -190,7 +207,7 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
     if (!passes_region_text_filters(r.raw_text, opt))
       continue;
     move_candidate c(r.kind, r.start_idx, r.filename, r.raw_text,
-                     r.canonical_text);
+                     r.canonical_text, r.type2_canonical_text);
     c.end_idx = r.end_idx; // preserve the true close position
     out.push_back(std::move(c));
   }

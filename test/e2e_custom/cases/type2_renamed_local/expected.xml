@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="type2_renamed_local.cpp">
 
-  <diff:delete><function><type><name>int</name></type> <name>compute_total</name><parameter_list>()</parameter_list> <block>{<block_content>
+  <diff:delete><function mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/src:function[src:name='compute_total']"><type><name>int</name></type> <name>compute_total</name><parameter_list>()</parameter_list> <block>{<block_content>
     <decl_stmt><decl><type><name>int</name></type> <name>result</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt>
     <return>return <expr><name>result</name></expr>;</return>
   </block_content>}</block></function></diff:delete>
 
-  <diff:insert><function><type><name>int</name></type> <name>compute_total</name><parameter_list>()</parameter_list> <block>{<block_content>
+  <diff:insert><function mv:from="/src:unit[1]/diff:delete[1]/src:function[src:name='compute_total']" mv:id="97b1dcdaf"><type><name>int</name></type> <name>compute_total</name><parameter_list>()</parameter_list> <block>{<block_content>
     <decl_stmt><decl><type><name>int</name></type> <name>value</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt>
     <return>return <expr><name>value</name></expr>;</return>
   </block_content>}</block></function></diff:insert>
