@@ -54,6 +54,36 @@ static bool is_structural_child_name(std::string_view name) {
          name == "import";
 }
 
+static bool is_statement_name(std::string_view name) {
+  return name == "decl_stmt" || name == "expr_stmt" || name == "return" ||
+         name == "if_stmt" || name == "for" || name == "while" ||
+         name == "do" || name == "switch" || name == "try" ||
+         name == "break" || name == "continue" || name == "goto" ||
+         name == "throw";
+}
+
+static bool is_type2_eligible_name(std::string_view name) {
+  return is_structural_child_name(name) || is_statement_name(name);
+}
+
+static bool is_diff_wrapper_name(std::string_view full_name) {
+  return full_name == "diff:insert" || full_name == "diff:delete" ||
+         full_name == "diff:common" || full_name == "diff:ws";
+}
+
+static bool has_type2_eligible_root(
+    const std::vector<captured_srcml_node> &nodes) {
+  for (const captured_srcml_node &captured : nodes) {
+    const srcml_node &node = captured.node;
+    if (!node.is_start() || is_diff_wrapper_name(node.full_name())) {
+      continue;
+    }
+    return is_type2_eligible_name(node.name);
+  }
+
+  return false;
+}
+
 static std::string collect_subtree_raw_text(
     const std::vector<captured_srcml_node> &nodes) {
   std::string out;
@@ -157,7 +187,8 @@ extract_structural_child_candidates(const diff_region           &region,
         collect_subtree_type2_canonical_text(current);
     move_candidate candidate(region.kind, current.front().index, region.filename,
                              std::move(raw_text), std::move(canonical_text),
-                             std::move(type2_canonical_text));
+                             std::move(type2_canonical_text),
+                             is_type2_eligible_name(current.front().node.name));
     candidate.end_idx = current.back().index;
     out.push_back(std::move(candidate));
 
@@ -207,7 +238,8 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
     if (!passes_region_text_filters(r.raw_text, opt))
       continue;
     move_candidate c(r.kind, r.start_idx, r.filename, r.raw_text,
-                     r.canonical_text, r.type2_canonical_text);
+                     r.canonical_text, r.type2_canonical_text,
+                     has_type2_eligible_root(r.captured_nodes));
     c.end_idx = r.end_idx; // preserve the true close position
     out.push_back(std::move(c));
   }

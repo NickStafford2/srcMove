@@ -223,6 +223,9 @@ content_groups build_content_groups(const candidate_registry &registry,
       }
 
       const move_candidate &candidate = registry.candidate(id);
+      if (!candidate.type2_eligible) {
+        continue;
+      }
       pending_group &type2_group =
           type2_groups[std::string_view(candidate.type2_canonical_text)];
       type2_group.content_hash = candidate.type2_hash;
@@ -236,6 +239,9 @@ content_groups build_content_groups(const candidate_registry &registry,
       }
 
       const move_candidate &candidate = registry.candidate(id);
+      if (!candidate.type2_eligible) {
+        continue;
+      }
       pending_group &type2_group =
           type2_groups[std::string_view(candidate.type2_canonical_text)];
       type2_group.content_hash = candidate.type2_hash;

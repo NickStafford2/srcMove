@@ -26,7 +26,8 @@ public:
                  std::string filename,
                  std::string raw_text,
                  std::string canonical_text,
-                 std::string type2_canonical_text);
+                 std::string type2_canonical_text,
+                 bool        type2_eligible = false);
 
   Kind        kind;
   std::string filename; // from unit@filename
@@ -39,6 +40,7 @@ public:
   std::string raw_text;       // exact region inner text, for debug
   std::string canonical_text; // normalized subtree identity, for matching
   std::string type2_canonical_text; // identifier-normalized subtree identity
+  bool type2_eligible; // true for statement-level-or-larger type 2 matching
   std::uint64_t hash;
   std::uint64_t type2_hash;
 
