@@ -199,6 +199,7 @@ def check_summary_fields(
         "regions_total",
         "candidates_total",
         "groups_total",
+        "group_kinds",
     )
 
     for key in required_top_level_keys:
@@ -221,6 +222,39 @@ def check_summary_fields(
     for key, actual_value in summary_checks.items():
         if key in expected:
             compare_scalar(actual_value, expected[key], key, failures)
+
+    if "group_kinds" in expected and "group_kinds" in results_json:
+        expected_group_kinds = expected["group_kinds"]
+        actual_group_kinds = results_json["group_kinds"]
+
+        if not isinstance(expected_group_kinds, dict):
+            failures.append("expected.json field 'group_kinds' is not an object")
+        elif not isinstance(actual_group_kinds, dict):
+            failures.append("results.json field 'group_kinds' is not an object")
+        else:
+            for key in (
+                "move_1_to_1",
+                "moves_many",
+                "delete_only",
+                "insert_only",
+                "copy_or_repeat",
+                "ambiguous",
+            ):
+                if key not in expected_group_kinds:
+                    failures.append(
+                        f"expected.json group_kinds missing required field {key!r}"
+                    )
+                if key not in actual_group_kinds:
+                    failures.append(
+                        f"results.json group_kinds missing required field {key!r}"
+                    )
+                if key in expected_group_kinds and key in actual_group_kinds:
+                    compare_scalar(
+                        actual_group_kinds[key],
+                        expected_group_kinds[key],
+                        f"group_kinds.{key}",
+                        failures,
+                    )
 
     return failures
 

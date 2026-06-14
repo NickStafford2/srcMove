@@ -70,5 +70,13 @@
   "annotated_region_count": 9,
   "regions_total": 10,
   "candidates_total": 11,
-  "groups_total": 6
+  "groups_total": 6,
+  "group_kinds": {
+    "move_1_to_1": 3,
+    "moves_many": 0,
+    "delete_only": 0,
+    "insert_only": 2,
+    "copy_or_repeat": 1,
+    "ambiguous": 0
+  }
 }

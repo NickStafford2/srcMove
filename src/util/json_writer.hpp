@@ -112,7 +112,15 @@ inline void write_summary(std::ostream &out, const summary &summ) {
       << ",\n";
   out << "  \"regions_total\": " << summ.regions_total << ",\n";
   out << "  \"candidates_total\": " << summ.candidates_total << ",\n";
-  out << "  \"groups_total\": " << summ.groups_total << "\n";
+  out << "  \"groups_total\": " << summ.groups_total << ",\n";
+  out << "  \"group_kinds\": {\n";
+  out << "    \"move_1_to_1\": " << summ.group_kinds.move_1_to_1 << ",\n";
+  out << "    \"moves_many\": " << summ.group_kinds.moves_many << ",\n";
+  out << "    \"delete_only\": " << summ.group_kinds.delete_only << ",\n";
+  out << "    \"insert_only\": " << summ.group_kinds.insert_only << ",\n";
+  out << "    \"copy_or_repeat\": " << summ.group_kinds.copy_or_repeat << ",\n";
+  out << "    \"ambiguous\": " << summ.group_kinds.ambiguous << "\n";
+  out << "  }\n";
   out << "}\n";
 }
 

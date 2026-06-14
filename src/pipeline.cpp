@@ -30,6 +30,35 @@ namespace srcmove {
 
 namespace {
 
+group_kind_counts count_group_kinds(const content_groups &groups) {
+  group_kind_counts counts;
+
+  for (const content_group &group : groups.groups()) {
+    switch (group.kind) {
+    case group_kind::move_1_to_1:
+      ++counts.move_1_to_1;
+      break;
+    case group_kind::moves_many:
+      ++counts.moves_many;
+      break;
+    case group_kind::delete_only:
+      ++counts.delete_only;
+      break;
+    case group_kind::insert_only:
+      ++counts.insert_only;
+      break;
+    case group_kind::copy_or_repeat:
+      ++counts.copy_or_repeat;
+      break;
+    case group_kind::ambiguous:
+      ++counts.ambiguous;
+      break;
+    }
+  }
+
+  return counts;
+}
+
 std::size_t count_annotated_regions(const std::vector<move_entry> &moves) {
   std::size_t total = 0;
   for (const move_entry &move : moves) {
@@ -78,6 +107,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   result.regions_total     = regions.size();
   result.candidates_total  = registry.active_candidate_count();
   result.groups_total      = groups.group_count();
+  result.group_kinds       = count_group_kinds(groups);
   return result;
 }
 
