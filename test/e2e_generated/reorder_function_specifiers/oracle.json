@@ -1,5 +1,7 @@
 {
   "move_count": 3,
+  "move_group_count": 3,
+  "move_pair_count": 8,
   "moves": [
     {
       "move_id": "97b1dcdaf",
@@ -13,8 +15,16 @@
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[4]/src:decl[src:name='foo4']/src:type[1]/diff:insert[1]/diff:insert[1]",
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[5]/src:decl[src:name='foo5']/src:type[1]/diff:insert[1]/diff:insert[1]"
       ],
-      "from_raw_texts": ["int", "int", "int"],
-      "to_raw_texts": ["int", "int", "int"]
+      "from_raw_texts": [
+        "int",
+        "int",
+        "int"
+      ],
+      "to_raw_texts": [
+        "int",
+        "int",
+        "int"
+      ]
     },
     {
       "move_id": "c89025cc1",
@@ -26,8 +36,14 @@
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[2]/src:decl[src:name='foo2']/src:type[1]/diff:insert[1]/diff:insert[2]",
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[4]/src:decl[src:name='foo4']/src:type[1]/diff:insert[1]/diff:insert[2]"
       ],
-      "from_raw_texts": ["signed", "signed"],
-      "to_raw_texts": ["signed", "signed"]
+      "from_raw_texts": [
+        "signed",
+        "signed"
+      ],
+      "to_raw_texts": [
+        "signed",
+        "signed"
+      ]
     },
     {
       "move_id": "e1c9756ce",
@@ -41,11 +57,20 @@
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[2]/src:decl[src:name='foo2']/src:type[1]/diff:insert[1]/diff:insert[1]",
         "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[3]/src:decl[src:name='foo3']/src:type[1]/diff:insert[1]/diff:insert[2]"
       ],
-      "from_raw_texts": ["long", "long", "long"],
-      "to_raw_texts": ["long", "long", "long"]
+      "from_raw_texts": [
+        "long",
+        "long",
+        "long"
+      ],
+      "to_raw_texts": [
+        "long",
+        "long",
+        "long"
+      ]
     }
   ],
-  "annotated_regions": 6,
+  "annotated_regions": 16,
+  "annotated_region_count": 16,
   "regions_total": 26,
   "candidates_total": 16,
   "groups_total": 3

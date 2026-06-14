@@ -13,6 +13,7 @@
 
 #include <utility>
 #include <vector>
+#include <algorithm>
 
 #include "move_candidate.hpp"
 #include "move_registry/candidate_registry.hpp"
@@ -26,6 +27,27 @@
 #include "writer/annotation_writer.hpp"
 
 namespace srcmove {
+
+namespace {
+
+std::size_t count_annotated_regions(const std::vector<move_entry> &moves) {
+  std::size_t total = 0;
+  for (const move_entry &move : moves) {
+    total += move.from_xpaths.size();
+    total += move.to_xpaths.size();
+  }
+  return total;
+}
+
+std::size_t estimate_move_pairs(const std::vector<move_entry> &moves) {
+  std::size_t total = 0;
+  for (const move_entry &move : moves) {
+    total += std::min(move.from_xpaths.size(), move.to_xpaths.size());
+  }
+  return total;
+}
+
+} // namespace
 
 summary run_pipeline(const std::string &srcdiff_in_filename,
                      const std::string &srcdiff_out_filename) {
@@ -47,9 +69,12 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
       regions, registry, groups, srcdiff_in_filename, srcdiff_out_filename);
 
   srcmove::summary result;
-  result.moves             = std::move(moves);
-  result.move_count        = result.moves.size();
-  result.annotated_regions = result.move_count * 2;
+  result.moves                  = std::move(moves);
+  result.move_group_count       = result.moves.size();
+  result.move_count             = result.move_group_count;
+  result.move_pair_count        = estimate_move_pairs(result.moves);
+  result.annotated_region_count = count_annotated_regions(result.moves);
+  result.annotated_regions      = result.annotated_region_count;
   result.regions_total     = regions.size();
   result.candidates_total  = registry.active_candidate_count();
   result.groups_total      = groups.group_count();

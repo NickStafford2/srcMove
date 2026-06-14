@@ -16,10 +16,13 @@ struct move_entry {
 };
 
 struct summary {
-  std::size_t             move_count = 0;
+  std::size_t             move_count = 0; // Backward-compatible alias for move_group_count.
+  std::size_t             move_group_count = 0;
+  std::size_t             move_pair_count = 0;
   std::vector<move_entry> moves;
 
-  std::size_t annotated_regions = 0;
+  std::size_t annotated_regions = 0; // Backward-compatible alias for annotated_region_count.
+  std::size_t annotated_region_count = 0;
   std::size_t regions_total     = 0;
   std::size_t candidates_total  = 0;
   std::size_t groups_total      = 0;

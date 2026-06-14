@@ -1,5 +1,7 @@
 {
   "move_count": 2,
+  "move_group_count": 2,
+  "move_pair_count": 2,
   "moves": [
     {
       "move_id": "97b1dcdaf",
@@ -33,6 +35,7 @@
     }
   ],
   "annotated_regions": 4,
+  "annotated_region_count": 4,
   "regions_total": 4,
   "candidates_total": 4,
   "groups_total": 2

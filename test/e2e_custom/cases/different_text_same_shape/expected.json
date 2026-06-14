@@ -1,7 +1,11 @@
 {
   "move_count": 0,
-  "moves": [],
+  "move_group_count": 0,
+  "move_pair_count": 0,
+  "moves": [
+  ],
   "annotated_regions": 0,
+  "annotated_region_count": 0,
   "regions_total": 2,
   "candidates_total": 2,
   "groups_total": 2

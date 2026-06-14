@@ -430,11 +430,17 @@ def main() -> int:
     require_ok(move_result, "srcMove")
 
     move_count = None
+    move_group_count = None
+    move_pair_count = None
+    annotated_region_count = None
     results_data = None
     if results_json.is_file():
         with results_json.open("r", encoding="utf-8") as f:
             results_data = json.load(f)
         move_count = results_data.get("move_count")
+        move_group_count = results_data.get("move_group_count")
+        move_pair_count = results_data.get("move_pair_count")
+        annotated_region_count = results_data.get("annotated_region_count")
 
     report = {
         "case": args.case,
@@ -454,6 +460,9 @@ def main() -> int:
             "modified": modified_python_count,
         },
         "move_count": move_count,
+        "move_group_count": move_group_count,
+        "move_pair_count": move_pair_count,
+        "annotated_region_count": annotated_region_count,
         "paths": {
             "repo_dir": str(clone_dir),
             "original_dir": str(original_dir),
@@ -479,6 +488,9 @@ def main() -> int:
     print(f"srcdiff time : {report['srcdiff_seconds']:.3f}s")
     print(f"srcMove time : {report['srcmove_seconds']:.3f}s")
     print(f"move_count   : {move_count}")
+    print(f"move_groups  : {move_group_count}")
+    print(f"move_pairs   : {move_pair_count}")
+    print(f"annotated    : {annotated_region_count}")
     print(f"report       : {report_json}")
     if selected_dir:
         print(f"directory    : {selected_dir}")

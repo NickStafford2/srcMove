@@ -191,8 +191,11 @@ def check_summary_fields(
 
     required_top_level_keys = (
         "move_count",
+        "move_group_count",
+        "move_pair_count",
         "moves",
         "annotated_regions",
+        "annotated_region_count",
         "regions_total",
         "candidates_total",
         "groups_total",
@@ -206,7 +209,10 @@ def check_summary_fields(
 
     summary_checks = {
         "move_count": results_json.get("move_count"),
+        "move_group_count": results_json.get("move_group_count"),
+        "move_pair_count": results_json.get("move_pair_count"),
         "annotated_regions": results_json.get("annotated_regions"),
+        "annotated_region_count": results_json.get("annotated_region_count"),
         "regions_total": results_json.get("regions_total"),
         "candidates_total": results_json.get("candidates_total"),
         "groups_total": results_json.get("groups_total"),
