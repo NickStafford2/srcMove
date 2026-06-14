@@ -2,22 +2,22 @@
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" url="old|new">
 
 <unit revision="1.0.0" language="C++" filename="a.cpp|">
-  <diff:delete><function mv:id="c89025cc1" mv:to="/src:unit[@filename='|b.cpp']/diff:insert[1]"><type><name>int</name></type> <name>moved_one</name><parameter_list>()</parameter_list> <block>{<block_content>
+  <diff:delete><function mv:id="c89025cc1" mv:to="/src:unit[@filename='|b.cpp']/diff:insert[1]/src:function[src:name='moved_one']"><type><name>int</name></type> <name>moved_one</name><parameter_list>()</parameter_list> <block>{<block_content>
     <return>return <expr><literal type="number">1</literal></expr>;</return>
   </block_content>}</block></function>
-  <function mv:id="97b1dcdaf" mv:to="/src:unit[@filename='|c.cpp']/diff:insert[1]"><type><name>int</name></type> <name>moved_two</name><parameter_list>()</parameter_list> <block>{<block_content>
+  <function mv:id="97b1dcdaf" mv:to="/src:unit[@filename='|c.cpp']/diff:insert[1]/src:function[src:name='moved_two']"><type><name>int</name></type> <name>moved_two</name><parameter_list>()</parameter_list> <block>{<block_content>
     <return>return <expr><literal type="number">2</literal></expr>;</return>
   </block_content>}</block></function></diff:delete>
 </unit>
 
 <unit revision="1.0.0" language="C++" filename="|b.cpp">
-  <diff:insert mv:from="/src:unit[@filename='a.cpp|']/diff:delete[1]/src:function[src:name='moved_one']" mv:id="c89025cc1"><function><type><name>int</name></type> <name>moved_one</name><parameter_list>()</parameter_list> <block>{<block_content>
+  <diff:insert><function mv:from="/src:unit[@filename='a.cpp|']/diff:delete[1]/src:function[src:name='moved_one']" mv:id="c89025cc1"><type><name>int</name></type> <name>moved_one</name><parameter_list>()</parameter_list> <block>{<block_content>
     <return>return <expr><literal type="number">1</literal></expr>;</return>
   </block_content>}</block></function></diff:insert>
 </unit>
 
 <unit revision="1.0.0" language="C++" filename="|c.cpp">
-  <diff:insert mv:from="/src:unit[@filename='a.cpp|']/diff:delete[1]/src:function[src:name='moved_two']" mv:id="97b1dcdaf"><function><type><name>int</name></type> <name>moved_two</name><parameter_list>()</parameter_list> <block>{<block_content>
+  <diff:insert><function mv:from="/src:unit[@filename='a.cpp|']/diff:delete[1]/src:function[src:name='moved_two']" mv:id="97b1dcdaf"><type><name>int</name></type> <name>moved_two</name><parameter_list>()</parameter_list> <block>{<block_content>
     <return>return <expr><literal type="number">2</literal></expr>;</return>
   </block_content>}</block></function></diff:insert>
 </unit>

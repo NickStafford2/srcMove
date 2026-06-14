@@ -4,10 +4,10 @@
     {
       "move_id": "97b1dcdaf",
       "from_xpaths": [
-        "/src:unit[1]/diff:delete[1]"
+        "/src:unit[1]/diff:delete[1]/src:function[src:name='foo']"
       ],
       "to_xpaths": [
-        "/src:unit[1]/diff:insert[1]"
+        "/src:unit[1]/diff:insert[1]/src:function[src:name='foo']"
       ],
       "from_raw_texts": [
         "int foo() { \n  return 123; \n}"

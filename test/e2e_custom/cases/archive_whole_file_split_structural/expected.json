@@ -7,7 +7,7 @@
         "/src:unit[@filename='a.cpp|']/diff:delete[1]/src:function[src:name='moved_two']"
       ],
       "to_xpaths": [
-        "/src:unit[@filename='|c.cpp']/diff:insert[1]"
+        "/src:unit[@filename='|c.cpp']/diff:insert[1]/src:function[src:name='moved_two']"
       ],
       "from_raw_texts": [
         "int moved_two() {\n    return 2;\n  }"
@@ -22,7 +22,7 @@
         "/src:unit[@filename='a.cpp|']/diff:delete[1]/src:function[src:name='moved_one']"
       ],
       "to_xpaths": [
-        "/src:unit[@filename='|b.cpp']/diff:insert[1]"
+        "/src:unit[@filename='|b.cpp']/diff:insert[1]/src:function[src:name='moved_one']"
       ],
       "from_raw_texts": [
         "int moved_one() {\n    return 1;\n  }"

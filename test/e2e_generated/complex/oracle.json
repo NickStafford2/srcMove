@@ -20,7 +20,7 @@
       "move_id": "c89025cc1",
       "from_xpaths": [
         "/src:unit[@filename='foo.hpp']/diff:delete[1]/src:function[src:name='coppied_function']",
-        "/src:unit[@filename='main.cpp']/diff:delete[1]"
+        "/src:unit[@filename='main.cpp']/diff:delete[1]/src:function[src:name='coppied_function']"
       ],
       "to_xpaths": [
         "/src:unit[@filename='foo.cpp']/diff:insert[1]/src:function[src:name='coppied_function']"
@@ -29,36 +29,43 @@
         "char coppied_function() { return 'a'; }",
         "char coppied_function() { return 'a'; }"
       ],
-      "to_raw_texts": ["char coppied_function() { return 'a'; }"]
+      "to_raw_texts": [
+        "char coppied_function() { return 'a'; }"
+      ]
     },
     {
       "move_id": "e1c9756ce",
-      "from_xpaths": ["/src:unit[@filename='foo.hpp']/diff:delete[2]"],
-      "to_xpaths": ["/src:unit[@filename='bar.hpp']/diff:insert[1]"],
-      "from_raw_texts": ["char delcaration_moved();\n"],
-      "to_raw_texts": ["char delcaration_moved();\n"]
+      "from_xpaths": [
+        "/src:unit[@filename='foo.hpp']/diff:delete[2]/src:function_decl[src:name='delcaration_moved']"
+      ],
+      "to_xpaths": [
+        "/src:unit[@filename='bar.hpp']/diff:insert[1]/src:function_decl[src:name='delcaration_moved']"
+      ],
+      "from_raw_texts": [
+        "char delcaration_moved();"
+      ],
+      "to_raw_texts": [
+        "char delcaration_moved();"
+      ]
     },
     {
       "move_id": "4db018fed",
-      "from_xpaths": ["/src:unit[@filename='foo.cpp']/diff:delete[1]"],
-      "to_xpaths": ["/src:unit[@filename='bar.cpp']/diff:insert[1]"],
+      "from_xpaths": [
+        "/src:unit[@filename='foo.cpp']/diff:delete[1]/src:function[src:name='definition_moved']"
+      ],
+      "to_xpaths": [
+        "/src:unit[@filename='bar.cpp']/diff:insert[1]/src:function[src:name='definition_moved']"
+      ],
       "from_raw_texts": [
-        "\nchar definition_moved() {\n  char d = 'd';\n  char e = 'e';\n  return d + e;\n}\n"
+        "char definition_moved() {\n  char d = 'd';\n  char e = 'e';\n  return d + e;\n}"
       ],
       "to_raw_texts": [
         "char definition_moved() {\n  char d = 'd';\n\n  char e = 'e';\n  return d + e;\n}"
       ]
-    },
-    {
-      "move_id": "todo",
-      "from_xpaths": ["/src:unit[@filename='foo.hpp']/???"],
-      "to_xpaths": ["/src:unit[@filename='main.cpp']/???"],
-      "from_raw_texts": ["// This comment moves to a new file."],
-      "to_raw_texts": ["// This comment moves to a new file."]
     }
   ],
   "annotated_regions": 8,
-  "regions_total": 12,
-  "candidates_total": 13,
-  "groups_total": 8
+  "regions_total": 10,
+  "candidates_total": 11,
+  "groups_total": 6
 }

@@ -4,16 +4,16 @@
     {
       "move_id": "97b1dcdaf",
       "from_xpaths": [
-        "/src:unit[@filename='main.cpp']/diff:delete[1]"
+        "/src:unit[@filename='main.cpp']/diff:delete[1]/src:function[src:name='changed_function']"
       ],
       "to_xpaths": [
-        "/src:unit[@filename='|foo.hpp']/diff:insert[1]"
+        "/src:unit[@filename='|foo.hpp']/diff:insert[1]/src:function[src:name='changed_function']"
       ],
       "from_raw_texts": [
         "int changed_function() {\n  int x = 123;\n  int y = 456;\n  return x;\n}"
       ],
       "to_raw_texts": [
-        "int changed_function() {\n  int x = 123;\n\n  int y = 456;\n\n  return x;\n}\n"
+        "int changed_function() {\n  int x = 123;\n\n  int y = 456;\n\n  return x;\n}"
       ]
     }
   ],

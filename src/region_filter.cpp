@@ -180,7 +180,7 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
 
     std::vector<move_candidate> child_candidates =
         extract_structural_child_candidates(r, opt);
-    if (child_candidates.size() > 1) {
+    if (!child_candidates.empty()) {
       out.insert(out.end(),
                  std::make_move_iterator(child_candidates.begin()),
                  std::make_move_iterator(child_candidates.end()));
