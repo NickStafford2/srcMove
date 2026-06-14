@@ -11,6 +11,8 @@ import sys
 import time
 from pathlib import Path
 
+from delete_python_files import delete_python_files
+
 
 def run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
     return subprocess.run(
@@ -353,6 +355,16 @@ def main() -> int:
         print(f"      directory : {selected_dir}")
     export_commit(clone_dir, old_commit, original_dir, selected_dir)
     export_commit(clone_dir, new_commit, modified_dir, selected_dir)
+
+    # Preprocess Python files out because srcdiff does not work well with
+    # Python files currently and can crash while diffing them.
+    original_python_count = delete_python_files(original_dir)
+    modified_python_count = delete_python_files(modified_dir)
+    if original_python_count or modified_python_count:
+        print(
+            "      deleted Python files: "
+            f"original={original_python_count}, modified={modified_python_count}"
+        )
 
     print("[5/6] running srcdiff")
     if args.position:
