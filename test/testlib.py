@@ -124,6 +124,7 @@ def normalize_move_record(move: dict[str, Any]) -> dict[str, list[str] | int | N
 
     return {
         "move_id": move.get("move_id"),
+        "match_kind": move.get("match_kind"),
         "from_xpaths": from_xpaths,
         "to_xpaths": to_xpaths,
         "from_files": xpaths_to_files(from_xpaths),
@@ -167,6 +168,18 @@ def move_matches_expectation(
                     "move_id mismatch:",
                     f"  expected: {expected['move_id']!r}",
                     f"  actual:   {actual['move_id']!r}",
+                ]
+            ),
+        )
+
+    if "match_kind" in expected and actual["match_kind"] != expected["match_kind"]:
+        return (
+            False,
+            "\n".join(
+                [
+                    "match_kind mismatch:",
+                    f"  expected: {expected['match_kind']!r}",
+                    f"  actual:   {actual['match_kind']!r}",
                 ]
             ),
         )

@@ -109,6 +109,7 @@ write_with_move_annotations(const std::string &in_filename,
 
         move_entry &entry = moves[move_id];
         entry.move_id     = move_id;
+        entry.match_kind  = tag.match_kind;
 
         if (tag.kind == move_candidate::Kind::del) {
           entry.from_xpaths.push_back(xpath);

@@ -72,6 +72,9 @@ inline void write_move_entry(std::ostream     &out,
 
   out << pad << "{\n";
   out << field_pad << "\"move_id\": \"" << m.move_id << "\",\n";
+  out << field_pad << "\"match_kind\": ";
+  write_string(out, m.match_kind);
+  out << ",\n";
 
   out << field_pad << "\"from_xpaths\": ";
   write_string_array(out, m.from_xpaths, indent + 2);

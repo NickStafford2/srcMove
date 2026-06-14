@@ -9,6 +9,7 @@ namespace srcmove {
 
 struct move_entry {
   std::string              move_id;
+  std::string              match_kind;
   std::vector<std::string> from_xpaths;
   std::vector<std::string> to_xpaths;
   std::vector<std::string> from_raw_texts;
