@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="type2_call_expression_guard.cpp">
+
+  <diff:delete><expr_stmt><expr><name>run</name><call><argument_list>(<argument><expr><name>oldValue</name></expr></argument>)</argument_list></call></expr>;</expr_stmt></diff:delete>
+
+  <diff:insert><expr_stmt><expr><name>log</name><call><argument_list>(<argument><expr><name>newValue</name></expr></argument>)</argument_list></call></expr>;</expr_stmt></diff:insert>
+
+</unit>

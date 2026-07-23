@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="type2_type_name_guard.cpp">
+
+  <diff:delete><decl_stmt><decl><type><name>Foo</name></type> <name>value</name> <init>= <expr><call><name>Foo</name><argument_list>()</argument_list></call></expr></init></decl>;</decl_stmt></diff:delete>
+
+  <diff:insert><decl_stmt><decl><type><name>Bar</name></type> <name>value</name> <init>= <expr><call><name>Bar</name><argument_list>()</argument_list></call></expr></init></decl>;</decl_stmt></diff:insert>
+
+</unit>

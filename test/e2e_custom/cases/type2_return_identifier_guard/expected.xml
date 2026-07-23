@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="type2_return_identifier_guard.cpp">
+
+  <diff:delete><return>return <expr><name>errorCode</name></expr>;</return></diff:delete>
+
+  <diff:insert><return>return <expr><name>status</name></expr>;</return></diff:insert>
+
+</unit>

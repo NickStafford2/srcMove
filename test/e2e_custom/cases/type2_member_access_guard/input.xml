@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="type2_member_access_guard.cpp">
+
+  <diff:delete><expr_stmt><expr><name>config</name><operator>.</operator><name>enabled</name> <operator>=</operator> <literal type="boolean">true</literal></expr>;</expr_stmt></diff:delete>
+
+  <diff:insert><expr_stmt><expr><name>state</name><operator>.</operator><name>ready</name> <operator>=</operator> <literal type="boolean">true</literal></expr>;</expr_stmt></diff:insert>
+
+</unit>

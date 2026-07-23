@@ -53,6 +53,7 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
   int         wrapper_depth         = 0;
   bool        skipped_outer_wrapper = false;
   int         name_depth            = 0;
+  int         type_depth            = 0;
   std::unordered_map<std::string, std::size_t> normalized_names;
 
   for (const auto &node : nodes) {
@@ -87,7 +88,7 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
         continue;
       }
       out += "T(";
-      if (opt.normalize_names && name_depth > 0) {
+      if (opt.normalize_names && name_depth > 0 && type_depth == 0) {
         const auto [it, inserted] =
             normalized_names.emplace(*node.content, normalized_names.size() + 1);
         (void)inserted;
@@ -107,9 +108,15 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
       if (opt.normalize_names && fn == "name") {
         ++name_depth;
       }
+      if (opt.normalize_names && fn == "type") {
+        ++type_depth;
+      }
     } else if (node.is_end()) {
       if (opt.normalize_names && fn == "name" && name_depth > 0) {
         --name_depth;
+      }
+      if (opt.normalize_names && fn == "type" && type_depth > 0) {
+        --type_depth;
       }
       out += "E(";
       out += fn;

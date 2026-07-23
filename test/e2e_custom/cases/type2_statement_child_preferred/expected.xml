@@ -3,13 +3,13 @@
 
   <diff:delete>
 
-    <expr_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/src:expr_stmt[1]"><expr><name>run_old</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+    <decl_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/src:decl_stmt[1]"><decl><type><name>int</name></type> <name>oldValue</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt>
 
   </diff:delete>
 
   <diff:insert>
 
-    <expr_stmt mv:from="/src:unit[1]/diff:delete[1]/src:expr_stmt[1]" mv:id="97b1dcdaf"><expr><name>run_new</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+    <decl_stmt mv:from="/src:unit[1]/diff:delete[1]/src:decl_stmt[1]" mv:id="97b1dcdaf"><decl><type><name>int</name></type> <name>newValue</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt>
 
   </diff:insert>
 

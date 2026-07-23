@@ -62,12 +62,18 @@ static bool is_statement_name(std::string_view name) {
          name == "throw";
 }
 
+static bool is_type2_statement_name(std::string_view name) {
+  return name == "decl_stmt" || name == "if_stmt" || name == "for" ||
+         name == "while" || name == "do" || name == "switch" ||
+         name == "try";
+}
+
 static bool is_type2_eligible_name(std::string_view name) {
-  return is_structural_child_name(name) || is_statement_name(name);
+  return is_structural_child_name(name) || is_type2_statement_name(name);
 }
 
 static bool is_preferred_child_candidate_name(std::string_view name) {
-  return is_type2_eligible_name(name);
+  return is_structural_child_name(name) || is_statement_name(name);
 }
 
 static bool is_diff_wrapper_name(std::string_view full_name) {
