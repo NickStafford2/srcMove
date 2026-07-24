@@ -30,6 +30,12 @@ python3 test/e2e_bigclonebench/run_tests.py --syntactic-type 2 --limit 10
 Generated cases are written to `test/e2e_bigclonebench/cases/` and are ignored by
 git.
 
+Each run also writes `test/e2e_bigclonebench/cases/summary.csv`. This is the
+quick index for reviewing a batch without opening every generated case. It
+records the case id, pass/fail status, clone type, BigCloneBench function ids,
+source files, reported move counts, reported match-kind counts, and failure
+messages.
+
 ## Validation
 
 - Type-1 expects one `exact` move.

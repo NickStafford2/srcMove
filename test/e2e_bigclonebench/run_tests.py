@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
 import shutil
@@ -17,6 +18,9 @@ TEST_ROOT = SCRIPT_DIR.parent
 REPO_ROOT = TEST_ROOT.parent
 CASES_DIR = SCRIPT_DIR / "cases"
 GENERATOR = REPO_ROOT / "scripts" / "generate_bigclonebench_move_cases.py"
+
+
+SummaryRow = dict[str, str | int | bool]
 
 
 def parse_args() -> argparse.Namespace:
@@ -271,10 +275,72 @@ def generate_cases(args: argparse.Namespace) -> bool:
     return True
 
 
-def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> bool:
+def build_summary_row(
+    case_dir: Path,
+    metadata: dict[str, Any],
+    results: dict[str, Any] | None,
+    passed: bool,
+    failures: list[str],
+) -> SummaryRow:
+    match_kinds = results.get("match_kinds") if isinstance(results, dict) else {}
+    if not isinstance(match_kinds, dict):
+        match_kinds = {}
+
+    fragment_one = metadata.get("fragment_one")
+    if not isinstance(fragment_one, dict):
+        fragment_one = {}
+    fragment_two = metadata.get("fragment_two")
+    if not isinstance(fragment_two, dict):
+        fragment_two = {}
+
+    syntactic_type = metadata.get("syntactic_type", "")
+    clone_type = f"type{syntactic_type}" if syntactic_type != "" else ""
+
+    return {
+        "case": case_dir.name,
+        "passed": passed,
+        "clone_type": clone_type,
+        "syntactic_type": syntactic_type,
+        "function_id_one": metadata.get("function_id_one", ""),
+        "function_id_two": metadata.get("function_id_two", ""),
+        "min_tokens": metadata.get("min_tokens", ""),
+        "file1": fragment_one.get("file", ""),
+        "file2": fragment_two.get("file", ""),
+        "move_count": results.get("move_count", "") if isinstance(results, dict) else "",
+        "exact_count": match_kinds.get("exact", ""),
+        "type2_count": match_kinds.get("type2", ""),
+        "failures": " | ".join(failures),
+    }
+
+
+def write_summary(path: Path, rows: list[SummaryRow]) -> None:
+    fieldnames = [
+        "case",
+        "passed",
+        "clone_type",
+        "syntactic_type",
+        "function_id_one",
+        "function_id_two",
+        "min_tokens",
+        "file1",
+        "file2",
+        "move_count",
+        "exact_count",
+        "type2_count",
+        "failures",
+    ]
+
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fieldnames)
+        writer.writeheader()
+        writer.writerows(rows)
+
+
+def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> tuple[bool, SummaryRow]:
     diff_xml = case_dir / "diff.xml"
     diff_new_xml = case_dir / "diff_new.xml"
     results_json = case_dir / "results.json"
+    metadata = load_json(case_dir / "metadata.json")
 
     for path in (diff_xml, diff_new_xml, results_json):
         if path.exists():
@@ -287,7 +353,8 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> bool:
     if srcdiff_proc.returncode != 0:
         print(f"FAIL {case_dir.name}")
         print_process_failure("srcdiff", srcdiff_proc)
-        return False
+        failures = [f"srcdiff failed with exit code {srcdiff_proc.returncode}"]
+        return False, build_summary_row(case_dir, metadata, None, False, failures)
 
     srcmove_proc = run_command(
         [str(srcmove), str(diff_xml), str(diff_new_xml), "--results", str(results_json)],
@@ -296,19 +363,20 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> bool:
     if srcmove_proc.returncode != 0:
         print(f"FAIL {case_dir.name}")
         print_process_failure("srcMove", srcmove_proc)
-        return False
+        failures = [f"srcMove failed with exit code {srcmove_proc.returncode}"]
+        return False, build_summary_row(case_dir, metadata, None, False, failures)
 
-    metadata = load_json(case_dir / "metadata.json")
     syntactic_type = int(metadata.get("syntactic_type"))
+    results = load_json(results_json)
     failures = validate_case(case_dir, results_json, diff_new_xml, syntactic_type)
     if failures:
         print(f"FAIL {case_dir.name}")
         for failure in failures:
             print(f"  - {failure}")
-        return False
+        return False, build_summary_row(case_dir, metadata, results, False, failures)
 
     print(f"PASS {case_dir.name}")
-    return True
+    return True, build_summary_row(case_dir, metadata, results, True, [])
 
 
 def main() -> int:
@@ -349,15 +417,22 @@ def main() -> int:
         return 2
 
     failures = 0
+    summary_rows: list[SummaryRow] = []
     for case_dir in case_dirs:
-        if not run_case(case_dir, srcdiff.resolve(), args.srcmove):
+        passed, summary_row = run_case(case_dir, srcdiff.resolve(), args.srcmove)
+        summary_rows.append(summary_row)
+        if not passed:
             failures += 1
+
+    summary_path = args.out_dir / "summary.csv"
+    write_summary(summary_path, summary_rows)
 
     print()
     print(
         f"type={args.clone_type} total={len(case_dirs)} "
         f"passed={len(case_dirs) - failures} failed={failures}"
     )
+    print(f"summary={summary_path}")
     return 1 if failures else 0
 
 
