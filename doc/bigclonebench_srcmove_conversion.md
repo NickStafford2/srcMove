@@ -70,15 +70,19 @@ ORDER BY c.syntactic_type, c.functionality_id, c.function_id_one, c.function_id_
 LIMIT 100;
 ```
 
-Then broaden by buckets:
-todo: what buckets? you have not mentioned them yet.
+Then broaden by buckets. A bucket is a named subset of BigCloneBench rows chosen
+to answer one testing question, such as exact-move recall, renamed-code recall,
+near-miss behavior, or default-vs-internal benchmark coverage. Keep buckets
+separate in reports so one easy category does not hide failures in another.
 
 ```text
 syntactic_type = 1             exact / Type-1 move baseline
 syntactic_type = 2             renamed / Type-2 move baseline
 syntactic_type = 3, sim >= .90 near-miss or future Type-3 recall
 syntactic_type = 3, sim < .70  expected miss / stress cases
-internal = TRUE/FALSE          intra-project vs inter-project split
+internal = FALSE/TRUE          default BigCloneEval rows vs internal rows
+f1.project = f2.project        intra-project rows
+f1.project != f2.project       inter-project rows
 ```
 
 ## Practical Test Layout

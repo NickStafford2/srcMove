@@ -59,8 +59,11 @@ then measures recall against BigCloneBench reference clone pairs.
 The pieces are:
 
 - IJaDataset source files: the Java corpus. These files contain the code text.
-- `functions`: a table of known function fragments inside that corpus.
-  todo: what is a code fragment?
+- `functions`: a table of benchmark code fragments inside that corpus. In this
+  database, a fragment is a concrete line range inside one Java file, usually a
+  method-sized region. It is not a separate file; it is identified by
+  `functions.name`, `functions.type`, `functions.startline`, and
+  `functions.endline`.
 - `clones`: BigCloneBench reference clone-pair rows between two `functions`
   rows.
 - `false_positives`: known false-positive clone pairs used when evaluating clone
@@ -134,9 +137,13 @@ all implement the same general functionality.
 
 For srcMove reporting:
 
-- row count: how many BigCloneBench pair rows ran
-- distinct raw text-pair count: how many unique extracted code-pair shapes ran
-- functionality coverage: how many different code-task groups were represented
+- row count: how many BigCloneBench pair rows ran. This matches BigCloneEval's
+  native recall unit.
+- distinct raw text-pair count: how many unique extracted source-text pairs ran.
+  This matters because many BigCloneBench rows can contain identical raw source
+  text, especially in Type-1.
+- functionality coverage: how many different code-task groups were represented.
+  This guards against a large run mostly testing one repeated task shape.
 
 ### `syntactic_type`
 
@@ -145,10 +152,22 @@ Type-2 only.
 
 ### `similarity_line` / `similarity_token`
 
-How much code the two fragments share, measured by lines or tokens after
-BigCloneBench rewrites the code into its comparison form.
-todo: there is no mention of comparison form on this document. what is it and how does it work? why is it there?
-todo: what are clone strength scores? this sounds like it would be really useful for move detection.
+How much syntax the two fragments share, measured by lines or tokens after
+BigCloneBench rewrites source into a normalized comparison form.
+
+The comparison form exists so BigCloneBench can classify clone strength without
+being dominated by superficial source differences. BigCloneEval's README
+describes this as strict pretty-printing plus Type-1 and Type-2 normalizations.
+In practical terms:
+
+- strict pretty-printing gives code a consistent layout before line comparison
+- comment and whitespace differences should not decide semantic clone strength
+- Type-2 comparison can abstract identifier and literal differences
+- shared lines or tokens are then compared with a diff-style ordered match
+
+The local H2 database stores line and token similarity as fractional values such
+as `1.0`, `.90`, or `.70`. BigCloneEval's command-line documentation often talks
+about the same thresholds as percentages such as 100%, 90%, or 70%.
 
 BigCloneEval can evaluate by:
 
@@ -157,25 +176,35 @@ BigCloneEval can evaluate by:
 - average of the line and token scores
 - `BOTH`, meaning the lower of the line and token scores
 
-These are benchmark clone-strength scores, not byte-for-byte raw source
-comparisons. Do not use them directly as the srcMove `exact` vs `type2` oracle.
+These are benchmark clone-strength scores: they describe how strongly the two
+BigCloneBench fragments resemble each other after BigCloneBench's normalization.
+They are useful for srcMove sampling and future similarity experiments, but they
+are not byte-for-byte raw source comparisons. Do not use them directly as the
+srcMove `exact` vs `type2` oracle.
 
 ### Size And Judgment Filters
 
 - `min_tokens`: the smaller token count of the two fragments. BigCloneEval's
   recommended settings include `min_tokens >= 50`.
 - `min_size` / `min_pretty_size`: smaller fragment size in original lines and
-  pretty-printed lines.
-  todo: what is pretty? what is min size?
+  pretty-printed lines. `min_size` counts the original source line span.
+  `min_pretty_size` counts the same fragment after BigCloneBench's
+  pretty-printing normalization.
 - `min_judges` / `min_confidence`: optional human-judgment filters.
-  todo: what are these? what is a judge and what is a confidence
+  A judge is a human reviewer who inspected whether a fragment implements the
+  functionality BigCloneBench assigns to it. Confidence is an agreement score
+  used when multiple judges reviewed the same fragment. These fields are mainly
+  useful when you want a stricter benchmark slice.
 
 ### `internal`
 
-todo: explain this more thoroughly. I am reading through this and I am clueless
+An exclusion flag used by BigCloneEval's default evaluator. Unless
+`include_internal` is enabled, BigCloneEval adds `AND internal = FALSE` when it
+selects reference clones.
 
-A BigCloneBench exclusion flag. BigCloneEval's evaluator adds
-`AND internal = FALSE` unless `include_internal` is enabled.
+The name is easy to misread. It does not mean "in the same project" and it does
+not mean "inside one file." It is a BigCloneBench/BigCloneEval filtering flag
+for whether a reference row belongs to the default public evaluation set.
 
 Do not equate `internal = FALSE` with inter-project clones. BigCloneEval handles
 project granularity separately by comparing `functions.project`:
@@ -198,14 +227,24 @@ clone set" rather than "use only inter-project examples."
 
 ## Similarity And Clone Types
 
-todo: i don't understand the start of this section. what is similarity.
-todo: "may include ..." is confusing. what is the context.
-todo: "this matters because the extracted source fragments..." extracted from where?
+In this document, similarity means BigCloneBench's estimate of how much syntax
+two benchmark fragments share after its normalization steps. The fragments are
+the inclusive source line ranges extracted from IJaDataset using the
+`functions` table.
 
-BigCloneBench similarity is measured after normalizations that may include
-strict pretty-printing, comment removal, blind identifier renaming, and literal
-abstraction. This matters because the extracted source fragments can be raw-text
-identical even when they represent separate BigCloneBench clone rows.
+This is different from raw text equality:
+
+- Two fragments can be raw-text identical and therefore have similarity `1.0`.
+- Two fragments can differ only by layout or comments and still be Type-1.
+- Two fragments can differ by names or literals and still be Type-2.
+- Type-3 and Type-4 rows allow larger syntactic or semantic differences.
+
+This distinction matters for srcMove because the local generator writes the
+extracted raw source text into synthetic `original.java` and `modified.java`
+files. srcMove then sees the raw source, not BigCloneBench's normalized
+comparison form. A BigCloneBench similarity score can tell us which benchmark
+bucket a pair belongs to, but srcMove still needs its own exact, Type-2, or
+future similarity matching logic to detect the synthetic move.
 
 Type-1 deserves special care for srcMove. BigCloneEval describes Type-1
 similarity as allowing formatting/comment differences, so a srcMove test
@@ -224,13 +263,23 @@ then check whether srcMove reports the expected move.
 This transformation is useful, but its metrics must be described honestly:
 
 - BigCloneBench row count is not the same as distinct move-test variety.
-  todo explain this row count thing more
+  BigCloneBench counts clone-pair rows. A single fragment can appear in many
+  rows, and several rows can have identical extracted raw text. Running 1,000
+  rows therefore does not automatically mean running 1,000 meaningfully
+  different srcMove cases.
 - Repeated rows from the same functionality or identical source text can inflate
   apparent coverage.
-  todo: i don't understand the above bullet at all
+  For example, a high pass rate over many copies of the same sorting method
+  mostly proves that one exact pattern works repeatedly. It is still useful, but
+  it should be reported separately from coverage over different functionality
+  groups and different raw text pairs.
 - Type-1 whitespace/comment behavior should be covered by raw-text-aware
   BigCloneBench cases plus focused hand-authored fixtures.
-  todo: i don't understand the above bullet at all
+  Most currently selected Type-1 BigCloneBench cases have identical extracted
+  raw text on both sides. To test whether srcMove handles Type-1
+  formatting/comment changes, use `--text-change raw-different` for the rare
+  BigCloneBench rows that actually differ in raw text, and keep small
+  checked-in fixtures that deliberately exercise whitespace and comment changes.
 
 See [Converting BigCloneEval Into srcMove Tests](bigclonebench_srcmove_conversion.md)
 for the current local generator and runner design.
