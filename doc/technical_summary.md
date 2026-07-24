@@ -1,5 +1,6 @@
 # Summary
-Semantic Move Detection Research (C++)
+
+Semantic Move Detection Research
 
 Developing a high-performance semantic move detector on top of srcML and srcDiff to identify relocated code across files and refactors. The system uses AST-based analysis, fast hashing, and probabilistic scoring to reconstruct developer intent during large structural changes. Designed for scalability and real-world static analysis workflows.
 
@@ -16,3 +17,10 @@ This work enables refactor-aware analysis by preserving developer intent during 
 The current implementation includes a complete parsing pipeline, move registry, and indexed matching infrastructure in C++, with planned integration into srcDiff.
 
 This work is being prepared for peer-reviewed publication.
+
+## Results
+
+Detects 100% of type 1 moves
+Detects 50% of type 2 moves
+
+Type 3 and 4 moves not implemented.
