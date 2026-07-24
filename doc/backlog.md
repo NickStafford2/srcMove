@@ -10,11 +10,9 @@ settled.
   the apparent variety of tested code shapes.
 - Add `--offset` to BigCloneBench generation for deterministic benchmark slices
   such as rows 1-1000, 1001-2000, etc.
-
-## Recently Done
-
-- BigCloneBench runs write `test/e2e_bigclonebench/cases/summary.csv` with
-  pass/fail status and useful metadata for each generated case.
+- Review docs for upgrades. Generate documentation of current progress for my masters
+  thesis.
+- General purpose Cleanup.
 
 ## Later
 
