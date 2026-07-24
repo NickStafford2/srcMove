@@ -6,13 +6,14 @@ settled.
 
 ## Next
 
+- Code review of e2e_bigclonebench
 - Add a BigCloneBench dedupe mode so repeated Type-1 pair rows do not inflate
   the apparent variety of tested code shapes.
 - Add `--offset` to BigCloneBench generation for deterministic benchmark slices
   such as rows 1-1000, 1001-2000, etc.
 - Review docs for upgrades. Generate documentation of current progress for my masters
   thesis.
-- General purpose Cleanup.
+- General purpose cleanup.
 
 ## Later
 
