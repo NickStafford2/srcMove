@@ -107,21 +107,68 @@ intra-project/inter-project reporting.
 
 ## BigCloneBench Fields That Matter
 
-- `functionality_id`: groups clones by the functionality they implement. Rows
-  with the same functionality are related benchmark evidence, not independent
-  historical edits.
-- `syntactic_type`: BigCloneBench clone category. Local srcMove tests currently
-  use Type-1 and Type-2 only.
-- `similarity_line` / `similarity_token`: syntax similarity after BigCloneBench
-  Type-1/Type-2 normalizations. BigCloneEval can evaluate by line, token,
-  average, or `BOTH` (the smaller of line/token).
+### `functionality_id`
+
+BigCloneBench's way of grouping clone pairs by the kind of task the code
+performs.
+
+Conceptually:
+
+```text
+functionality_id = 42: sort an array
+functionality_id = 99: read a file
+functionality_id = 123: compute edit distance
+```
+
+Every row in `clones` is still a pair of concrete code fragments:
+
+```text
+function A clone-of function B
+function A clone-of function C
+function D clone-of function E
+```
+
+If several rows share the same `functionality_id`, BigCloneBench is saying they
+all implement the same general functionality.
+
+For srcMove reporting:
+
+- row count: how many BigCloneBench pair rows ran
+- distinct raw text-pair count: how many unique extracted code-pair shapes ran
+- functionality coverage: how many different code-task groups were represented
+
+### `syntactic_type`
+
+The BigCloneBench clone category. Local srcMove tests currently use Type-1 and
+Type-2 only.
+
+### `similarity_line` / `similarity_token`
+
+How much code the two fragments share, measured by lines or tokens after
+BigCloneBench rewrites the code into its comparison form.
+
+BigCloneEval can evaluate by:
+
+- line score
+- token score
+- average of the line and token scores
+- `BOTH`, meaning the lower of the line and token scores
+
+These are benchmark clone-strength scores, not byte-for-byte raw source
+comparisons. Do not use them directly as the srcMove `exact` vs `type2` oracle.
+
+### Size And Judgment Filters
+
 - `min_tokens`: the smaller token count of the two fragments. BigCloneEval's
   recommended settings include `min_tokens >= 50`.
 - `min_size` / `min_pretty_size`: smaller fragment size in original lines and
   pretty-printed lines.
 - `min_judges` / `min_confidence`: optional human-judgment filters.
-- `internal`: a BigCloneBench exclusion flag. BigCloneEval's evaluator adds
-  `AND internal = FALSE` unless `include_internal` is enabled.
+
+### `internal`
+
+A BigCloneBench exclusion flag. BigCloneEval's evaluator adds
+`AND internal = FALSE` unless `include_internal` is enabled.
 
 Do not equate `internal = FALSE` with inter-project clones. BigCloneEval handles
 project granularity separately by comparing `functions.project`:

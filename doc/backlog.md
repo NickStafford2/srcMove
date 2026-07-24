@@ -17,6 +17,8 @@ settled.
 
 - Improve Type-2 move detection.
 - Add Type-2 failure categorization using metadata and/or canonical srcML forms.
+- Evaluate BigCloneEval clone matcher logic for ideas srcMove could use when
+  deciding which code segment is the intended move.
 - Add cross-file/archive BigCloneBench synthetic move cases.
 - Add BigCloneBench coverage reporting that summarizes row counts, distinct raw
   text-pair counts, and functionality coverage across a run.
