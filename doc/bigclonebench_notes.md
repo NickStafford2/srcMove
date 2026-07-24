@@ -60,6 +60,7 @@ The pieces are:
 
 - IJaDataset source files: the Java corpus. These files contain the code text.
 - `functions`: a table of known function fragments inside that corpus.
+  todo: what is a code fragment?
 - `clones`: BigCloneBench reference clone-pair rows between two `functions`
   rows.
 - `false_positives`: known false-positive clone pairs used when evaluating clone
@@ -146,6 +147,8 @@ Type-2 only.
 
 How much code the two fragments share, measured by lines or tokens after
 BigCloneBench rewrites the code into its comparison form.
+todo: there is no mention of comparison form on this document. what is it and how does it work? why is it there?
+todo: what are clone strength scores? this sounds like it would be really useful for move detection.
 
 BigCloneEval can evaluate by:
 
@@ -163,9 +166,13 @@ comparisons. Do not use them directly as the srcMove `exact` vs `type2` oracle.
   recommended settings include `min_tokens >= 50`.
 - `min_size` / `min_pretty_size`: smaller fragment size in original lines and
   pretty-printed lines.
+  todo: what is pretty? what is min size?
 - `min_judges` / `min_confidence`: optional human-judgment filters.
+  todo: what are these? what is a judge and what is a confidence
 
 ### `internal`
+
+todo: explain this more thoroughly. I am reading through this and I am clueless
 
 A BigCloneBench exclusion flag. BigCloneEval's evaluator adds
 `AND internal = FALSE` unless `include_internal` is enabled.
@@ -191,6 +198,10 @@ clone set" rather than "use only inter-project examples."
 
 ## Similarity And Clone Types
 
+todo: i don't understand the start of this section. what is similarity.
+todo: "may include ..." is confusing. what is the context.
+todo: "this matters because the extracted source fragments..." extracted from where?
+
 BigCloneBench similarity is measured after normalizations that may include
 strict pretty-printing, comment removal, blind identifier renaming, and literal
 abstraction. This matters because the extracted source fragments can be raw-text
@@ -213,36 +224,36 @@ then check whether srcMove reports the expected move.
 This transformation is useful, but its metrics must be described honestly:
 
 - BigCloneBench row count is not the same as distinct move-test variety.
+  todo explain this row count thing more
 - Repeated rows from the same functionality or identical source text can inflate
   apparent coverage.
+  todo: i don't understand the above bullet at all
 - Type-1 whitespace/comment behavior should be covered by raw-text-aware
   BigCloneBench cases plus focused hand-authored fixtures.
+  todo: i don't understand the above bullet at all
 
 See [Converting BigCloneEval Into srcMove Tests](bigclonebench_srcmove_conversion.md)
 for the current local generator and runner design.
 
-## Setup Script
+## Local Installation
 
-Use `scripts/setup_bigclonebench.sh` to create a reproducible local checkout under
-`test/bigclonebench/`.
-
-```bash
-scripts/setup_bigclonebench.sh
-```
-
-The script clones BigCloneEval, downloads the BigCloneBench H2 database archive
-and reduced IJaDataset archive, extracts them into the expected BigCloneEval
-directories, and exports the H2 database metadata/tables into:
+Install BigCloneEval manually under:
 
 ```text
-test/bigclonebench/export/
+test/BigCloneEval/
 ```
 
-If OneDrive requires login and returns an HTML page instead of a tarball, download
-the archives manually and rerun with:
+This is the path used by `scripts/generate_bigclonebench_move_cases.py`. The
+local checkout should contain BigCloneEval's `ReadMe.md`, `libs/`, the
+BigCloneBench H2 database under `bigclonebenchdb/`, and the IJaDataset Java
+corpus under `ijadataset/`.
 
-```bash
-BCB_TARBALL=/path/to/BigCloneBench_BCEvalVersion.tar.gz \
-IJA_TARBALL=/path/to/IJaDataset_BCEvalVersion.tar.gz \
-scripts/setup_bigclonebench.sh --no-download
+Follow BigCloneEval's own setup instructions in
+`test/BigCloneEval/ReadMe.md`, or the upstream README at
+<https://github.com/jeffsvajlenko/BigCloneEval>. In this repository, the
+expected local artifacts are:
+
+```text
+test/BigCloneEval/bigclonebenchdb/bcb.h2.db
+test/BigCloneEval/ijadataset/{default,sample,selected}/*.java
 ```

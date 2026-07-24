@@ -8,8 +8,10 @@ fragment is inserted at a different location in the new version.
 
 ## Local Assets
 
-After the five BigCloneEval setup steps, this checkout has the two required
-inputs:
+Install BigCloneEval manually at `test/BigCloneEval/` and follow its setup
+instructions in `test/BigCloneEval/ReadMe.md` or the upstream README at
+<https://github.com/jeffsvajlenko/BigCloneEval>. This checkout expects the two
+required inputs at:
 
 ```text
 test/BigCloneEval/bigclonebenchdb/bcb.h2.db
@@ -69,6 +71,7 @@ LIMIT 100;
 ```
 
 Then broaden by buckets:
+todo: what buckets? you have not mentioned them yet.
 
 ```text
 syntactic_type = 1             exact / Type-1 move baseline
