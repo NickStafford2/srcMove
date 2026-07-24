@@ -150,8 +150,12 @@ LIMIT {limit}
 
 
 def extract_lines(path: Path, startline: int, endline: int) -> str:
-    lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
-    fragment = lines[startline - 1 : endline]
+    # BigCloneBench line ranges are LF-based. Some IJaDataset files contain
+    # standalone CR characters inside comments; splitlines() would count those
+    # as extra source lines and shift later fragments.
+    with path.open("r", encoding="utf-8", errors="replace", newline="") as source:
+        lines = source.read().split("\n")
+    fragment = [line.removesuffix("\r") for line in lines[startline - 1 : endline]]
     return "\n".join(fragment).rstrip() + "\n"
 
 

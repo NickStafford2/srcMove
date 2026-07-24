@@ -92,6 +92,10 @@ def build_steps(args: argparse.Namespace) -> list[TestStep]:
     steps.extend(
         [
             TestStep(
+                "python unit tests",
+                [sys.executable, "test/test_bigclonebench_generator.py"],
+            ),
+            TestStep(
                 "custom e2e",
                 [sys.executable, "test/e2e_custom/run_tests.py", "build/srcMove"],
                 test_env,

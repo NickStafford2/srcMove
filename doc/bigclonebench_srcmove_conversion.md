@@ -135,6 +135,9 @@ cases from a previous larger run.
   row counts and distinct raw-text-pair counts when using these cases as a metric.
 - H2 embedded database access is single-process. Run BigCloneBench generator or
   analysis commands serially; parallel queries can fail with a database lock.
+- Interpret BigCloneBench source ranges as LF-delimited line numbers. Some
+  IJaDataset files contain standalone carriage-return characters inside comments,
+  and treating those as line breaks shifts later extracted fragments.
 - Many BigCloneBench fragments depend on imports or surrounding class members.
   srcDiff/srcML parsing generally does not require compilation, but malformed
   extracted fragments should be filtered out.
