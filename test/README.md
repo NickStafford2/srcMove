@@ -36,11 +36,19 @@ CTest is retired for this project. Use `./build_and_test` or
 
 ## BigCloneBench
 
-BigCloneBench-generated tests should live in a separate suite. Start with
-Type-1 clone pairs only; Type-3 and Type-4 moves are not supported.
+BigCloneBench-generated tests live in `test/e2e_bigclonebench/`. Type-1 is the
+default; Type-2 is available by option. Type-3 and Type-4 moves are not
+supported.
 
 Run the tiny Type-1 suite directly:
 
 ```bash
 python3 test/e2e_bigclonebench/run_tests.py
+```
+
+Run Type-2 directly. This is a strict test mode and may fail until srcMove
+supports the selected BigCloneBench Type-2 pairs:
+
+```bash
+python3 test/e2e_bigclonebench/run_tests.py --clone-type type2 --limit 10
 ```

@@ -20,14 +20,31 @@ GENERATOR = REPO_ROOT / "scripts" / "generate_bigclonebench_move_cases.py"
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run generated BigCloneBench Type-1 srcMove tests."
+        description="Run generated BigCloneBench Type-1 or Type-2 srcMove tests."
+    )
+    type_group = parser.add_mutually_exclusive_group()
+    type_group.add_argument(
+        "--clone-type",
+        choices=("type1", "type2"),
+        default="type1",
+        help="BigCloneBench clone type to generate. Default: type1.",
+    )
+    type_group.add_argument(
+        "--syntactic-type",
+        type=int,
+        choices=(1, 2),
+        help="BigCloneBench syntactic_type to generate. Alias for --clone-type.",
     )
     parser.add_argument("--limit", type=int, default=1)
     parser.add_argument("--min-tokens", type=int, default=50)
     parser.add_argument("--out-dir", type=Path, default=CASES_DIR)
     parser.add_argument("--srcmove", type=Path, default=REPO_ROOT / "build" / "srcMove")
     parser.add_argument("--srcdiff", type=Path)
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.syntactic_type is not None:
+        args.clone_type = f"type{args.syntactic_type}"
+    args.syntactic_type = int(args.clone_type.removeprefix("type"))
+    return args
 
 
 def find_srcdiff(explicit: Path | None) -> Path | None:
@@ -74,20 +91,24 @@ def normalized_text(value: str) -> str:
     return "\n".join(line.rstrip() for line in lines)
 
 
-def validate_case(case_dir: Path, results_json: Path) -> list[str]:
+def validate_case(case_dir: Path, results_json: Path, syntactic_type: int) -> list[str]:
     failures: list[str] = []
     metadata = load_json(case_dir / "metadata.json")
     results = load_json(results_json)
+    expected_match_kind = "exact" if syntactic_type == 1 else "type2"
 
-    if metadata.get("syntactic_type") != 1:
-        failures.append("metadata syntactic_type is not 1")
+    if metadata.get("syntactic_type") != syntactic_type:
+        failures.append(
+            f"metadata syntactic_type: expected {syntactic_type}, "
+            f"got {metadata.get('syntactic_type')!r}"
+        )
 
     if results.get("move_count") != 1:
         failures.append(f"move_count: expected 1, got {results.get('move_count')!r}")
 
     match_kinds = results.get("match_kinds")
-    if not isinstance(match_kinds, dict) or match_kinds.get("exact") != 1:
-        failures.append("match_kinds.exact: expected 1")
+    if not isinstance(match_kinds, dict) or match_kinds.get(expected_match_kind) != 1:
+        failures.append(f"match_kinds.{expected_match_kind}: expected 1")
 
     moves = results.get("moves")
     if not isinstance(moves, list) or len(moves) != 1:
@@ -95,8 +116,11 @@ def validate_case(case_dir: Path, results_json: Path) -> list[str]:
         return failures
 
     move = moves[0]
-    if move.get("match_kind") != "exact":
-        failures.append(f"match_kind: expected 'exact', got {move.get('match_kind')!r}")
+    if move.get("match_kind") != expected_match_kind:
+        failures.append(
+            f"match_kind: expected {expected_match_kind!r}, "
+            f"got {move.get('match_kind')!r}"
+        )
 
     from_texts = move.get("from_raw_texts")
     to_texts = move.get("to_raw_texts")
@@ -111,7 +135,8 @@ def validate_case(case_dir: Path, results_json: Path) -> list[str]:
         and isinstance(to_texts, list)
         and len(to_texts) == 1
     ):
-        if normalized_text(str(from_texts[0])) != normalized_text(str(to_texts[0])):
+        texts_match = normalized_text(str(from_texts[0])) == normalized_text(str(to_texts[0]))
+        if syntactic_type == 1 and not texts_match:
             failures.append("from_raw_texts and to_raw_texts differ for Type-1 case")
 
     return failures
@@ -124,7 +149,7 @@ def generate_cases(args: argparse.Namespace) -> bool:
         "--limit",
         str(args.limit),
         "--syntactic-type",
-        "1",
+        str(args.syntactic_type),
         "--min-tokens",
         str(args.min_tokens),
         "--out-dir",
@@ -168,7 +193,9 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> bool:
         print_process_failure("srcMove", srcmove_proc)
         return False
 
-    failures = validate_case(case_dir, results_json)
+    metadata = load_json(case_dir / "metadata.json")
+    syntactic_type = int(metadata.get("syntactic_type"))
+    failures = validate_case(case_dir, results_json, syntactic_type)
     if failures:
         print(f"FAIL {case_dir.name}")
         for failure in failures:
@@ -200,11 +227,20 @@ def main() -> int:
     if not generate_cases(args):
         return 1
 
+    prefix = f"bcb_t{args.syntactic_type}_"
     case_dirs = sorted(path for path in args.out_dir.iterdir() if path.is_dir())
-    case_dirs = [path for path in case_dirs if (path / "metadata.json").is_file()]
+    case_dirs = [
+        path
+        for path in case_dirs
+        if path.name.startswith(prefix) and (path / "metadata.json").is_file()
+    ]
+    case_dirs = case_dirs[: args.limit]
 
     if not case_dirs:
-        print(f"error: no generated cases found in {args.out_dir}", file=sys.stderr)
+        print(
+            f"error: no generated Type-{args.syntactic_type} cases found in {args.out_dir}",
+            file=sys.stderr,
+        )
         return 2
 
     failures = 0
@@ -213,7 +249,10 @@ def main() -> int:
             failures += 1
 
     print()
-    print(f"total={len(case_dirs)} passed={len(case_dirs) - failures} failed={failures}")
+    print(
+        f"type={args.clone_type} total={len(case_dirs)} "
+        f"passed={len(case_dirs) - failures} failed={failures}"
+    )
     return 1 if failures else 0
 
 
