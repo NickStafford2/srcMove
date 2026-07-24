@@ -7,8 +7,6 @@ settled.
 ## Next
 
 - Code review of e2e_bigclonebench
-- Add a BigCloneBench dedupe mode so repeated Type-1 pair rows do not inflate
-  the apparent variety of tested code shapes.
 - Add `--offset` to BigCloneBench generation for deterministic benchmark slices
   such as rows 1-1000, 1001-2000, etc.
 - Review docs for upgrades. Generate documentation of current progress for my masters
@@ -20,6 +18,8 @@ settled.
 - Improve Type-2 move detection.
 - Add Type-2 failure categorization using metadata and/or canonical srcML forms.
 - Add cross-file/archive BigCloneBench synthetic move cases.
+- Add BigCloneBench coverage reporting that summarizes row counts, distinct raw
+  text-pair counts, and functionality coverage across a run.
 - Decide whether BigCloneBench pair rows and distinct fragment-text cases should
   be reported as separate metrics.
 

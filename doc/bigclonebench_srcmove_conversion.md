@@ -94,15 +94,40 @@ test/e2e_bigclonebench/
 
 `metadata.json` should record BigCloneBench IDs, source file locations, original
 BigCloneBench line ranges, generated synthetic line ranges, similarity fields,
-and the exact deleted/inserted fragment text. The large-suite runner should
-validate by generated line ranges and counts instead of requiring stable srcMove
-UUIDs or absolute xpaths.
+stable dedupe keys, and the exact deleted/inserted fragment text. The large-suite
+runner should validate by generated line ranges and counts instead of requiring
+stable srcMove UUIDs or absolute xpaths.
+
+The generator defaults to `--dedupe raw-text-pair`, so a run selects distinct
+extracted fragment pairs before writing cases. Raw text is intentional for
+Type-1: BigCloneEval describes Type-1 similarity as allowing strict
+pretty-printing plus whitespace/comment/formatting variation, and srcMove should
+still be tested against those differences. `--dedupe none` is available for
+row-based BigCloneBench coverage, and `--dedupe trimmed-text-pair` is available
+only for auditing near-identical extracted text.
+
+Do not assume the current filtered BigCloneBench Type-1 slice contains thousands
+of formatting-only variants. With `syntactic_type = 1`, `min_tokens >= 50`, and
+`internal = FALSE`, the local database has many duplicate rows and most distinct
+raw text pairs still contain identical extracted fragment text on both sides. Use
+`--text-change raw-different` when reviewing the small subset whose extracted
+fragments differ, and keep hand-authored whitespace/comment fixtures for
+targeted Type-1 whitespace behavior.
+
+Each generator run writes a per-type manifest listing the selected case
+directories. The runner consumes that manifest instead of scanning all old
+ignored case directories, so a deduped run cannot be polluted by stale generated
+cases from a previous larger run.
 
 ## Important Caveats
 
 - BigCloneBench labels clones, not historical edits. The generated suite measures
   whether srcMove can recognize a synthetic move whose payload is drawn from a
   known clone pair.
+- BigCloneBench pair rows can heavily repeat the same fragment texts. Report both
+  row counts and distinct raw-text-pair counts when using these cases as a metric.
+- H2 embedded database access is single-process. Run BigCloneBench generator or
+  analysis commands serially; parallel queries can fail with a database lock.
 - Many BigCloneBench fragments depend on imports or surrounding class members.
   srcDiff/srcML parsing generally does not require compilation, but malformed
   extracted fragments should be filtered out.

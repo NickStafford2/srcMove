@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import hashlib
 import json
 import os
 import shutil
@@ -42,6 +43,32 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--limit", type=int, default=1)
     parser.add_argument("--min-tokens", type=int, default=50)
+    parser.add_argument(
+        "--candidate-limit",
+        type=int,
+        help=(
+            "Maximum BigCloneBench rows for the generator to scan before dedupe. "
+            "By default the generator scans all eligible Type-1/Type-2 rows."
+        ),
+    )
+    parser.add_argument(
+        "--dedupe",
+        choices=("none", "raw-text-pair", "trimmed-text-pair"),
+        default="raw-text-pair",
+        help=(
+            "Generate unique cases by extracted fragment text. "
+            "raw-text-pair preserves whitespace/comment differences. Default: raw-text-pair."
+        ),
+    )
+    parser.add_argument(
+        "--text-change",
+        choices=("any", "raw-different"),
+        default="any",
+        help=(
+            "Filter generated pairs by whether the two extracted fragments differ "
+            "as raw text. Default: any."
+        ),
+    )
     parser.add_argument("--out-dir", type=Path, default=CASES_DIR)
     parser.add_argument("--srcmove", type=Path, default=REPO_ROOT / "build" / "srcMove")
     parser.add_argument("--srcdiff", type=Path)
@@ -91,9 +118,51 @@ def load_json(path: Path) -> Any:
         return json.load(f)
 
 
-def normalized_text(value: str) -> str:
+def trimmed_text(value: str) -> str:
+    # Local audit key only. BigCloneBench Type-1 permits whitespace/comment
+    # variation, so raw text remains the default dedupe and test-generation key.
     lines = value.strip().splitlines()
     return "\n".join(line.rstrip() for line in lines)
+
+
+def stable_key(*parts: str) -> str:
+    hasher = hashlib.sha256()
+    for part in parts:
+        encoded = part.encode("utf-8", errors="replace")
+        hasher.update(len(encoded).to_bytes(8, byteorder="big"))
+        hasher.update(encoded)
+    return hasher.hexdigest()
+
+
+def dedupe_keys(metadata: dict[str, Any]) -> dict[str, str]:
+    dedupe = metadata.get("dedupe")
+    if isinstance(dedupe, dict):
+        raw_pair_key = dedupe.get("raw_text_pair_key")
+        trimmed_pair_key = dedupe.get("trimmed_text_pair_key")
+        if isinstance(raw_pair_key, str) and isinstance(trimmed_pair_key, str):
+            return {
+                "raw_text_pair_key": raw_pair_key,
+                "trimmed_text_pair_key": trimmed_pair_key,
+            }
+
+    fragment_one = metadata.get("fragment_one")
+    if not isinstance(fragment_one, dict):
+        fragment_one = {}
+    fragment_two = metadata.get("fragment_two")
+    if not isinstance(fragment_two, dict):
+        fragment_two = {}
+
+    fragment1 = fragment_one.get("text")
+    fragment2 = fragment_two.get("text")
+    if not isinstance(fragment1, str) or not isinstance(fragment2, str):
+        return {"raw_text_pair_key": "", "trimmed_text_pair_key": ""}
+
+    return {
+        "raw_text_pair_key": stable_key(fragment1, fragment2),
+        "trimmed_text_pair_key": stable_key(
+            trimmed_text(fragment1), trimmed_text(fragment2)
+        ),
+    }
 
 
 def attr_by_local_name(node: ET.Element, local_name: str) -> str | None:
@@ -187,12 +256,9 @@ def validate_case(
     if not isinstance(to_texts, list) or len(to_texts) != 1:
         failures.append("to_raw_texts: expected one text")
 
-    if (
-        isinstance(from_texts, list)
-        and len(from_texts) == 1
-        and isinstance(to_texts, list)
-        and len(to_texts) == 1
-    ):
+    if isinstance(from_texts, list) and len(from_texts) == 1 and isinstance(
+        to_texts, list
+    ) and len(to_texts) == 1:
         expected = metadata.get("expected")
 
         if not isinstance(expected, dict):
@@ -205,14 +271,6 @@ def validate_case(
             failures.append("metadata expected.from_raw_text is missing or invalid")
         if not isinstance(expected_to_raw, str):
             failures.append("metadata expected.to_raw_text is missing or invalid")
-
-        if (
-            syntactic_type == 1
-            and isinstance(expected_from_raw, str)
-            and isinstance(expected_to_raw, str)
-            and normalized_text(expected_from_raw) != normalized_text(expected_to_raw)
-        ):
-            failures.append("metadata Type-1 expected fragments are not text-identical")
 
     expected = metadata.get("expected")
     if not isinstance(expected, dict):
@@ -263,8 +321,14 @@ def generate_cases(args: argparse.Namespace) -> bool:
         str(args.min_tokens),
         "--out-dir",
         str(args.out_dir),
+        "--dedupe",
+        args.dedupe,
+        "--text-change",
+        args.text_change,
         "--overwrite",
     ]
+    if args.candidate_limit is not None:
+        cmd.extend(["--candidate-limit", str(args.candidate_limit)])
     proc = run_command(cmd, cwd=REPO_ROOT)
     if proc.returncode != 0:
         print("FAIL generate")
@@ -273,6 +337,24 @@ def generate_cases(args: argparse.Namespace) -> bool:
     if proc.stdout.strip():
         print(proc.stdout.strip())
     return True
+
+
+def generated_case_dirs(out_dir: Path, syntactic_type: int) -> list[Path]:
+    manifest_path = out_dir / f"bcb_t{syntactic_type}_manifest.json"
+    manifest = load_json(manifest_path)
+    case_names = manifest.get("cases")
+    if not isinstance(case_names, list):
+        raise ValueError(f"manifest cases field is missing or invalid: {manifest_path}")
+
+    case_dirs: list[Path] = []
+    for name in case_names:
+        if not isinstance(name, str):
+            raise ValueError(f"manifest contains non-string case name: {manifest_path}")
+        case_dir = out_dir / name
+        if not case_dir.is_dir() or not (case_dir / "metadata.json").is_file():
+            raise FileNotFoundError(f"generated case listed in manifest is missing: {case_dir}")
+        case_dirs.append(case_dir)
+    return case_dirs
 
 
 def build_summary_row(
@@ -295,6 +377,10 @@ def build_summary_row(
 
     syntactic_type = metadata.get("syntactic_type", "")
     clone_type = f"type{syntactic_type}" if syntactic_type != "" else ""
+    keys = dedupe_keys(metadata)
+    fragment_relation = metadata.get("fragment_relation")
+    if not isinstance(fragment_relation, dict):
+        fragment_relation = {}
 
     return {
         "case": case_dir.name,
@@ -306,6 +392,14 @@ def build_summary_row(
         "min_tokens": metadata.get("min_tokens", ""),
         "file1": fragment_one.get("file", ""),
         "file2": fragment_two.get("file", ""),
+        "raw_text_pair_key": keys["raw_text_pair_key"],
+        "trimmed_text_pair_key": keys["trimmed_text_pair_key"],
+        "raw_text_pair_group_size": "",
+        "raw_text_pair_group_index": "",
+        "trimmed_text_pair_group_size": "",
+        "trimmed_text_pair_group_index": "",
+        "raw_text_identical": fragment_relation.get("raw_text_identical", ""),
+        "trimmed_text_identical": fragment_relation.get("trimmed_text_identical", ""),
         "move_count": results.get("move_count", "") if isinstance(results, dict) else "",
         "exact_count": match_kinds.get("exact", ""),
         "type2_count": match_kinds.get("type2", ""),
@@ -313,7 +407,26 @@ def build_summary_row(
     }
 
 
+def annotate_duplicate_groups(rows: list[SummaryRow], key_field: str) -> None:
+    keyed_rows: dict[str, list[SummaryRow]] = {}
+    for row in rows:
+        key = row.get(key_field)
+        if isinstance(key, str) and key:
+            keyed_rows.setdefault(key, []).append(row)
+
+    size_field = key_field.removesuffix("_key") + "_group_size"
+    index_field = key_field.removesuffix("_key") + "_group_index"
+    for group in keyed_rows.values():
+        group_size = len(group)
+        for index, row in enumerate(group, start=1):
+            row[size_field] = group_size
+            row[index_field] = index
+
+
 def write_summary(path: Path, rows: list[SummaryRow]) -> None:
+    annotate_duplicate_groups(rows, "raw_text_pair_key")
+    annotate_duplicate_groups(rows, "trimmed_text_pair_key")
+
     fieldnames = [
         "case",
         "passed",
@@ -324,6 +437,14 @@ def write_summary(path: Path, rows: list[SummaryRow]) -> None:
         "min_tokens",
         "file1",
         "file2",
+        "raw_text_pair_key",
+        "raw_text_pair_group_size",
+        "raw_text_pair_group_index",
+        "trimmed_text_pair_key",
+        "trimmed_text_pair_group_size",
+        "trimmed_text_pair_group_index",
+        "raw_text_identical",
+        "trimmed_text_identical",
         "move_count",
         "exact_count",
         "type2_count",
@@ -400,14 +521,11 @@ def main() -> int:
     if not generate_cases(args):
         return 1
 
-    prefix = f"bcb_t{args.syntactic_type}_"
-    case_dirs = sorted(path for path in args.out_dir.iterdir() if path.is_dir())
-    case_dirs = [
-        path
-        for path in case_dirs
-        if path.name.startswith(prefix) and (path / "metadata.json").is_file()
-    ]
-    case_dirs = case_dirs[: args.limit]
+    try:
+        case_dirs = generated_case_dirs(args.out_dir, args.syntactic_type)
+    except (OSError, ValueError, json.JSONDecodeError) as e:
+        print(f"error: failed to read generated case manifest: {e}", file=sys.stderr)
+        return 2
 
     if not case_dirs:
         print(

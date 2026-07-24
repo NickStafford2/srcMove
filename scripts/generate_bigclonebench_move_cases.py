@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import subprocess
 from dataclasses import dataclass
@@ -36,8 +37,34 @@ def parse_args() -> argparse.Namespace:
         description="Generate synthetic srcMove cases from BigCloneBench clone pairs."
     )
     parser.add_argument("--limit", type=int, default=25)
+    parser.add_argument(
+        "--candidate-limit",
+        type=int,
+        help=(
+            "Maximum BigCloneBench rows to scan before dedupe. "
+            "Defaults to all eligible Type-1/Type-2 rows and 10000 Type-3 rows."
+        ),
+    )
     parser.add_argument("--syntactic-type", type=int, choices=(1, 2, 3), default=2)
     parser.add_argument("--min-tokens", type=int, default=50)
+    parser.add_argument(
+        "--dedupe",
+        choices=("none", "raw-text-pair", "trimmed-text-pair"),
+        default="raw-text-pair",
+        help=(
+            "Select unique generated cases by extracted fragment text. "
+            "raw-text-pair preserves whitespace/comment differences. Default: raw-text-pair."
+        ),
+    )
+    parser.add_argument(
+        "--text-change",
+        choices=("any", "raw-different"),
+        default="any",
+        help=(
+            "Filter selected pairs by whether the two extracted fragments differ "
+            "as raw text. Default: any."
+        ),
+    )
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--overwrite", action="store_true")
     return parser.parse_args()
@@ -130,6 +157,109 @@ def extract_lines(path: Path, startline: int, endline: int) -> str:
 
 def indent_fragment(fragment: str) -> str:
     return "\n".join(f"  {line}" if line else "" for line in fragment.splitlines()) + "\n"
+
+
+def trimmed_text(value: str) -> str:
+    # This is only a local reporting key. It is not BigCloneBench's Type-1/Type-2
+    # normalization, and it must not be the default Type-1 dedupe criterion.
+    lines = value.strip().splitlines()
+    return "\n".join(line.rstrip() for line in lines)
+
+
+def stable_key(*parts: str) -> str:
+    hasher = hashlib.sha256()
+    for part in parts:
+        encoded = part.encode("utf-8", errors="replace")
+        hasher.update(len(encoded).to_bytes(8, byteorder="big"))
+        hasher.update(encoded)
+    return hasher.hexdigest()
+
+
+def dedupe_metadata(fragment1: str, fragment2: str) -> dict[str, str]:
+    trimmed_fragment1 = trimmed_text(fragment1)
+    trimmed_fragment2 = trimmed_text(fragment2)
+    return {
+        # Raw text preserves Type-1 whitespace/comment differences. Those
+        # differences are part of what srcMove should be tested against.
+        "raw_text_pair_key": stable_key(fragment1, fragment2),
+        "trimmed_text_pair_key": stable_key(trimmed_fragment1, trimmed_fragment2),
+        "raw_fragment_one_key": stable_key(fragment1),
+        "raw_fragment_two_key": stable_key(fragment2),
+        "trimmed_fragment_one_key": stable_key(trimmed_fragment1),
+        "trimmed_fragment_two_key": stable_key(trimmed_fragment2),
+    }
+
+
+def fragment_relation(fragment1: str, fragment2: str) -> dict[str, bool]:
+    return {
+        "raw_text_identical": fragment1 == fragment2,
+        "trimmed_text_identical": trimmed_text(fragment1) == trimmed_text(fragment2),
+    }
+
+
+def row_fragments(row: CloneRow) -> tuple[str, str]:
+    fragment1 = extract_lines(
+        source_path(row.type1, row.name1), row.startline1, row.endline1
+    )
+    fragment2 = extract_lines(
+        source_path(row.type2, row.name2), row.startline2, row.endline2
+    )
+    return fragment1, fragment2
+
+
+def row_dedupe_key(row: CloneRow, dedupe: str) -> str | None:
+    if dedupe == "none":
+        return None
+
+    fragment1, fragment2 = row_fragments(row)
+
+    # Prefer raw text for generated Type-1 cases: BigCloneBench Type-1 allows
+    # formatting/comment variation, and collapsing that away would erase useful
+    # move-detection tests.
+    if dedupe == "raw-text-pair":
+        return stable_key(fragment1, fragment2)
+    if dedupe == "trimmed-text-pair":
+        return stable_key(trimmed_text(fragment1), trimmed_text(fragment2))
+
+    raise ValueError(f"unsupported dedupe mode: {dedupe}")
+
+
+def row_matches_text_change(row: CloneRow, text_change: str) -> bool:
+    if text_change == "any":
+        return True
+
+    fragment1, fragment2 = row_fragments(row)
+    if text_change == "raw-different":
+        return fragment1 != fragment2
+
+    raise ValueError(f"unsupported text-change mode: {text_change}")
+
+
+def select_rows(
+    rows: list[CloneRow], limit: int, dedupe: str, text_change: str
+) -> list[CloneRow]:
+    if dedupe == "none":
+        return [row for row in rows if row_matches_text_change(row, text_change)][:limit]
+
+    selected: list[CloneRow] = []
+    seen: set[str] = set()
+    for row in rows:
+        if not row_matches_text_change(row, text_change):
+            continue
+        key = row_dedupe_key(row, dedupe)
+        if key is None or key in seen:
+            continue
+        seen.add(key)
+        selected.append(row)
+        if len(selected) >= limit:
+            break
+    return selected
+
+
+def default_candidate_limit(limit: int, syntactic_type: int) -> int:
+    if syntactic_type in (1, 2):
+        return 1_000_000
+    return max(limit, 10_000)
 
 
 def append_block(lines: list[str], block: str) -> tuple[int, int]:
@@ -227,6 +357,9 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
         "similarity_line": row.similarity_line,
         "similarity_token": row.similarity_token,
         "min_tokens": row.min_tokens,
+        "dedupe_key": stable_key(fragment1, fragment2),
+        "dedupe": dedupe_metadata(fragment1, fragment2),
+        "fragment_relation": fragment_relation(fragment1, fragment2),
         "expected": {
             "move_count": 1,
             "from_raw_text": fragment1,
@@ -242,23 +375,77 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
     )
 
 
+def write_manifest(
+    out_dir: Path,
+    syntactic_type: int,
+    dedupe: str,
+    text_change: str,
+    min_tokens: int,
+    limit: int,
+    candidate_count: int,
+    case_names: list[str],
+) -> None:
+    manifest = {
+        "syntactic_type": syntactic_type,
+        "clone_type": f"type{syntactic_type}",
+        "dedupe": dedupe,
+        "text_change": text_change,
+        "min_tokens": min_tokens,
+        "requested_limit": limit,
+        "candidate_count": candidate_count,
+        "selected_count": len(case_names),
+        "cases": case_names,
+    }
+    manifest_path = out_dir / f"bcb_t{syntactic_type}_manifest.json"
+    manifest_path.write_text(
+        json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
+    )
+
+
 def main() -> int:
     args = parse_args()
     args.out_dir.mkdir(parents=True, exist_ok=True)
-    rows = load_clone_rows(args.limit, args.syntactic_type, args.min_tokens)
+    candidate_limit = args.candidate_limit
+    if candidate_limit is None:
+        candidate_limit = default_candidate_limit(args.limit, args.syntactic_type)
+
+    candidates = load_clone_rows(candidate_limit, args.syntactic_type, args.min_tokens)
+    rows = select_rows(candidates, args.limit, args.dedupe, args.text_change)
 
     written = 0
     skipped = 0
     prefix = f"bcb_t{args.syntactic_type}"
+    case_names: list[str] = []
     for index, row in enumerate(rows, start=1):
         case_dir = args.out_dir / f"{prefix}_{index:06d}"
+        case_names.append(case_dir.name)
         if case_dir.exists() and not args.overwrite:
             skipped += 1
             continue
         write_case(case_dir, row)
         written += 1
 
-    print(f"written={written} skipped={skipped} out_dir={args.out_dir}")
+    write_manifest(
+        args.out_dir,
+        args.syntactic_type,
+        args.dedupe,
+        args.text_change,
+        args.min_tokens,
+        args.limit,
+        len(candidates),
+        case_names,
+    )
+
+    print(
+        f"written={written} skipped={skipped} selected={len(rows)} "
+        f"candidates={len(candidates)} dedupe={args.dedupe} "
+        f"text_change={args.text_change} out_dir={args.out_dir}"
+    )
+    if len(rows) < args.limit:
+        print(
+            f"warning: requested {args.limit} cases but only selected {len(rows)} "
+            f"with dedupe={args.dedupe} text_change={args.text_change}"
+        )
     return 0
 
 
