@@ -5,4 +5,5 @@ compile_commands.json
 context-export.toml
 examples/
 test/bigclonebench/
+test/BigCloneEval/
 test/IJaDataset
