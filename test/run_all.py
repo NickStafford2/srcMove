@@ -34,6 +34,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Also run long stress tests.",
     )
+    parser.add_argument(
+        "--include-bigclonebench",
+        action="store_true",
+        help="Also run the tiny generated BigCloneBench Type-1 suite.",
+    )
     return parser.parse_args()
 
 
@@ -102,6 +107,15 @@ def build_steps(args: argparse.Namespace) -> list[TestStep]:
     if args.include_stress:
         steps.append(TestStep("stress", [sys.executable, "test/stress/run_tests.py"], test_env))
 
+    if args.include_bigclonebench:
+        steps.append(
+            TestStep(
+                "bigclonebench type-1",
+                [sys.executable, "test/e2e_bigclonebench/run_tests.py", "--limit", "1"],
+                test_env,
+            )
+        )
+
     return steps
 
 
@@ -129,7 +143,7 @@ def main() -> int:
     print("=== Test Summary ===")
     print(f"steps run: {len(steps)}")
     print(f"failures : {failed}")
-    print("excluded : stress unless --include-stress")
+    print("excluded : BigCloneBench unless --include-bigclonebench; stress unless --include-stress")
 
     return 1 if failed else 0
 
