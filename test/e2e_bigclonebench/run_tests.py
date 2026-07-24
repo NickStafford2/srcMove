@@ -396,6 +396,84 @@ def validate_case(
     return failures, text_validation
 
 
+def move_points_to_anchor(move: dict[str, Any]) -> bool:
+    values: list[str] = []
+    for field in ("from_xpaths", "to_xpaths", "from_raw_texts", "to_raw_texts"):
+        field_value = move.get(field)
+        if isinstance(field_value, list):
+            values.extend(value for value in field_value if isinstance(value, str))
+
+    haystack = "\n".join(values)
+    return any(
+        anchor in haystack
+        for anchor in ("beforeAnchor", "middleAnchor", "targetAnchor", "afterAnchor")
+    )
+
+
+def move_points_inside_expected_payload(move: dict[str, Any]) -> bool:
+    values: list[str] = []
+    for field in ("from_xpaths", "to_xpaths"):
+        field_value = move.get(field)
+        if isinstance(field_value, list):
+            values.extend(value for value in field_value if isinstance(value, str))
+
+    haystack = "\n".join(values)
+    return (
+        "diff:delete[1]/diff:delete[1]" in haystack
+        or "diff:insert[1]/diff:insert[1]" in haystack
+    )
+
+
+def classify_result(
+    metadata: dict[str, Any],
+    results: dict[str, Any] | None,
+    passed: bool,
+    failures: list[str],
+    text_validation: TextValidation,
+) -> str:
+    if passed:
+        if "encoding_tolerant" in text_validation.values():
+            return "pass_encoding_tolerant"
+        return "pass_strict"
+
+    if results is None:
+        return "tool_failure"
+
+    moves = results.get("moves")
+    move_count = results.get("move_count")
+    fragment_relation = metadata.get("fragment_relation")
+    raw_identical = (
+        isinstance(fragment_relation, dict)
+        and fragment_relation.get("raw_text_identical") is True
+    )
+
+    if not isinstance(moves, list):
+        return "invalid_results"
+
+    if move_count == 0:
+        return "no_move_raw_identical" if raw_identical else "no_move_raw_different"
+
+    if any(status == "failed" for status in text_validation.values()):
+        return "text_mismatch"
+
+    if all(isinstance(move, dict) and move_points_to_anchor(move) for move in moves):
+        return "anchor_only_false_positive"
+
+    if all(
+        isinstance(move, dict) and move_points_inside_expected_payload(move)
+        for move in moves
+    ):
+        return "too_many_expected_child_moves"
+
+    if any(isinstance(move, dict) and move_points_to_anchor(move) for move in moves):
+        return "mixed_anchor_and_payload_moves"
+
+    if failures:
+        return "validation_failure"
+
+    return "unknown_failure"
+
+
 def generate_cases(args: argparse.Namespace) -> bool:
     cmd = [
         sys.executable,
@@ -471,10 +549,14 @@ def build_summary_row(
         fragment_relation = {}
     if text_validation is None:
         text_validation = {"from": "", "to": ""}
+    failure_class = classify_result(
+        metadata, results, passed, failures, text_validation
+    )
 
     return {
         "case": case_dir.name,
         "passed": passed,
+        "failure_class": failure_class,
         "clone_type": clone_type,
         "syntactic_type": syntactic_type,
         "function_id_one": metadata.get("function_id_one", ""),
@@ -522,6 +604,7 @@ def write_summary(path: Path, rows: list[SummaryRow]) -> None:
     fieldnames = [
         "case",
         "passed",
+        "failure_class",
         "clone_type",
         "syntactic_type",
         "function_id_one",

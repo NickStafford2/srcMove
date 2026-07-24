@@ -53,7 +53,8 @@ quick index for reviewing a batch without opening every generated case. It
 records the case id, pass/fail status, clone type, BigCloneBench function ids,
 source files, dedupe keys, per-run dedupe group sizes and indices, reported move
 counts, reported match-kind counts, whether the extracted fragments are
-raw/trim-identical, and failure messages.
+raw/trim-identical, text-validation status, failure classification, and failure
+messages.
 
 The runner uses the generator's manifest for the selected cases. This prevents
 old ignored case directories from a previous larger run from silently becoming
@@ -71,6 +72,34 @@ part of a smaller deduped run.
 - Text validation is strict unless the only successful comparison requires
   collapsing obvious replacement-character encoding damage. The summary records
   `strict`, `encoding_tolerant`, `failed`, or `not_checked` for each move side.
+
+`encoding_tolerant` means the exact raw-text comparison failed, but the observed
+and expected texts matched after the runner repaired only obvious
+replacement-character encoding damage. The tolerance is intentionally narrow: it
+is considered only when either side contains the Unicode replacement character
+`�` or the common mojibake spelling `ï¿½`; the runner then tries a Latin-1 to
+UTF-8 repair and normalizes `ï¿½` back to `�`. It does not ignore ordinary text,
+comment, whitespace, or identifier differences.
+
+The summary's `failure_class` column groups common outcomes:
+
+- `pass_strict`: the case passed strict validation.
+- `pass_encoding_tolerant`: the case passed only after the encoding-damage
+  tolerance.
+- `no_move_raw_different`: srcMove reported no move and the BigCloneBench
+  fragments are not raw-text-identical. These usually need manual review because
+  comments, formatting, or a bad extracted range may explain the mismatch.
+- `no_move_raw_identical`: srcMove reported no move even though the extracted
+  fragments are raw-text-identical.
+- `too_many_expected_child_moves`: srcMove found moves inside the expected
+  BigCloneBench fragment instead of one move for the whole fragment.
+- `anchor_only_false_positive`: srcMove reported only synthetic wrapper anchor
+  moves, not the BigCloneBench fragment.
+- `mixed_anchor_and_payload_moves`: srcMove reported at least one wrapper anchor
+  move alongside other moves.
+- `text_mismatch`, `tool_failure`, `invalid_results`, `validation_failure`, and
+  `unknown_failure`: fallback buckets for runner/tool failures or results that
+  do not match a more specific BigCloneBench pattern.
 
 The runner invokes `srcdiff` with `--position` so `diff_new.xml` contains
 `pos:start` / `pos:end` attributes. This makes the oracle independent of raw
