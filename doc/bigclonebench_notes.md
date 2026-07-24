@@ -2,10 +2,9 @@
 
 ## Local IJaDataset Layout
 
-The downloaded dataset under `test/IJaDataset/` is a Java source corpus:
+The downloaded dataset under `test/BigCloneEval/ijadataset/` is a Java source corpus:
 
 ```text
-test/IJaDataset/
   dataset/
     sample/     44 Java files, about 184K
     default/    137,062 Java files, about 880M
@@ -51,67 +50,129 @@ jdbc:h2:<absolute path>/bigclonebenchdb/bcb;IFEXISTS=TRUE
 So the expected local database artifact is likely one or more H2 files named like
 `bcb.*` inside `bigclonebenchdb/`.
 
-## Useful Database Shape
+## BigCloneEval Mental Model
 
-The BigCloneEval source indicates that BigCloneBench truth records are keyed by
-functions.
+BigCloneEval is an evaluator for clone detection tools, not a source-change
+history benchmark. A tool reports clone pairs, BigCloneEval imports those pairs,
+then measures recall against BigCloneBench reference clone pairs.
 
-`src/database/Functions.java` queries the `functions` table with:
+The pieces are:
 
-```sql
-SELECT id, name, type, startline, endline, normalized_size
-FROM functions
-WHERE id = ...
-```
+- IJaDataset source files: the Java corpus. These files contain the code text.
+- `functions`: a table of known function fragments inside that corpus.
+- `clones`: BigCloneBench reference clone-pair rows between two `functions`
+  rows.
+- `false_positives`: known false-positive clone pairs used when evaluating clone
+  detector precision-related output.
+- imported tool output: clone pairs reported by the tool being evaluated.
+- clone matcher: the matching algorithm that decides whether a reported tool
+  clone sufficiently covers a reference clone.
 
-The `Function` object fields are:
+BigCloneEval recall is row-based: a reference row in `clones` is counted as
+detected if the tool output contains a clone pair that the configured matcher
+accepts. The built-in evaluator checks both pair orders, so `(A, B)` and `(B, A)`
+are equivalent for detection.
 
-- `id`
-- `name`
-- `type`
-- `startline`
-- `endline`
-- `normalized_size`
+## Database Shape
 
-For mapping back to local files, `type` appears to correspond to the IJaDataset
-subdirectory (`selected`, `default`, or `sample`), and `name` is the Java filename.
-
-`src/database/Clone.java` represents clone truth records with:
-
-- `functionality_id`
-- `function_id_one`
-- `function_id_two`
-- `type`
-- `syntactic_type`
-- `similarity_line`
-- `similarity_token`
-- `min_size`
-- `max_size`
-- `min_pretty_size`
-- `max_pretty_size`
-- `min_judges`
-- `min_confidence`
-
-The likely workflow for extracting ground truth is:
-
-1. Open the H2 database from `bigclonebenchdb/bcb`.
-2. Query the clone-pair truth table for pairs of function IDs and clone metadata.
-3. Join `function_id_one` and `function_id_two` to the `functions` table.
-4. Resolve each function to:
+The local H2 database uses these relevant columns:
 
 ```text
-dataset/<type>/<name>, startline, endline
+FUNCTIONS(NAME, TYPE, STARTLINE, ENDLINE, ID, NORMALIZED_SIZE, PROJECT, TOKENS,
+          INTERNAL)
+CLONES(FUNCTION_ID_ONE, FUNCTION_ID_TWO, FUNCTIONALITY_ID, TYPE, SYNTACTIC_TYPE,
+       SIMILARITY_LINE, SIMILARITY_TOKEN, MIN_SIZE, MAX_SIZE, MIN_PRETTY_SIZE,
+       MAX_PRETTY_SIZE, MIN_JUDGES, MIN_CONFIDENCE, MIN_TOKENS, MAX_TOKENS,
+       INTERNAL)
+FALSE_POSITIVES(FUNCTION_ID_ONE, FUNCTION_ID_TWO, FUNCTIONALITY_ID, TYPE,
+                SIMILARITY_LINE, SIMILARITY_TOKEN, SYNTACTIC_TYPE, MIN_JUDGES,
+                MIN_CONFIDENCE)
 ```
 
-This should produce the source fragment pairs needed to build a move-detection
-benchmark or to synthesize controlled move cases.
+For mapping a reference clone back to source text:
+
+1. Read `clones.function_id_one` and `clones.function_id_two`.
+2. Join each ID to `functions.id`.
+3. Resolve each fragment as:
+
+```text
+test/BigCloneEval/ijadataset/<functions.type>/<functions.name>
+```
+
+4. Extract inclusive `functions.startline` through `functions.endline`.
+
+`functions.type` is the IJaDataset subdirectory (`selected`, `default`, or
+`sample`). `functions.project` is the project label used by BigCloneEval's
+intra-project/inter-project reporting.
+
+## BigCloneBench Fields That Matter
+
+- `functionality_id`: groups clones by the functionality they implement. Rows
+  with the same functionality are related benchmark evidence, not independent
+  historical edits.
+- `syntactic_type`: BigCloneBench clone category. Local srcMove tests currently
+  use Type-1 and Type-2 only.
+- `similarity_line` / `similarity_token`: syntax similarity after BigCloneBench
+  Type-1/Type-2 normalizations. BigCloneEval can evaluate by line, token,
+  average, or `BOTH` (the smaller of line/token).
+- `min_tokens`: the smaller token count of the two fragments. BigCloneEval's
+  recommended settings include `min_tokens >= 50`.
+- `min_size` / `min_pretty_size`: smaller fragment size in original lines and
+  pretty-printed lines.
+- `min_judges` / `min_confidence`: optional human-judgment filters.
+- `internal`: a BigCloneBench exclusion flag. BigCloneEval's evaluator adds
+  `AND internal = FALSE` unless `include_internal` is enabled.
+
+Do not equate `internal = FALSE` with inter-project clones. BigCloneEval handles
+project granularity separately by comparing `functions.project`:
+
+```text
+inter-project: f1.project != f2.project
+intra-project: f1.project == f2.project
+```
+
+In the local database, Type-1 rows with `min_tokens >= 50` show this distinction:
+
+```text
+INTERNAL | ROWS  | SAME_FILE | SAME_PROJECT
+FALSE    | 35802 | 0         | 30267
+TRUE     | 969   | 0         | 965
+```
+
+So `internal = FALSE` is best understood as "use BigCloneEval's default reference
+clone set" rather than "use only inter-project examples."
+
+## Similarity And Clone Types
+
+BigCloneBench similarity is measured after normalizations that may include
+strict pretty-printing, comment removal, blind identifier renaming, and literal
+abstraction. This matters because the extracted source fragments can be raw-text
+identical even when they represent separate BigCloneBench clone rows.
+
+Type-1 deserves special care for srcMove. BigCloneEval describes Type-1
+similarity as allowing formatting/comment differences, so a srcMove test
+framework should not dedupe Type-1 cases by a whitespace-insensitive key by
+default. Raw extracted text is the safer default dedupe unit; trimmed keys are
+useful only as secondary audit metadata.
 
 ## Practical Implication For srcMove
 
-The current local `test/IJaDataset/` checkout is useful as source material, but it
-does not contain the oracle. To use BigCloneBench labels directly, download and
-inspect the BigCloneEval H2 database. Without that database, the reliable path is
-to synthesize moves from the Java corpus and generate known ground-truth oracles.
+BigCloneBench says two independently existing Java fragments are clones. It does
+not say one fragment historically moved to the other location. The local srcMove
+framework therefore synthesizes a before/after edit: delete one benchmark
+fragment from `original.java`, insert the paired fragment in `modified.java`,
+then check whether srcMove reports the expected move.
+
+This transformation is useful, but its metrics must be described honestly:
+
+- BigCloneBench row count is not the same as distinct move-test variety.
+- Repeated rows from the same functionality or identical source text can inflate
+  apparent coverage.
+- Type-1 whitespace/comment behavior should be covered by raw-text-aware
+  BigCloneBench cases plus focused hand-authored fixtures.
+
+See [Converting BigCloneEval Into srcMove Tests](bigclonebench_srcmove_conversion.md)
+for the current local generator and runner design.
 
 ## Setup Script
 
