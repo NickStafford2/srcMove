@@ -278,6 +278,8 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
     src2 = source_path(row.type2, row.name2)
     fragment1 = extract_lines(src1, row.startline1, row.endline1)
     fragment2 = extract_lines(src2, row.startline2, row.endline2)
+    generated_fragment1 = indent_fragment(fragment1)
+    generated_fragment2 = indent_fragment(fragment2)
 
     class_name = f"BCBMove{row.function_id_one}_{row.function_id_two}"
     original_lines: list[str] = []
@@ -289,7 +291,7 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
   }}
 """,
     )
-    original_start, original_end = append_block(original_lines, indent_fragment(fragment1))
+    original_start, original_end = append_block(original_lines, generated_fragment1)
     append_block(
         original_lines,
         """
@@ -328,7 +330,7 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
   }}
 """,
     )
-    modified_start, modified_end = append_block(modified_lines, indent_fragment(fragment2))
+    modified_start, modified_end = append_block(modified_lines, generated_fragment2)
     append_block(modified_lines, "}")
 
     original = "\n".join(original_lines) + "\n"
@@ -364,6 +366,8 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
             "move_count": 1,
             "from_raw_text": fragment1,
             "to_raw_text": fragment2,
+            "from_generated_text": generated_fragment1,
+            "to_generated_text": generated_fragment2,
             "from_start_line": original_start,
             "from_end_line": original_end,
             "to_start_line": modified_start,

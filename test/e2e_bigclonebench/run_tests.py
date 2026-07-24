@@ -5,7 +5,6 @@ import argparse
 import csv
 import hashlib
 import json
-import os
 import shutil
 import subprocess
 import sys
@@ -216,6 +215,39 @@ def ranges_overlap(left: tuple[int, int], right: tuple[int, int]) -> bool:
     return left[0] <= right[1] and right[0] <= left[1]
 
 
+def normalize_moved_text(value: str) -> str:
+    """Normalize wrapper indentation without hiding line content changes."""
+    lines = value.strip().splitlines()
+    return "\n".join(line.strip() for line in lines)
+
+
+def expected_generated_text(expected: dict[str, Any], side: str) -> str | None:
+    generated_key = f"{side}_generated_text"
+    generated_text = expected.get(generated_key)
+    if isinstance(generated_text, str):
+        return generated_text
+
+    # Backward-compatible fallback for metadata generated before the exact
+    # wrapped fragment text was recorded.
+    raw_key = f"{side}_raw_text"
+    raw_text = expected.get(raw_key)
+    return raw_text if isinstance(raw_text, str) else None
+
+
+def validate_reported_text(
+    failures: list[str], observed: str, expected: dict[str, Any], side: str
+) -> None:
+    expected_text = expected_generated_text(expected, side)
+    if expected_text is None:
+        failures.append(f"metadata expected.{side}_generated_text is missing or invalid")
+        return
+
+    if normalize_moved_text(observed) != normalize_moved_text(expected_text):
+        failures.append(
+            f"{side}_raw_texts[0] does not match the expected generated fragment text"
+        )
+
+
 def validate_case(
     case_dir: Path, results_json: Path, diff_new_xml: Path, syntactic_type: int
 ) -> list[str]:
@@ -271,6 +303,14 @@ def validate_case(
             failures.append("metadata expected.from_raw_text is missing or invalid")
         if not isinstance(expected_to_raw, str):
             failures.append("metadata expected.to_raw_text is missing or invalid")
+        if isinstance(from_texts[0], str):
+            validate_reported_text(failures, from_texts[0], expected, "from")
+        else:
+            failures.append("from_raw_texts[0]: expected string text")
+        if isinstance(to_texts[0], str):
+            validate_reported_text(failures, to_texts[0], expected, "to")
+        else:
+            failures.append("to_raw_texts[0]: expected string text")
 
     expected = metadata.get("expected")
     if not isinstance(expected, dict):

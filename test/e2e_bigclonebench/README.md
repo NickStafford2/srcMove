@@ -65,6 +65,9 @@ part of a smaller deduped run.
 - Type-2 expects one `type2` move.
 - The reported delete and insert move positions must overlap the synthetic line
   ranges for the BigCloneBench fragments stored in `metadata.json`.
+- The reported delete and insert raw texts must match their own expected
+  generated fragment texts after wrapper indentation normalization. Type-2 does
+  not require the delete text to equal the insert text.
 
 The runner invokes `srcdiff` with `--position` so `diff_new.xml` contains
 `pos:start` / `pos:end` attributes. This makes the oracle independent of raw
