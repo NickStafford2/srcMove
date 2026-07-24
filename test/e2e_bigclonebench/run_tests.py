@@ -21,6 +21,7 @@ GENERATOR = REPO_ROOT / "scripts" / "generate_bigclonebench_move_cases.py"
 
 
 SummaryRow = dict[str, str | int | bool]
+TextValidation = dict[str, str]
 
 
 def parse_args() -> argparse.Namespace:
@@ -221,6 +222,35 @@ def normalize_moved_text(value: str) -> str:
     return "\n".join(line.strip() for line in lines)
 
 
+def has_encoding_damage(value: str) -> bool:
+    return "\ufffd" in value or "ï¿½" in value
+
+
+def normalize_encoding_damage(value: str) -> str:
+    try:
+        value = value.encode("latin-1").decode("utf-8")
+    except UnicodeError:
+        pass
+    return value.replace("ï¿½", "\ufffd")
+
+
+def text_matches_with_status(observed: str, expected: str) -> str | None:
+    normalized_observed = normalize_moved_text(observed)
+    normalized_expected = normalize_moved_text(expected)
+    if normalized_observed == normalized_expected:
+        return "strict"
+
+    if has_encoding_damage(normalized_observed) or has_encoding_damage(
+        normalized_expected
+    ):
+        tolerant_observed = normalize_encoding_damage(normalized_observed)
+        tolerant_expected = normalize_encoding_damage(normalized_expected)
+        if tolerant_observed == tolerant_expected:
+            return "encoding_tolerant"
+
+    return None
+
+
 def expected_generated_text(expected: dict[str, Any], side: str) -> str | None:
     generated_key = f"{side}_generated_text"
     generated_text = expected.get(generated_key)
@@ -235,23 +265,34 @@ def expected_generated_text(expected: dict[str, Any], side: str) -> str | None:
 
 
 def validate_reported_text(
-    failures: list[str], observed: str, expected: dict[str, Any], side: str
+    failures: list[str],
+    text_validation: TextValidation,
+    observed: str,
+    expected: dict[str, Any],
+    side: str,
 ) -> None:
     expected_text = expected_generated_text(expected, side)
     if expected_text is None:
         failures.append(f"metadata expected.{side}_generated_text is missing or invalid")
+        text_validation[side] = "failed"
         return
 
-    if normalize_moved_text(observed) != normalize_moved_text(expected_text):
+    status = text_matches_with_status(observed, expected_text)
+    if status is None:
         failures.append(
             f"{side}_raw_texts[0] does not match the expected generated fragment text"
         )
+        text_validation[side] = "failed"
+        return
+
+    text_validation[side] = status
 
 
 def validate_case(
     case_dir: Path, results_json: Path, diff_new_xml: Path, syntactic_type: int
-) -> list[str]:
+) -> tuple[list[str], TextValidation]:
     failures: list[str] = []
+    text_validation: TextValidation = {"from": "not_checked", "to": "not_checked"}
     metadata = load_json(case_dir / "metadata.json")
     results = load_json(results_json)
     expected_match_kind = "exact" if syntactic_type == 1 else "type2"
@@ -272,7 +313,7 @@ def validate_case(
     moves = results.get("moves")
     if not isinstance(moves, list) or len(moves) != 1:
         failures.append("moves: expected exactly one move")
-        return failures
+        return failures, text_validation
 
     move = moves[0]
     if move.get("match_kind") != expected_match_kind:
@@ -295,7 +336,7 @@ def validate_case(
 
         if not isinstance(expected, dict):
             failures.append("metadata expected field is missing or invalid")
-            return failures
+            return failures, text_validation
 
         expected_from_raw = expected.get("from_raw_text")
         expected_to_raw = expected.get("to_raw_text")
@@ -304,18 +345,24 @@ def validate_case(
         if not isinstance(expected_to_raw, str):
             failures.append("metadata expected.to_raw_text is missing or invalid")
         if isinstance(from_texts[0], str):
-            validate_reported_text(failures, from_texts[0], expected, "from")
+            validate_reported_text(
+                failures, text_validation, from_texts[0], expected, "from"
+            )
         else:
             failures.append("from_raw_texts[0]: expected string text")
+            text_validation["from"] = "failed"
         if isinstance(to_texts[0], str):
-            validate_reported_text(failures, to_texts[0], expected, "to")
+            validate_reported_text(
+                failures, text_validation, to_texts[0], expected, "to"
+            )
         else:
             failures.append("to_raw_texts[0]: expected string text")
+            text_validation["to"] = "failed"
 
     expected = metadata.get("expected")
     if not isinstance(expected, dict):
         failures.append("metadata expected field is missing or invalid")
-        return failures
+        return failures, text_validation
 
     try:
         expected_from_range = (
@@ -328,13 +375,13 @@ def validate_case(
         )
     except (KeyError, TypeError, ValueError):
         failures.append("metadata expected synthetic line ranges are missing or invalid")
-        return failures
+        return failures, text_validation
 
     try:
         observed_ranges = moved_position_ranges(diff_new_xml)
     except ET.ParseError as e:
         failures.append(f"diff_new.xml parse error: {e}")
-        return failures
+        return failures, text_validation
 
     if not any(ranges_overlap(found, expected_from_range) for found in observed_ranges["delete"]):
         failures.append(
@@ -346,7 +393,7 @@ def validate_case(
             "reported insert move does not overlap the expected BigCloneBench target line range"
         )
 
-    return failures
+    return failures, text_validation
 
 
 def generate_cases(args: argparse.Namespace) -> bool:
@@ -403,6 +450,7 @@ def build_summary_row(
     results: dict[str, Any] | None,
     passed: bool,
     failures: list[str],
+    text_validation: TextValidation | None = None,
 ) -> SummaryRow:
     match_kinds = results.get("match_kinds") if isinstance(results, dict) else {}
     if not isinstance(match_kinds, dict):
@@ -421,6 +469,8 @@ def build_summary_row(
     fragment_relation = metadata.get("fragment_relation")
     if not isinstance(fragment_relation, dict):
         fragment_relation = {}
+    if text_validation is None:
+        text_validation = {"from": "", "to": ""}
 
     return {
         "case": case_dir.name,
@@ -443,6 +493,8 @@ def build_summary_row(
         "move_count": results.get("move_count", "") if isinstance(results, dict) else "",
         "exact_count": match_kinds.get("exact", ""),
         "type2_count": match_kinds.get("type2", ""),
+        "from_text_validation": text_validation.get("from", ""),
+        "to_text_validation": text_validation.get("to", ""),
         "failures": " | ".join(failures),
     }
 
@@ -488,6 +540,8 @@ def write_summary(path: Path, rows: list[SummaryRow]) -> None:
         "move_count",
         "exact_count",
         "type2_count",
+        "from_text_validation",
+        "to_text_validation",
         "failures",
     ]
 
@@ -529,15 +583,21 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> tuple[bool, Summar
 
     syntactic_type = int(metadata.get("syntactic_type"))
     results = load_json(results_json)
-    failures = validate_case(case_dir, results_json, diff_new_xml, syntactic_type)
+    failures, text_validation = validate_case(
+        case_dir, results_json, diff_new_xml, syntactic_type
+    )
     if failures:
         print(f"FAIL {case_dir.name}")
         for failure in failures:
             print(f"  - {failure}")
-        return False, build_summary_row(case_dir, metadata, results, False, failures)
+        return False, build_summary_row(
+            case_dir, metadata, results, False, failures, text_validation
+        )
 
     print(f"PASS {case_dir.name}")
-    return True, build_summary_row(case_dir, metadata, results, True, [])
+    return True, build_summary_row(
+        case_dir, metadata, results, True, [], text_validation
+    )
 
 
 def main() -> int:

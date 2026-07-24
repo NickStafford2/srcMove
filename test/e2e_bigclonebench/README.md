@@ -68,6 +68,9 @@ part of a smaller deduped run.
 - The reported delete and insert raw texts must match their own expected
   generated fragment texts after wrapper indentation normalization. Type-2 does
   not require the delete text to equal the insert text.
+- Text validation is strict unless the only successful comparison requires
+  collapsing obvious replacement-character encoding damage. The summary records
+  `strict`, `encoding_tolerant`, `failed`, or `not_checked` for each move side.
 
 The runner invokes `srcdiff` with `--position` so `diff_new.xml` contains
 `pos:start` / `pos:end` attributes. This makes the oracle independent of raw
