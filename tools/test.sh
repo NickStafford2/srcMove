@@ -1,10 +1,4 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-python3 test/canonical/generate_diffs.py
-
-cmake -S . -B build
-ninja -C build
-
-cd build
-ctest --output-on-failure -V
+python3 test/run_all.py --build "$@"

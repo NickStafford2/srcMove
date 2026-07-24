@@ -1,49 +1,5 @@
 #!/usr/bin/env bash
 # build_and_test
-set -uo pipefail
+set -euo pipefail
 
-RED="\033[31m"
-GREEN="\033[32m"
-RESET="\033[0m"
-
-status=0
-
-echo "=== Configuring project ==="
-cmake -S . -B build -G Ninja
-
-echo "=== Building with Ninja ==="
-ninja -C build
-
-echo ""
-echo "=== Running Generated end-to-end tests ==="
-if python test/e2e_generated/run_tests.py; then
-  echo -e "${GREEN}Generated tests passed${RESET}"
-else
-  echo -e "${RED}Generated tests FAILED${RESET}"
-  status=1
-fi
-
-echo ""
-echo "=== Running Simple end-to-end tests ==="
-if python test/e2e_custom/run_tests.py; then
-  echo -e "${GREEN}Simple tests passed${RESET}"
-else
-  echo -e "${RED}Simple tests FAILED${RESET}"
-  status=1
-fi
-
-echo ""
-echo "=== Done ==="
-echo
-
-if [ "$status" -eq 0 ]; then
-  echo -e "${GREEN}"
-  echo "ALL TESTS PASSED"
-  echo -e "${RESET}"
-else
-  echo -e "${RED}"
-  echo "TESTS FAILED"
-  echo -e "${RESET}"
-fi
-
-exit $status
+python3 test/run_all.py --build "$@"
