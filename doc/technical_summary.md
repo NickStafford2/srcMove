@@ -1,3 +1,5 @@
+This document is a summary of the most essential information. I am adding this to my master's thesis.
+
 # Summary
 
 Semantic Move Detection Research
@@ -24,3 +26,18 @@ Detects 100% of type 1 moves
 Detects 50% of type 2 moves
 
 Type 3 and 4 moves not implemented.
+
+# BigCloneBench
+
+We take known clone pairs from BigCloneBench, optionally remove repeated pair shapes, synthesize a before/after move from each pair, and use those generated files as many srcMove tests.
+
+What the current suite does:
+
+1. Reads BigCloneBench clone-pair rows from the H2 database.
+2. Each row points to two Java function fragments in IJaDataset.
+3. Extracts those two fragments by file path and line range.
+4. Optionally dedupes selected cases by the pair of extracted raw texts.
+5. Generates original.java containing fragment one.
+6. Generates modified.java containing fragment two at a different location.
+7. Runs srcdiff, then srcMove.
+8. Checks whether srcMove reports the expected synthetic move.
