@@ -28,12 +28,12 @@ The runner finds `srcdiff` on `PATH` or in the sibling workspace at
 
 These are intentionally excluded from the normal suite:
 
-- `--include-ctest`: runs CTest. This is not currently the authoritative test
-  entry point.
 - `--include-stress`: runs large repository stress tests.
+
+CTest is retired for this project. Use `./build_and_test` or
+`python3 test/run_all.py` as the test entry point.
 
 ## BigCloneBench
 
 BigCloneBench-generated tests should live in a separate suite. Start with
 Type-1 clone pairs only; Type-3 and Type-4 moves are not supported.
-

@@ -89,28 +89,3 @@ add_executable(srcdiff_highlight_pos
   tools/srcdiff_highlight_pos.cpp
 )
 configure_srcmove_target(srcdiff_highlight_pos)
-
-# ------------------------------------------------------------
-# Unit tests
-# ------------------------------------------------------------
-
-enable_testing()
-
-add_executable(test_canonical_subtree_unit
-  test/unit/canonical/test_canonical_subtree.cpp
-  src/parse/canonical_subtree.cpp
-  src/parse/diff_region.cpp
-  src/move_candidate.cpp
-  src/region_filter.cpp
-)
-
-configure_srcmove_target(test_canonical_subtree_unit)
-
-target_compile_definitions(test_canonical_subtree_unit PRIVATE
-  SRCMOVE_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
-)
-
-add_test(
-  NAME canonical_subtree_unit
-  COMMAND test_canonical_subtree_unit
-)

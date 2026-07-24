@@ -30,11 +30,6 @@ def parse_args() -> argparse.Namespace:
         help="Configure and build before running tests.",
     )
     parser.add_argument(
-        "--include-ctest",
-        action="store_true",
-        help="Also run CTest. Currently not part of the normal suite.",
-    )
-    parser.add_argument(
         "--include-stress",
         action="store_true",
         help="Also run long stress tests.",
@@ -104,9 +99,6 @@ def build_steps(args: argparse.Namespace) -> list[TestStep]:
         ]
     )
 
-    if args.include_ctest:
-        steps.append(TestStep("ctest", ["ctest", "--test-dir", "build", "--output-on-failure"]))
-
     if args.include_stress:
         steps.append(TestStep("stress", [sys.executable, "test/stress/run_tests.py"], test_env))
 
@@ -137,7 +129,7 @@ def main() -> int:
     print("=== Test Summary ===")
     print(f"steps run: {len(steps)}")
     print(f"failures : {failed}")
-    print("excluded : ctest unless --include-ctest; stress unless --include-stress")
+    print("excluded : stress unless --include-stress")
 
     return 1 if failed else 0
 
