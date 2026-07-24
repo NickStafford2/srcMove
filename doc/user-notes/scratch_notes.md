@@ -250,3 +250,11 @@ To find a better example.
 - I vibe coded a project until it tuned into absolute insanity.
 - then told the llm to constantly refactor for a few hundred commits.
 - lots of moves and copying from one file to another.
+
+# Thesis Meeting
+
+look up semantic variations. look up near miss
+decker strongly suggests using openleaf on the git repo
+https://github.com/KSU-SDML
+
+wh
