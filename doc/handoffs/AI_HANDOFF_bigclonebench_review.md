@@ -2,9 +2,6 @@
 
 ## Situation
 
-The user wants a critical review of the BigCloneBench-derived srcMove testing
-framework before it grows much larger.
-
 The framework currently converts BigCloneBench clone pairs into synthetic move
 tests. This is useful, but it is not a direct historical move benchmark:
 BigCloneBench says two Java fragments are clones; the local generator turns that
@@ -45,13 +42,13 @@ That directory is intentionally ignored by git.
 Run Type-1:
 
 ```bash
-python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --limit 10
+python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --limit 100
 ```
 
 Run Type-2:
 
 ```bash
-python3 test/e2e_bigclonebench/run_tests.py --clone-type type2 --limit 10
+python3 test/e2e_bigclonebench/run_tests.py --clone-type type2 --limit 100
 ```
 
 The runner:
@@ -65,31 +62,6 @@ The runner:
 
 Type-1 currently expects one `exact` move. Type-2 currently expects one `type2`
 move. Type-3 and Type-4 are not supported as required pass tests.
-
-## Known Design Problem: Dedupe
-
-BigCloneBench stores clone pair rows, not necessarily independent test ideas.
-Some Type-1 rows are effectively the same code fragment paired with many other
-identical or near-identical fragments. This can inflate the apparent variety of
-tested move shapes and make a high pass rate look broader than it is.
-
-Do not treat dedupe as just a mechanical cleanup. It may expose a more basic
-test-design question:
-
-```text
-What should count as one BigCloneBench-derived srcMove test?
-```
-
-Possible answers include:
-
-- one database pair row
-- one distinct raw text pair
-- one normalized text pair
-- one source fragment tested against representative target fragments
-- one functionality/clone cluster
-
-The best answer may differ for Type-1 baseline testing, Type-2 research metrics,
-and future Type-3/Type-4 exploratory work.
 
 ## Review Goals
 
@@ -111,24 +83,66 @@ Key questions:
 - Is the documentation organized so a new AI can find the one canonical source
   for each fact?
 
+## Current Failure Review
+
+The user ran the generated Type-1 suite after dedupe/reporting improvements. A
+request for 1000 cases selected 917 available cases. The run produced 876 passes
+and 41 failures.
+
+The 41 failures are not one problem. They split cleanly:
+
+| Class                                   | Count | Cases                                            | Likely meaning                                                                                                                                                |
+| --------------------------------------- | ----: | ------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| No move, raw fragments differ           |     5 | `000012`, `000342`, `000367`, `000379`, `000877` | srcMove does not match BigCloneBench Type-1 cases when raw text differs by comments/formatting, or the generated fragment may not be a clean whole construct. |
+| Too many moves inside expected fragment |    34 | e.g. `000308`, `000428`, `000616`, `000621`      | srcMove finds many exact statement/child moves inside the expected function instead of one whole-function move.                                               |
+| Anchor-only false positives             |     2 | `000423`, `000425`                               | The synthetic wrapper layout makes anchor methods look moved, and srcMove reports those instead of the intended BigCloneBench function.                       |
+
+Representative cases:
+
+- `bcb_t1_000012`: raw-different Type-1 case. The old side has comments and
+  line wrapping; the new side removes comments and compresses formatting.
+  srcMove reports one delete-only group and one insert-only group. Likely root
+  cause: srcMove canonicalization still includes comments, while BigCloneBench
+  Type-1 ignores comment/format differences.
+- `bcb_t1_000342`: suspicious generated benchmark case. One extracted fragment
+  is a full `search(...)` method; the other starts mid-control-flow with
+  `return EMPTY_ITERATOR; } node = edge.getChild(); ...`. BigCloneBench labels
+  the row Type-1, but the extracted source range looks partial. This may need
+  filtering or special handling.
+- `bcb_t1_000308`: raw fragments are identical `PrimeFactors` constructors.
+  srcMove reports three exact moves inside the constructor instead of the whole
+  constructor. This is probably a granularity mismatch, not a detection miss.
+- `bcb_t1_000616` and `bcb_t1_000621`: same granularity issue amplified by
+  large constructors. These reported 91 and 212 child moves, respectively.
+- `bcb_t1_000423` and `bcb_t1_000425`: the reported moves are synthetic wrapper
+  anchors such as `targetAnchor()` and `afterAnchor()`, not the BigCloneBench
+  payload. The old/new wrapper layout deletes the payload before anchors and
+  inserts it after anchors, so unchanged anchors can appear moved relative to
+  the diff.
+
+Do not interpret the current 41 failures as "srcMove failed 41 BigCloneBench
+cases." A better reading is:
+
+- 5 are real or possible Type-1 normalization misses or malformed-fragment
+  issues.
+- 34 are successful lower-granularity detections that the current oracle rejects.
+- 2 are synthetic wrapper false positives.
+
 ## Recommended Next Step
 
-Start small. First inspect a handful of generated Type-1 duplicates and Type-2
-failures, then propose the smallest design change that makes the reported metrics
-more honest.
+Evaluate the failure classes above in srcMove itself. For each class, understand
+why srcMove makes that choice, then decide whether the right fix belongs in
+srcMove, the synthetic BigCloneBench generator, the oracle, or documentation.
 
-Likely useful improvement:
+Start with representative cases rather than all 41. Good first targets are:
 
-- add explicit dedupe/reporting metadata before changing default behavior
+- `bcb_t1_000012` for comment/format-sensitive Type-1 canonicalization.
+- `bcb_t1_000342` for malformed or partial BigCloneBench ranges.
+- `bcb_t1_000308` for whole-fragment versus child-move granularity.
+- `bcb_t1_000423` for wrapper anchor false positives.
 
-For example, record a stable `dedupe_key` in `metadata.json` and `summary.csv`,
-then decide whether the runner should support a flag such as:
-
-```text
---dedupe none|raw-text-pair|normalized-text-pair
-```
-
-Do not make dedupe default until the metric definition is clear.
+Only after that investigation should future work implement fixes. The fixes may
+be different per class; do not collapse the 41 failures into one srcMove bug.
 
 ## Git Note
 
