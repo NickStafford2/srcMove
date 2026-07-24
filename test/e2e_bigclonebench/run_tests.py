@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import sys
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
@@ -91,7 +92,60 @@ def normalized_text(value: str) -> str:
     return "\n".join(line.rstrip() for line in lines)
 
 
-def validate_case(case_dir: Path, results_json: Path, syntactic_type: int) -> list[str]:
+def attr_by_local_name(node: ET.Element, local_name: str) -> str | None:
+    for key, value in node.attrib.items():
+        if key == local_name or key.endswith("}" + local_name) or key.endswith(":" + local_name):
+            return value
+    return None
+
+
+def parse_pos_line(value: str, kind: str) -> int | None:
+    side = value.split("|")[0 if kind == "delete" else -1]
+    line_text = side.split(":", 1)[0]
+    try:
+        return int(line_text)
+    except ValueError:
+        return None
+
+
+def moved_position_ranges(diff_new_xml: Path) -> dict[str, list[tuple[int, int]]]:
+    tree = ET.parse(diff_new_xml)
+    ranges: dict[str, list[tuple[int, int]]] = {"delete": [], "insert": []}
+
+    for node in tree.iter():
+        move_id = attr_by_local_name(node, "id")
+        if move_id is None:
+            continue
+
+        if attr_by_local_name(node, "to") is not None:
+            kind = "delete"
+        elif attr_by_local_name(node, "from") is not None:
+            kind = "insert"
+        else:
+            continue
+
+        pos_start = attr_by_local_name(node, "start")
+        pos_end = attr_by_local_name(node, "end")
+        if pos_start is None or pos_end is None:
+            continue
+
+        start_line = parse_pos_line(pos_start, kind)
+        end_line = parse_pos_line(pos_end, kind)
+        if start_line is None or end_line is None:
+            continue
+
+        ranges[kind].append((min(start_line, end_line), max(start_line, end_line)))
+
+    return ranges
+
+
+def ranges_overlap(left: tuple[int, int], right: tuple[int, int]) -> bool:
+    return left[0] <= right[1] and right[0] <= left[1]
+
+
+def validate_case(
+    case_dir: Path, results_json: Path, diff_new_xml: Path, syntactic_type: int
+) -> list[str]:
     failures: list[str] = []
     metadata = load_json(case_dir / "metadata.json")
     results = load_json(results_json)
@@ -135,9 +189,60 @@ def validate_case(case_dir: Path, results_json: Path, syntactic_type: int) -> li
         and isinstance(to_texts, list)
         and len(to_texts) == 1
     ):
-        texts_match = normalized_text(str(from_texts[0])) == normalized_text(str(to_texts[0]))
-        if syntactic_type == 1 and not texts_match:
-            failures.append("from_raw_texts and to_raw_texts differ for Type-1 case")
+        expected = metadata.get("expected")
+
+        if not isinstance(expected, dict):
+            failures.append("metadata expected field is missing or invalid")
+            return failures
+
+        expected_from_raw = expected.get("from_raw_text")
+        expected_to_raw = expected.get("to_raw_text")
+        if not isinstance(expected_from_raw, str):
+            failures.append("metadata expected.from_raw_text is missing or invalid")
+        if not isinstance(expected_to_raw, str):
+            failures.append("metadata expected.to_raw_text is missing or invalid")
+
+        if (
+            syntactic_type == 1
+            and isinstance(expected_from_raw, str)
+            and isinstance(expected_to_raw, str)
+            and normalized_text(expected_from_raw) != normalized_text(expected_to_raw)
+        ):
+            failures.append("metadata Type-1 expected fragments are not text-identical")
+
+    expected = metadata.get("expected")
+    if not isinstance(expected, dict):
+        failures.append("metadata expected field is missing or invalid")
+        return failures
+
+    try:
+        expected_from_range = (
+            int(expected["from_start_line"]),
+            int(expected["from_end_line"]),
+        )
+        expected_to_range = (
+            int(expected["to_start_line"]),
+            int(expected["to_end_line"]),
+        )
+    except (KeyError, TypeError, ValueError):
+        failures.append("metadata expected synthetic line ranges are missing or invalid")
+        return failures
+
+    try:
+        observed_ranges = moved_position_ranges(diff_new_xml)
+    except ET.ParseError as e:
+        failures.append(f"diff_new.xml parse error: {e}")
+        return failures
+
+    if not any(ranges_overlap(found, expected_from_range) for found in observed_ranges["delete"]):
+        failures.append(
+            "reported delete move does not overlap the expected BigCloneBench source line range"
+        )
+
+    if not any(ranges_overlap(found, expected_to_range) for found in observed_ranges["insert"]):
+        failures.append(
+            "reported insert move does not overlap the expected BigCloneBench target line range"
+        )
 
     return failures
 
@@ -176,7 +281,7 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> bool:
             path.unlink()
 
     srcdiff_proc = run_command(
-        [str(srcdiff), "original.java", "modified.java", "-o", str(diff_xml)],
+        [str(srcdiff), "original.java", "modified.java", "-o", str(diff_xml), "--position"],
         cwd=case_dir,
     )
     if srcdiff_proc.returncode != 0:
@@ -195,7 +300,7 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> bool:
 
     metadata = load_json(case_dir / "metadata.json")
     syntactic_type = int(metadata.get("syntactic_type"))
-    failures = validate_case(case_dir, results_json, syntactic_type)
+    failures = validate_case(case_dir, results_json, diff_new_xml, syntactic_type)
     if failures:
         print(f"FAIL {case_dir.name}")
         for failure in failures:

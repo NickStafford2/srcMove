@@ -37,10 +37,10 @@ For each selected clone pair:
 3. Extract `function_id_two` lines from its source file.
 4. Build a synthetic old file containing fragment one between stable anchor methods.
 5. Build a synthetic new file containing the paired fragment in a later stable gap.
-6. Run `srcDiff original.java modified.java`.
+6. Run `srcDiff original.java modified.java --position`.
 7. Run `srcMove` over the srcDiff XML.
-8. Score whether srcMove reports one delete/insert move whose raw texts match the two
-   benchmark fragments.
+8. Score whether srcMove reports one delete/insert move whose annotated positions
+   overlap the generated line ranges for the two benchmark fragments.
 
 This converts clone similarity into move similarity. Exact and Type-2 clone pairs
 are the best first target for srcMove because they align with the current exact and
@@ -92,10 +92,11 @@ test/e2e_bigclonebench/
       metadata.json
 ```
 
-`metadata.json` should record BigCloneBench IDs, file locations, line ranges,
-similarity fields, and the exact deleted/inserted fragment text. The large-suite
-runner can validate by fragment text and counts instead of requiring stable
-srcMove UUIDs or absolute xpaths.
+`metadata.json` should record BigCloneBench IDs, source file locations, original
+BigCloneBench line ranges, generated synthetic line ranges, similarity fields,
+and the exact deleted/inserted fragment text. The large-suite runner should
+validate by generated line ranges and counts instead of requiring stable srcMove
+UUIDs or absolute xpaths.
 
 ## Important Caveats
 

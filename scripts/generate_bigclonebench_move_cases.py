@@ -132,6 +132,13 @@ def indent_fragment(fragment: str) -> str:
     return "\n".join(f"  {line}" if line else "" for line in fragment.splitlines()) + "\n"
 
 
+def append_block(lines: list[str], block: str) -> tuple[int, int]:
+    block_lines = block.rstrip("\n").splitlines()
+    start_line = len(lines) + 1
+    lines.extend(block_lines)
+    return start_line, len(lines)
+
+
 def source_path(kind: str, name: str) -> Path:
     return BCE_DIR / "ijadataset" / kind / name
 
@@ -143,40 +150,59 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
     fragment2 = extract_lines(src2, row.startline2, row.endline2)
 
     class_name = f"BCBMove{row.function_id_one}_{row.function_id_two}"
-    original = (
-        f"public class {class_name} {{\n"
-        "  public void beforeAnchor() {\n"
-        "    System.out.println(\"before\");\n"
-        "  }\n\n"
-        f"{indent_fragment(fragment1)}\n"
-        "  public void middleAnchor() {\n"
-        "    System.out.println(\"middle\");\n"
-        "  }\n\n"
-        "  public void targetAnchor() {\n"
-        "    System.out.println(\"target\");\n"
-        "  }\n\n"
-        "  public void afterAnchor() {\n"
-        "    System.out.println(\"after\");\n"
-        "  }\n"
-        "}\n"
+    original_lines: list[str] = []
+    append_block(
+        original_lines,
+        f"""public class {class_name} {{
+  public void beforeAnchor() {{
+    System.out.println("before");
+  }}
+""",
     )
-    modified = (
-        f"public class {class_name} {{\n"
-        "  public void beforeAnchor() {\n"
-        "    System.out.println(\"before\");\n"
-        "  }\n\n"
-        "  public void middleAnchor() {\n"
-        "    System.out.println(\"middle\");\n"
-        "  }\n\n"
-        "  public void targetAnchor() {\n"
-        "    System.out.println(\"target\");\n"
-        "  }\n\n"
-        "  public void afterAnchor() {\n"
-        "    System.out.println(\"after\");\n"
-        "  }\n\n"
-        f"{indent_fragment(fragment2)}"
-        "}\n"
+    original_start, original_end = append_block(original_lines, indent_fragment(fragment1))
+    append_block(
+        original_lines,
+        """
+  public void middleAnchor() {
+    System.out.println("middle");
+  }
+
+  public void targetAnchor() {
+    System.out.println("target");
+  }
+
+  public void afterAnchor() {
+    System.out.println("after");
+  }
+}""",
     )
+
+    modified_lines: list[str] = []
+    append_block(
+        modified_lines,
+        f"""public class {class_name} {{
+  public void beforeAnchor() {{
+    System.out.println("before");
+  }}
+
+  public void middleAnchor() {{
+    System.out.println("middle");
+  }}
+
+  public void targetAnchor() {{
+    System.out.println("target");
+  }}
+
+  public void afterAnchor() {{
+    System.out.println("after");
+  }}
+""",
+    )
+    modified_start, modified_end = append_block(modified_lines, indent_fragment(fragment2))
+    append_block(modified_lines, "}")
+
+    original = "\n".join(original_lines) + "\n"
+    modified = "\n".join(modified_lines) + "\n"
 
     case_dir.mkdir(parents=True, exist_ok=True)
     (case_dir / "original.java").write_text(original, encoding="utf-8")
@@ -205,6 +231,10 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
             "move_count": 1,
             "from_raw_text": fragment1,
             "to_raw_text": fragment2,
+            "from_start_line": original_start,
+            "from_end_line": original_end,
+            "to_start_line": modified_start,
+            "to_end_line": modified_end,
         },
     }
     (case_dir / "metadata.json").write_text(

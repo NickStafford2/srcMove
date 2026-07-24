@@ -34,6 +34,12 @@ git.
 
 - Type-1 expects one `exact` move.
 - Type-2 expects one `type2` move.
+- The reported delete and insert move positions must overlap the synthetic line
+  ranges for the BigCloneBench fragments stored in `metadata.json`.
+
+The runner invokes `srcdiff` with `--position` so `diff_new.xml` contains
+`pos:start` / `pos:end` attributes. This makes the oracle independent of raw
+string formatting differences introduced by the synthetic wrapper.
 
 Type-2 is a strict test mode. If current srcMove does not detect a generated
 BigCloneBench Type-2 pair, the command exits nonzero and reports the missed move.
