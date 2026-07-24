@@ -34,3 +34,6 @@ repeating the same information.
 - [doc/bigclonebench_srcmove_conversion.md](doc/bigclonebench_srcmove_conversion.md):
   converting BigCloneBench clone pairs into srcMove tests
 
+## Git
+
+The user will handle all git commit and staging work.
