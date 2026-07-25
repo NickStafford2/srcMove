@@ -74,29 +74,58 @@ ninja -C build
 ./build/srcMove path/to/srcdiff.xml
 ```
 
-Optionally specify an output filename:
+By default, `srcMove` writes annotated XML to `diff_new.xml` in the current
+working directory. Optionally specify an output filename:
 
 ```bash
 ./build/srcMove path/to/srcdiff.xml out.xml
 ```
 
-## Example: run against included tests
+### CLI reference
 
-This repo includes small, focused test fixtures under `test/`.
+```text
+./build/srcMove <srcdiff.xml> [out.xml] [--results results.json] [-v]
+./build/srcMove --help
+./build/srcMove --version
+```
+
+Arguments:
+
+* `<srcdiff.xml>`: input XML produced by `srcDiff`
+* `[out.xml]`: output annotated XML file; defaults to `diff_new.xml`
+
+Options:
+
+* `--results <file>`: write a JSON summary of detected move groups, annotated
+  regions, candidate counts, group kinds, and match kinds
+* `-v`, `--verbose`: accepted by the parser, but currently no pipeline behavior
+  is gated by it
+* `-h`, `--help`: print command usage
+* `--version`: print the current `srcMove` version string
+
+## Example: run against a fixture
+
+This repo includes small, focused srcDiff fixtures under `test/e2e_custom/cases/`.
 
 For example:
 
 ```bash
-./build/srcMove test/simple/diff.xml test/simple/diff_new.xml
+./build/srcMove test/e2e_custom/cases/1x1_basic/input.xml /tmp/srcmove-1x1.xml
 ```
 
-Or:
+To also capture the summary JSON:
 
 ```bash
-./build/srcMove test/function_content/diff_pos.xml test/function_content/diff_new.xml
+./build/srcMove \
+  test/e2e_custom/cases/1x1_basic/input.xml \
+  /tmp/srcmove-1x1.xml \
+  --results /tmp/srcmove-1x1.json
 ```
 
-Each `test/*/` directory contains an `original.cpp` and `modified.cpp` plus `diff.xml` (and in many cases an example `diff_new.xml`) to make it easy to see what changed.
+Each custom fixture directory contains `input.xml`, `expected.xml`, and
+`expected.json`. See [test/README.md](test/README.md) for the normal test
+runner entry points, generated source-pair tests, and the larger generated
+BigCloneBench Type-1/Type-2 suites.
 
 ## How it works
 

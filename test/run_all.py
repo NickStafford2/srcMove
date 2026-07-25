@@ -37,7 +37,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--include-bigclonebench",
         action="store_true",
-        help="Also run the tiny generated BigCloneBench Type-1 suite.",
+        help="Also run the one-case generated BigCloneBench Type-1 smoke test.",
     )
     return parser.parse_args()
 

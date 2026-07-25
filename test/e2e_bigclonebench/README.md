@@ -1,9 +1,11 @@
 # BigCloneBench Tests
 
-This suite generates a tiny synthetic move benchmark from BigCloneBench clone
-pairs.
+This suite generates synthetic move benchmarks from BigCloneBench clone pairs.
+It supports both quick smoke runs and large Type-1/Type-2 batches. The generated
+case directories live under `test/e2e_bigclonebench/cases/` and are ignored by
+git.
 
-Run one Type-1 case:
+Run the default one-case Type-1 smoke test:
 
 ```bash
 python3 test/e2e_bigclonebench/run_tests.py
@@ -14,6 +16,22 @@ Run more Type-1 cases:
 ```bash
 python3 test/e2e_bigclonebench/run_tests.py --limit 10
 ```
+
+Run a large Type-1 batch:
+
+```bash
+python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --limit 1000
+```
+
+Run a large Type-2 batch:
+
+```bash
+python3 test/e2e_bigclonebench/run_tests.py --clone-type type2 --limit 1000
+```
+
+The current generated manifests in this checkout list 915 Type-1 cases and 640
+Type-2 cases from `--limit 1000` runs with `--dedupe raw-text-pair`. Those counts
+can be below the requested limit after dedupe and filtering.
 
 By default, generated cases are deduped by exact raw extracted fragment pairs:
 
@@ -33,7 +51,7 @@ identical:
 python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --text-change raw-different
 ```
 
-Run Type-2 cases:
+Run a smaller Type-2 sample:
 
 ```bash
 python3 test/e2e_bigclonebench/run_tests.py --clone-type type2 --limit 10
@@ -44,9 +62,6 @@ The BigCloneBench-native spelling also works:
 ```bash
 python3 test/e2e_bigclonebench/run_tests.py --syntactic-type 2 --limit 10
 ```
-
-Generated cases are written to `test/e2e_bigclonebench/cases/` and are ignored by
-git.
 
 Each run also writes `test/e2e_bigclonebench/cases/summary.csv`. This is the
 quick index for reviewing a batch without opening every generated case. It
