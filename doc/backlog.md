@@ -11,6 +11,11 @@ settled.
   such as rows 1-1000, 1001-2000, etc.
 - Review docs for upgrades. Generate documentation of current progress for my masters
   thesis.
+- Document why `examples/` exists: it contains srcDiff/srcMove example outputs
+  consumed by `../srcVisual` to render srcDiff/srcML output in a web UI. Keep the
+  checked-in outputs and the ability to regenerate them until they move to
+  `srcVisual`. Decide whether `build_example.sh` should be removed, replaced, or
+  documented as legacy.
 - General purpose cleanup.
 
 ## Later
