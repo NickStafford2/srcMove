@@ -84,6 +84,47 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
                 "  void target() {\n    call();\n  }\n",
             )
 
+    def test_synthetic_sources_do_not_emit_method_anchors(self) -> None:
+        generator = load_generator_module()
+
+        top_level_fragment = generator.dedent_fragment(
+            "      void movedTo() {\n"
+            "          call();\n"
+            "      }\n"
+        )
+        original, modified, original_range, modified_range = (
+            generator.build_synthetic_move_sources(
+                "BCBMove1_2",
+                "      void movedFrom() {\n      }\n",
+                top_level_fragment,
+            )
+        )
+
+        for source in (original, modified):
+            self.assertNotIn("beforeAnchor", source)
+            self.assertNotIn("middleAnchor", source)
+            self.assertNotIn("targetAnchor", source)
+            self.assertNotIn("afterAnchor", source)
+            self.assertIn("public class BCBMove1_2", source)
+            self.assertIn("SOURCE_CONTEXT = 100", source)
+
+        self.assertIn("void movedFrom()", original)
+        self.assertIn("}\nvoid movedTo()", modified)
+        self.assertNotIn("}\n      void movedTo()", modified)
+        self.assertNotIn("void movedTo()", original)
+        self.assertNotIn("void movedFrom()", modified)
+
+        original_lines = original.splitlines()
+        modified_lines = modified.splitlines()
+        self.assertEqual(
+            "\n".join(original_lines[original_range[0] - 1 : original_range[1]]),
+            "      void movedFrom() {\n      }",
+        )
+        self.assertEqual(
+            "\n".join(modified_lines[modified_range[0] - 1 : modified_range[1]]),
+            "void movedTo() {\n    call();\n}",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

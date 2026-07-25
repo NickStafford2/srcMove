@@ -93,10 +93,12 @@ The summary's `failure_class` column groups common outcomes:
   fragments are raw-text-identical.
 - `too_many_expected_child_moves`: srcMove found moves inside the expected
   BigCloneBench fragment instead of one move for the whole fragment.
-- `anchor_only_false_positive`: srcMove reported only synthetic wrapper anchor
-  moves, not the BigCloneBench fragment.
-- `mixed_anchor_and_payload_moves`: srcMove reported at least one wrapper anchor
-  move alongside other moves.
+- `anchor_only_false_positive`: legacy bucket for runs generated with method
+  anchors where srcMove reported only synthetic wrapper anchor moves, not the
+  BigCloneBench fragment.
+- `mixed_anchor_and_payload_moves`: legacy bucket for runs generated with method
+  anchors where srcMove reported at least one wrapper anchor move alongside
+  other moves.
 - `text_mismatch`, `tool_failure`, `invalid_results`, `validation_failure`, and
   `unknown_failure`: fallback buckets for runner/tool failures or results that
   do not match a more specific BigCloneBench pattern.

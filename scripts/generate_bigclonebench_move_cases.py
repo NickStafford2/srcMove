@@ -5,6 +5,7 @@ import argparse
 import hashlib
 import json
 import subprocess
+import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -163,6 +164,10 @@ def indent_fragment(fragment: str) -> str:
     return "\n".join(f"  {line}" if line else "" for line in fragment.splitlines()) + "\n"
 
 
+def dedent_fragment(fragment: str) -> str:
+    return textwrap.dedent(fragment).rstrip() + "\n"
+
+
 def trimmed_text(value: str) -> str:
     # This is only a local reporting key. It is not BigCloneBench's Type-1/Type-2
     # normalization, and it must not be the default Type-1 dedupe criterion.
@@ -277,68 +282,50 @@ def source_path(kind: str, name: str) -> Path:
     return BCE_DIR / "ijadataset" / kind / name
 
 
+def build_synthetic_move_sources(
+    class_name: str, generated_fragment1: str, generated_fragment2: str
+) -> tuple[str, str, tuple[int, int], tuple[int, int]]:
+    # Put the payload under different parent shapes so srcDiff exposes it as
+    # delete/insert content instead of aligning two synthetic wrappers.
+    original_lines: list[str] = []
+    append_block(
+        original_lines,
+        f"""public class {class_name} {{
+  private static final int SOURCE_CONTEXT = 100;
+""",
+    )
+    original_range = append_block(original_lines, generated_fragment1)
+    append_block(original_lines, "}")
+
+    modified_lines: list[str] = []
+    append_block(
+        modified_lines,
+        f"""public class {class_name} {{
+  private static final int SOURCE_CONTEXT = 100;
+}}
+""",
+    )
+    modified_range = append_block(modified_lines, generated_fragment2)
+
+    original = "\n".join(original_lines) + "\n"
+    modified = "\n".join(modified_lines) + "\n"
+    return original, modified, original_range, modified_range
+
+
 def write_case(case_dir: Path, row: CloneRow) -> None:
     src1 = source_path(row.type1, row.name1)
     src2 = source_path(row.type2, row.name2)
     fragment1 = extract_lines(src1, row.startline1, row.endline1)
     fragment2 = extract_lines(src2, row.startline2, row.endline2)
     generated_fragment1 = indent_fragment(fragment1)
-    generated_fragment2 = indent_fragment(fragment2)
+    generated_fragment2 = dedent_fragment(fragment2)
 
     class_name = f"BCBMove{row.function_id_one}_{row.function_id_two}"
-    original_lines: list[str] = []
-    append_block(
-        original_lines,
-        f"""public class {class_name} {{
-  public void beforeAnchor() {{
-    System.out.println("before");
-  }}
-""",
+    original, modified, original_range, modified_range = build_synthetic_move_sources(
+        class_name, generated_fragment1, generated_fragment2
     )
-    original_start, original_end = append_block(original_lines, generated_fragment1)
-    append_block(
-        original_lines,
-        """
-  public void middleAnchor() {
-    System.out.println("middle");
-  }
-
-  public void targetAnchor() {
-    System.out.println("target");
-  }
-
-  public void afterAnchor() {
-    System.out.println("after");
-  }
-}""",
-    )
-
-    modified_lines: list[str] = []
-    append_block(
-        modified_lines,
-        f"""public class {class_name} {{
-  public void beforeAnchor() {{
-    System.out.println("before");
-  }}
-
-  public void middleAnchor() {{
-    System.out.println("middle");
-  }}
-
-  public void targetAnchor() {{
-    System.out.println("target");
-  }}
-
-  public void afterAnchor() {{
-    System.out.println("after");
-  }}
-""",
-    )
-    modified_start, modified_end = append_block(modified_lines, generated_fragment2)
-    append_block(modified_lines, "}")
-
-    original = "\n".join(original_lines) + "\n"
-    modified = "\n".join(modified_lines) + "\n"
+    original_start, original_end = original_range
+    modified_start, modified_end = modified_range
 
     case_dir.mkdir(parents=True, exist_ok=True)
     (case_dir / "original.java").write_text(original, encoding="utf-8")

@@ -37,8 +37,10 @@ For each selected clone pair:
 1. Join `CLONES` to `FUNCTIONS` twice.
 2. Extract `function_id_one` lines from its source file.
 3. Extract `function_id_two` lines from its source file.
-4. Build a synthetic old file containing fragment one between stable anchor methods.
-5. Build a synthetic new file containing the paired fragment in a later stable gap.
+4. Build a synthetic old file containing fragment one inside a stable wrapper
+   class.
+5. Build a synthetic new file containing the paired fragment after that class,
+   at top-level srcML scope.
 6. Run `srcDiff original.java modified.java --position`.
 7. Run `srcMove` over the srcDiff XML.
 8. Score whether srcMove reports one delete/insert move whose annotated positions
@@ -138,6 +140,10 @@ cases from a previous larger run.
 - Interpret BigCloneBench source ranges as LF-delimited line numbers. Some
   IJaDataset files contain standalone carriage-return characters inside comments,
   and treating those as line breaks shifts later extracted fragments.
+- The synthetic old/new payloads intentionally sit under different parent
+  shapes. If both sides use comparable wrapper blocks, srcDiff can align those
+  wrappers and treat the payload as common code instead of exposing it as
+  delete/insert content for srcMove.
 - Many BigCloneBench fragments depend on imports or surrounding class members.
   srcDiff/srcML parsing generally does not require compilation, but malformed
   extracted fragments should be filtered out.
