@@ -74,6 +74,7 @@ struct sv_hash {
 std::string exact_group_key(const move_candidate &candidate) {
   std::string key = candidate.canonical_text;
   key.push_back('\0');
+  // Keep structural children from coalescing with equivalent diff wrappers.
   key.push_back(candidate.role == move_candidate::Role::structural_child ? 's'
                                                                          : 'd');
   return key;
@@ -93,16 +94,6 @@ struct covered_span {
   std::size_t          end_idx   = 0;
 };
 
-struct selection_state {
-  explicit selection_state(std::size_t candidate_count) {
-    used_ids.reserve(candidate_count);
-    covered.reserve(candidate_count);
-  }
-
-  std::unordered_set<candidate_id> used_ids;
-  std::vector<covered_span>        covered;
-};
-
 bool has_both_sides(const pending_group &group) {
   return !group.del_ids.empty() && !group.ins_ids.empty();
 }
@@ -111,99 +102,100 @@ bool is_one_to_one(const pending_group &group) {
   return group.del_ids.size() == 1 && group.ins_ids.size() == 1;
 }
 
-void add_pending_group(content_groups &out, const pending_group &group) {
-  add_group(out, group.content_hash, group.del_ids, group.ins_ids, group.match);
-}
-
-void mark_ids_used(const pending_group              &group,
-                   std::unordered_set<candidate_id> &used_ids) {
-  if (!has_both_sides(group)) {
-    return;
+class group_selection {
+public:
+  explicit group_selection(std::size_t candidate_count) {
+    used_ids.reserve(candidate_count);
+    covered.reserve(candidate_count);
   }
 
-  used_ids.insert(group.del_ids.begin(), group.del_ids.end());
-  used_ids.insert(group.ins_ids.begin(), group.ins_ids.end());
-}
+  bool candidate_is_suppressed(const move_candidate &candidate) const {
+    for (const covered_span &span : covered) {
+      if (span_contains_candidate(span, candidate)) {
+        return true;
+      }
 
-bool contains_span(const covered_span &outer, const move_candidate &candidate) {
-  return outer.kind == candidate.kind && outer.filename == candidate.filename &&
-         outer.start_idx <= candidate.start_idx &&
-         candidate.end_idx <= outer.end_idx;
-}
-
-bool candidate_contains_span(const move_candidate &candidate,
-                             const covered_span   &inner) {
-  return inner.kind == candidate.kind && inner.filename == candidate.filename &&
-         candidate.start_idx <= inner.start_idx &&
-         inner.end_idx <= candidate.end_idx;
-}
-
-void mark_group_covered(const pending_group       &group,
-                        const candidate_registry  &registry,
-                        std::vector<covered_span> &covered) {
-  if (!has_both_sides(group)) {
-    return;
-  }
-
-  for (candidate_id id : group.del_ids) {
-    const move_candidate &candidate = registry.candidate(id);
-    covered.push_back(covered_span{candidate.kind, candidate.filename,
-                                   candidate.start_idx, candidate.end_idx});
-  }
-
-  for (candidate_id id : group.ins_ids) {
-    const move_candidate &candidate = registry.candidate(id);
-    covered.push_back(covered_span{candidate.kind, candidate.filename,
-                                   candidate.start_idx, candidate.end_idx});
-  }
-}
-
-void add_selected_group(content_groups           &out,
-                        const pending_group      &group,
-                        const candidate_registry &registry,
-                        selection_state          &state) {
-  add_pending_group(out, group);
-  mark_ids_used(group, state.used_ids);
-  mark_group_covered(group, registry, state.covered);
-}
-
-bool candidate_is_suppressed(const move_candidate            &candidate,
-                             const std::vector<covered_span> &covered) {
-  for (const covered_span &span : covered) {
-    if (contains_span(span, candidate)) {
-      return true;
+      if (candidate.role != move_candidate::Role::structural_child &&
+          candidate_contains_span(candidate, span)) {
+        return true;
+      }
     }
 
-    if (candidate.role != move_candidate::Role::structural_child &&
-        candidate_contains_span(candidate, span)) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-bool group_is_suppressed(const pending_group             &group,
-                         const candidate_registry        &registry,
-                         const std::vector<covered_span> &covered) {
-  if (!has_both_sides(group)) {
     return false;
   }
 
-  for (candidate_id id : group.del_ids) {
-    if (!candidate_is_suppressed(registry.candidate(id), covered)) {
+  bool group_is_fully_suppressed(const pending_group      &group,
+                                 const candidate_registry &registry) const {
+    if (!has_both_sides(group)) {
       return false;
+    }
+
+    for (candidate_id id : group.del_ids) {
+      if (!candidate_is_suppressed(registry.candidate(id))) {
+        return false;
+      }
+    }
+
+    for (candidate_id id : group.ins_ids) {
+      if (!candidate_is_suppressed(registry.candidate(id))) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  bool id_is_used(candidate_id id) const {
+    return used_ids.find(id) != used_ids.end();
+  }
+
+  void select_group(content_groups           &out,
+                    const pending_group      &group,
+                    const candidate_registry &registry) {
+    add_group(out, group.content_hash, group.del_ids, group.ins_ids,
+              group.match);
+    if (!has_both_sides(group)) {
+      return;
+    }
+
+    used_ids.insert(group.del_ids.begin(), group.del_ids.end());
+    used_ids.insert(group.ins_ids.begin(), group.ins_ids.end());
+    mark_group_covered(group, registry);
+  }
+
+private:
+  static bool span_contains_candidate(const covered_span   &span,
+                                      const move_candidate &candidate) {
+    return span.kind == candidate.kind && span.filename == candidate.filename &&
+           span.start_idx <= candidate.start_idx &&
+           candidate.end_idx <= span.end_idx;
+  }
+
+  static bool candidate_contains_span(const move_candidate &candidate,
+                                      const covered_span   &span) {
+    return span.kind == candidate.kind && span.filename == candidate.filename &&
+           candidate.start_idx <= span.start_idx &&
+           span.end_idx <= candidate.end_idx;
+  }
+
+  void mark_group_covered(const pending_group      &group,
+                          const candidate_registry &registry) {
+    for (candidate_id id : group.del_ids) {
+      const move_candidate &candidate = registry.candidate(id);
+      covered.push_back(covered_span{candidate.kind, candidate.filename,
+                                     candidate.start_idx, candidate.end_idx});
+    }
+
+    for (candidate_id id : group.ins_ids) {
+      const move_candidate &candidate = registry.candidate(id);
+      covered.push_back(covered_span{candidate.kind, candidate.filename,
+                                     candidate.start_idx, candidate.end_idx});
     }
   }
 
-  for (candidate_id id : group.ins_ids) {
-    if (!candidate_is_suppressed(registry.candidate(id), covered)) {
-      return false;
-    }
-  }
-
-  return true;
-}
+  std::unordered_set<candidate_id> used_ids;
+  std::vector<covered_span>        covered;
+};
 
 std::size_t candidate_span_size(const move_candidate &candidate) {
   if (candidate.end_idx < candidate.start_idx) {
@@ -260,26 +252,26 @@ bool any_single_child_wrapper(const pending_group      &group,
   return false;
 }
 
-enum class group_priority : int {
-  normal               = 1,
-  single_child_wrapper = 2,
+enum class selection_tier : int {
+  primary                = 1,
+  single_child_fallback  = 2,
 };
 
-group_priority group_source_priority(const pending_group      &group,
-                                     const candidate_registry &registry) {
+selection_tier group_selection_tier(const pending_group      &group,
+                                    const candidate_registry &registry) {
   if (any_single_child_wrapper(group, registry)) {
-    return group_priority::single_child_wrapper;
+    return selection_tier::single_child_fallback;
   }
-  return group_priority::normal;
+  return selection_tier::primary;
 }
 
-bool group_priority_less(const pending_group      &lhs,
-                         const pending_group      &rhs,
-                         const candidate_registry &registry) {
-  const group_priority lhs_source = group_source_priority(lhs, registry);
-  const group_priority rhs_source = group_source_priority(rhs, registry);
-  if (lhs_source != rhs_source) {
-    return lhs_source < rhs_source;
+bool group_selection_order_less(const pending_group      &lhs,
+                                const pending_group      &rhs,
+                                const candidate_registry &registry) {
+  const selection_tier lhs_tier = group_selection_tier(lhs, registry);
+  const selection_tier rhs_tier = group_selection_tier(rhs, registry);
+  if (lhs_tier != rhs_tier) {
+    return lhs_tier < rhs_tier;
   }
 
   const std::size_t lhs_size = group_span_size(lhs, registry);
@@ -292,10 +284,9 @@ bool group_priority_less(const pending_group      &lhs,
 }
 
 std::vector<candidate_id>
-filter_unused_ids(const std::vector<candidate_id>        &ids,
-                  const std::unordered_set<candidate_id> &used_ids,
-                  const candidate_registry               &registry,
-                  const std::vector<covered_span>        &covered) {
+filter_unselected_ids(const std::vector<candidate_id> &ids,
+                      const candidate_registry        &registry,
+                      const group_selection           &selection) {
   std::vector<candidate_id> out;
   out.reserve(ids.size());
 
@@ -305,8 +296,8 @@ filter_unused_ids(const std::vector<candidate_id>        &ids,
         candidate.role == move_candidate::Role::multi_child_wrapper) {
       continue;
     }
-    if (used_ids.find(id) == used_ids.end() &&
-        !candidate_is_suppressed(candidate, covered)) {
+    if (!selection.id_is_used(id) &&
+        !selection.candidate_is_suppressed(candidate)) {
       out.push_back(id);
     }
   }
@@ -401,21 +392,21 @@ build_exact_groups(const candidate_registry &registry) {
 void add_selected_exact_groups(content_groups             &out,
                                const candidate_registry   &registry,
                                std::vector<pending_group> &exact_groups,
-                               selection_state            &state) {
+                               group_selection            &selection) {
   std::sort(exact_groups.begin(), exact_groups.end(),
             [&registry](const pending_group &lhs, const pending_group &rhs) {
-              return group_priority_less(lhs, rhs, registry);
+              return group_selection_order_less(lhs, rhs, registry);
             });
 
   for (const pending_group &group : exact_groups) {
     if (!has_both_sides(group)) {
       continue;
     }
-    if (group_is_suppressed(group, registry, state.covered)) {
+    if (selection.group_is_fully_suppressed(group, registry)) {
       continue;
     }
 
-    add_selected_group(out, group, registry, state);
+    selection.select_group(out, group, registry);
   }
 }
 
@@ -425,7 +416,7 @@ using type2_group_map =
 type2_group_map
 build_type2_groups(const candidate_registry         &registry,
                    const std::vector<pending_group> &exact_groups,
-                   const selection_state            &state) {
+                   const group_selection            &selection) {
   type2_group_map type2_groups;
   type2_groups.reserve(exact_groups.size());
 
@@ -435,7 +426,7 @@ build_type2_groups(const candidate_registry         &registry,
     }
 
     for (candidate_id id : group.del_ids) {
-      if (state.used_ids.find(id) != state.used_ids.end()) {
+      if (selection.id_is_used(id)) {
         continue;
       }
 
@@ -451,7 +442,7 @@ build_type2_groups(const candidate_registry         &registry,
     }
 
     for (candidate_id id : group.ins_ids) {
-      if (state.used_ids.find(id) != state.used_ids.end()) {
+      if (selection.id_is_used(id)) {
         continue;
       }
 
@@ -473,33 +464,33 @@ build_type2_groups(const candidate_registry         &registry,
 void add_selected_type2_groups(content_groups           &out,
                                const candidate_registry &registry,
                                const type2_group_map    &type2_groups,
-                               selection_state          &state) {
+                               group_selection          &selection) {
   for (const auto &entry : type2_groups) {
     const pending_group &group = entry.second;
     if (!is_one_to_one(group)) {
       continue;
     }
-    if (group_is_suppressed(group, registry, state.covered)) {
+    if (selection.group_is_fully_suppressed(group, registry)) {
       continue;
     }
 
-    add_selected_group(out, group, registry, state);
+    selection.select_group(out, group, registry);
   }
 }
 
 void add_unmatched_exact_groups(content_groups                   &out,
                                 const candidate_registry         &registry,
                                 const std::vector<pending_group> &exact_groups,
-                                const selection_state            &state) {
+                                const group_selection            &selection) {
   for (const pending_group &group : exact_groups) {
     if (has_both_sides(group)) {
       continue;
     }
 
-    std::vector<candidate_id> del_ids = filter_unused_ids(
-        group.del_ids, state.used_ids, registry, state.covered);
-    std::vector<candidate_id> ins_ids = filter_unused_ids(
-        group.ins_ids, state.used_ids, registry, state.covered);
+    std::vector<candidate_id> del_ids =
+        filter_unselected_ids(group.del_ids, registry, selection);
+    std::vector<candidate_id> ins_ids =
+        filter_unselected_ids(group.ins_ids, registry, selection);
     if (del_ids.empty() && ins_ids.empty()) {
       continue;
     }
@@ -521,15 +512,15 @@ content_groups build_content_groups(const candidate_registry &registry,
   }
 
   std::vector<pending_group> exact_groups = build_exact_groups(registry);
-  selection_state            state(registry.active_candidate_count());
+  group_selection            selection(registry.active_candidate_count());
 
-  add_selected_exact_groups(out, registry, exact_groups, state);
+  add_selected_exact_groups(out, registry, exact_groups, selection);
 
   type2_group_map type2_groups =
-      build_type2_groups(registry, exact_groups, state);
-  add_selected_type2_groups(out, registry, type2_groups, state);
+      build_type2_groups(registry, exact_groups, selection);
+  add_selected_type2_groups(out, registry, type2_groups, selection);
 
-  add_unmatched_exact_groups(out, registry, exact_groups, state);
+  add_unmatched_exact_groups(out, registry, exact_groups, selection);
 
 #ifndef NDEBUG
   for (const content_group &g : out.groups()) {
