@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="child_fallback.cpp">
+
+  <diff:delete>
+    <comment>// old surrounding diff-only context</comment>
+    <function><type><name>int</name></type> <name>fallback_child</name><parameter_list>()</parameter_list> <block>{<block_content>
+      <return>return <expr><literal type="number">42</literal></expr>;</return>
+    </block_content>}</block></function>
+  </diff:delete>
+
+  <diff:insert>
+    <comment>// new surrounding diff-only context</comment>
+    <function><type><name>int</name></type> <name>fallback_child</name><parameter_list>()</parameter_list> <block>{<block_content>
+      <return>return <expr><literal type="number">42</literal></expr>;</return>
+    </block_content>}</block></function>
+  </diff:insert>
+
+</unit>
