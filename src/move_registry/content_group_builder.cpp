@@ -74,8 +74,8 @@ struct sv_hash {
 std::string exact_group_key(const move_candidate &candidate) {
   std::string key = candidate.canonical_text;
   key.push_back('\0');
-  key.push_back(candidate.source == move_candidate::Source::diff_wrapper ? 'd'
-                                                                         : 's');
+  key.push_back(candidate.role == move_candidate::Role::structural_child ? 's'
+                                                                         : 'd');
   return key;
 }
 
@@ -155,7 +155,7 @@ bool candidate_is_suppressed(const move_candidate            &candidate,
       return true;
     }
 
-    if (candidate.source == move_candidate::Source::diff_wrapper &&
+    if (candidate.role != move_candidate::Role::structural_child &&
         candidate_contains_span(candidate, span)) {
       return true;
     }
@@ -226,16 +226,14 @@ bool any_single_child_wrapper(const pending_group      &group,
                               const candidate_registry &registry) {
   for (candidate_id id : group.del_ids) {
     const move_candidate &candidate = registry.candidate(id);
-    if (candidate.source == move_candidate::Source::diff_wrapper &&
-        candidate.prefer_structural_child) {
+    if (candidate.role == move_candidate::Role::single_child_wrapper) {
       return true;
     }
   }
 
   for (candidate_id id : group.ins_ids) {
     const move_candidate &candidate = registry.candidate(id);
-    if (candidate.source == move_candidate::Source::diff_wrapper &&
-        candidate.prefer_structural_child) {
+    if (candidate.role == move_candidate::Role::single_child_wrapper) {
       return true;
     }
   }
@@ -243,19 +241,24 @@ bool any_single_child_wrapper(const pending_group      &group,
   return false;
 }
 
-int group_source_priority(const pending_group      &group,
-                          const candidate_registry &registry) {
+enum class group_priority : int {
+  normal = 1,
+  single_child_wrapper = 2,
+};
+
+group_priority group_source_priority(const pending_group      &group,
+                                     const candidate_registry &registry) {
   if (any_single_child_wrapper(group, registry)) {
-    return 2;
+    return group_priority::single_child_wrapper;
   }
-  return 1;
+  return group_priority::normal;
 }
 
 bool group_priority_less(const pending_group      &lhs,
                          const pending_group      &rhs,
                          const candidate_registry &registry) {
-  const int lhs_source = group_source_priority(lhs, registry);
-  const int rhs_source = group_source_priority(rhs, registry);
+  const group_priority lhs_source = group_source_priority(lhs, registry);
+  const group_priority rhs_source = group_source_priority(rhs, registry);
   if (lhs_source != rhs_source) {
     return lhs_source < rhs_source;
   }
@@ -279,8 +282,8 @@ filter_unused_ids(const std::vector<candidate_id>        &ids,
 
   for (candidate_id id : ids) {
     const move_candidate &candidate = registry.candidate(id);
-    if (candidate.source == move_candidate::Source::diff_wrapper &&
-        candidate.preferred_child_count > 0) {
+    if (candidate.role == move_candidate::Role::single_child_wrapper ||
+        candidate.role == move_candidate::Role::multi_child_wrapper) {
       continue;
     }
     if (used_ids.find(id) == used_ids.end() &&

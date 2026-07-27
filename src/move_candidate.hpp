@@ -20,7 +20,12 @@ enum srcml_node_type : unsigned int { OTHER = 0, START = 1, END = 2, TEXT = 3 };
 class move_candidate {
 public:
   enum class Kind { insert, del };
-  enum class Source { diff_wrapper, structural_child };
+  enum class Role {
+    diff_wrapper,
+    single_child_wrapper,
+    multi_child_wrapper,
+    structural_child,
+  };
 
   move_candidate(Kind        kind,
                  std::size_t start_idx,
@@ -41,10 +46,8 @@ public:
   std::string raw_text;             // exact region inner text, for debug
   std::string canonical_text;       // normalized subtree identity, for matching
   std::string type2_canonical_text; // identifier-normalized subtree identity
-  bool   type2_eligible; // true for statement-level-or-larger type 2 matching
-  Source source                         = Source::diff_wrapper;
-  std::size_t   preferred_child_count   = 0;
-  bool          prefer_structural_child = false;
+  bool type2_eligible; // true for statement-level-or-larger type 2 matching
+  Role role = Role::diff_wrapper;
   std::uint64_t hash;
   std::uint64_t type2_hash;
 

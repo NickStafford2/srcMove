@@ -74,34 +74,6 @@ static bool is_preferred_child_candidate_name(std::string_view name) {
   return is_structural_child_name(name) || is_statement_name(name);
 }
 
-static std::size_t
-count_preferred_child_roots(const std::vector<captured_srcml_node> &nodes) {
-  std::size_t count       = 0;
-  int         child_depth = 0;
-
-  for (std::size_t i = 1; i + 1 < nodes.size(); ++i) {
-    const srcml_node &node = nodes[i].node;
-
-    if (child_depth == 0) {
-      if (!node.is_start() || !is_preferred_child_candidate_name(node.name)) {
-        continue;
-      }
-
-      ++count;
-      child_depth = 1;
-      continue;
-    }
-
-    if (node.is_start()) {
-      ++child_depth;
-    } else if (node.is_end()) {
-      --child_depth;
-    }
-  }
-
-  return count;
-}
-
 static std::string
 collect_subtree_raw_text(const std::vector<captured_srcml_node> &nodes) {
   std::string out;
@@ -209,7 +181,7 @@ extract_preferred_child_candidates(const diff_region           &region,
                              std::move(type2_canonical_text),
                              is_type2_eligible_name(current.front().node.name));
     candidate.end_idx = current.back().index;
-    candidate.source  = move_candidate::Source::structural_child;
+    candidate.role    = move_candidate::Role::structural_child;
     out.push_back(std::move(candidate));
 
     current.clear();
@@ -246,18 +218,23 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
     if (!keep)
       continue;
 
+    std::vector<move_candidate> child_candidates =
+        extract_preferred_child_candidates(r, opt);
+
     if (passes_region_text_filters(r.raw_text, opt)) {
       move_candidate c(r.kind, r.start_idx, r.filename, r.raw_text,
                        r.canonical_text, r.type2_canonical_text, false);
-      c.end_idx                 = r.end_idx; // preserve the true close position
-      c.source                  = move_candidate::Source::diff_wrapper;
-      c.preferred_child_count   = count_preferred_child_roots(r.captured_nodes);
-      c.prefer_structural_child = c.preferred_child_count == 1;
+      c.end_idx = r.end_idx; // preserve the true close position
+      if (child_candidates.size() == 1) {
+        c.role = move_candidate::Role::single_child_wrapper;
+      } else if (child_candidates.size() > 1) {
+        c.role = move_candidate::Role::multi_child_wrapper;
+      } else {
+        c.role = move_candidate::Role::diff_wrapper;
+      }
       out.push_back(std::move(c));
     }
 
-    std::vector<move_candidate> child_candidates =
-        extract_preferred_child_candidates(r, opt);
     out.insert(out.end(), std::make_move_iterator(child_candidates.begin()),
                std::make_move_iterator(child_candidates.end()));
   }
