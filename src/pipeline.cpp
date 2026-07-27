@@ -122,7 +122,8 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   candidate_registry registry;
   registry.reserve(candidates.size());
   registry.add_candidates_for_file(srcdiff_in_filename, std::move(candidates));
-  const content_groups groups = build_content_groups(registry, true);
+  const content_groups groups =
+      build_content_groups(registry, content_grouping_mode::refined);
 
   print_greedy_matches(registry, groups, std::cout);
 

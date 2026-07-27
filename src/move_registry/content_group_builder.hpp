@@ -14,7 +14,7 @@
  *
  * Responsibilities:
  * - partition candidates by content hash
- * - optionally confirm exact text equality
+ * - optionally run refined exact/Type-2 grouping and selection
  * - classify group types (1-1 move, many-many, delete-only, etc.)
  *
  * The builder does NOT mutate the registry.
@@ -28,15 +28,24 @@
 
 namespace srcmove {
 
+enum class content_grouping_mode {
+  hash_bucket_only,
+  refined,
+};
+
 /**
  * Build a grouped snapshot of the current registry state.
  *
- * confirm_text_equality:
- *   false → one group per hash bucket
- *   true  → split buckets by exact text equality
+ * Mode:
+ * - hash_bucket_only: one group per content-hash bucket; no exact text split,
+ *   selection suppression, or Type-2 recovery.
+ * - refined: split buckets by exact canonical text, select non-overlapping
+ *   exact groups first, recover eligible one-to-one Type-2 groups, then emit
+ *   unmatched leftovers.
  */
 content_groups build_content_groups(const candidate_registry &registry,
-                                    bool confirm_text_equality = true);
+                                    content_grouping_mode mode =
+                                        content_grouping_mode::refined);
 
 } // namespace srcmove
 

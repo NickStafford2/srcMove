@@ -502,11 +502,11 @@ void add_unmatched_exact_groups(content_groups                   &out,
 } // namespace
 
 content_groups build_content_groups(const candidate_registry &registry,
-                                    bool confirm_text_equality) {
+                                    content_grouping_mode mode) {
   content_groups out;
   out.reserve_groups(registry.hash_buckets().size());
 
-  if (!confirm_text_equality) {
+  if (mode == content_grouping_mode::hash_bucket_only) {
     add_hash_bucket_groups(out, registry);
     return out;
   }
