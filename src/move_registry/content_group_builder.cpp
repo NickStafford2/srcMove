@@ -93,6 +93,16 @@ struct covered_span {
   std::size_t          end_idx   = 0;
 };
 
+struct selection_state {
+  explicit selection_state(std::size_t candidate_count) {
+    used_ids.reserve(candidate_count);
+    covered.reserve(candidate_count);
+  }
+
+  std::unordered_set<candidate_id> used_ids;
+  std::vector<covered_span>        covered;
+};
+
 bool has_both_sides(const pending_group &group) {
   return !group.del_ids.empty() && !group.ins_ids.empty();
 }
@@ -146,6 +156,15 @@ void mark_group_covered(const pending_group       &group,
     covered.push_back(covered_span{candidate.kind, candidate.filename,
                                    candidate.start_idx, candidate.end_idx});
   }
+}
+
+void add_selected_group(content_groups           &out,
+                        const pending_group      &group,
+                        const candidate_registry &registry,
+                        selection_state          &state) {
+  add_pending_group(out, group);
+  mark_ids_used(group, state.used_ids);
+  mark_group_covered(group, registry, state.covered);
 }
 
 bool candidate_is_suppressed(const move_candidate            &candidate,
@@ -242,7 +261,7 @@ bool any_single_child_wrapper(const pending_group      &group,
 }
 
 enum class group_priority : int {
-  normal = 1,
+  normal               = 1,
   single_child_wrapper = 2,
 };
 
@@ -295,29 +314,25 @@ filter_unused_ids(const std::vector<candidate_id>        &ids,
   return out;
 }
 
-} // namespace
+void add_hash_bucket_groups(content_groups           &out,
+                            const candidate_registry &registry) {
+  for (const std::pair<const std::uint64_t, bucket_ids> &kv :
+       registry.hash_buckets()) {
+    const match_kind match =
+        (!kv.second.del_ids.empty() && !kv.second.ins_ids.empty())
+            ? match_kind::exact
+            : match_kind::unmatched;
+    add_group(out, kv.first, kv.second.del_ids, kv.second.ins_ids, match);
+  }
+}
 
-content_groups build_content_groups(const candidate_registry &registry,
-                                    bool confirm_text_equality) {
-  content_groups out;
+std::vector<pending_group>
+build_exact_groups(const candidate_registry &registry) {
+  static const std::vector<candidate_id> kEmpty;
 
   const std::unordered_map<std::uint64_t, bucket_ids> &hash_buckets =
       registry.hash_buckets();
-  out.reserve_groups(hash_buckets.size());
-
-  if (!confirm_text_equality) {
-    for (const std::pair<const std::uint64_t, bucket_ids> &kv : hash_buckets) {
-      const match_kind match =
-          (!kv.second.del_ids.empty() && !kv.second.ins_ids.empty())
-              ? match_kind::exact
-              : match_kind::unmatched;
-      add_group(out, kv.first, kv.second.del_ids, kv.second.ins_ids, match);
-    }
-    return out;
-  }
-
-  static const std::vector<candidate_id> kEmpty;
-  std::vector<pending_group>             exact_groups;
+  std::vector<pending_group> exact_groups;
   exact_groups.reserve(hash_buckets.size());
 
   for (const auto &kv : hash_buckets) {
@@ -353,7 +368,7 @@ content_groups build_content_groups(const candidate_registry &registry,
 
     for (auto &entry : del_by_text) {
       const std::string         &text = entry.first;
-      std::vector<unsigned int> &dels = entry.second;
+      std::vector<candidate_id> &dels = entry.second;
 
       (void)seen.emplace(text, true);
 
@@ -369,7 +384,7 @@ content_groups build_content_groups(const candidate_registry &registry,
 
     for (auto &entry : ins_by_text) {
       const std::string         &text = entry.first;
-      std::vector<unsigned int> &inss = entry.second;
+      std::vector<candidate_id> &inss = entry.second;
 
       if (seen.find(text) != seen.end()) {
         continue;
@@ -380,11 +395,13 @@ content_groups build_content_groups(const candidate_registry &registry,
     }
   }
 
-  std::unordered_set<candidate_id> used_ids;
-  used_ids.reserve(registry.active_candidate_count());
-  std::vector<covered_span> covered;
-  covered.reserve(registry.active_candidate_count());
+  return exact_groups;
+}
 
+void add_selected_exact_groups(content_groups             &out,
+                               const candidate_registry   &registry,
+                               std::vector<pending_group> &exact_groups,
+                               selection_state            &state) {
   std::sort(exact_groups.begin(), exact_groups.end(),
             [&registry](const pending_group &lhs, const pending_group &rhs) {
               return group_priority_less(lhs, rhs, registry);
@@ -394,16 +411,22 @@ content_groups build_content_groups(const candidate_registry &registry,
     if (!has_both_sides(group)) {
       continue;
     }
-    if (group_is_suppressed(group, registry, covered)) {
+    if (group_is_suppressed(group, registry, state.covered)) {
       continue;
     }
 
-    add_pending_group(out, group);
-    mark_ids_used(group, used_ids);
-    mark_group_covered(group, registry, covered);
+    add_selected_group(out, group, registry, state);
   }
+}
 
-  std::unordered_map<std::string_view, pending_group, sv_hash> type2_groups;
+using type2_group_map =
+    std::unordered_map<std::string_view, pending_group, sv_hash>;
+
+type2_group_map
+build_type2_groups(const candidate_registry         &registry,
+                   const std::vector<pending_group> &exact_groups,
+                   const selection_state            &state) {
+  type2_group_map type2_groups;
   type2_groups.reserve(exact_groups.size());
 
   for (const pending_group &group : exact_groups) {
@@ -412,7 +435,7 @@ content_groups build_content_groups(const candidate_registry &registry,
     }
 
     for (candidate_id id : group.del_ids) {
-      if (used_ids.find(id) != used_ids.end()) {
+      if (state.used_ids.find(id) != state.used_ids.end()) {
         continue;
       }
 
@@ -428,7 +451,7 @@ content_groups build_content_groups(const candidate_registry &registry,
     }
 
     for (candidate_id id : group.ins_ids) {
-      if (used_ids.find(id) != used_ids.end()) {
+      if (state.used_ids.find(id) != state.used_ids.end()) {
         continue;
       }
 
@@ -444,35 +467,69 @@ content_groups build_content_groups(const candidate_registry &registry,
     }
   }
 
+  return type2_groups;
+}
+
+void add_selected_type2_groups(content_groups           &out,
+                               const candidate_registry &registry,
+                               const type2_group_map    &type2_groups,
+                               selection_state          &state) {
   for (const auto &entry : type2_groups) {
     const pending_group &group = entry.second;
     if (!is_one_to_one(group)) {
       continue;
     }
-    if (group_is_suppressed(group, registry, covered)) {
+    if (group_is_suppressed(group, registry, state.covered)) {
       continue;
     }
 
-    add_pending_group(out, group);
-    mark_ids_used(group, used_ids);
-    mark_group_covered(group, registry, covered);
+    add_selected_group(out, group, registry, state);
   }
+}
 
+void add_unmatched_exact_groups(content_groups                   &out,
+                                const candidate_registry         &registry,
+                                const std::vector<pending_group> &exact_groups,
+                                const selection_state            &state) {
   for (const pending_group &group : exact_groups) {
     if (has_both_sides(group)) {
       continue;
     }
 
-    std::vector<candidate_id> del_ids =
-        filter_unused_ids(group.del_ids, used_ids, registry, covered);
-    std::vector<candidate_id> ins_ids =
-        filter_unused_ids(group.ins_ids, used_ids, registry, covered);
+    std::vector<candidate_id> del_ids = filter_unused_ids(
+        group.del_ids, state.used_ids, registry, state.covered);
+    std::vector<candidate_id> ins_ids = filter_unused_ids(
+        group.ins_ids, state.used_ids, registry, state.covered);
     if (del_ids.empty() && ins_ids.empty()) {
       continue;
     }
 
     add_group(out, group.content_hash, del_ids, ins_ids, match_kind::unmatched);
   }
+}
+
+} // namespace
+
+content_groups build_content_groups(const candidate_registry &registry,
+                                    bool confirm_text_equality) {
+  content_groups out;
+  out.reserve_groups(registry.hash_buckets().size());
+
+  if (!confirm_text_equality) {
+    add_hash_bucket_groups(out, registry);
+    return out;
+  }
+
+  std::vector<pending_group> exact_groups = build_exact_groups(registry);
+  selection_state            state(registry.active_candidate_count());
+
+  add_selected_exact_groups(out, registry, exact_groups, state);
+
+  type2_group_map type2_groups =
+      build_type2_groups(registry, exact_groups, state);
+  add_selected_type2_groups(out, registry, type2_groups, state);
+
+  add_unmatched_exact_groups(out, registry, exact_groups, state);
 
 #ifndef NDEBUG
   for (const content_group &g : out.groups()) {
