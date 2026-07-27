@@ -57,15 +57,13 @@ static bool is_structural_child_name(std::string_view name) {
 static bool is_statement_name(std::string_view name) {
   return name == "decl_stmt" || name == "expr_stmt" || name == "return" ||
          name == "if_stmt" || name == "for" || name == "while" ||
-         name == "do" || name == "switch" || name == "try" ||
-         name == "break" || name == "continue" || name == "goto" ||
-         name == "throw";
+         name == "do" || name == "switch" || name == "try" || name == "break" ||
+         name == "continue" || name == "goto" || name == "throw";
 }
 
 static bool is_type2_statement_name(std::string_view name) {
   return name == "decl_stmt" || name == "if_stmt" || name == "for" ||
-         name == "while" || name == "do" || name == "switch" ||
-         name == "try";
+         name == "while" || name == "do" || name == "switch" || name == "try";
 }
 
 static bool is_type2_eligible_name(std::string_view name) {
@@ -81,8 +79,8 @@ static bool is_diff_wrapper_name(std::string_view full_name) {
          full_name == "diff:common" || full_name == "diff:ws";
 }
 
-static bool has_type2_eligible_root(
-    const std::vector<captured_srcml_node> &nodes) {
+static bool
+has_type2_eligible_root(const std::vector<captured_srcml_node> &nodes) {
   for (const captured_srcml_node &captured : nodes) {
     const srcml_node &node = captured.node;
     if (!node.is_start() || is_diff_wrapper_name(node.full_name())) {
@@ -94,8 +92,8 @@ static bool has_type2_eligible_root(
   return false;
 }
 
-static std::string collect_subtree_raw_text(
-    const std::vector<captured_srcml_node> &nodes) {
+static std::string
+collect_subtree_raw_text(const std::vector<captured_srcml_node> &nodes) {
   std::string out;
 
   for (const auto &captured : nodes) {
@@ -108,8 +106,8 @@ static std::string collect_subtree_raw_text(
   return out;
 }
 
-static std::string collect_subtree_canonical_text(
-    const std::vector<captured_srcml_node> &nodes) {
+static std::string
+collect_subtree_canonical_text(const std::vector<captured_srcml_node> &nodes) {
   std::vector<srcml_node> plain_nodes;
   plain_nodes.reserve(nodes.size());
 
@@ -134,7 +132,7 @@ static std::string collect_subtree_type2_canonical_text(
   return canonicalize_diff_region_subtree(plain_nodes, opt);
 }
 
-static bool passes_region_text_filters(const std::string          &raw_text,
+static bool passes_region_text_filters(const std::string           &raw_text,
                                        const region_filter_options &opt) {
   if (opt.drop_whitespace_only && !any_non_ws(raw_text)) {
     return false;
@@ -195,8 +193,9 @@ extract_preferred_child_candidates(const diff_region           &region,
     std::string canonical_text = collect_subtree_canonical_text(current);
     std::string type2_canonical_text =
         collect_subtree_type2_canonical_text(current);
-    move_candidate candidate(region.kind, current.front().index, region.filename,
-                             std::move(raw_text), std::move(canonical_text),
+    move_candidate candidate(region.kind, current.front().index,
+                             region.filename, std::move(raw_text),
+                             std::move(canonical_text),
                              std::move(type2_canonical_text),
                              is_type2_eligible_name(current.front().node.name));
     candidate.end_idx = current.back().index;
@@ -239,8 +238,7 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
     std::vector<move_candidate> child_candidates =
         extract_preferred_child_candidates(r, opt);
     if (!child_candidates.empty()) {
-      out.insert(out.end(),
-                 std::make_move_iterator(child_candidates.begin()),
+      out.insert(out.end(), std::make_move_iterator(child_candidates.begin()),
                  std::make_move_iterator(child_candidates.end()));
       continue;
     }
@@ -259,11 +257,11 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
 
 region_filter_options get_default_filter_options() {
   region_filter_options opt;
-  opt.policy               = region_filter_policy::leaf_only;
-  opt.drop_whitespace_only = true;
-  opt.skip_pre_marked      = false;
-  opt.expand_structural_children = true;
-  opt.min_chars            = 2;
+  opt.policy                     = region_filter_policy::leaf_only;
+  opt.drop_whitespace_only       = true;
+  opt.skip_pre_marked            = false;
+  opt.expand_structural_children = false;
+  opt.min_chars                  = 2;
   return opt;
 }
 
@@ -272,10 +270,10 @@ std::vector<move_candidate> collect_regions(srcml_reader &reader) {
   auto regions = collect_all_regions(reader);
 
   region_filter_options opt;
-  opt.policy               = region_filter_policy::leaf_only;
-  opt.drop_whitespace_only = true;
+  opt.policy                     = region_filter_policy::leaf_only;
+  opt.drop_whitespace_only       = true;
   opt.expand_structural_children = true;
-  opt.min_chars            = 1;
+  opt.min_chars                  = 1;
 
   return filter_regions_for_registry(regions, opt);
 }
