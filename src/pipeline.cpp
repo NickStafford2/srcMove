@@ -99,6 +99,15 @@ std::size_t estimate_move_pairs(const std::vector<move_entry> &moves) {
   return total;
 }
 
+std::size_t count_grouped_candidate_ids(const content_groups &groups) {
+  std::size_t total = 0;
+  for (const content_group &group : groups.groups()) {
+    total += group.del_count();
+    total += group.ins_count();
+  }
+  return total;
+}
+
 } // namespace
 
 summary run_pipeline(const std::string &srcdiff_in_filename,
@@ -128,7 +137,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   result.annotated_region_count = count_annotated_regions(result.moves);
   result.annotated_regions      = result.annotated_region_count;
   result.regions_total     = regions.size();
-  result.candidates_total  = registry.active_candidate_count();
+  result.candidates_total  = count_grouped_candidate_ids(groups);
   result.groups_total      = groups.group_count();
   result.group_kinds       = count_group_kinds(groups);
   result.match_kinds       = count_match_kinds(groups);

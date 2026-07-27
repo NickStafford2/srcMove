@@ -4,7 +4,7 @@
   "move_pair_count": 2,
   "moves": [
     {
-      "move_id": "97b1dcdaf",
+      "move_id": "c89025cc1",
       "match_kind": "exact",
       "from_xpaths": [
         "/src:unit[1]/src:function[src:name='bar']/src:block[1]/src:block_content[1]/src:return[1]/diff:delete[1]"
@@ -20,7 +20,7 @@
       ]
     },
     {
-      "move_id": "c89025cc1",
+      "move_id": "97b1dcdaf",
       "match_kind": "exact",
       "from_xpaths": [
         "/src:unit[1]/src:function[src:name='foo']/src:block[1]/src:block_content[1]/src:return[1]/diff:delete[1]"
