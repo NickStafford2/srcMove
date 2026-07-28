@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import shutil
 import re
 import subprocess
 import sys
@@ -51,9 +52,22 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--out",
         type=Path,
-        help="CSV output path. Default: profile-results/srcmove-profile-<timestamp>.csv.",
+        help=(
+            "CSV output path. Default: "
+            "profile-results/runs/<timestamp>_<suite>.csv."
+        ),
     )
-    parser.add_argument("--repeats", type=int, default=1)
+    parser.add_argument(
+        "--label",
+        default="",
+        help="Optional run label written to CSV metadata and default filename.",
+    )
+    parser.add_argument(
+        "--no-latest",
+        action="store_true",
+        help="Do not update profile-results/latest.csv after writing the run CSV.",
+    )
+    parser.add_argument("--repeats", type=int, default=3)
     parser.add_argument(
         "--limit",
         type=int,
@@ -76,8 +90,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--bigclonebench-limit",
         type=int,
-        default=10,
-        help="Limit passed to BigCloneBench preparation. Default: 10.",
+        default=1000,
+        help="Limit passed to BigCloneBench preparation. Default: 1000.",
     )
     args = parser.parse_args()
 
@@ -93,6 +107,15 @@ def parse_args() -> argparse.Namespace:
 
 def default_srcmove_path() -> Path:
     return REPO_ROOT / "build-release" / "srcMove"
+
+
+def default_label(args: argparse.Namespace) -> str:
+    if args.suite == "bigclonebench":
+        return (
+            f"bigclonebench-{args.clone_type}-limit{args.bigclonebench_limit}"
+            f"-r{args.repeats}"
+        )
+    return f"{args.suite}-r{args.repeats}"
 
 
 def case_root_for_suite(args: argparse.Namespace) -> Path:
@@ -134,15 +157,21 @@ def prepare_bigclonebench(args: argparse.Namespace) -> None:
         raise SystemExit(proc.returncode)
 
 
-def find_cases(cases_root: Path, limit: int | None) -> list[Path]:
+def find_cases(cases_root: Path, limit: int | None, suite: str) -> list[Path]:
     if not cases_root.is_dir():
-        raise SystemExit(f"error: cases directory not found: {cases_root}")
+        message = f"error: cases directory not found: {cases_root}"
+        if suite == "bigclonebench":
+            message += "\nrerun with --prepare-bigclonebench to generate cases first"
+        raise SystemExit(message)
 
     cases = sorted(path.parent for path in cases_root.glob("*/input.xml"))
     if limit is not None:
         cases = cases[:limit]
     if not cases:
-        raise SystemExit(f"error: no input.xml case files found under {cases_root}")
+        message = f"error: no input.xml case files found under {cases_root}"
+        if suite == "bigclonebench":
+            message += "\nrerun with --prepare-bigclonebench to generate cases first"
+        raise SystemExit(message)
     return cases
 
 
@@ -190,9 +219,18 @@ def run_profile_case(
     return proc.returncode, metrics, failure
 
 
-def default_output_path() -> Path:
+def safe_filename_part(value: str) -> str:
+    cleaned = re.sub(r"[^A-Za-z0-9_.-]+", "-", value.strip())
+    return cleaned.strip("-")
+
+
+def default_output_path(args: argparse.Namespace) -> Path:
     stamp = dt.datetime.now(dt.timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    return REPO_ROOT / "profile-results" / f"srcmove-profile-{stamp}.csv"
+    parts = ["srcmove-profile", stamp, args.suite]
+    label = safe_filename_part(args.label)
+    if label:
+        parts.append(label)
+    return REPO_ROOT / "profile-results" / "runs" / ("_".join(parts) + ".csv")
 
 
 def write_csv(path: Path, rows: list[dict[str, object]], metric_names: list[str]) -> None:
@@ -200,6 +238,7 @@ def write_csv(path: Path, rows: list[dict[str, object]], metric_names: list[str]
     fields = [
         "timestamp_utc",
         "git_commit",
+        "label",
         "suite",
         "cases_root",
         "case",
@@ -217,19 +256,42 @@ def write_csv(path: Path, rows: list[dict[str, object]], metric_names: list[str]
             writer.writerow(row)
 
 
+def write_metadata(path: Path, args: argparse.Namespace, rows: list[dict[str, object]]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    failures = sum(1 for row in rows if row["returncode"] != 0 or row["failure"])
+    with path.open("w", encoding="utf-8") as f:
+        f.write(f"timestamp_utc={rows[0]['timestamp_utc'] if rows else ''}\n")
+        f.write(f"git_commit={rows[0]['git_commit'] if rows else ''}\n")
+        f.write(f"label={args.label}\n")
+        f.write(f"suite={args.suite}\n")
+        f.write(f"srcmove={args.srcmove}\n")
+        f.write(f"rows={len(rows)}\n")
+        f.write(f"failures={failures}\n")
+        f.write("command=" + " ".join(sys.argv) + "\n")
+
+
 def main() -> int:
     args = parse_args()
     args.srcmove = (args.srcmove or default_srcmove_path()).resolve()
+    if not args.label:
+        args.label = default_label(args)
     if not args.srcmove.is_file():
         print(f"error: srcMove executable not found: {args.srcmove}", file=sys.stderr)
+        print("build a release binary with:", file=sys.stderr)
+        print(
+            "  cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release",
+            file=sys.stderr,
+        )
+        print("  cmake --build build-release", file=sys.stderr)
+        print("or pass --srcmove <path>", file=sys.stderr)
         return 2
 
     if args.prepare_bigclonebench:
         prepare_bigclonebench(args)
 
     cases_root = case_root_for_suite(args)
-    cases = find_cases(cases_root, args.limit)
-    out_path = (args.out or default_output_path()).resolve()
+    cases = find_cases(cases_root, args.limit, args.suite)
+    out_path = (args.out or default_output_path(args)).resolve()
 
     rows: list[dict[str, object]] = []
     metric_names: set[str] = set()
@@ -256,6 +318,7 @@ def main() -> int:
                 row: dict[str, object] = {
                     "timestamp_utc": timestamp,
                     "git_commit": commit,
+                    "label": args.label,
                     "suite": args.suite,
                     "cases_root": str(cases_root),
                     "case": case_dir.name,
@@ -270,9 +333,22 @@ def main() -> int:
 
     ordered_metrics = sorted(metric_names)
     write_csv(out_path, rows, ordered_metrics)
+    metadata_path = out_path.with_suffix(".txt")
+    write_metadata(metadata_path, args, rows)
+
+    latest_path = REPO_ROOT / "profile-results" / "latest.csv"
+    latest_metadata_path = REPO_ROOT / "profile-results" / "latest.txt"
+    if not args.no_latest:
+        latest_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copyfile(out_path, latest_path)
+        shutil.copyfile(metadata_path, latest_metadata_path)
 
     failures = sum(1 for row in rows if row["returncode"] != 0 or row["failure"])
     print(f"wrote {len(rows)} profile row(s) to {out_path}")
+    print(f"wrote metadata to {metadata_path}")
+    if not args.no_latest:
+        print(f"updated {latest_path}")
+        print(f"updated {latest_metadata_path}")
     if failures:
         print(f"failures={failures}", file=sys.stderr)
         return 1

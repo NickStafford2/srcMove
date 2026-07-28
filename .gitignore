@@ -1,4 +1,5 @@
 build/
+build-release/
 out.txt
 compile_commands.json
 .cache/
