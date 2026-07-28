@@ -14,6 +14,7 @@ import datetime as dt
 import json
 import shutil
 import re
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -141,6 +142,14 @@ def git_commit() -> str:
 
 
 def prepare_bigclonebench(args: argparse.Namespace) -> None:
+    syntactic_type = 1 if args.clone_type == "type1" else 2
+    manifest_path = (
+        REPO_ROOT
+        / "test"
+        / "e2e_bigclonebench"
+        / "cases"
+        / f"bcb_t{syntactic_type}_manifest.json"
+    )
     cmd = [
         sys.executable,
         str(REPO_ROOT / "test" / "e2e_bigclonebench" / "run_tests.py"),
@@ -155,6 +164,13 @@ def prepare_bigclonebench(args: argparse.Namespace) -> None:
     print("  " + " ".join(cmd), file=sys.stderr)
     proc = subprocess.run(cmd, cwd=REPO_ROOT, text=True, check=False)
     if proc.returncode != 0:
+        if manifest_path.is_file():
+            print(
+                "warning: BigCloneBench preparation reported validation failures, "
+                "but generated an active manifest; continuing with profiling",
+                file=sys.stderr,
+            )
+            return
         raise SystemExit(proc.returncode)
 
 
@@ -294,7 +310,33 @@ def write_csv(path: Path, rows: list[dict[str, object]], metric_names: list[str]
             writer.writerow(row)
 
 
-def write_metadata(path: Path, args: argparse.Namespace, rows: list[dict[str, object]]) -> None:
+def summarize_metrics(rows: list[dict[str, object]], metric_names: list[str]) -> list[str]:
+    lines: list[str] = []
+    for name in metric_names:
+        values: list[float] = []
+        field = f"{name}_ms"
+        for row in rows:
+            value = row.get(field)
+            if not isinstance(value, str) or not value:
+                continue
+            values.append(float(value))
+        if not values:
+            continue
+
+        lines.append(
+            f"{field}: n={len(values)} median={statistics.median(values):.3f} "
+            f"avg={statistics.mean(values):.3f} min={min(values):.3f} "
+            f"max={max(values):.3f}"
+        )
+    return lines
+
+
+def write_metadata(
+    path: Path,
+    args: argparse.Namespace,
+    rows: list[dict[str, object]],
+    metric_names: list[str],
+) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     failures = sum(1 for row in rows if row["returncode"] != 0 or row["failure"])
     with path.open("w", encoding="utf-8") as f:
@@ -312,6 +354,9 @@ def write_metadata(path: Path, args: argparse.Namespace, rows: list[dict[str, ob
         f.write(f"profiled_cases={len({row['case'] for row in rows})}\n")
         f.write(f"failures={failures}\n")
         f.write("command=" + " ".join(sys.argv) + "\n")
+        f.write("\n[timing_summary]\n")
+        for line in summarize_metrics(rows, metric_names):
+            f.write(line + "\n")
 
 
 def main() -> int:
@@ -379,7 +424,7 @@ def main() -> int:
     ordered_metrics = sorted(metric_names)
     write_csv(out_path, rows, ordered_metrics)
     metadata_path = out_path.with_suffix(".txt")
-    write_metadata(metadata_path, args, rows)
+    write_metadata(metadata_path, args, rows, ordered_metrics)
 
     latest_path = REPO_ROOT / "profile-results" / "latest.csv"
     latest_metadata_path = REPO_ROOT / "profile-results" / "latest.txt"
