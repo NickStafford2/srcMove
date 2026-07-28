@@ -9,3 +9,4 @@ profile-results/
 test/bigclonebench/
 test/BigCloneEval/
 test/IJaDataset
+srcReader/

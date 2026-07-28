@@ -16,24 +16,6 @@ namespace srcmove {
 
 namespace {
 
-using xpath_map = std::unordered_map<std::size_t, std::string>;
-
-xpath_map collect_start_node_xpaths(const std::string &in_filename) {
-  srcml_reader reader(in_filename);
-
-  xpath_map out;
-
-  std::size_t i = 0;
-  for (const srcml_node &node : reader) {
-    if (node.is_start()) {
-      out.emplace(i, reader.get_current_xpath());
-    }
-    ++i;
-  }
-
-  return out;
-}
-
 std::string match_kind_name(match_kind match) {
   switch (match) {
   case match_kind::exact:
@@ -49,16 +31,14 @@ std::string match_kind_name(match_kind match) {
 
 std::vector<std::string>
 collect_group_xpaths(content_groups::id_view   ids,
-                     const candidate_registry &registry,
-                     const xpath_map          &xpaths) {
+                     const candidate_registry &registry) {
   std::vector<std::string> out;
   out.reserve(ids.size());
 
   for (id_t id : ids) {
     const move_candidate &candidate = registry.candidate(id);
-    auto                  it        = xpaths.find(candidate.start_idx);
-    if (it != xpaths.end()) {
-      out.push_back(it->second);
+    if (!candidate.xpath.empty()) {
+      out.push_back(candidate.xpath);
     }
   }
 
@@ -108,20 +88,14 @@ tag_map build_move_tags(const content_groups     &groups,
                         profile_report           *profile) {
 
   scoped_profile_timer total_timer(profile, "annotation.plan_total");
-
-  xpath_map xpaths;
-  {
-    scoped_profile_timer timer(profile, "annotation.collect_xpaths");
-    // O(input XML nodes). This is a full reader pass so partner attributes can
-    // reference stable XPath strings when tags are built below.
-    xpaths = collect_start_node_xpaths(srcdiff_in_filename);
-  }
+  (void)srcdiff_in_filename;
 
   tag_map tags;
 
   {
     scoped_profile_timer timer(profile, "annotation.build_tags");
-    // O(content groups + tagged candidate ids). XPath lookups are expected O(1).
+    // O(content groups + tagged candidate ids). XPaths are carried by candidates
+    // from the initial parse, so tag building does not need another XML pass.
     for (const content_group &g : groups.groups()) {
       if (g.del_count() == 0 || g.ins_count() == 0)
         continue;
@@ -130,9 +104,9 @@ tag_map build_move_tags(const content_groups     &groups,
       const content_groups::id_view ins_ids = groups.insert_ids(g);
 
       const std::vector<std::string> del_xpaths =
-          collect_group_xpaths(del_ids, registry, xpaths);
+          collect_group_xpaths(del_ids, registry);
       const std::vector<std::string> ins_xpaths =
-          collect_group_xpaths(ins_ids, registry, xpaths);
+          collect_group_xpaths(ins_ids, registry);
 
       const std::string move_id    = get_uuid();
       const std::string match_kind = match_kind_name(g.match);

@@ -33,6 +33,7 @@ namespace srcmove {
 struct captured_srcml_node {
   std::size_t index = 0;
   srcml_node  node;
+  std::string xpath;
 };
 
 struct diff_region {
@@ -41,6 +42,7 @@ struct diff_region {
 
   std::size_t start_idx = 0;
   std::size_t end_idx   = 0;
+  std::string start_xpath;
 
   std::string   raw_text;
   std::string   canonical_text;

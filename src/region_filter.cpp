@@ -180,6 +180,7 @@ extract_preferred_child_candidates(const diff_region           &region,
                              std::move(canonical_text),
                              std::move(type2_canonical_text),
                              is_type2_eligible_name(current.front().node.name));
+    candidate.xpath   = current.front().xpath;
     candidate.end_idx = current.back().index;
     candidate.role    = move_candidate::Role::structural_child;
     out.push_back(std::move(candidate));
@@ -224,6 +225,7 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
     if (passes_region_text_filters(r.raw_text, opt)) {
       move_candidate c(r.kind, r.start_idx, r.filename, r.raw_text,
                        r.canonical_text, r.type2_canonical_text, false);
+      c.xpath   = r.start_xpath;
       c.end_idx = r.end_idx; // preserve the true close position
       if (child_candidates.size() == 1) {
         c.role = move_candidate::Role::single_child_wrapper;

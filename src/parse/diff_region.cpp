@@ -110,11 +110,12 @@ void open_diff_region(std::vector<diff_region>         &regions,
   diff_region region;
   region.kind      = *kind;
   region.filename  = filename;
-  region.start_idx = node_index;
-  region.end_idx   = 0;
-  region.raw_text  = reader.get_current_inner_text();
-  region.parent_id = parent_id;
-  region.depth     = depth;
+  region.start_idx   = node_index;
+  region.end_idx     = 0;
+  region.start_xpath = reader.get_current_xpath();
+  region.raw_text    = reader.get_current_inner_text();
+  region.parent_id   = parent_id;
+  region.depth       = depth;
 
   if (const std::string *mv = node.get_attribute_value("move")) {
     region.pre_marked = true;
@@ -224,7 +225,8 @@ void read_file_unit(reader_iter              &it,
       }
 
       for (auto &open_region : open_region_stack) {
-        open_region.nodes.push_back(captured_srcml_node{node_index, node});
+        open_region.nodes.push_back(
+            captured_srcml_node{node_index, node, reader.get_current_xpath()});
       }
 
       advance(it, node_index);
@@ -233,7 +235,7 @@ void read_file_unit(reader_iter              &it,
 
     if (node.is_end()) {
       for (auto &open_region : open_region_stack) {
-        open_region.nodes.push_back(captured_srcml_node{node_index, node});
+        open_region.nodes.push_back(captured_srcml_node{node_index, node, ""});
       }
 
       if (const auto kind = diff_kind_from_full_name(full_name)) {
@@ -260,7 +262,7 @@ void read_file_unit(reader_iter              &it,
 
     // TEXT / OTHER
     for (auto &open_region : open_region_stack) {
-      open_region.nodes.push_back(captured_srcml_node{node_index, node});
+      open_region.nodes.push_back(captured_srcml_node{node_index, node, ""});
     }
 
     advance(it, node_index);

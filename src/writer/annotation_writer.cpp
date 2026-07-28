@@ -89,11 +89,10 @@ write_with_move_annotations(const std::string &in_filename,
     }
 
     if (node.is_start()) {
-      srcml_node        patched = node;
-      const std::string xpath   = reader.get_current_xpath();
-
       auto it = tags.find(i);
       if (it != tags.end()) {
+        srcml_node        patched = node;
+        const std::string xpath   = reader.get_current_xpath();
         const move_tag    &tag      = it->second;
         const std::string &move_id  = tag.move_id;
         const std::string &raw_text = tag.raw_text;
