@@ -24,6 +24,12 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
 PROFILE_LINE_RE = re.compile(r"^profile\.([A-Za-z0-9_.]+)_ms=([0-9]+(?:\.[0-9]+)?)$")
+OPENCV_DIFF = (
+    REPO_ROOT
+    / "examples"
+    / "opencv"
+    / "opencv.1_2.v000001-to-v000002.e46e13a77579-to-5e38cf8042d1.position.diff.xml"
+)
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,7 +41,7 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument(
         "--suite",
-        choices=("custom", "bigclonebench", "dir"),
+        choices=("custom", "bigclonebench", "opencv", "dir"),
         default="bigclonebench",
         help="Case source shortcut. Default: bigclonebench.",
     )
@@ -117,6 +123,8 @@ def default_label(args: argparse.Namespace, case_count: int | None = None) -> st
         if case_count is not None:
             label += f"-cases{case_count}"
         return f"{label}-r{args.repeats}"
+    if args.suite == "opencv":
+        return f"opencv-large-r{args.repeats}"
     return f"{args.suite}-r{args.repeats}"
 
 
@@ -125,6 +133,8 @@ def case_root_for_suite(args: argparse.Namespace) -> Path:
         return REPO_ROOT / "test" / "e2e_custom" / "cases"
     if args.suite == "bigclonebench":
         return REPO_ROOT / "test" / "e2e_bigclonebench" / "cases"
+    if args.suite == "opencv":
+        return OPENCV_DIFF.parent
     return args.cases_dir.resolve()
 
 
@@ -177,6 +187,8 @@ def prepare_bigclonebench(args: argparse.Namespace) -> None:
 def suite_input_name(suite: str) -> str:
     if suite == "bigclonebench":
         return "diff.xml"
+    if suite == "opencv":
+        return OPENCV_DIFF.name
     return "input.xml"
 
 
@@ -211,6 +223,8 @@ def find_cases(
                 f"error: invalid cases list in BigCloneBench manifest {manifest_path}"
             )
         cases = [cases_root / name for name in case_names]
+    elif suite == "opencv":
+        cases = [cases_root]
     else:
         input_name = suite_input_name(suite)
         cases = sorted(path.parent for path in cases_root.glob(f"*/{input_name}"))

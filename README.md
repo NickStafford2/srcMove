@@ -156,6 +156,14 @@ are actually generated, repeated 3 times. In this checkout that request usually
 yields 915 Type-1 cases. Use `--clone-type`, `--bigclonebench-limit`,
 `--repeats`, and `--label` to name or reshape a run.
 
+To profile the large premade OpenCV srcDiff fixture at
+`examples/opencv/opencv.1_2.v000001-to-v000002.e46e13a77579-to-5e38cf8042d1.position.diff.xml`:
+
+```bash
+scripts/build_release.sh
+python3 scripts/profile_srcmove.py --suite opencv
+```
+
 Each custom fixture directory contains `input.xml`, `expected.xml`, and
 `expected.json`. See [test/README.md](test/README.md) for the normal test
 runner entry points, generated source-pair tests, and the larger generated
