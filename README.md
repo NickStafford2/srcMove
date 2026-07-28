@@ -144,14 +144,17 @@ python3 scripts/profile_srcmove.py \
   --prepare-bigclonebench
 ```
 
-The script records only `srcMove --profile` timings from generated `input.xml`
-cases. BigCloneBench setup, database loading, and case generation are run before
-the measured profile pass and are not included in the CSV timing columns. By
-default, profile runs are written under `profile-results/runs/` and copied to
-`profile-results/latest.csv` with matching `.txt` metadata files. The default
-profile run is BigCloneBench Type-1, limit 1000, repeated 3 times; use
-`--clone-type`, `--bigclonebench-limit`, `--repeats`, and `--label` to name or
-reshape a run.
+The script records only `srcMove --profile` timings from generated case inputs.
+BigCloneBench setup, database loading, and case generation are run before the
+measured profile pass and are not included in the CSV timing columns. For
+BigCloneBench, the profiler reads the active `bcb_t*_manifest.json` so stale case
+directories from older runs are ignored. By default, profile runs are written
+under `profile-results/runs/` and copied to `profile-results/latest.csv` with
+matching `.txt` metadata files. The default profile run requests a BigCloneBench
+Type-1 `--limit 1000` generation batch, then profiles however many deduped cases
+are actually generated, repeated 3 times. In this checkout that request usually
+yields 915 Type-1 cases. Use `--clone-type`, `--bigclonebench-limit`,
+`--repeats`, and `--label` to name or reshape a run.
 
 Each custom fixture directory contains `input.xml`, `expected.xml`, and
 `expected.json`. See [test/README.md](test/README.md) for the normal test

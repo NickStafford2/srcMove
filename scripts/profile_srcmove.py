@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Run srcMove --profile over existing input.xml cases and write CSV results.
+"""Run srcMove --profile over existing fixture cases and write CSV results.
 
 This script records only timings emitted by srcMove's internal profiler. It does
 not use subprocess wall time, so Python startup, BigCloneBench database loading,
@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 import csv
 import datetime as dt
+import json
 import shutil
 import re
 import subprocess
@@ -27,7 +28,7 @@ PROFILE_LINE_RE = re.compile(r"^profile\.([A-Za-z0-9_.]+)_ms=([0-9]+(?:\.[0-9]+)
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Profile srcMove over existing input.xml fixtures. The CSV contains "
+            "Profile srcMove over existing fixture inputs. The CSV contains "
             "only srcMove internal --profile timings, not test runner startup."
         )
     )
@@ -109,12 +110,12 @@ def default_srcmove_path() -> Path:
     return REPO_ROOT / "build-release" / "srcMove"
 
 
-def default_label(args: argparse.Namespace) -> str:
+def default_label(args: argparse.Namespace, case_count: int | None = None) -> str:
     if args.suite == "bigclonebench":
-        return (
-            f"bigclonebench-{args.clone_type}-limit{args.bigclonebench_limit}"
-            f"-r{args.repeats}"
-        )
+        label = f"bigclonebench-{args.clone_type}-request{args.bigclonebench_limit}"
+        if case_count is not None:
+            label += f"-cases{case_count}"
+        return f"{label}-r{args.repeats}"
     return f"{args.suite}-r{args.repeats}"
 
 
@@ -157,18 +158,54 @@ def prepare_bigclonebench(args: argparse.Namespace) -> None:
         raise SystemExit(proc.returncode)
 
 
-def find_cases(cases_root: Path, limit: int | None, suite: str) -> list[Path]:
+def suite_input_name(suite: str) -> str:
+    if suite == "bigclonebench":
+        return "diff.xml"
+    return "input.xml"
+
+
+def find_cases(
+    cases_root: Path,
+    limit: int | None,
+    suite: str,
+    clone_type: str,
+) -> list[Path]:
     if not cases_root.is_dir():
         message = f"error: cases directory not found: {cases_root}"
         if suite == "bigclonebench":
             message += "\nrerun with --prepare-bigclonebench to generate cases first"
         raise SystemExit(message)
 
-    cases = sorted(path.parent for path in cases_root.glob("*/input.xml"))
+    if suite == "bigclonebench":
+        syntactic_type = 1 if clone_type == "type1" else 2
+        manifest_path = cases_root / f"bcb_t{syntactic_type}_manifest.json"
+        try:
+            with manifest_path.open("r", encoding="utf-8") as f:
+                manifest = json.load(f)
+            case_names = manifest["cases"]
+        except (OSError, KeyError, json.JSONDecodeError) as e:
+            raise SystemExit(
+                f"error: failed to read BigCloneBench manifest {manifest_path}: {e}\n"
+                "rerun with --prepare-bigclonebench to generate the active manifest"
+            ) from e
+        if not isinstance(case_names, list) or not all(
+            isinstance(name, str) for name in case_names
+        ):
+            raise SystemExit(
+                f"error: invalid cases list in BigCloneBench manifest {manifest_path}"
+            )
+        cases = [cases_root / name for name in case_names]
+    else:
+        input_name = suite_input_name(suite)
+        cases = sorted(path.parent for path in cases_root.glob(f"*/{input_name}"))
+
     if limit is not None:
         cases = cases[:limit]
+
+    input_name = suite_input_name(suite)
+    cases = [case for case in cases if (case / input_name).is_file()]
     if not cases:
-        message = f"error: no input.xml case files found under {cases_root}"
+        message = f"error: no {input_name} case files found under {cases_root}"
         if suite == "bigclonebench":
             message += "\nrerun with --prepare-bigclonebench to generate cases first"
         raise SystemExit(message)
@@ -188,6 +225,7 @@ def parse_profile_output(text: str) -> dict[str, float]:
 def run_profile_case(
     srcmove: Path,
     case_dir: Path,
+    input_name: str,
     repeat: int,
     temp_root: Path,
 ) -> tuple[int, dict[str, float], str]:
@@ -197,7 +235,7 @@ def run_profile_case(
 
     cmd = [
         str(srcmove),
-        str(case_dir / "input.xml"),
+        str(case_dir / input_name),
         str(out_dir / "output.xml"),
         "--results",
         str(out_dir / "results.json"),
@@ -264,8 +302,14 @@ def write_metadata(path: Path, args: argparse.Namespace, rows: list[dict[str, ob
         f.write(f"git_commit={rows[0]['git_commit'] if rows else ''}\n")
         f.write(f"label={args.label}\n")
         f.write(f"suite={args.suite}\n")
+        if args.suite == "bigclonebench":
+            f.write(f"clone_type={args.clone_type}\n")
+            f.write(f"bigclonebench_requested_limit={args.bigclonebench_limit}\n")
+        if args.limit is not None:
+            f.write(f"profile_case_limit={args.limit}\n")
         f.write(f"srcmove={args.srcmove}\n")
         f.write(f"rows={len(rows)}\n")
+        f.write(f"profiled_cases={len({row['case'] for row in rows})}\n")
         f.write(f"failures={failures}\n")
         f.write("command=" + " ".join(sys.argv) + "\n")
 
@@ -273,8 +317,6 @@ def write_metadata(path: Path, args: argparse.Namespace, rows: list[dict[str, ob
 def main() -> int:
     args = parse_args()
     args.srcmove = (args.srcmove or default_srcmove_path()).resolve()
-    if not args.label:
-        args.label = default_label(args)
     if not args.srcmove.is_file():
         print(f"error: srcMove executable not found: {args.srcmove}", file=sys.stderr)
         print("build a release binary with:", file=sys.stderr)
@@ -290,8 +332,11 @@ def main() -> int:
         prepare_bigclonebench(args)
 
     cases_root = case_root_for_suite(args)
-    cases = find_cases(cases_root, args.limit, args.suite)
+    cases = find_cases(cases_root, args.limit, args.suite, args.clone_type)
+    if not args.label:
+        args.label = default_label(args, len(cases))
     out_path = (args.out or default_output_path(args)).resolve()
+    input_name = suite_input_name(args.suite)
 
     rows: list[dict[str, object]] = []
     metric_names: set[str] = set()
@@ -311,7 +356,7 @@ def main() -> int:
                     file=sys.stderr,
                 )
                 returncode, metrics, failure = run_profile_case(
-                    args.srcmove, case_dir, repeat, temp_root
+                    args.srcmove, case_dir, input_name, repeat, temp_root
                 )
                 metric_names.update(metrics)
 
