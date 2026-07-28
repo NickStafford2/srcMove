@@ -18,6 +18,7 @@
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/content_groups.hpp"
 #include "parse/diff_region.hpp"
+#include "profile.hpp"
 #include "srcml_node.hpp"
 #include "srcml_reader.hpp"
 #include "srcml_writer.hpp"
@@ -68,13 +69,17 @@ std::string join_xpath_union(const std::vector<std::string> &values) {
 std::unordered_map<std::string, move_entry>
 write_with_move_annotations(const std::string &in_filename,
                             const std::string &out_filename,
-                            const tag_map     &tags) {
+                            const tag_map     &tags,
+                            profile_report    *profile) {
+  scoped_profile_timer timer(profile, "annotation.write_stream");
 
   srcml_reader reader(in_filename);
   srcml_writer writer(out_filename);
 
   std::unordered_map<std::string, move_entry> moves;
 
+  // O(input XML nodes + tagged regions). Untagged nodes are copied through;
+  // tagged START nodes also patch attributes and collect move summary entries.
   std::size_t i = 0;
   for (const srcml_node &node : reader) {
     if (is_root_unit_start(node, i)) {
@@ -137,18 +142,29 @@ std::vector<move_entry> annotate(const std::vector<diff_region> &regions,
                                  const candidate_registry       &registry,
                                  const content_groups           &groups,
                                  const std::string &srcdiff_in_filename,
-                                 const std::string &srcdiff_out_filename) {
+                                 const std::string &srcdiff_out_filename,
+                                 profile_report    *profile) {
 
-  const tag_map tags = build_move_tags(groups, registry, srcdiff_in_filename);
+  scoped_profile_timer total_timer(profile, "annotation.total");
+
+  const tag_map tags =
+      build_move_tags(groups, registry, srcdiff_in_filename, profile);
 
   // second pass
   auto moves_map = write_with_move_annotations(srcdiff_in_filename,
-                                               srcdiff_out_filename, tags);
+                                               srcdiff_out_filename, tags,
+                                               profile);
   std::vector<move_entry> moves;
-  moves.reserve(moves_map.size());
 
-  for (auto &kv : moves_map)
-    moves.push_back(std::move(kv.second));
+  {
+    scoped_profile_timer timer(profile, "annotation.materialize_moves");
+    moves.reserve(moves_map.size());
+    // O(move groups). Converts the writer's move-id keyed map into summary
+    // entries consumed by the pipeline result.
+    for (auto &kv : moves_map)
+      moves.push_back(std::move(kv.second));
+  }
+
   return moves;
 }
 

@@ -14,6 +14,8 @@
 
 namespace srcmove {
 
+class profile_report;
+
 struct move_tag {
   std::string              move_id;
   std::string              match_kind;
@@ -29,7 +31,8 @@ using tag_map = std::unordered_map<std::size_t, move_tag>;
 
 tag_map build_move_tags(const content_groups     &groups,
                         const candidate_registry &registry,
-                        const std::string         srcdiff_in_filename);
+                        const std::string         srcdiff_in_filename,
+                        profile_report           *profile = nullptr);
 
 } // namespace srcmove
 

@@ -157,7 +157,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   {
     scoped_profile_timer timer(profile, "pipeline.annotation");
     moves = annotate(regions, registry, groups, srcdiff_in_filename,
-                     srcdiff_out_filename);
+                     srcdiff_out_filename, profile);
   }
 
   srcmove::summary result;

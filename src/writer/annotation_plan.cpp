@@ -9,6 +9,7 @@
 #include "move_candidate.hpp"
 #include "move_registry/content_groups.hpp"
 #include "move_registry/uuid_generator.hpp"
+#include "profile.hpp"
 #include "srcml_reader.hpp"
 
 namespace srcmove {
@@ -103,31 +104,45 @@ void add_group_tags(tag_map                        &tags,
 
 tag_map build_move_tags(const content_groups     &groups,
                         const candidate_registry &registry,
-                        const std::string         srcdiff_in_filename) {
+                        const std::string         srcdiff_in_filename,
+                        profile_report           *profile) {
 
-  const xpath_map xpaths = collect_start_node_xpaths(srcdiff_in_filename);
-  tag_map         tags;
+  scoped_profile_timer total_timer(profile, "annotation.plan_total");
 
-  for (const content_group &g : groups.groups()) {
-    if (g.del_count() == 0 || g.ins_count() == 0)
-      continue;
+  xpath_map xpaths;
+  {
+    scoped_profile_timer timer(profile, "annotation.collect_xpaths");
+    // O(input XML nodes). This is a full reader pass so partner attributes can
+    // reference stable XPath strings when tags are built below.
+    xpaths = collect_start_node_xpaths(srcdiff_in_filename);
+  }
 
-    const content_groups::id_view del_ids = groups.delete_ids(g);
-    const content_groups::id_view ins_ids = groups.insert_ids(g);
+  tag_map tags;
 
-    const std::vector<std::string> del_xpaths =
-        collect_group_xpaths(del_ids, registry, xpaths);
-    const std::vector<std::string> ins_xpaths =
-        collect_group_xpaths(ins_ids, registry, xpaths);
+  {
+    scoped_profile_timer timer(profile, "annotation.build_tags");
+    // O(content groups + tagged candidate ids). XPath lookups are expected O(1).
+    for (const content_group &g : groups.groups()) {
+      if (g.del_count() == 0 || g.ins_count() == 0)
+        continue;
 
-    const std::string move_id = get_uuid();
-    const std::string match_kind = match_kind_name(g.match);
+      const content_groups::id_view del_ids = groups.delete_ids(g);
+      const content_groups::id_view ins_ids = groups.insert_ids(g);
 
-    add_group_tags(tags, del_ids, registry, move_id, match_kind, g.ins_count(),
-                   g.del_count(), ins_xpaths);
+      const std::vector<std::string> del_xpaths =
+          collect_group_xpaths(del_ids, registry, xpaths);
+      const std::vector<std::string> ins_xpaths =
+          collect_group_xpaths(ins_ids, registry, xpaths);
 
-    add_group_tags(tags, ins_ids, registry, move_id, match_kind, g.ins_count(),
-                   g.del_count(), del_xpaths);
+      const std::string move_id    = get_uuid();
+      const std::string match_kind = match_kind_name(g.match);
+
+      add_group_tags(tags, del_ids, registry, move_id, match_kind, g.ins_count(),
+                     g.del_count(), ins_xpaths);
+
+      add_group_tags(tags, ins_ids, registry, move_id, match_kind, g.ins_count(),
+                     g.del_count(), del_xpaths);
+    }
   }
 
   return tags;
