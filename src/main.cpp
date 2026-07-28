@@ -3,6 +3,7 @@
 
 #include "cli.hpp"
 #include "pipeline.hpp"
+#include "profile.hpp"
 #include "summary.hpp"
 #include "util/json_writer.hpp"
 
@@ -10,8 +11,10 @@ int main(int argc, char **argv) {
   try {
     const srcmove::cli_options opts = srcmove::parse_cli(argc, argv);
 
+    srcmove::profile_report profile;
     const srcmove::summary summ =
-        srcmove::run_pipeline(opts.input_path, opts.output_path);
+        srcmove::run_pipeline(opts.input_path, opts.output_path,
+                              opts.profile ? &profile : nullptr);
 
     if (!opts.results_path.empty()) {
       std::ofstream out(opts.results_path);
@@ -21,6 +24,11 @@ int main(int argc, char **argv) {
         return 2;
       }
       srcmove::json::write_summary(out, summ);
+    }
+
+    if (opts.profile) {
+      std::cout.flush();
+      profile.write_text(std::cerr);
     }
 
     return 0;

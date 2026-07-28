@@ -84,7 +84,7 @@ working directory. Optionally specify an output filename:
 ### CLI reference
 
 ```text
-./build/srcMove <srcdiff.xml> [out.xml] [--results results.json] [-v]
+./build/srcMove <srcdiff.xml> [out.xml] [--results results.json] [--profile] [-v]
 ./build/srcMove --help
 ./build/srcMove --version
 ```
@@ -98,6 +98,8 @@ Options:
 
 * `--results <file>`: write a JSON summary of detected move groups, annotated
   regions, candidate counts, group kinds, and match kinds
+* `--profile`: write coarse wall-clock timings to stderr as
+  `profile.<stage>_ms=<milliseconds>` lines
 * `-v`, `--verbose`: accepted by the parser, but currently no pipeline behavior
   is gated by it
 * `-h`, `--help`: print command usage
@@ -120,6 +122,16 @@ To also capture the summary JSON:
   test/e2e_custom/cases/1x1_basic/input.xml \
   /tmp/srcmove-1x1.xml \
   --results /tmp/srcmove-1x1.json
+```
+
+To profile a run without changing the XML or JSON output format:
+
+```bash
+./build/srcMove \
+  test/e2e_custom/cases/1x1_basic/input.xml \
+  /tmp/srcmove-1x1.xml \
+  --results /tmp/srcmove-1x1.json \
+  --profile
 ```
 
 Each custom fixture directory contains `input.xml`, `expected.xml`, and
@@ -146,10 +158,12 @@ The pipeline (see `src/pipeline.cpp`) is intentionally simple and streaming-frie
     * skip whitespace-only regions
     * skip regions that already have a `move` attribute
 
-* `move_registry` + group builder (`src/move_registry.*`, `src/content_groups_builder.*`)
+* `move_registry` + group builder (`src/move_registry.*`)
 
   * buckets candidates by a fast 64-bit FNV-1a hash of raw inner text
-  * optionally confirms equality by exact `full_text` to avoid hash collisions
+  * refined grouping splits hash buckets by exact canonical text, selects
+    non-overlapping exact groups, recovers eligible one-to-one Type-2 groups,
+    and emits unmatched leftovers
   * produces “content groups” that can be classified (1-to-1, many-to-many, etc.)
 
 * `annotation_plan` + writer (`src/writer/annotation_plan.*`, `src/writer/annotation_writer.*`)

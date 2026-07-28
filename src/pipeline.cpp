@@ -11,9 +11,9 @@
  */
 #include "pipeline.hpp"
 
+#include <algorithm>
 #include <utility>
 #include <vector>
-#include <algorithm>
 
 #include "move_candidate.hpp"
 #include "move_registry/candidate_registry.hpp"
@@ -21,6 +21,7 @@
 #include "move_registry/content_groups.hpp"
 #include "move_registry/move_registry_debug.hpp"
 #include "parse/diff_region.hpp"
+#include "profile.hpp"
 #include "region_filter.hpp"
 #include "srcml_reader.hpp"
 #include "summary.hpp"
@@ -111,37 +112,70 @@ std::size_t count_grouped_candidate_ids(const content_groups &groups) {
 } // namespace
 
 summary run_pipeline(const std::string &srcdiff_in_filename,
-                     const std::string &srcdiff_out_filename) {
-  srcml_reader reader(srcdiff_in_filename);
+                     const std::string &srcdiff_out_filename,
+                     profile_report    *profile) {
+  scoped_profile_timer total_timer(profile, "pipeline.total");
 
-  const std::vector<diff_region> regions        = collect_all_regions(reader);
-  const region_filter_options    filter_options = get_default_filter_options();
-  std::vector<move_candidate>    candidates =
-      filter_regions_for_registry(regions, filter_options);
+  std::vector<diff_region> regions;
+  {
+    scoped_profile_timer timer(profile, "pipeline.parse_regions");
+    srcml_reader         reader(srcdiff_in_filename);
+    regions = collect_all_regions(reader);
+  }
+
+  std::vector<move_candidate> candidates;
+  {
+    scoped_profile_timer timer(profile, "pipeline.filter_candidates");
+    const region_filter_options filter_options = get_default_filter_options();
+    // O(diff regions + captured nodes) for the selected regions. Canonical text
+    // collection dominates the constant factor.
+    candidates = filter_regions_for_registry(regions, filter_options);
+  }
 
   candidate_registry registry;
-  registry.reserve(candidates.size());
-  registry.add_candidates_for_file(srcdiff_in_filename, std::move(candidates));
-  const content_groups groups =
-      build_content_groups(registry, content_grouping_mode::refined);
+  {
+    scoped_profile_timer timer(profile, "pipeline.registry");
+    registry.reserve(candidates.size());
+    // O(candidates), with expected O(1) hash-bucket insertion per candidate.
+    registry.add_candidates_for_file(srcdiff_in_filename,
+                                     std::move(candidates));
+  }
 
-  print_greedy_matches(registry, groups, std::cout);
+  content_groups groups;
+  {
+    scoped_profile_timer timer(profile, "pipeline.content_groups");
+    groups = build_content_groups(registry, content_grouping_mode::refined,
+                                  profile);
+  }
 
-  std::vector<move_entry> moves = annotate(
-      regions, registry, groups, srcdiff_in_filename, srcdiff_out_filename);
+  {
+    scoped_profile_timer timer(profile, "pipeline.debug_match_print");
+    print_greedy_matches(registry, groups, std::cout);
+  }
+
+  std::vector<move_entry> moves;
+  {
+    scoped_profile_timer timer(profile, "pipeline.annotation");
+    moves = annotate(regions, registry, groups, srcdiff_in_filename,
+                     srcdiff_out_filename);
+  }
 
   srcmove::summary result;
-  result.moves                  = std::move(moves);
-  result.move_group_count       = result.moves.size();
-  result.move_count             = result.move_group_count;
-  result.move_pair_count        = estimate_move_pairs(result.moves);
-  result.annotated_region_count = count_annotated_regions(result.moves);
-  result.annotated_regions      = result.annotated_region_count;
-  result.regions_total     = regions.size();
-  result.candidates_total  = count_grouped_candidate_ids(groups);
-  result.groups_total      = groups.group_count();
-  result.group_kinds       = count_group_kinds(groups);
-  result.match_kinds       = count_match_kinds(groups);
+  {
+    scoped_profile_timer timer(profile, "pipeline.summary");
+    result.moves                  = std::move(moves);
+    result.move_group_count       = result.moves.size();
+    result.move_count             = result.move_group_count;
+    result.move_pair_count        = estimate_move_pairs(result.moves);
+    result.annotated_region_count = count_annotated_regions(result.moves);
+    result.annotated_regions      = result.annotated_region_count;
+    result.regions_total          = regions.size();
+    result.candidates_total       = count_grouped_candidate_ids(groups);
+    result.groups_total           = groups.group_count();
+    result.group_kinds            = count_group_kinds(groups);
+    result.match_kinds            = count_match_kinds(groups);
+  }
+
   return result;
 }
 

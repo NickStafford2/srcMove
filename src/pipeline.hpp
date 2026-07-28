@@ -15,8 +15,11 @@
 
 namespace srcmove {
 
+class profile_report;
+
 summary run_pipeline(const std::string &srcdiff_in_filename,
-                     const std::string &srcdiff_out_filename);
+                     const std::string &srcdiff_out_filename,
+                     profile_report    *profile = nullptr);
 
 } // namespace srcmove
 

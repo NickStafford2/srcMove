@@ -28,6 +28,8 @@
 
 namespace srcmove {
 
+class profile_report;
+
 enum class content_grouping_mode {
   hash_bucket_only,
   refined,
@@ -45,7 +47,8 @@ enum class content_grouping_mode {
  */
 content_groups build_content_groups(const candidate_registry &registry,
                                     content_grouping_mode mode =
-                                        content_grouping_mode::refined);
+                                        content_grouping_mode::refined,
+                                    profile_report *profile = nullptr);
 
 } // namespace srcmove
 

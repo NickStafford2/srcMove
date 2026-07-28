@@ -12,7 +12,7 @@ std::string build_help(const std::string &progname) {
   out << "srcMove - detect moved code regions in a srcDiff document\n\n";
   out << "Usage:\n";
   out << "  " << progname
-      << " <srcdiff.xml> [out.xml] [--results results.json] [-v]\n";
+      << " <srcdiff.xml> [out.xml] [--results results.json] [--profile] [-v]\n";
   out << "  " << progname << " --help\n";
   out << "  " << progname << " --version\n\n";
 
@@ -23,6 +23,7 @@ std::string build_help(const std::string &progname) {
 
   out << "Options:\n";
   out << "  --results <file>       Write summary JSON to <file>\n";
+  out << "  --profile              Write coarse timing data to stderr\n";
   out << "  -v, --verbose          Accepted for compatibility; currently no effect\n";
   out << "  -h, --help             Show this help message and exit\n";
   out << "  --version              Show version information and exit\n";
@@ -56,6 +57,11 @@ cli_options parse_cli(int argc, char **argv) {
 
     if (arg == "-v" || arg == "--verbose") {
       opts.verbose = true;
+      continue;
+    }
+
+    if (arg == "--profile") {
+      opts.profile = true;
       continue;
     }
 
