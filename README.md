@@ -134,6 +134,27 @@ To profile a run without changing the XML or JSON output format:
   --profile
 ```
 
+For repeatable performance tracking, prefer a release build and the profiling
+runner:
+
+```bash
+cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release
+cmake --build build-release
+
+python3 scripts/profile_srcmove.py \
+  --suite bigclonebench \
+  --prepare-bigclonebench \
+  --clone-type type1 \
+  --bigclonebench-limit 1000 \
+  --repeats 3 \
+  --srcmove build-release/srcMove \
+  --out profile-results/type1-limit1000.csv
+```
+
+The script records only `srcMove --profile` timings from generated `input.xml`
+cases. BigCloneBench setup, database loading, and case generation are run before
+the measured profile pass and are not included in the CSV timing columns.
+
 Each custom fixture directory contains `input.xml`, `expected.xml`, and
 `expected.json`. See [test/README.md](test/README.md) for the normal test
 runner entry points, generated source-pair tests, and the larger generated
