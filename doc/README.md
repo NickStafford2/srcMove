@@ -9,8 +9,13 @@ Outputs new srcDiff
 Use [Backlog](backlog.md) for short-lived plans, open questions, and candidate
 improvements.
 
-Use [BigCloneBench Review Handoff](AI_HANDOFF_bigclonebench_review.md) for the
-next critical review of the generated BigCloneBench move-test framework.
+Use [BigCloneBench Review Handoff](handoffs/AI_HANDOFF_bigclonebench_review.md)
+for the next critical review of the generated BigCloneBench move-test framework.
+
+Use [Thesis Notes](thesis/README.md) for the nested thesis repository, paper
+notes, and archived thesis data generated from this project. Keep durable
+srcMove workflow facts in this repository's docs, and keep thesis artifacts in
+the thesis repo.
 
 # Dependencies
 srcReader
@@ -117,7 +122,6 @@ srcmove:hash="..." (optional: subtree signature)
 # Questions:
 SrcDiff has nested diff and delete tags. 
 why does diff have so many <diff:ws>  </diff:ws> everywhere
-
 
 
 

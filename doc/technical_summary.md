@@ -22,10 +22,23 @@ This work is being prepared for peer-reviewed publication.
 
 ## Results
 
-Detects 100% of type 1 moves
-Detects 50% of type 2 moves
+Use scoped benchmark results rather than broad detector-wide percentages.
+The latest archived thesis run, generated on 2026-07-30 from commit `3afbc86`,
+is stored in the thesis repo under
+`doc/thesis/thesis-data/20260730T215344Z/`.
 
-Type 3 and 4 moves not implemented.
+That run used BigCloneBench-derived synthetic move cases with
+`--dedupe raw-text-pair` and `--limit 1000`:
+
+- Type-1 selected 915 deduped cases: 909 passed and 6 failed.
+- Type-2 selected 640 deduped cases: 286 passed and 354 failed.
+
+These numbers measure srcMove on synthetic before/after moves built from
+BigCloneBench clone pairs. They are not historical edit ground truth and should
+not be reported as general precision or recall without the benchmark setup,
+dedupe mode, manifest, and failure classes.
+
+Type-3 and Type-4 moves are not implemented.
 
 # BigCloneBench
 

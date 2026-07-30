@@ -75,6 +75,39 @@ The runner uses the generator's manifest for the selected cases. This prevents
 old ignored case directories from a previous larger run from silently becoming
 part of a smaller deduped run.
 
+## Thesis Data Runs
+
+For thesis or paper data, archive each run's generated metadata before starting
+the next run. The Type-1 and Type-2 runners both overwrite the shared
+`test/e2e_bigclonebench/cases/summary.csv`, so copy the Type-1 summary before
+running Type-2. Archive the matching manifest with each summary:
+
+```text
+test/e2e_bigclonebench/cases/summary.csv
+test/e2e_bigclonebench/cases/bcb_t1_manifest.json
+test/e2e_bigclonebench/cases/bcb_t2_manifest.json
+```
+
+Use a timestamped archive directory in the thesis repository, currently
+`doc/thesis/thesis-data/<timestamp>/`, and keep the archived data there rather
+than duplicating large thesis data in srcMove docs. For repeatable performance
+data, write profiler output directly into the archive and avoid replacing
+`profile-results/latest.*`:
+
+```bash
+python3 scripts/profile_srcmove.py \
+  --suite bigclonebench \
+  --clone-type type1 \
+  --repeats 5 \
+  --label thesis-type1 \
+  --out doc/thesis/thesis-data/<timestamp>/profile/thesis-type1.csv \
+  --no-latest
+```
+
+The profiler records internal `srcMove --profile` timings only. It does not
+include Python startup, BigCloneBench database loading, case generation, or
+`srcdiff` generation time.
+
 ## Validation
 
 - Type-1 expects one `exact` move.
