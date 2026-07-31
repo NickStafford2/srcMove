@@ -7,7 +7,7 @@
   - code review readability
   - software evolution research
 
-- Research goal: improve interpretability of fine-grained srcDiff XML by annotating likely moved code.
+- Research goal: improve srcDiff XML by annotating likely moved code.
 - Research questions:
   - Can moved code be detected from srcDiff delete/insert regions?
   - How accurately does the approach detect exact and renamed/modified moves?
@@ -43,6 +43,13 @@
 
 - Move annotation:
   - adding move="<id>" and xpath="<path>" to matched diff:delete / diff:insert regions.
+
+- Move Group
+  - Add better definition here.
+  - Moves can be:
+    - One to One - One single section of code is moved from one location to another
+    - One to Many - One single section of code is removed in one location, and added in more than one different locations
+    - Many to Many - Many copies of the same section of code is removed from several locations, and added in several locations.
 
 # 4. Related Work
 
