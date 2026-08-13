@@ -18,6 +18,11 @@ In short: improve documentation when you learn something useful, but write each
 durable fact once in the correct place. Link to the canonical doc instead of
 repeating the same information.
 
+This checkout is normally developed inside the parent `srcMLBuildTemplate`
+workspace, not as a standalone tree. The canonical workspace layout,
+dependency order, and Docker/macOS workflow are documented in the parent
+workspace at `../docs/workspace.md`.
+
 ## Testing
 
 - Use existing test runners and fixture patterns when possible.
@@ -28,6 +33,8 @@ repeating the same information.
 ## Useful Entry Points
 
 - [README.md](README.md): project overview and build/run basics
+- [../docs/workspace.md](../docs/workspace.md): parent workspace layout,
+  sibling repositories, build order, and Docker/macOS workflow
 - [doc/README.md](doc/README.md): documentation index
 - [doc/technical_summary.md](doc/technical_summary.md): implementation overview
 - [doc/bigclonebench_notes.md](doc/bigclonebench_notes.md): BigCloneBench setup notes
