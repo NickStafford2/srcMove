@@ -1,20 +1,19 @@
 # srcMove Tests
 
-`tests/run.py` is the canonical entry point for deterministic correctness tests.
-From the repository root:
+The repository `Makefile` is the developer interface. From the repository root:
 
 ```bash
-./build_and_test                 # build, then run every correctness suite
-python3 tests/run.py              # run every suite with the existing build
-python3 tests/run.py --list       # list suites and regression cases
+make test                         # build, then run every correctness suite
+make test-unit                    # Python infrastructure tests only
+make test-xml                     # build, then run XML regressions
+make test-source                  # build, then run source-pair regressions
 ```
 
-Run a specific suite or case:
+`tests/run.py` is the underlying test selector and expects an existing build.
+Use it directly for case-level selection and inventory:
 
 ```bash
-python3 tests/run.py --suite unit
-python3 tests/run.py --suite xml
-python3 tests/run.py --suite source
+python3 tests/run.py --list
 python3 tests/run.py --case 1x1_basic
 python3 tests/run.py --case 1x1_basic --case blocks_swapped
 ```
@@ -40,8 +39,8 @@ Generated artifacts never live beside checked-in fixtures. Both regression
 suites write to `build/test-results/<suite>/<case>/`, using `srcdiff.xml`,
 `srcmove.xml`, and `results.json` where applicable.
 
-CTest is retired for this project. Use `tests/run.py` for all deterministic
-correctness-test selection and execution.
+CTest is retired for this project. The Makefile owns building; `tests/run.py`
+owns deterministic correctness-test selection and execution.
 
 ## Tool Selection
 

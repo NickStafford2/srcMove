@@ -4,6 +4,26 @@ srcMove is a C++ tool that post-processes `srcDiff` XML output and annotates det
 
 This repository is being developed as part of a master’s thesis project focused on improving the interpretability of fine-grained source-to-source diffs produced in the srcML/srcDiff ecosystem.
 
+## Project role
+
+srcMove is the primary program and research deliverable of the thesis. It is a
+portable command-line application rather than a component tied to one
+development workspace: it can be built and run wherever its srcML, srcDiff, and
+srcReader ecosystem dependencies are available. SrcMLBuildTemplate provides the
+recommended reproducible workspace, but it is not required by the srcMove
+architecture.
+
+A central research contribution is detecting moves across file boundaries in
+srcDiff's structured source-code diff representation. Cross-file moves are
+particularly important because a deletion and insertion in different files are
+difficult to recognize as one source-code evolution operation. Existing
+semantic differencing tools do not generally make this workflow easy to
+inspect, evaluate, or communicate.
+
+The companion `srcVisual` project visualizes srcDiff and srcMove XML so move
+results can be inspected across files rather than judged from annotations
+alone.
+
 ## What it does
 
 Given a `srcdiff.xml` file (the XML produced by `srcDiff`), `srcMove`:
@@ -24,17 +44,22 @@ Output is a new XML file (default: `srcmove.xml`) you can feed into downstream t
 ### Prerequisites
 
 - CMake 3.20+
+- Ninja
 - A C++17 compiler (Clang or GCC recommended)
 - `libxml2` development package
-- A workspace that contains:
-  - `srcReader` (sibling repository)
-  - a built/installed `srcML` (expected at `srcML-install`)
+- a `srcReader` checkout and build
+- an installed `srcML` development prefix
+- `srcdiff` for source-pair regression tests
 
-### Recommended: use the workspace installer
+### Repository and workspace model
 
 [SrcMLBuildTemplate](https://github.com/NickStafford2/SrcMLBuildTemplate)
 
-This project is designed to live inside a srcML workspace alongside its dependencies. While you can configure paths manually, the recommended setup is to use my installer repo, **SrcMLBuildTemplate**, which bootstraps a reproducible workspace.
+`srcMove` is an independent Git repository. It is commonly checked out inside
+the **SrcMLBuildTemplate** workspace scaffold, but the parent directory and
+sibling repositories are not part of this repository. The scaffold provides a
+reproducible Docker environment and coordinates the dependency build; srcMove
+owns its own source, build interface, tests, and documentation.
 
 Typical layout:
 
@@ -47,14 +72,21 @@ srcMLBuildTemplate/    # installer root (recommended)
   srcMove/            # this repo
 ```
 
-### Configure and build with CMake + Ninja:
+### Build and test
+
 From the repository root:
 
 ```bash
-cmake -S . -B build \
-  -G Ninja
-ninja -C build
-````
+make build
+make test
+```
+
+Run `make help` for the focused unit and regression-suite targets. The Makefile
+is the canonical developer interface. It configures CMake with the Ninja
+generator, then uses `cmake --build build`, which invokes Ninja for the actual
+build.
+
+### Custom dependency paths
 
 If your workspace layout differs, configure with:
 
@@ -65,7 +97,7 @@ cmake -S . -B build \
   -DSRCREADER_ROOT=/path/to/srcReader \
   -DSRCML_INSTALL_PREFIX=/path/to/srcML-install
 
-ninja -C build
+cmake --build build
 ```
 
 ### Run

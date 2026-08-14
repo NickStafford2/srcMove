@@ -23,6 +23,8 @@ SUITE_DESCRIPTIONS = {
     "xml": "checked-in srcDiff XML regression fixtures",
     "source": "checked-in source pairs regenerated through srcdiff",
 }
+
+
 @dataclass(frozen=True)
 class TestStep:
     name: str
@@ -31,12 +33,7 @@ class TestStep:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Build and run srcMove's deterministic correctness tests."
-    )
-    parser.add_argument(
-        "--build",
-        action="store_true",
-        help="Configure and build build/srcMove before testing.",
+        description="Run srcMove's deterministic correctness tests."
     )
     parser.add_argument(
         "--suite",
@@ -120,7 +117,7 @@ def run_step(step: TestStep) -> bool:
     return False
 
 
-def build_steps(
+def test_steps(
     args: argparse.Namespace,
     suites: list[str],
     selected_cases: dict[str, list[str]],
@@ -128,14 +125,6 @@ def build_steps(
     srcdiff: Path | None,
 ) -> list[TestStep]:
     steps: list[TestStep] = []
-    if args.build:
-        steps.extend(
-            [
-                TestStep("configure", ["cmake", "-S", ".", "-B", "build", "-G", "Ninja"]),
-                TestStep("build", ["ninja", "-C", "build"]),
-            ]
-        )
-
     if not args.cases and "unit" in suites:
         steps.append(
             TestStep(
@@ -208,13 +197,9 @@ def main() -> int:
 
     srcmove: Path | None = None
     if needs_srcmove:
-        srcmove = (
-            REPO_ROOT / "build" / "srcMove"
-            if args.build
-            else find_srcmove(REPO_ROOT, args.srcmove)
-        )
-        if not args.build and srcmove is None:
-            print("error: srcMove not found; build it or pass --srcmove", file=sys.stderr)
+        srcmove = find_srcmove(REPO_ROOT, args.srcmove)
+        if srcmove is None:
+            print("error: srcMove not found; run make build or pass --srcmove", file=sys.stderr)
             return 2
 
     srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff) if needs_srcdiff else None
@@ -227,7 +212,7 @@ def main() -> int:
     if srcmove is not None:
         print(f"using srcMove: {srcmove}")
 
-    steps = build_steps(args, suites, selected_cases, srcmove, srcdiff)
+    steps = test_steps(args, suites, selected_cases, srcmove, srcdiff)
     failures = sum(not run_step(step) for step in steps)
 
     print()
