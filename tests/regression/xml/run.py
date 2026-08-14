@@ -20,6 +20,9 @@ from support.validation import (
 from support.tooling import find_srcmove, format_process_failure, run_command
 
 
+REQUIRED_CASE_FILES = ("input.xml", "expected.json", "expected.xml")
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Run srcDiff XML regression cases.")
     parser.add_argument(
@@ -78,6 +81,19 @@ def is_input_xml(path: Path) -> bool:
     return not any(path.name.endswith(suffix) for suffix in excluded_suffixes)
 
 
+def find_invalid_cases(case_dirs: list[Path]) -> list[tuple[Path, list[str]]]:
+    invalid_cases: list[tuple[Path, list[str]]] = []
+    for case_dir in case_dirs:
+        missing_files = [
+            filename
+            for filename in REQUIRED_CASE_FILES
+            if not (case_dir / filename).is_file()
+        ]
+        if missing_files:
+            invalid_cases.append((case_dir, missing_files))
+    return invalid_cases
+
+
 def main() -> int:
     args = parse_args()
     script_dir = Path(__file__).resolve().parent
@@ -108,6 +124,16 @@ def main() -> int:
             return 2
         case_dirs = [available[name] for name in dict.fromkeys(args.cases)]
 
+    invalid_cases = find_invalid_cases(case_dirs)
+    if invalid_cases:
+        for case_dir, missing_files in invalid_cases:
+            print(
+                f"error: invalid case {case_dir.name}: "
+                f"missing {', '.join(missing_files)}",
+                file=sys.stderr,
+            )
+        return 2
+
     srcmove_path = find_srcmove(repo_root, args.srcmove or args.legacy_srcmove)
     if srcmove_path is None:
         print("error: srcMove not found", file=sys.stderr)
@@ -118,7 +144,6 @@ def main() -> int:
     total = 0
     passed = 0
     failed = 0
-    skipped = 0
 
     for case_dir in case_dirs:
         total += 1
@@ -127,19 +152,6 @@ def main() -> int:
         xml_file = case_dir / "input.xml"
         expected_json_path = case_dir / "expected.json"
         expected_xml_path = case_dir / "expected.xml"
-
-        missing_files: list[str] = []
-        if not xml_file.exists():
-            missing_files.append("input.xml")
-        if not expected_json_path.exists():
-            missing_files.append("expected.json")
-        if not expected_xml_path.exists():
-            missing_files.append("expected.xml")
-
-        if missing_files:
-            print(f"SKIP  {case_name}  (missing {', '.join(missing_files)})")
-            skipped += 1
-            continue
 
         proc, out_xml, out_json = run_case(srcmove_path, xml_file, out_dir)
 
@@ -188,7 +200,7 @@ def main() -> int:
             passed += 1
 
     print()
-    print(f"total={total} passed={passed} failed={failed} skipped={skipped}")
+    print(f"total={total} passed={passed} failed={failed}")
     return 1 if failed else 0
 
 
