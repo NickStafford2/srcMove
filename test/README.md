@@ -1,44 +1,54 @@
 # srcMove Tests
 
-Run the normal test suite from the repository root:
+`test/run.py` is the canonical entry point for deterministic correctness tests.
+From the repository root:
 
 ```bash
-./build_and_test
+./build_and_test                 # build, then run every correctness suite
+python3 test/run.py              # run every suite with the existing build
+python3 test/run.py --list       # list suites and regression cases
 ```
 
-For an already-built tree, use:
+Run a specific suite or case:
 
 ```bash
-python3 test/run_all.py
+python3 test/run.py --suite unit
+python3 test/run.py --suite xml
+python3 test/run.py --suite source
+python3 test/run.py --case 1x1_basic
+python3 test/run.py --case 1x1_basic --case blocks_swapped
 ```
 
-## Normal Suite
+`--case` finds the owning regression suite automatically. Combine it with
+`--suite` if the same case name ever exists in both regression suites.
 
-`test/run_all.py` runs the reliable day-to-day tests:
+## Suites
 
-- `test/e2e_custom`: checked-in srcDiff XML fixtures run directly through
-  `srcMove`
-- `test/e2e_generated`: checked-in source pairs regenerated with `srcdiff`, then
-  run through `srcMove`
+- `unit`: Python tests for test and benchmark infrastructure.
+- `xml`: checked-in srcDiff XML fixtures run directly through `srcMove`.
+- `source`: checked-in source pairs regenerated with `srcdiff`, then run through
+  `srcMove`.
 
-The runner finds `srcdiff` on `PATH` or in the sibling workspace at
-`../srcDiff/build/bin/srcdiff`.
+CTest is retired for this project. `test/run_all.py` remains only as a temporary
+compatibility wrapper around `test/run.py`.
+
+## Tool Selection
 
 All test and benchmark entry points use `test/tooling.py` for executable
 discovery and command execution. Explicit CLI paths take precedence, followed
 by `SRCMOVE_BIN` or `SRCDIFF_BIN`, workspace build outputs, and finally `PATH`.
-This keeps direct suite runs consistent with `test/run_all.py`.
+Override either tool when needed:
 
-## Optional Suites
+```bash
+python3 test/run.py --srcmove /path/to/srcMove --srcdiff /path/to/srcdiff
+SRCMOVE_BIN=/path/to/srcMove python3 test/run.py --suite xml
+```
 
-These are intentionally excluded from the normal suite:
+## Benchmarks
 
-- `--include-bigclonebench`: runs a one-case generated BigCloneBench Type-1
-  smoke test.
-- `--include-stress`: runs large repository stress tests.
-
-CTest is retired for this project. Use `./build_and_test` or
-`python3 test/run_all.py` as the test entry point.
+BigCloneBench and repository-scale workloads are experiments, not correctness
+test suites. They have separate runners and are never included implicitly by
+`test/run.py`.
 
 ## BigCloneBench
 

@@ -3,7 +3,7 @@
 
 from __future__ import annotations
 
-import os
+import argparse
 import sys
 from pathlib import Path
 
@@ -18,6 +18,34 @@ from testlib import (
     validate_results,
 )
 from tooling import format_process_failure, run_command
+from tooling import find_srcmove
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run srcDiff XML regression cases.")
+    parser.add_argument(
+        "legacy_srcmove",
+        nargs="?",
+        type=Path,
+        help=argparse.SUPPRESS,
+    )
+    parser.add_argument(
+        "--srcmove",
+        type=Path,
+        help="srcMove executable; overrides SRCMOVE_BIN and workspace discovery.",
+    )
+    parser.add_argument(
+        "--case",
+        action="append",
+        dest="cases",
+        metavar="NAME",
+        help="Run one case; repeat to select multiple cases.",
+    )
+    parser.add_argument("--list", action="store_true", help="List cases and exit.")
+    args = parser.parse_args()
+    if args.legacy_srcmove is not None and args.srcmove is not None:
+        parser.error("use either the legacy positional srcMove path or --srcmove, not both")
+    return args
 
 
 def run_case(srcmove_path: Path, xml_file: Path, out_root: Path):
@@ -52,19 +80,10 @@ def is_input_xml(path: Path) -> bool:
 
 
 def main() -> int:
+    args = parse_args()
     script_dir = Path(__file__).resolve().parent
+    repo_root = script_dir.parent.parent
     out_dir = script_dir / "test_out"
-
-    if len(sys.argv) > 1:
-        srcmove_path = Path(sys.argv[1]).resolve()
-    else:
-        srcmove_path = (Path(os.getcwd()) / "build" / "srcMove").resolve()
-
-    if not srcmove_path.exists():
-        print(f"error: srcMove not found at {srcmove_path}", file=sys.stderr)
-        return 2
-
-    out_dir.mkdir(exist_ok=True)
 
     cases_dir = script_dir / "cases"
     if not cases_dir.is_dir():
@@ -76,6 +95,26 @@ def main() -> int:
     if not case_dirs:
         print(f"No test case directories found in {cases_dir}.")
         return 0
+
+    if args.list:
+        for case_dir in case_dirs:
+            print(case_dir.name)
+        return 0
+
+    if args.cases:
+        available = {case_dir.name: case_dir for case_dir in case_dirs}
+        unknown = [name for name in args.cases if name not in available]
+        if unknown:
+            print(f"error: unknown case(s): {', '.join(unknown)}", file=sys.stderr)
+            return 2
+        case_dirs = [available[name] for name in dict.fromkeys(args.cases)]
+
+    srcmove_path = find_srcmove(repo_root, args.srcmove or args.legacy_srcmove)
+    if srcmove_path is None:
+        print("error: srcMove not found", file=sys.stderr)
+        return 2
+
+    out_dir.mkdir(exist_ok=True)
 
     total = 0
     passed = 0

@@ -168,9 +168,9 @@ python3 scripts/profile_srcmove.py \
 ```
 
 Each custom fixture directory contains `input.xml`, `expected.xml`, and
-`expected.json`. See [test/README.md](test/README.md) for the normal test
-runner entry points, generated source-pair tests, and the larger generated
-BigCloneBench Type-1/Type-2 suites.
+`expected.json`. See [test/README.md](test/README.md) for the unified correctness
+test interface, generated source-pair tests, and separate BigCloneBench
+Type-1/Type-2 benchmark runner.
 
 ## How it works
 

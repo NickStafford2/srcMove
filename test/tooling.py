@@ -43,9 +43,12 @@ def find_srcmove(repo_root: Path, explicit: Path | None = None) -> Path | None:
     build directories, and finally ``PATH``.
     """
 
+    if explicit is not None:
+        return _existing_executable(explicit)
+    if "SRCMOVE_BIN" in os.environ:
+        return _from_environment("SRCMOVE_BIN")
+
     candidates = (
-        _existing_executable(explicit),
-        _from_environment("SRCMOVE_BIN"),
         _existing_executable(repo_root / "build" / "srcMove"),
         _existing_executable(repo_root / "build-release" / "srcMove"),
         _from_path("srcMove"),
@@ -56,10 +59,13 @@ def find_srcmove(repo_root: Path, explicit: Path | None = None) -> Path | None:
 def find_srcdiff(repo_root: Path, explicit: Path | None = None) -> Path | None:
     """Find srcdiff using the sibling workspace before falling back to PATH."""
 
+    if explicit is not None:
+        return _existing_executable(explicit)
+    if "SRCDIFF_BIN" in os.environ:
+        return _from_environment("SRCDIFF_BIN")
+
     workspace_root = repo_root.parent
     candidates = (
-        _existing_executable(explicit),
-        _from_environment("SRCDIFF_BIN"),
         _existing_executable(workspace_root / "srcDiff" / "build" / "bin" / "srcdiff"),
         _existing_executable(workspace_root / "srcDiff-install" / "bin" / "srcdiff"),
         _existing_executable(

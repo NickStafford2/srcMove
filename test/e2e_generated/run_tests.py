@@ -2,6 +2,7 @@
 # test/e2e_generated/run_tests.py
 from __future__ import annotations
 
+import argparse
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -19,6 +20,29 @@ from testlib import (
     validate_results,
 )
 from tooling import find_srcdiff, find_srcmove, format_process_failure, run_command
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Run source-pair regression cases.")
+    parser.add_argument(
+        "--srcmove",
+        type=Path,
+        help="srcMove executable; overrides SRCMOVE_BIN and workspace discovery.",
+    )
+    parser.add_argument(
+        "--srcdiff",
+        type=Path,
+        help="srcdiff executable; overrides SRCDIFF_BIN and workspace discovery.",
+    )
+    parser.add_argument(
+        "--case",
+        action="append",
+        dest="cases",
+        metavar="NAME",
+        help="Run one case; repeat to select multiple cases.",
+    )
+    parser.add_argument("--list", action="store_true", help="List cases and exit.")
+    return parser.parse_args()
 
 
 @dataclass
@@ -234,19 +258,10 @@ def run_case(
 
 
 def main() -> int:
+    args = parse_args()
     script_path = Path(__file__).resolve()
     cases_root = script_path.parent
     repo_root = cases_root.parent.parent
-
-    srcdiff_bin = find_srcdiff(repo_root)
-    if srcdiff_bin is None:
-        print("error: srcdiff not found on PATH", file=sys.stderr)
-        return 1
-
-    srcmove_bin = find_srcmove(repo_root)
-    if srcmove_bin is None:
-        print("error: srcMove binary not found", file=sys.stderr)
-        return 1
 
     try:
         cases = find_cases(cases_root)
@@ -257,6 +272,29 @@ def main() -> int:
     if not cases:
         print(f"error: no test cases found under {cases_root}", file=sys.stderr)
         return 1
+
+    if args.list:
+        for case in cases:
+            print(case.name)
+        return 0
+
+    if args.cases:
+        available = {case.name: case for case in cases}
+        unknown = [name for name in args.cases if name not in available]
+        if unknown:
+            print(f"error: unknown case(s): {', '.join(unknown)}", file=sys.stderr)
+            return 2
+        cases = [available[name] for name in dict.fromkeys(args.cases)]
+
+    srcdiff_bin = find_srcdiff(repo_root, args.srcdiff)
+    if srcdiff_bin is None:
+        print("error: srcdiff not found", file=sys.stderr)
+        return 2
+
+    srcmove_bin = find_srcmove(repo_root, args.srcmove)
+    if srcmove_bin is None:
+        print("error: srcMove not found", file=sys.stderr)
+        return 2
 
     print(f"Found {len(cases)} case(s)")
 

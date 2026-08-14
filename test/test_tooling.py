@@ -60,6 +60,16 @@ class ToolDiscoveryTests(unittest.TestCase):
             ), patch("tooling.shutil.which", return_value=None):
                 self.assertEqual(find_srcmove(root), override)
 
+    def test_invalid_explicit_path_does_not_fall_back(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            root = Path(temp_name)
+            _ = make_executable(root / "build" / "srcMove")
+
+            with patch.dict(os.environ, {}, clear=True), patch(
+                "tooling.shutil.which", return_value=None
+            ):
+                self.assertIsNone(find_srcmove(root, root / "missing" / "srcMove"))
+
 
 class ProcessHelperTests(unittest.TestCase):
     def test_run_command_captures_text_output(self) -> None:
