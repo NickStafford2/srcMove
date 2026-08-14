@@ -2,7 +2,7 @@
 
 ## Context
 
-`test/e2e_bigclonebench/cases/bcb_t1_000004` exposed a text mismatch between
+`benchmarks/bigclonebench/cases/bcb_t1_000004` exposed a text mismatch between
 the generated Java source/metadata and the `srcdiff` XML consumed by `srcMove`.
 
 The source text from IJaDataset displays as:
@@ -62,13 +62,13 @@ characters. For a strong srcdiff issue report, attach or derive the repro file
 from:
 
 ```text
-test/BigCloneEval/ijadataset/default/75138.java
+benchmarks/bigclonebench/data/BigCloneEval/ijadataset/default/75138.java
 ```
 
 The relevant BigCloneBench-generated case is:
 
 ```text
-test/e2e_bigclonebench/cases/bcb_t1_000004/
+benchmarks/bigclonebench/cases/bcb_t1_000004/
 ```
 
 ## Issue Summary Draft

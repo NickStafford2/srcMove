@@ -6,7 +6,7 @@ settled.
 
 ## Next
 
-- Code review of e2e_bigclonebench
+- Code review of the BigCloneBench runner and oracle
 - Add `--offset` to BigCloneBench generation for deterministic benchmark slices
   such as rows 1-1000, 1001-2000, etc.
 - Review docs for upgrades. Generate documentation of current progress for my masters

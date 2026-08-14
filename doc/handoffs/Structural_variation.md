@@ -1,4 +1,4 @@
-I am building a rather robust test suite. I have plenty of tests on detecting type 1 and type 2 clones. but for each one, the location of the moved code is identical in each test of e2e_bigclonebench.
+I am building a rather robust test suite. I have plenty of tests on detecting type 1 and type 2 clones. but for each one, the location of the moved code is identical in each BigCloneBench case.
 
 I want you to develop a new test suite. maybe call it e2e_structural_diffs. the new test suite will take the same section of moved code, and change the structure of the blocks around it. so the moved code is the same, but where it is in its lexical context differs.
 

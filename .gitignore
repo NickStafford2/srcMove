@@ -6,7 +6,5 @@ compile_commands.json
 context-export.toml
 examples/
 profile-results/
-test/bigclonebench/
-test/BigCloneEval/
-test/IJaDataset
+benchmarks/bigclonebench/data/
 srcReader/

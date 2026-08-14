@@ -1,0 +1,130 @@
+#!/usr/bin/env python3
+"""Regression tests for BigCloneBench case generation helpers.
+
+These tests exist because IJaDataset files can contain standalone carriage
+returns inside comments, while BigCloneBench source ranges are LF-based. The
+generator must not let Python's universal newline splitting shift those ranges.
+
+
+  This test checks one very specific bug.
+
+  It creates a temporary file that looks roughly like this:
+
+  class Example {
+  /** first comment line\rsecond display line\rthird display line */
+    void target() {
+      call();
+    }
+  }
+
+  The important part is the \r characters inside the comment. Python’s normal splitlines() treats those as real line breaks. If the generator used splitlines(), it would think the target() method starts later
+  than it actually does.
+
+  Then the test calls:
+
+  extract_lines(source, 3, 5)
+
+  And expects to get:
+
+    void target() {
+      call();
+    }
+
+  So the test proves: “when a BigCloneBench source file has standalone carriage returns inside comments, our generator still extracts by LF-based line numbers and does not drift.”
+
+  It is not testing srcMove. It is testing that the benchmark input we feed into srcMove is extracted correctly.
+
+"""
+
+from __future__ import annotations
+
+import importlib.util
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+GENERATOR_PATH = REPO_ROOT / "benchmarks" / "bigclonebench" / "generate.py"
+
+
+def load_generator_module():
+    spec = importlib.util.spec_from_file_location(
+        "bigclonebench_generate", GENERATOR_PATH
+    )
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"could not load {GENERATOR_PATH}")
+
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+class BigCloneBenchGeneratorTests(unittest.TestCase):
+    def test_extract_lines_uses_lf_ranges_when_comments_contain_cr(self) -> None:
+        generator = load_generator_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            source = Path(tmp) / "sample.java"
+            source.write_text(
+                "class Example {\n"
+                "/** first comment line\rsecond display line\rthird display line */\n"
+                "  void target() {\n"
+                "    call();\n"
+                "  }\n"
+                "}\n",
+                encoding="utf-8",
+                newline="",
+            )
+
+            self.assertEqual(
+                generator.extract_lines(source, 3, 5),
+                "  void target() {\n    call();\n  }\n",
+            )
+
+    def test_synthetic_sources_do_not_emit_method_anchors(self) -> None:
+        generator = load_generator_module()
+
+        top_level_fragment = generator.dedent_fragment(
+            "      void movedTo() {\n"
+            "          call();\n"
+            "      }\n"
+        )
+        original, modified, original_range, modified_range = (
+            generator.build_synthetic_move_sources(
+                "BCBMove1_2",
+                "      void movedFrom() {\n      }\n",
+                top_level_fragment,
+            )
+        )
+
+        for source in (original, modified):
+            self.assertNotIn("beforeAnchor", source)
+            self.assertNotIn("middleAnchor", source)
+            self.assertNotIn("targetAnchor", source)
+            self.assertNotIn("afterAnchor", source)
+            self.assertIn("public class BCBMove1_2", source)
+            self.assertIn("SOURCE_CONTEXT = 100", source)
+
+        self.assertIn("void movedFrom()", original)
+        self.assertIn("}\nvoid movedTo()", modified)
+        self.assertNotIn("}\n      void movedTo()", modified)
+        self.assertNotIn("void movedTo()", original)
+        self.assertNotIn("void movedFrom()", modified)
+
+        original_lines = original.splitlines()
+        modified_lines = modified.splitlines()
+        self.assertEqual(
+            "\n".join(original_lines[original_range[0] - 1 : original_range[1]]),
+            "      void movedFrom() {\n      }",
+        )
+        self.assertEqual(
+            "\n".join(modified_lines[modified_range[0] - 1 : modified_range[1]]),
+            "void movedTo() {\n    call();\n}",
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

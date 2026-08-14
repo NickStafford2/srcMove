@@ -8,14 +8,15 @@ fragment is inserted at a different location in the new version.
 
 ## Local Assets
 
-Install BigCloneEval manually at `test/BigCloneEval/` and follow its setup
-instructions in `test/BigCloneEval/ReadMe.md` or the upstream README at
-<https://github.com/jeffsvajlenko/BigCloneEval>. This checkout expects the two
-required inputs at:
+Install BigCloneEval manually at
+`benchmarks/bigclonebench/data/BigCloneEval/` and follow its setup instructions
+in `benchmarks/bigclonebench/data/BigCloneEval/ReadMe.md` or the upstream README
+at <https://github.com/jeffsvajlenko/BigCloneEval>. This checkout expects the
+two required inputs at:
 
 ```text
-test/BigCloneEval/bigclonebenchdb/bcb.h2.db
-test/BigCloneEval/ijadataset/{default,sample,selected}/*.java
+benchmarks/bigclonebench/data/BigCloneEval/bigclonebenchdb/bcb.h2.db
+benchmarks/bigclonebench/data/BigCloneEval/ijadataset/{default,sample,selected}/*.java
 ```
 
 The H2 database contains the truth tables:
@@ -93,7 +94,7 @@ Generate into a separate directory so the large suite is not mixed with small
 hand-authored e2e fixtures:
 
 ```text
-test/e2e_bigclonebench/
+benchmarks/bigclonebench/
   cases/
     bcb_t2_000001/
       original.java

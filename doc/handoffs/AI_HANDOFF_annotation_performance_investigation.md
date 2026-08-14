@@ -13,7 +13,7 @@ Command:
 
 ```bash
 scripts/build_release.sh
-python3 scripts/profile_srcmove.py --prepare-bigclonebench
+python3 benchmarks/profile.py --prepare-bigclonebench
 ```
 
 Profile file:
@@ -41,7 +41,7 @@ Command:
 
 ```bash
 scripts/build_release.sh
-python3 scripts/profile_srcmove.py --suite opencv --repeats 1 --no-latest
+python3 benchmarks/profile.py --suite opencv --repeats 1 --no-latest
 ```
 
 Profile file:
@@ -84,7 +84,7 @@ Content grouping is not currently a performance priority for these workloads.
 - `src/srcml_reader.hpp`
 - `src/xpath_builder.*` if present in the checkout
 - `src/parse/diff_region.cpp`
-- `scripts/profile_srcmove.py`
+- `benchmarks/profile.py`
 - `src/profile.hpp`
 
 ## Investigation Goal
@@ -146,16 +146,16 @@ Correctness:
 
 ```bash
 scripts/build_release.sh
-python3 test/e2e_custom/run_tests.py build-release/srcMove
-python3 test/e2e_generated/run_tests.py
-python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --limit 10 --srcmove build-release/srcMove
+python3 tests/regression/xml/run.py build-release/srcMove
+python3 tests/regression/source/run.py
+python3 benchmarks/bigclonebench/run.py --clone-type type1 --limit 10 --srcmove build-release/srcMove
 ```
 
 Performance:
 
 ```bash
-python3 scripts/profile_srcmove.py --prepare-bigclonebench --label annotation-before
-python3 scripts/profile_srcmove.py --suite opencv --repeats 1 --label opencv-before
+python3 benchmarks/profile.py --prepare-bigclonebench --label annotation-before
+python3 benchmarks/profile.py --suite opencv --repeats 1 --label opencv-before
 ```
 
 After a change, rerun the same commands with `annotation-after` /
@@ -169,7 +169,7 @@ After a change, rerun the same commands with `annotation-after` /
 
 ## Notes
 
-`scripts/profile_srcmove.py --prepare-bigclonebench` now continues profiling if
+`benchmarks/profile.py --prepare-bigclonebench` now continues profiling if
 BigCloneBench validation reports known failures, as long as the active manifest
 was generated.
 

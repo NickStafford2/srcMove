@@ -107,19 +107,19 @@ Options:
 
 ## Example: run against a fixture
 
-This repo includes small, focused srcDiff fixtures under `test/e2e_custom/cases/`.
+This repo includes small, focused srcDiff fixtures under `tests/regression/xml/cases/`.
 
 For example:
 
 ```bash
-./build/srcMove test/e2e_custom/cases/1x1_basic/input.xml /tmp/srcmove-1x1.xml
+./build/srcMove tests/regression/xml/cases/1x1_basic/input.xml /tmp/srcmove-1x1.xml
 ```
 
 To also capture the summary JSON:
 
 ```bash
 ./build/srcMove \
-  test/e2e_custom/cases/1x1_basic/input.xml \
+  tests/regression/xml/cases/1x1_basic/input.xml \
   /tmp/srcmove-1x1.xml \
   --results /tmp/srcmove-1x1.json
 ```
@@ -128,7 +128,7 @@ To profile a run without changing the XML or JSON output format:
 
 ```bash
 ./build/srcMove \
-  test/e2e_custom/cases/1x1_basic/input.xml \
+  tests/regression/xml/cases/1x1_basic/input.xml \
   /tmp/srcmove-1x1.xml \
   --results /tmp/srcmove-1x1.json \
   --profile
@@ -140,7 +140,7 @@ runner:
 ```bash
 scripts/build_release.sh
 
-python3 scripts/profile_srcmove.py \
+python3 benchmarks/profile.py \
   --srcmove build-release/srcMove \
   --prepare-bigclonebench
 ```
@@ -153,22 +153,21 @@ directories from older runs are ignored. By default, profile runs are written
 under `profile-results/runs/` and copied to `profile-results/latest.csv` with
 matching `.txt` metadata files. The default profile run requests a BigCloneBench
 Type-1 `--limit 1000` generation batch, then profiles however many deduped cases
-are actually generated, repeated 3 times. In this checkout that request usually
-yields 915 Type-1 cases. Use `--clone-type`, `--bigclonebench-limit`,
-`--repeats`, and `--label` to name or reshape a run.
+are actually generated, repeated 3 times. Use `--clone-type`,
+`--bigclonebench-limit`, `--repeats`, and `--label` to name or reshape a run.
 
 To profile the large premade OpenCV srcDiff fixture at
 `examples/opencv/opencv.1_2.v000001-to-v000002.e46e13a77579-to-5e38cf8042d1.position.diff.xml`:
 
 ```bash
 scripts/build_release.sh
-python3 scripts/profile_srcmove.py \
+python3 benchmarks/profile.py \
   --srcmove build-release/srcMove \
   --suite opencv
 ```
 
-Each custom fixture directory contains `input.xml`, `expected.xml`, and
-`expected.json`. See [test/README.md](test/README.md) for the unified correctness
+Each XML regression fixture directory contains `input.xml`, `expected.xml`, and
+`expected.json`. See [tests/README.md](tests/README.md) for the unified correctness
 test interface, generated source-pair tests, and separate BigCloneBench
 Type-1/Type-2 benchmark runner.
 
@@ -249,9 +248,12 @@ These are intended for debugging and inspection during development (they link ag
 * `doc/`
 
   * diagrams, notes, terms, and papers reviewed during thesis work
-* `test/`
+* `tests/`
 
-  * compact fixtures (original/modified + sample diffs)
+  * deterministic unit and regression tests
+* `benchmarks/`
+
+  * BigCloneBench, repository-scale, and profiling experiments
 
 ## Limitations (current)
 

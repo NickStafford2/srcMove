@@ -2,4 +2,4 @@
 # build_and_test
 set -euo pipefail
 
-python3 test/run.py --build "$@"
+python3 tests/run.py --build "$@"

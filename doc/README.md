@@ -4,6 +4,11 @@ Source code move detection algorithm. Takes srcDiff inputs and applies moves to 
 Takes srcDiff as input
 Outputs new srcDiff
 
+## Development Workflows
+
+- [Correctness tests](../tests/README.md)
+- [Benchmarks](../benchmarks/README.md)
+
 # Planning
 
 Use [Backlog](backlog.md) for short-lived plans, open questions, and candidate
@@ -122,6 +127,5 @@ srcmove:hash="..." (optional: subtree signature)
 # Questions:
 SrcDiff has nested diff and delete tags. 
 why does diff have so many <diff:ws>  </diff:ws> everywhere
-
 
 

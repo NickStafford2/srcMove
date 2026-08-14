@@ -13,7 +13,7 @@ generator behavior.
 
 ## Recent Changes
 
-- `scripts/generate_bigclonebench_move_cases.py` now extracts BigCloneBench line
+- `benchmarks/bigclonebench/generate.py` now extracts BigCloneBench line
   ranges using LF-delimited lines. This avoids standalone carriage returns in
   IJaDataset comments shifting extracted fragments.
 - The generator no longer uses synthetic `beforeAnchor`, `middleAnchor`,
@@ -25,8 +25,8 @@ generator behavior.
 - The top-level generated payload is dedented so generated `modified.java` files
   do not contain misleading class-body indentation after the closing wrapper
   class.
-- `test/test_bigclonebench_generator.py` covers the LF extraction behavior and
-  the synthetic source shape. `test/run_all.py` runs this test as part of the
+- `tests/unit/test_bigclonebench_generator.py` covers the LF extraction behavior and
+  the synthetic source shape. `tests/run_all.py` runs this test as part of the
   normal suite.
 
 ## Current Observed State
@@ -34,7 +34,7 @@ generator behavior.
 After the user reran:
 
 ```bash
-python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --limit 1000
+python3 benchmarks/bigclonebench/run.py --clone-type type1 --limit 1000
 ```
 
 the summary selected 915 distinct cases and reported 39 failures:
@@ -55,19 +55,19 @@ Read srcMove src code ask the user.
 Normal suite:
 
 ```bash
-python3 test/run_all.py
+python3 tests/run_all.py
 ```
 
 Focused BigCloneBench check:
 
 ```bash
-python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --limit 424
+python3 benchmarks/bigclonebench/run.py --clone-type type1 --limit 424
 ```
 
 Large review run:
 
 ```bash
-python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --limit 1000
+python3 benchmarks/bigclonebench/run.py --clone-type type1 --limit 1000
 ```
 
 ## Notes For The Next Agent
@@ -75,5 +75,5 @@ python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --limit 1000
 - Do not use case numbers as durable identifiers across generator changes.
   Dedupe and extraction changes can shift case numbering. Use
   `function_id_one`, `function_id_two`, source file paths, and line ranges.
-- Generated cases under `test/e2e_bigclonebench/cases/` are ignored by git.
+- Generated cases under `benchmarks/bigclonebench/cases/` are ignored by git.
 - The user handles git staging/commits unless explicitly saying otherwise.

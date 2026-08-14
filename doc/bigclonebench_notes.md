@@ -2,7 +2,7 @@
 
 ## Local IJaDataset Layout
 
-The downloaded dataset under `test/BigCloneEval/ijadataset/` is a Java source corpus:
+The downloaded dataset under `benchmarks/bigclonebench/data/BigCloneEval/ijadataset/` is a Java source corpus:
 
 ```text
   dataset/
@@ -100,7 +100,7 @@ For mapping a reference clone back to source text:
 3. Resolve each fragment as:
 
 ```text
-test/BigCloneEval/ijadataset/<functions.type>/<functions.name>
+benchmarks/bigclonebench/data/BigCloneEval/ijadataset/<functions.type>/<functions.name>
 ```
 
 4. Extract inclusive `functions.startline` through `functions.endline`.
@@ -289,20 +289,20 @@ for the current local generator and runner design.
 Install BigCloneEval manually under:
 
 ```text
-test/BigCloneEval/
+benchmarks/bigclonebench/data/BigCloneEval/
 ```
 
-This is the path used by `scripts/generate_bigclonebench_move_cases.py`. The
+This is the path used by `benchmarks/bigclonebench/generate.py`. The
 local checkout should contain BigCloneEval's `ReadMe.md`, `libs/`, the
 BigCloneBench H2 database under `bigclonebenchdb/`, and the IJaDataset Java
 corpus under `ijadataset/`.
 
 Follow BigCloneEval's own setup instructions in
-`test/BigCloneEval/ReadMe.md`, or the upstream README at
+`benchmarks/bigclonebench/data/BigCloneEval/ReadMe.md`, or the upstream README at
 <https://github.com/jeffsvajlenko/BigCloneEval>. In this repository, the
 expected local artifacts are:
 
 ```text
-test/BigCloneEval/bigclonebenchdb/bcb.h2.db
-test/BigCloneEval/ijadataset/{default,sample,selected}/*.java
+benchmarks/bigclonebench/data/BigCloneEval/bigclonebenchdb/bcb.h2.db
+benchmarks/bigclonebench/data/BigCloneEval/ijadataset/{default,sample,selected}/*.java
 ```

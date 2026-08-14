@@ -56,8 +56,9 @@ Use these homes unless a more specific file already exists:
 - `doc/bigclonebench_notes.md`: BigCloneBench/IJaDataset setup and database facts
 - `doc/bigclonebench_srcmove_conversion.md`: converting BigCloneBench clone pairs
   into srcMove move tests
-- `test/**/README.md`: test-suite-specific conventions and runner behavior
-- `scripts/`: reusable automation that future agents should run instead of
+- `tests/README.md`: correctness-test entry points and suite behavior
+- `benchmarks/**/README.md`: benchmark-specific setup, methodology, and runners
+- `scripts/`: remaining reusable project automation that future agents should run instead of
   retyping long command sequences
 
 If no clear home exists, create a narrowly named doc and add exactly one pointer

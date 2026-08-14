@@ -33,7 +33,8 @@ repeating the same information.
 - [doc/bigclonebench_notes.md](doc/bigclonebench_notes.md): BigCloneBench setup notes
 - [doc/bigclonebench_srcmove_conversion.md](doc/bigclonebench_srcmove_conversion.md):
   converting BigCloneBench clone pairs into srcMove tests
-- [test/README.md](test/README.md): test entry points and suite boundaries
+- [tests/README.md](tests/README.md): test entry points and suite boundaries
+- [benchmarks/README.md](benchmarks/README.md): benchmark types and entry points
 
 ## Git
 
