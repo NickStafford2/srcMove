@@ -29,11 +29,11 @@ if str(TESTS_ROOT) not in sys.path:
 from support.tooling import find_srcmove, run_command
 
 PROFILE_LINE_RE = re.compile(r"^profile\.([A-Za-z0-9_.]+)_ms=([0-9]+(?:\.[0-9]+)?)$")
-OPENCV_DIFF = (
+OPENCV_SRCDIFF = (
     REPO_ROOT
     / "examples"
     / "opencv"
-    / "opencv.1_2.v000001-to-v000002.e46e13a77579-to-5e38cf8042d1.position.diff.xml"
+    / "opencv.1_2.v000001-to-v000002.e46e13a77579-to-5e38cf8042d1.position.srcdiff.xml"
 )
 
 
@@ -135,7 +135,7 @@ def case_root_for_suite(args: argparse.Namespace) -> Path:
     if args.suite == "bigclonebench":
         return REPO_ROOT / "benchmarks" / "bigclonebench" / "cases"
     if args.suite == "opencv":
-        return OPENCV_DIFF.parent
+        return OPENCV_SRCDIFF.parent
     return args.cases_dir.resolve()
 
 
@@ -184,9 +184,9 @@ def prepare_bigclonebench(args: argparse.Namespace) -> None:
 
 def suite_input_name(suite: str) -> str:
     if suite == "bigclonebench":
-        return "diff.xml"
+        return "srcdiff.xml"
     if suite == "opencv":
-        return OPENCV_DIFF.name
+        return OPENCV_SRCDIFF.name
     return "input.xml"
 
 

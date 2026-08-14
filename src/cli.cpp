@@ -19,7 +19,7 @@ std::string build_help(const std::string &progname) {
   out << "Arguments:\n";
   out << "  <srcdiff.xml>          Input srcDiff XML file\n";
   out << "  [out.xml]              Output annotated XML file "
-         "(default: diff_new.xml)\n\n";
+      << "(default: " << DEFAULT_OUTPUT_PATH << ")\n\n";
 
   out << "Options:\n";
   out << "  --results <file>       Write summary JSON to <file>\n";
@@ -39,7 +39,6 @@ std::string usage(const std::string &progname) { return build_help(progname); }
 
 cli_options parse_cli(int argc, char **argv) {
   cli_options opts;
-  opts.output_path = "diff_new.xml";
 
   bool have_input  = false;
   bool have_output = false;

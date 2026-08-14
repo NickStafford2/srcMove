@@ -68,8 +68,8 @@ def run_case(
     srcdiff_bin: str,
     srcmove_bin: str,
 ) -> CaseResult:
-    diff_xml = case.case_dir / "diff.xml"
-    diff_new_xml = case.case_dir / "diff_new.xml"
+    srcdiff_xml = case.case_dir / "srcdiff.xml"
+    srcmove_xml = case.case_dir / "srcmove.xml"
     results_json = case.case_dir / "results.json"
 
     try:
@@ -85,7 +85,7 @@ def run_case(
 
     expected_move_count = expected.get("move_count")
 
-    for path in (diff_xml, diff_new_xml, results_json):
+    for path in (srcdiff_xml, srcmove_xml, results_json):
         if path.exists():
             path.unlink()
 
@@ -100,7 +100,7 @@ def run_case(
             srcdiff_original,
             srcdiff_modified,
             "-o",
-            str(diff_xml),
+            str(srcdiff_xml),
         ]
         srcdiff_result = run_command(srcdiff_cmd, cwd=srcdiff_cwd or repo_root)
     except Exception as e:
@@ -126,19 +126,19 @@ def run_case(
             ),
         )
 
-    if not diff_xml.is_file():
+    if not srcdiff_xml.is_file():
         return CaseResult(
             name=case.name,
             ok=False,
             expected_move_count=expected_move_count,
             actual_move_count=None,
-            message="srcdiff did not create diff.xml",
+            message="srcdiff did not create srcdiff.xml",
         )
 
     srcmove_cmd = [
         srcmove_bin,
-        str(diff_xml),
-        str(diff_new_xml),
+        str(srcdiff_xml),
+        str(srcmove_xml),
         "--results",
         str(results_json),
     ]
@@ -156,7 +156,7 @@ def run_case(
     try:
         results = load_json(results_json)
         failures = validate_results(expected, results)
-        failures.extend(assert_no_inline_xmlns(diff_new_xml))
+        failures.extend(assert_no_inline_xmlns(srcmove_xml))
     except Exception as e:
         return CaseResult(
             name=case.name,

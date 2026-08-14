@@ -52,18 +52,18 @@ def run_case(srcmove_path: Path, case: XmlCaseSpec, out_root: Path):
     case_out_dir = out_root / case.name
     case_out_dir.mkdir(parents=True, exist_ok=True)
 
-    out_xml = case_out_dir / "output.xml"
-    out_json = case_out_dir / "results.json"
+    srcmove_xml = case_out_dir / "srcmove.xml"
+    results_json = case_out_dir / "results.json"
 
     cmd = [
         str(srcmove_path),
         str(case.input_xml),
-        str(out_xml),
+        str(srcmove_xml),
         "--results",
-        str(out_json),
+        str(results_json),
     ]
     proc = run_command(cmd)
-    return proc, out_xml, out_json
+    return proc, srcmove_xml, results_json
 
 
 def main() -> int:
@@ -105,7 +105,7 @@ def main() -> int:
     for case in cases:
         total += 1
 
-        proc, out_xml, out_json = run_case(srcmove_path, case, out_dir)
+        proc, srcmove_xml, results_json = run_case(srcmove_path, case, out_dir)
 
         if proc.returncode != 0:
             print(f"FAIL  {case.name}")
@@ -114,13 +114,13 @@ def main() -> int:
             failed += 1
             continue
 
-        if not out_json.exists():
+        if not results_json.exists():
             print(f"FAIL  {case.name}")
             print("  missing output results json")
             failed += 1
             continue
 
-        if not out_xml.exists():
+        if not srcmove_xml.exists():
             print(f"FAIL  {case.name}")
             print("  missing output xml")
             failed += 1
@@ -128,14 +128,14 @@ def main() -> int:
 
         try:
             expected_json = load_json(case.expected_json)
-            results_json = load_json(out_json)
+            actual_results = load_json(results_json)
 
             from support.validation import assert_no_inline_xmlns
 
             failures: list[str] = []
-            failures.extend(validate_results(expected_json, results_json))
-            failures.extend(assert_no_inline_xmlns(out_xml))
-            failures.extend(compare_xml_files_exact(case.expected_xml, out_xml))
+            failures.extend(validate_results(expected_json, actual_results))
+            failures.extend(assert_no_inline_xmlns(srcmove_xml))
+            failures.extend(compare_xml_files_exact(case.expected_xml, srcmove_xml))
         except Exception as e:
             print(f"FAIL  {case.name}")
             print(f"  exception while validating: {e}")

@@ -153,8 +153,8 @@ def parse_pos_line(value: str, kind: str) -> int | None:
         return None
 
 
-def moved_position_ranges(diff_new_xml: Path) -> dict[str, list[tuple[int, int]]]:
-    tree = ET.parse(diff_new_xml)
+def moved_position_ranges(srcmove_xml: Path) -> dict[str, list[tuple[int, int]]]:
+    tree = ET.parse(srcmove_xml)
     ranges: dict[str, list[tuple[int, int]]] = {"delete": [], "insert": []}
 
     for node in tree.iter():
@@ -261,7 +261,7 @@ def validate_reported_text(
 
 
 def validate_case(
-    case_dir: Path, results_json: Path, diff_new_xml: Path, syntactic_type: int
+    case_dir: Path, results_json: Path, srcmove_xml: Path, syntactic_type: int
 ) -> tuple[list[str], TextValidation]:
     failures: list[str] = []
     text_validation: TextValidation = {"from": "not_checked", "to": "not_checked"}
@@ -350,9 +350,9 @@ def validate_case(
         return failures, text_validation
 
     try:
-        observed_ranges = moved_position_ranges(diff_new_xml)
+        observed_ranges = moved_position_ranges(srcmove_xml)
     except ET.ParseError as e:
-        failures.append(f"diff_new.xml parse error: {e}")
+        failures.append(f"srcmove.xml parse error: {e}")
         return failures, text_validation
 
     if not any(ranges_overlap(found, expected_from_range) for found in observed_ranges["delete"]):
@@ -607,17 +607,24 @@ def write_summary(path: Path, rows: list[SummaryRow]) -> None:
 
 
 def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> tuple[bool, SummaryRow]:
-    diff_xml = case_dir / "diff.xml"
-    diff_new_xml = case_dir / "diff_new.xml"
+    srcdiff_xml = case_dir / "srcdiff.xml"
+    srcmove_xml = case_dir / "srcmove.xml"
     results_json = case_dir / "results.json"
     metadata = load_json(case_dir / "metadata.json")
 
-    for path in (diff_xml, diff_new_xml, results_json):
+    for path in (srcdiff_xml, srcmove_xml, results_json):
         if path.exists():
             path.unlink()
 
     srcdiff_proc = run_command(
-        [str(srcdiff), "original.java", "modified.java", "-o", str(diff_xml), "--position"],
+        [
+            str(srcdiff),
+            "original.java",
+            "modified.java",
+            "-o",
+            str(srcdiff_xml),
+            "--position",
+        ],
         cwd=case_dir,
     )
     if srcdiff_proc.returncode != 0:
@@ -627,7 +634,13 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> tuple[bool, Summar
         return False, build_summary_row(case_dir, metadata, None, False, failures)
 
     srcmove_proc = run_command(
-        [str(srcmove), str(diff_xml), str(diff_new_xml), "--results", str(results_json)],
+        [
+            str(srcmove),
+            str(srcdiff_xml),
+            str(srcmove_xml),
+            "--results",
+            str(results_json),
+        ],
         cwd=REPO_ROOT,
     )
     if srcmove_proc.returncode != 0:
@@ -639,7 +652,7 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> tuple[bool, Summar
     syntactic_type = int(metadata.get("syntactic_type"))
     results = load_json(results_json)
     failures, text_validation = validate_case(
-        case_dir, results_json, diff_new_xml, syntactic_type
+        case_dir, results_json, srcmove_xml, syntactic_type
     )
     if failures:
         print(f"FAIL {case_dir.name}")

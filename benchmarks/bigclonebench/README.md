@@ -150,7 +150,7 @@ The summary's `failure_class` column groups common outcomes:
   `unknown_failure`: fallback buckets for runner/tool failures or results that
   do not match a more specific BigCloneBench pattern.
 
-The runner invokes `srcdiff` with `--position` so `diff_new.xml` contains
+The runner invokes `srcdiff` with `--position` so `srcmove.xml` contains
 `pos:start` / `pos:end` attributes. This makes the oracle independent of raw
 string formatting differences introduced by the synthetic wrapper.
 

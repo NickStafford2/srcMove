@@ -3,15 +3,15 @@ cd benchmarks/repositories/notepadpp/work
 total 36
 drwxrwxr-x 5 nick nick 4096 Mar 6 08:40 ./
 drwxr-xr-x 3 nick nick 4096 Mar 13 06:53 ../
--rw-rw-r-- 1 nick nick 169 Mar 6 08:40 diff_new.xml
--rw-rw-r-- 1 nick nick 334 Mar 6 08:40 diff.xml
+-rw-rw-r-- 1 nick nick 169 Mar 6 08:40 srcmove.xml
+-rw-rw-r-- 1 nick nick 334 Mar 6 08:40 srcdiff.xml
 drwxrwxr-x 7 nick nick 4096 Mar 6 08:40 modified/
 drwxrwxr-x 7 nick nick 4096 Mar 6 08:40 original/
 drwxrwxr-x 8 nick nick 4096 Mar 6 08:40 repo/
 -rw-rw-r-- 1 nick nick 906 Mar 6 08:40 report.json
 -rw-rw-r-- 1 nick nick 134 Mar 6 08:40 results.json
 ➜ work git:(main) srcml original -o original.srcml.xml
-➜ work git:(main) srcdiff original modified -o notepadpp.diff.xml
+➜ work git:(main) srcdiff original modified -o srcdiff.xml
 
 - original|modified
 - original/.gitignore|modified/.gitignore

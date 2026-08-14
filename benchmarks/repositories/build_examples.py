@@ -428,21 +428,21 @@ def copy_built_files(
     if not isinstance(paths, dict):
         raise RuntimeError("runner report is missing 'paths' object")
 
-    diff_xml_raw = paths.get("diff_xml")
-    move_xml_raw = paths.get("diff_new_xml")
+    srcdiff_xml_raw = paths.get("srcdiff_xml")
+    srcmove_xml_raw = paths.get("srcmove_xml")
 
-    if not isinstance(diff_xml_raw, str):
-        raise RuntimeError("runner report is missing paths.diff_xml")
-    if not isinstance(move_xml_raw, str):
-        raise RuntimeError("runner report is missing paths.diff_new_xml")
+    if not isinstance(srcdiff_xml_raw, str):
+        raise RuntimeError("runner report is missing paths.srcdiff_xml")
+    if not isinstance(srcmove_xml_raw, str):
+        raise RuntimeError("runner report is missing paths.srcmove_xml")
 
-    diff_xml = Path(diff_xml_raw)
-    move_xml = Path(move_xml_raw)
+    srcdiff_xml = Path(srcdiff_xml_raw)
+    srcmove_xml = Path(srcmove_xml_raw)
 
-    if not diff_xml.is_file():
-        raise RuntimeError(f"generated srcdiff file not found: {diff_xml}")
-    if not move_xml.is_file():
-        raise RuntimeError(f"generated srcMove file not found: {move_xml}")
+    if not srcdiff_xml.is_file():
+        raise RuntimeError(f"generated srcdiff file not found: {srcdiff_xml}")
+    if not srcmove_xml.is_file():
+        raise RuntimeError(f"generated srcMove file not found: {srcmove_xml}")
 
     old_commit = require_str(
         runner_report.get("old_commit"), "old_commit", "runner report"
@@ -457,12 +457,12 @@ def copy_built_files(
 
     prefix = output_prefix(spec, old_commit, new_commit)
 
-    dest_diff = output_dir / f"{prefix}.diff.xml"
-    dest_move = output_dir / f"{prefix}.move.diff.xml"
+    dest_srcdiff = output_dir / f"{prefix}.srcdiff.xml"
+    dest_srcmove = output_dir / f"{prefix}.srcmove.xml"
     dest_report = output_dir / f"{prefix}.report.json"
 
-    shutil.copy2(diff_xml, dest_diff)
-    shutil.copy2(move_xml, dest_move)
+    shutil.copy2(srcdiff_xml, dest_srcdiff)
+    shutil.copy2(srcmove_xml, dest_srcmove)
 
     srcdiff_seconds = runner_report.get("srcdiff_seconds")
     srcmove_seconds = runner_report.get("srcmove_seconds")
@@ -484,8 +484,8 @@ def copy_built_files(
         new_commit=new_commit,
         position=spec.position,
         directory=spec.directory,
-        srcdiff_file=dest_diff.relative_to(case_dir).as_posix(),
-        srcmove_file=dest_move.relative_to(case_dir).as_posix(),
+        srcdiff_file=dest_srcdiff.relative_to(case_dir).as_posix(),
+        srcmove_file=dest_srcmove.relative_to(case_dir).as_posix(),
         report_file=dest_report.relative_to(case_dir).as_posix(),
         srcdiff_seconds=srcdiff_seconds,
         srcmove_seconds=srcmove_seconds,

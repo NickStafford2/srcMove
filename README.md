@@ -17,7 +17,7 @@ Given a `srcdiff.xml` file (the XML produced by `srcDiff`), `srcMove`:
    - adds `move="<id>"` to the START tag of matched `diff:insert` and `diff:delete`
    - adds `xpath="<path>"` to those tags (even if `move` already existed)
 
-Output is a new XML file (default: `diff_new.xml`) you can feed into downstream tooling, renderers, or visualizers.
+Output is a new XML file (default: `srcmove.xml`) you can feed into downstream tooling, renderers, or visualizers.
 
 ## Quick start
 
@@ -74,7 +74,7 @@ ninja -C build
 ./build/srcMove path/to/srcdiff.xml
 ```
 
-By default, `srcMove` writes annotated XML to `diff_new.xml` in the current
+By default, `srcMove` writes annotated XML to `srcmove.xml` in the current
 working directory. Optionally specify an output filename:
 
 ```bash
@@ -92,7 +92,7 @@ working directory. Optionally specify an output filename:
 Arguments:
 
 * `<srcdiff.xml>`: input XML produced by `srcDiff`
-* `[out.xml]`: output annotated XML file; defaults to `diff_new.xml`
+* `[out.xml]`: output annotated XML file; defaults to `srcmove.xml`
 
 Options:
 
@@ -157,7 +157,7 @@ are actually generated, repeated 3 times. Use `--clone-type`,
 `--bigclonebench-limit`, `--repeats`, and `--label` to name or reshape a run.
 
 To profile the large premade OpenCV srcDiff fixture at
-`examples/opencv/opencv.1_2.v000001-to-v000002.e46e13a77579-to-5e38cf8042d1.position.diff.xml`:
+`examples/opencv/opencv.1_2.v000001-to-v000002.e46e13a77579-to-5e38cf8042d1.position.srcdiff.xml`:
 
 ```bash
 scripts/build_release.sh

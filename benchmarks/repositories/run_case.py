@@ -206,7 +206,7 @@ def build_srcdiff_command(
     srcdiff_bin: str,
     original_dir: Path,
     modified_dir: Path,
-    diff_xml: Path,
+    srcdiff_xml: Path,
     use_position: bool,
     use_archive: bool,
     src_encoding: str,
@@ -227,7 +227,7 @@ def build_srcdiff_command(
             str(original_dir),
             str(modified_dir),
             "-o",
-            str(diff_xml),
+            str(srcdiff_xml),
         ]
     )
 
@@ -265,7 +265,7 @@ def main() -> int:
     parser.add_argument(
         "--position",
         action="store_true",
-        help="pass --position to srcdiff and save position-annotated diff.xml",
+        help="pass --position to srcdiff and save position-annotated srcdiff.xml",
     )
     parser.add_argument(
         "--no-srcdiff-archive",
@@ -327,8 +327,8 @@ def main() -> int:
     clone_dir = work_root / "repo"
     original_dir = work_root / "original"
     modified_dir = work_root / "modified"
-    diff_xml = work_root / "diff.xml"
-    diff_new_xml = work_root / "diff_new.xml"
+    srcdiff_xml = work_root / "srcdiff.xml"
+    srcmove_xml = work_root / "srcmove.xml"
     results_json = work_root / "results.json"
     report_json = work_root / "report.json"
 
@@ -397,7 +397,7 @@ def main() -> int:
             srcdiff_bin=str(srcdiff_bin),
             original_dir=original_dir,
             modified_dir=modified_dir,
-            diff_xml=diff_xml,
+            srcdiff_xml=srcdiff_xml,
             use_position=args.position,
             use_archive=not args.no_srcdiff_archive,
             src_encoding=args.src_encoding,
@@ -407,16 +407,16 @@ def main() -> int:
     diff_end = time.perf_counter()
     require_ok(diff_result, "srcdiff")
 
-    if not diff_xml.is_file():
-        raise RuntimeError(f"srcdiff did not create diff.xml: {diff_xml}")
+    if not srcdiff_xml.is_file():
+        raise RuntimeError(f"srcdiff did not create srcdiff.xml: {srcdiff_xml}")
 
     print("[6/6] running srcMove")
     move_start = time.perf_counter()
     move_result = run(
         [
             str(srcmove_bin),
-            str(diff_xml),
-            str(diff_new_xml),
+            str(srcdiff_xml),
+            str(srcmove_xml),
             "--results",
             str(results_json),
         ],
@@ -469,8 +469,8 @@ def main() -> int:
             "repo_dir": str(clone_dir),
             "original_dir": str(original_dir),
             "modified_dir": str(modified_dir),
-            "diff_xml": str(diff_xml),
-            "diff_new_xml": str(diff_new_xml),
+            "srcdiff_xml": str(srcdiff_xml),
+            "srcmove_xml": str(srcmove_xml),
             "results_json": str(results_json),
         },
     }
