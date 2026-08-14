@@ -13,3 +13,7 @@ correctness tests in `tests/`.
 Generated benchmark data is ignored. Archive thesis-quality results with their
 manifest and metadata rather than treating a mutable working directory as the
 authoritative result.
+
+The planned upgrade to separate prepared srcDiff corpora, provenance, failure
+incidents, and publication runs is described in the
+[benchmarking upgrade plan](../doc/benchmarking_upgrade_plan.md).

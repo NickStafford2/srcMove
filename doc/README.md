@@ -39,6 +39,8 @@ summaries or diagrams disagree with current behavior.
 
 ## Planning and non-authoritative notes
 
+- [Benchmarking upgrade plan](benchmarking_upgrade_plan.md): staged design for
+  reproducible accuracy, performance, reliability, and thesis data runs
 - [Backlog](backlog.md): open questions and candidate improvements
 - [`user-notes/`](user-notes/): thesis outlines, terminology, hypotheses, and
   other exploratory material that does not define current behavior
