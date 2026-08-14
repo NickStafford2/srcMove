@@ -87,8 +87,9 @@ instability do not distort srcMove timing.
 2. **Observe normal development; gate only publication runs.** Development
    benchmarks record provenance and warn about uncertainty without switching
    branches or rejecting useful experiments.
-3. **Never infer provenance from a path or `--version` string.** Record full Git
-   commits, dirty state, build configuration, and artifact checksums.
+3. **Never infer provenance from a path, `--version` string, or nearby checkout.**
+   A post-build observation records what is present; only a receipt emitted by
+   the build can establish a source-to-binary claim.
 4. **Preserve failures as data.** A crash, signal, timeout, missing output, or
    malformed XML receives a structured report and retained diagnostic artifacts.
 5. **Keep generated data out of source control.** Track schemas, small fixtures,
@@ -169,7 +170,7 @@ benchmark-data/
 Exact names may change during implementation, but the separation between
 corpora, incidents, and runs should remain.
 
-### Source state
+### Observed source and artifact state
 
 For each relevant repository, record:
 
@@ -184,22 +185,52 @@ lock may describe a known-compatible combination. A benchmark must still record
 the actual state it observed; the lock is an intended checkpoint, not proof that
 a particular binary came from it.
 
-### Build receipt
+The run-time provenance collector also records resolved executable paths and
+checksums, relevant environment facts, and the observation time. This snapshot
+describes the repositories and artifacts that were present when the run began.
+It must not claim that an executable was built from the current checkout merely
+because the executable is near that checkout or its version string looks
+compatible.
 
-A build receipt binds source state to executable artifacts. It should record:
+### Build-time receipt and verification status
 
+A build receipt can bind source state to executable artifacts only when the build
+creates it as part of producing those artifacts. A benchmark-time collector may
+locate and validate an existing receipt, but must not reconstruct one from the
+current checkout and present that reconstruction as proof.
+
+The required receipt core should remain small enough for normal builds to emit
+automatically:
+
+- receipt schema version and stable receipt identifier
 - source-state snapshot and source-lock checksum, when present
-- Debug or Release configuration and relevant CMake options
+- exact build entry point, Debug or Release configuration, and relevant CMake
+  options
 - compiler identity and version
 - container image or environment identity
-- binary checksums for `srcdiff` and `srcMove`
-- upstream build-receipt identities and linked srcML/srcReader artifact
-  checksums, whether linkage is static or dynamic
-- resolved dynamic-library paths and checksums
+- checksums for the executable artifacts produced by that build
 - build completion time and test status
 
-Receipt creation should be cheap and automatic when practical. It must not force
-normal builds to match a lock.
+Extended publication metadata may additionally record upstream receipt
+identities, linked srcML/srcReader artifact checksums, static or dynamic linkage,
+and resolved dynamic-library paths and checksums. Collect these only where they
+materially improve reproducibility; they should not make ordinary development
+builds slow or fragile.
+
+Each consumed executable receives one of these provenance statuses:
+
+- `verified`: its checksum matches an artifact in a valid build-time receipt
+- `stale`: a candidate receipt exists, but its recorded artifact checksum does
+  not match the executable being used
+- `unverified`: the executable is usable, but no build-time receipt establishes
+  its source-to-binary binding
+- `unavailable`: required artifact or repository observations could not be
+  collected
+
+Whether the currently checked-out sources match the receipt is a separate
+recorded relationship; a developer may legitimately run a verified older build
+while editing newer sources. Receipt creation must not force normal builds to
+match the workspace lock.
 
 ### Corpus manifest
 
@@ -209,7 +240,8 @@ Each srcDiff corpus records:
 - source dataset or repository URLs and exact revisions
 - selected subdirectories and explicit include/exclude policy
 - file counts, language counts, byte counts, and excluded-file counts
-- srcML/srcDiff build receipt and exact command
+- srcML/srcDiff build receipt and verification status, or an explicitly
+  unverified observed-artifact snapshot, plus the exact command
 - per-case XML checksum, byte size, validity, and generation status
 - dataset-specific metadata, including BigCloneBench database/corpus identity
 
@@ -219,7 +251,8 @@ Each srcMove run records:
 
 - schema version and unique run identifier
 - corpus identifier and manifest checksum
-- srcMove/srcReader build receipt
+- srcMove/srcReader build receipt and verification status, or an explicitly
+  unverified observed-artifact snapshot
 - exact binary and input checksums
 - command, environment, timestamps, and exit status
 - development or publication mode
@@ -235,8 +268,11 @@ provenance rather than only a pointer to a mutable current lockfile.
 
 Development runs use the binaries already available. They should:
 
-- collect provenance automatically
-- warn about dirty repositories, stale receipts, or a lock mismatch
+- collect observed source and artifact state automatically
+- validate a build-time receipt when one exists; otherwise label the executable
+  `unverified`
+- warn about dirty repositories, stale receipts, unverified binaries, or a lock
+  mismatch
 - continue when the run remains technically possible
 - clearly label results as development data
 - never switch branches, clean repositories, or rebuild unrelated projects
@@ -251,7 +287,7 @@ Publication mode is explicit. It should:
 - require clean, recorded source revisions
 - use Release builds from an isolated workspace or isolated build directories
 - avoid disturbing active development checkouts and build trees
-- verify binary checksums against build receipts
+- require `verified` build-time receipts and verify binary checksums against them
 - run the deterministic correctness suite first
 - consume immutable, checksummed inputs
 - write an append-only result directory
@@ -358,16 +394,20 @@ must remain rows in the raw dataset instead of disappearing from summaries.
 
 ### Phase 1: Schemas and provenance foundation
 
-- Define versioned build-receipt, corpus-manifest, incident, and run-manifest
-  schemas.
-- Add a read-only provenance collector for repository state, binaries, build
-  configuration, and environment.
+- Define versioned observed-state, build-receipt, corpus-manifest, incident, and
+  run-manifest schemas.
+- Add a read-only collector for repository state, binaries, and environment. It
+  may validate a build-time receipt but must not infer a source-to-binary binding.
+- Add cheap build-time receipt emission to the supported build path, with the
+  mandatory core separated from optional extended publication metadata.
 - Add development/publication labels without enforcing publication mode yet.
-- Unit-test clean, dirty, missing-repository, stale-binary, and malformed-manifest
-  behavior.
+- Unit-test clean, dirty, missing-repository, verified, stale, unverified,
+  unavailable, and malformed-manifest behavior.
 
-**Complete when:** a trivial run can explain exactly which source states,
-binaries, and input bytes produced it.
+**Complete when:** a trivial run records exactly which source states, binary
+bytes, and input bytes it observed, and either verifies the binary against a
+build-time receipt or truthfully labels the source-to-binary relationship as
+unverified.
 
 ### Phase 2: Split preparation, srcDiff, and srcMove execution
 
@@ -466,6 +506,8 @@ the real toolchain. Cover:
 - missing and malformed XML
 - partial output
 - stale build receipt or input checksum
+- executable without a build-time receipt
+- current checkout differing from a valid older build receipt
 - dirty development provenance
 - strict publication rejection
 - interrupted batch resume
