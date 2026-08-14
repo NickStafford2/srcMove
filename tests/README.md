@@ -29,8 +29,8 @@ python3 tests/run.py --case 1x1_basic --case blocks_swapped
 - `source`: checked-in source pairs regenerated with `srcdiff`, then run through
   `srcMove`.
 
-CTest is retired for this project. `tests/run_all.py` remains only as a temporary
-compatibility wrapper around `tests/run.py`.
+CTest is retired for this project. Use `tests/run.py` for all deterministic
+correctness-test selection and execution.
 
 ## Tool Selection
 
