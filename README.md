@@ -1,8 +1,10 @@
 # srcMove — Move Annotation for srcDiff XML
 
-srcMove is a C++ tool that post-processes `srcDiff` XML output and annotates detected “move” operations by adding a stable `move` id (and an `xpath` location) onto matching `diff:delete` / `diff:insert` regions.
+srcMove is a C++ tool that post-processes `srcDiff` XML output and annotates detected “move” operations by adding a stable `move` id (and an `xpath` location) inside `diff:delete` / `diff:insert` regions where significant tags are clones.
 
 This repository is being developed as part of a master’s thesis project focused on improving the interpretability of fine-grained source-to-source diffs produced in the srcML/srcDiff ecosystem.
+
+Created by Nicholas Stafford
 
 ## Project role
 
