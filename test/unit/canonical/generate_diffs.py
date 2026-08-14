@@ -2,8 +2,6 @@
 from __future__ import annotations
 
 import itertools
-import shutil
-import subprocess
 import sys
 from pathlib import Path
 
@@ -12,11 +10,17 @@ def main() -> int:
     script_path = Path(__file__).resolve()
     canonical_dir = script_path.parent
     project_root = canonical_dir.parent.parent
+    test_root = project_root / "test"
+    if str(test_root) not in sys.path:
+        sys.path.insert(0, str(test_root))
+
+    from tooling import find_srcdiff, run_command
 
     src_dir = canonical_dir / "sources"
     out_dir = canonical_dir / "generated"
 
-    if shutil.which("srcdiff") is None:
+    srcdiff = find_srcdiff(project_root)
+    if srcdiff is None:
         print("error: 'srcdiff' was not found on PATH", file=sys.stderr)
         return 1
 
@@ -60,7 +64,7 @@ def main() -> int:
         out_path = out_dir / out_name
 
         cmd = [
-            "srcdiff",
+            str(srcdiff),
             str(left_path),
             str(right_path),
             "-o",
@@ -69,7 +73,7 @@ def main() -> int:
         ]
 
         print(f"Generating {out_path.relative_to(project_root)}")
-        result = subprocess.run(cmd, check=False)
+        result = run_command(cmd, capture_output=False)
 
         if result.returncode != 0:
             print(

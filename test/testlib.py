@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 import json
-import subprocess
 from pathlib import Path
 from typing import Any, cast
 import xml.etree.ElementTree as ET
@@ -11,39 +10,6 @@ import xml.etree.ElementTree as ET
 def load_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as f:
         return json.load(f)
-
-
-def run_command(
-    cmd: list[str], cwd: Path | None = None
-) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        cmd,
-        cwd=str(cwd) if cwd is not None else None,
-        text=True,
-        capture_output=True,
-    )
-
-
-def format_process_failure(
-    label: str, result: subprocess.CompletedProcess[str], extra: str = ""
-) -> str:
-    parts: list[str] = [f"{label} failed"]
-    if extra:
-        parts.append(extra)
-    parts.append(f"exit code: {result.returncode}")
-
-    stdout = result.stdout.strip()
-    stderr = result.stderr.strip()
-
-    if stdout:
-        parts.append("stdout:")
-        parts.extend(f"  {line}" for line in stdout.splitlines())
-
-    if stderr:
-        parts.append("stderr:")
-        parts.extend(f"  {line}" for line in stderr.splitlines())
-
-    return "\n".join(parts)
 
 
 def print_case_pass(case_name: str, move_count: int | None = None) -> None:

@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import json
 import shutil
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,6 +13,12 @@ from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent.parent
+TEST_ROOT = SCRIPT_DIR.parent
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
+
+from tooling import run_command
+
 DEFAULT_CONFIG = SCRIPT_DIR / "example_builds.json"
 RUNNER = SCRIPT_DIR / "diff_and_move_repo.py"
 
@@ -373,14 +378,6 @@ def existing_outputs_for_spec(
     return None
 
 
-def run_command(cmd: list[str], *, cwd: Path) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        cmd,
-        cwd=str(cwd),
-        text=True,
-    )
-
-
 def run_single_example(
     *,
     spec: ExampleSpec,
@@ -409,7 +406,7 @@ def run_single_example(
         cmd.append("--refresh-repo")
 
     print(f"running: {' '.join(cmd)}")
-    result = run_command(cmd, cwd=REPO_ROOT)
+    result = run_command(cmd, cwd=REPO_ROOT, capture_output=False)
 
     if result.returncode != 0:
         raise RuntimeError(f"example failed: {spec.case}:{spec.name}")

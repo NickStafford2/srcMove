@@ -4,12 +4,17 @@
 from __future__ import annotations
 
 import argparse
-import subprocess
 import sys
 from pathlib import Path
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+TEST_ROOT = SCRIPT_DIR.parent
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
+
+from tooling import command_text, run_command
+
 RUNNER = SCRIPT_DIR / "diff_and_move_repo.py"
 
 TESTS = [
@@ -39,9 +44,9 @@ def build_test_command(cmd: list[str], *, use_position: bool) -> list[str]:
 
 
 def run_test(cmd: list[str]) -> int:
-    print(f"running: {' '.join(cmd)}")
+    print(f"running: {command_text(cmd)}")
 
-    result = subprocess.run(cmd, cwd=SCRIPT_DIR)
+    result = run_command(cmd, cwd=SCRIPT_DIR, capture_output=False)
 
     if result.returncode == 0:
         print("  PASS\n")

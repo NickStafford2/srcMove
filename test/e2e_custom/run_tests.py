@@ -14,11 +14,10 @@ if str(TEST_ROOT) not in sys.path:
 
 from testlib import (
     compare_xml_files_exact,
-    format_process_failure,
     load_json,
-    run_command,
     validate_results,
 )
+from tooling import format_process_failure, run_command
 
 
 def run_case(srcmove_path: Path, xml_file: Path, out_root: Path):

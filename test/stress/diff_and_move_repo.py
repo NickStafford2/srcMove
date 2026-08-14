@@ -11,25 +11,18 @@ import sys
 import time
 from pathlib import Path
 
+SCRIPT_DIR = Path(__file__).resolve().parent
+TEST_ROOT = SCRIPT_DIR.parent
+REPO_ROOT = TEST_ROOT.parent
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
+
+from tooling import find_srcdiff, find_srcmove, format_process_failure, run_command as run
 from delete_python_files import delete_python_files
-
-
-def run(cmd: list[str], cwd: Path | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        cmd,
-        cwd=str(cwd) if cwd else None,
-        text=True,
-        capture_output=True,
-    )
-
 
 def require_ok(result: subprocess.CompletedProcess, what: str) -> None:
     if result.returncode != 0:
-        raise RuntimeError(
-            f"{what} failed\n"
-            f"command stdout:\n{result.stdout}\n"
-            f"command stderr:\n{result.stderr}"
-        )
+        raise RuntimeError(format_process_failure(what, result))
 
 
 def is_tag_clobber_error(result: subprocess.CompletedProcess) -> bool:
@@ -302,14 +295,14 @@ def main() -> int:
         print(f"error: missing info.json: {info_json}", file=sys.stderr)
         return 1
 
-    srcdiff_bin = shutil.which("srcdiff")
+    srcdiff_bin = find_srcdiff(repo_root)
     if srcdiff_bin is None:
         print("error: srcdiff not found on PATH", file=sys.stderr)
         return 1
 
-    srcmove_bin = repo_root / "build" / "srcMove"
-    if not srcmove_bin.is_file():
-        print(f"error: srcMove binary not found: {srcmove_bin}", file=sys.stderr)
+    srcmove_bin = find_srcmove(repo_root)
+    if srcmove_bin is None:
+        print("error: srcMove binary not found", file=sys.stderr)
         return 1
 
     config = load_case_config(info_json)
@@ -398,7 +391,7 @@ def main() -> int:
     diff_start = time.perf_counter()
     diff_result = run(
         build_srcdiff_command(
-            srcdiff_bin=srcdiff_bin,
+            srcdiff_bin=str(srcdiff_bin),
             original_dir=original_dir,
             modified_dir=modified_dir,
             diff_xml=diff_xml,

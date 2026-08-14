@@ -2,7 +2,6 @@
 # test/e2e_generated/run_tests.py
 from __future__ import annotations
 
-import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -14,13 +13,12 @@ if str(TEST_ROOT) not in sys.path:
 
 from testlib import (
     assert_no_inline_xmlns,
-    format_process_failure,
     load_json,
     print_case_fail,
     print_case_pass,
-    run_command,
     validate_results,
 )
+from tooling import find_srcdiff, find_srcmove, format_process_failure, run_command
 
 
 @dataclass
@@ -240,14 +238,14 @@ def main() -> int:
     cases_root = script_path.parent
     repo_root = cases_root.parent.parent
 
-    srcdiff_bin = shutil.which("srcdiff")
+    srcdiff_bin = find_srcdiff(repo_root)
     if srcdiff_bin is None:
         print("error: srcdiff not found on PATH", file=sys.stderr)
         return 1
 
-    srcmove_bin = repo_root / "build" / "srcMove"
-    if not srcmove_bin.is_file():
-        print(f"error: srcMove binary not found: {srcmove_bin}", file=sys.stderr)
+    srcmove_bin = find_srcmove(repo_root)
+    if srcmove_bin is None:
+        print("error: srcMove binary not found", file=sys.stderr)
         return 1
 
     try:
@@ -268,7 +266,7 @@ def main() -> int:
         result = run_case(
             case=case,
             repo_root=repo_root,
-            srcdiff_bin=srcdiff_bin,
+            srcdiff_bin=str(srcdiff_bin),
             srcmove_bin=str(srcmove_bin),
         )
         results.append(result)

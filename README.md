@@ -141,6 +141,7 @@ runner:
 scripts/build_release.sh
 
 python3 scripts/profile_srcmove.py \
+  --srcmove build-release/srcMove \
   --prepare-bigclonebench
 ```
 
@@ -161,7 +162,9 @@ To profile the large premade OpenCV srcDiff fixture at
 
 ```bash
 scripts/build_release.sh
-python3 scripts/profile_srcmove.py --suite opencv
+python3 scripts/profile_srcmove.py \
+  --srcmove build-release/srcMove \
+  --suite opencv
 ```
 
 Each custom fixture directory contains `input.xml`, `expected.xml`, and

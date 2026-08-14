@@ -3,29 +3,27 @@ from __future__ import annotations
 
 import argparse
 import json
-import subprocess
 import sys
 from pathlib import Path
 from typing import Any
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
+TEST_ROOT = SCRIPT_DIR.parent
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
+
+from tooling import format_process_failure, run_command
 
 
 def run_git(repo_dir: Path, args: list[str]) -> str:
-    result = subprocess.run(
+    result = run_command(
         ["git", *args],
-        cwd=str(repo_dir),
-        text=True,
-        capture_output=True,
+        cwd=repo_dir,
     )
 
     if result.returncode != 0:
-        raise RuntimeError(
-            f"git {' '.join(args)} failed\n"
-            f"stdout:\n{result.stdout}\n"
-            f"stderr:\n{result.stderr}"
-        )
+        raise RuntimeError(format_process_failure(f"git {' '.join(args)}", result))
 
     return result.stdout
 

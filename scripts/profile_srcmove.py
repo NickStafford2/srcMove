@@ -15,7 +15,6 @@ import json
 import shutil
 import re
 import statistics
-import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -23,6 +22,12 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
+TEST_ROOT = REPO_ROOT / "test"
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
+
+from tooling import find_srcmove, run_command
+
 PROFILE_LINE_RE = re.compile(r"^profile\.([A-Za-z0-9_.]+)_ms=([0-9]+(?:\.[0-9]+)?)$")
 OPENCV_DIFF = (
     REPO_ROOT
@@ -54,7 +59,7 @@ def parse_args() -> argparse.Namespace:
         "--srcmove",
         type=Path,
         help=(
-            "srcMove executable to profile. Defaults to build-release/srcMove."
+            "srcMove executable to profile. Defaults to SRCMOVE_BIN, the workspace build, or PATH."
         ),
     )
     parser.add_argument(
@@ -113,10 +118,6 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def default_srcmove_path() -> Path:
-    return REPO_ROOT / "build-release" / "srcMove"
-
-
 def default_label(args: argparse.Namespace, case_count: int | None = None) -> str:
     if args.suite == "bigclonebench":
         label = f"bigclonebench-{args.clone_type}-request{args.bigclonebench_limit}"
@@ -139,12 +140,9 @@ def case_root_for_suite(args: argparse.Namespace) -> Path:
 
 
 def git_commit() -> str:
-    proc = subprocess.run(
+    proc = run_command(
         ["git", "rev-parse", "--short", "HEAD"],
         cwd=REPO_ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
     )
     if proc.returncode != 0:
         return ""
@@ -172,7 +170,7 @@ def prepare_bigclonebench(args: argparse.Namespace) -> None:
     ]
     print("Preparing BigCloneBench cases outside profiled measurements:", file=sys.stderr)
     print("  " + " ".join(cmd), file=sys.stderr)
-    proc = subprocess.run(cmd, cwd=REPO_ROOT, text=True, check=False)
+    proc = run_command(cmd, cwd=REPO_ROOT, capture_output=False)
     if proc.returncode != 0:
         if manifest_path.is_file():
             print(
@@ -271,12 +269,9 @@ def run_profile_case(
         str(out_dir / "results.json"),
         "--profile",
     ]
-    proc = subprocess.run(
+    proc = run_command(
         cmd,
         cwd=REPO_ROOT,
-        text=True,
-        capture_output=True,
-        check=False,
     )
     metrics = parse_profile_output(proc.stdout + "\n" + proc.stderr)
     failure = ""
@@ -375,17 +370,12 @@ def write_metadata(
 
 def main() -> int:
     args = parse_args()
-    args.srcmove = (args.srcmove or default_srcmove_path()).resolve()
-    if not args.srcmove.is_file():
-        print(f"error: srcMove executable not found: {args.srcmove}", file=sys.stderr)
-        print("build a release binary with:", file=sys.stderr)
-        print(
-            "  cmake -S . -B build-release -G Ninja -DCMAKE_BUILD_TYPE=Release",
-            file=sys.stderr,
-        )
-        print("  cmake --build build-release", file=sys.stderr)
-        print("or pass --srcmove <path>", file=sys.stderr)
+    srcmove = find_srcmove(REPO_ROOT, args.srcmove)
+    if srcmove is None:
+        print("error: srcMove executable not found", file=sys.stderr)
+        print("build srcMove or pass --srcmove <path>", file=sys.stderr)
         return 2
+    args.srcmove = srcmove
 
     if args.prepare_bigclonebench:
         prepare_bigclonebench(args)

@@ -5,8 +5,6 @@ import argparse
 import csv
 import hashlib
 import json
-import shutil
-import subprocess
 import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
@@ -18,6 +16,10 @@ TEST_ROOT = SCRIPT_DIR.parent
 REPO_ROOT = TEST_ROOT.parent
 CASES_DIR = SCRIPT_DIR / "cases"
 GENERATOR = REPO_ROOT / "scripts" / "generate_bigclonebench_move_cases.py"
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
+
+from tooling import find_srcdiff, find_srcmove, print_process_failure, run_command
 
 
 SummaryRow = dict[str, str | int | bool]
@@ -70,47 +72,17 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument("--out-dir", type=Path, default=CASES_DIR)
-    parser.add_argument("--srcmove", type=Path, default=REPO_ROOT / "build" / "srcMove")
+    parser.add_argument(
+        "--srcmove",
+        type=Path,
+        help="srcMove executable; defaults to SRCMOVE_BIN, the workspace build, or PATH.",
+    )
     parser.add_argument("--srcdiff", type=Path)
     args = parser.parse_args()
     if args.syntactic_type is not None:
         args.clone_type = f"type{args.syntactic_type}"
     args.syntactic_type = int(args.clone_type.removeprefix("type"))
     return args
-
-
-def find_srcdiff(explicit: Path | None) -> Path | None:
-    if explicit is not None:
-        return explicit if explicit.is_file() else None
-
-    from_path = shutil.which("srcdiff")
-    if from_path:
-        return Path(from_path)
-
-    candidates = [
-        REPO_ROOT.parent / "srcDiff" / "build" / "bin" / "srcdiff",
-        REPO_ROOT.parent / "srcDiff" / "build-release-check" / "bin" / "srcdiff",
-    ]
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-    return None
-
-
-def run_command(cmd: list[str], *, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(cmd, cwd=cwd, text=True, capture_output=True, check=False)
-
-
-def print_process_failure(label: str, proc: subprocess.CompletedProcess[str]) -> None:
-    print(f"  {label} failed with exit code {proc.returncode}")
-    if proc.stdout.strip():
-        print("  stdout:")
-        for line in proc.stdout.strip().splitlines():
-            print(f"    {line}")
-    if proc.stderr.strip():
-        print("  stderr:")
-        for line in proc.stderr.strip().splitlines():
-            print(f"    {line}")
 
 
 def load_json(path: Path) -> Any:
@@ -686,13 +658,12 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> tuple[bool, Summar
 def main() -> int:
     args = parse_args()
     args.out_dir = args.out_dir.resolve()
-    args.srcmove = args.srcmove.resolve()
-
-    if not args.srcmove.is_file():
-        print(f"error: srcMove not found: {args.srcmove}", file=sys.stderr)
+    srcmove = find_srcmove(REPO_ROOT, args.srcmove)
+    if srcmove is None:
+        print("error: srcMove not found", file=sys.stderr)
         return 2
 
-    srcdiff = find_srcdiff(args.srcdiff)
+    srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
     if srcdiff is None:
         print("error: srcdiff not found", file=sys.stderr)
         return 2
@@ -720,7 +691,7 @@ def main() -> int:
     failures = 0
     summary_rows: list[SummaryRow] = []
     for case_dir in case_dirs:
-        passed, summary_row = run_case(case_dir, srcdiff.resolve(), args.srcmove)
+        passed, summary_row = run_case(case_dir, srcdiff, srcmove)
         summary_rows.append(summary_row)
         if not passed:
             failures += 1

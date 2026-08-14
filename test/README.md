@@ -24,6 +24,11 @@ python3 test/run_all.py
 The runner finds `srcdiff` on `PATH` or in the sibling workspace at
 `../srcDiff/build/bin/srcdiff`.
 
+All test and benchmark entry points use `test/tooling.py` for executable
+discovery and command execution. Explicit CLI paths take precedence, followed
+by `SRCMOVE_BIN` or `SRCDIFF_BIN`, workspace build outputs, and finally `PATH`.
+This keeps direct suite runs consistent with `test/run_all.py`.
+
 ## Optional Suites
 
 These are intentionally excluded from the normal suite:

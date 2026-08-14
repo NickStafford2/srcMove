@@ -2,15 +2,23 @@
 from __future__ import annotations
 
 import argparse
-import os
-import shutil
-import subprocess
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+TEST_ROOT = Path(__file__).resolve().parent
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
+
+from tooling import (
+    command_text,
+    environment_with_tool,
+    find_srcdiff,
+    find_srcmove,
+    run_command,
+)
 
 
 @dataclass(frozen=True)
@@ -42,33 +50,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def find_srcdiff() -> Path | None:
-    from_path = shutil.which("srcdiff")
-    if from_path:
-        return Path(from_path)
-
-    candidates = [
-        REPO_ROOT.parent / "srcDiff" / "build" / "bin" / "srcdiff",
-        REPO_ROOT.parent / "srcDiff" / "build-release-check" / "bin" / "srcdiff",
-    ]
-    for candidate in candidates:
-        if candidate.is_file():
-            return candidate
-    return None
-
-
-def env_with_srcdiff(srcdiff: Path | None) -> dict[str, str]:
-    env = os.environ.copy()
-    if srcdiff is not None:
-        env["PATH"] = f"{srcdiff.parent}{os.pathsep}{env.get('PATH', '')}"
-    return env
-
-
 def run_step(step: TestStep) -> bool:
     print()
     print(f"=== {step.name} ===", flush=True)
-    print(" ".join(step.command), flush=True)
-    result = subprocess.run(step.command, cwd=REPO_ROOT, env=step.env, check=False)
+    print(command_text(step.command), flush=True)
+    result = run_command(
+        step.command,
+        cwd=REPO_ROOT,
+        env=step.env,
+        capture_output=False,
+    )
     if result.returncode == 0:
         print(f"PASS {step.name}")
         return True
@@ -76,9 +67,9 @@ def run_step(step: TestStep) -> bool:
     return False
 
 
-def build_steps(args: argparse.Namespace) -> list[TestStep]:
-    srcdiff = find_srcdiff()
-    test_env = env_with_srcdiff(srcdiff)
+def build_steps(args: argparse.Namespace, srcmove: Path) -> list[TestStep]:
+    srcdiff = find_srcdiff(REPO_ROOT)
+    test_env = environment_with_tool(srcdiff) if srcdiff is not None else None
 
     steps: list[TestStep] = []
     if args.build:
@@ -93,11 +84,20 @@ def build_steps(args: argparse.Namespace) -> list[TestStep]:
         [
             TestStep(
                 "python unit tests",
-                [sys.executable, "test/test_bigclonebench_generator.py"],
+                [
+                    sys.executable,
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    "test",
+                    "-p",
+                    "test_*.py",
+                ],
             ),
             TestStep(
                 "custom e2e",
-                [sys.executable, "test/e2e_custom/run_tests.py", "build/srcMove"],
+                [sys.executable, "test/e2e_custom/run_tests.py", str(srcmove)],
                 test_env,
             ),
             TestStep(
@@ -115,7 +115,14 @@ def build_steps(args: argparse.Namespace) -> list[TestStep]:
         steps.append(
             TestStep(
                 "bigclonebench type-1",
-                [sys.executable, "test/e2e_bigclonebench/run_tests.py", "--limit", "1"],
+                [
+                    sys.executable,
+                    "test/e2e_bigclonebench/run_tests.py",
+                    "--limit",
+                    "1",
+                    "--srcmove",
+                    str(srcmove),
+                ],
                 test_env,
             )
         )
@@ -126,18 +133,19 @@ def build_steps(args: argparse.Namespace) -> list[TestStep]:
 def main() -> int:
     args = parse_args()
 
-    srcmove = REPO_ROOT / "build" / "srcMove"
-    if not args.build and not srcmove.is_file():
+    srcmove = REPO_ROOT / "build" / "srcMove" if args.build else find_srcmove(REPO_ROOT)
+    if not args.build and srcmove is None:
         print("error: build/srcMove not found; rerun with --build", file=sys.stderr)
         return 2
 
-    srcdiff = find_srcdiff()
+    srcdiff = find_srcdiff(REPO_ROOT)
     if srcdiff is None:
         print("error: srcdiff not found on PATH or in ../srcDiff/build/bin", file=sys.stderr)
         return 2
     print(f"using srcdiff: {srcdiff}", flush=True)
 
-    steps = build_steps(args)
+    assert srcmove is not None
+    steps = build_steps(args, srcmove)
     failed = 0
     for step in steps:
         if not run_step(step):

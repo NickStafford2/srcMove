@@ -4,13 +4,19 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import subprocess
+import sys
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
+TEST_ROOT = REPO_ROOT / "test"
+if str(TEST_ROOT) not in sys.path:
+    sys.path.insert(0, str(TEST_ROOT))
+
+from tooling import format_process_failure, run_command
+
 BCE_DIR = REPO_ROOT / "test" / "BigCloneEval"
 DEFAULT_OUT = REPO_ROOT / "test" / "e2e_bigclonebench" / "cases"
 
@@ -88,9 +94,9 @@ def h2_shell(sql: str) -> str:
         "-sql",
         sql,
     ]
-    proc = subprocess.run(cmd, text=True, capture_output=True, check=False)
+    proc = run_command(cmd)
     if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip())
+        raise RuntimeError(format_process_failure("BigCloneBench database query", proc))
     return proc.stdout
 
 
