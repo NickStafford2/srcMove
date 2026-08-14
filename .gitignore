@@ -1,5 +1,7 @@
 build/
 build-release/
+__pycache__/
+*.py[cod]
 out.txt
 compile_commands.json
 .cache/
