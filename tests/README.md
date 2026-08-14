@@ -29,6 +29,13 @@ python3 tests/run.py --case 1x1_basic --case blocks_swapped
 - `source`: checked-in source pairs regenerated with `srcdiff`, then run through
   `srcMove`.
 
+Fixture discovery and layout validation are defined once in
+`tests/support/cases.py`. XML cases contain `input.xml`, `expected.xml`, and
+`expected.json`. Source cases contain `oracle.json` plus either one
+`original.*`/`modified.*` file pair or `original/`/`modified/` directories for
+archive comparisons. Malformed case directories are errors rather than being
+silently ignored.
+
 CTest is retired for this project. Use `tests/run.py` for all deterministic
 correctness-test selection and execution.
 

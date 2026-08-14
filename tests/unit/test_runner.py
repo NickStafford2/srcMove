@@ -9,12 +9,13 @@ if str(TESTS_ROOT) not in sys.path:
     sys.path.insert(0, str(TESTS_ROOT))
 
 import run
+from support.cases import regression_case_names
 
 
 class TestInventoryTests(unittest.TestCase):
     def test_expected_regression_cases_are_discoverable(self) -> None:
-        self.assertIn("1x1_basic", run.discover_cases("xml"))
-        self.assertIn("blocks_swapped", run.discover_cases("source"))
+        self.assertIn("1x1_basic", regression_case_names("xml"))
+        self.assertIn("blocks_swapped", regression_case_names("source"))
 
     def test_case_selection_routes_to_owning_suite(self) -> None:
         selected = run.select_regression_cases(

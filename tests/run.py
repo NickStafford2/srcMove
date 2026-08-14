@@ -14,6 +14,7 @@ REPO_ROOT = TESTS_ROOT.parent
 if str(TESTS_ROOT) not in sys.path:
     sys.path.insert(0, str(TESTS_ROOT))
 
+from support.cases import REGRESSION_SUITES, regression_case_names
 from support.tooling import command_text, find_srcdiff, find_srcmove, run_command
 
 
@@ -22,12 +23,6 @@ SUITE_DESCRIPTIONS = {
     "xml": "checked-in srcDiff XML regression fixtures",
     "source": "checked-in source pairs regenerated through srcdiff",
 }
-REGRESSION_CASE_ROOTS = {
-    "xml": TESTS_ROOT / "regression" / "xml" / "cases",
-    "source": TESTS_ROOT / "regression" / "source",
-}
-
-
 @dataclass(frozen=True)
 class TestStep:
     name: str
@@ -74,36 +69,13 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def discover_cases(suite: str) -> list[str]:
-    root = REGRESSION_CASE_ROOTS[suite]
-    if not root.is_dir():
-        return []
-
-    if suite == "xml":
-        return sorted(path.name for path in root.iterdir() if path.is_dir())
-
-    names: list[str] = []
-    for path in root.iterdir():
-        if not path.is_dir() or path.name == "__pycache__":
-            continue
-        if (path / "original").is_dir() and (path / "modified").is_dir():
-            names.append(path.name)
-            continue
-        children = [child for child in path.iterdir() if child.is_file()]
-        if any(child.stem == "original" for child in children) and any(
-            child.stem == "modified" for child in children
-        ):
-            names.append(path.name)
-    return sorted(names)
-
-
 def print_inventory() -> None:
     for suite, description in SUITE_DESCRIPTIONS.items():
         if suite == "unit":
             print(f"{suite}: {description}")
             continue
 
-        cases = discover_cases(suite)
+        cases = regression_case_names(suite)
         print(f"{suite}: {description} ({len(cases)} cases)")
         for case_name in cases:
             print(f"  {case_name}")
@@ -113,8 +85,8 @@ def select_regression_cases(
     suites: list[str], requested_cases: list[str]
 ) -> dict[str, list[str]]:
     available = {
-        suite: set(discover_cases(suite))
-        for suite in REGRESSION_CASE_ROOTS
+        suite: set(regression_case_names(suite))
+        for suite in REGRESSION_SUITES
         if suite in suites
     }
     selected = {suite: [] for suite in available}
@@ -214,8 +186,12 @@ def build_steps(
 def main() -> int:
     args = parse_args()
     if args.list:
-        print_inventory()
-        return 0
+        try:
+            print_inventory()
+            return 0
+        except ValueError as error:
+            print(f"error: {error}", file=sys.stderr)
+            return 2
 
     suites = list(dict.fromkeys(args.suite or SUITE_DESCRIPTIONS))
     if args.cases and "unit" in suites:

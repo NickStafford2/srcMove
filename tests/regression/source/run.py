@@ -12,6 +12,7 @@ TESTS_ROOT = SCRIPT_DIR.parents[1]
 if str(TESTS_ROOT) not in sys.path:
     sys.path.insert(0, str(TESTS_ROOT))
 
+from support.cases import CaseDefinitionError, SourceCaseSpec, discover_source_cases
 from support.validation import (
     assert_no_inline_xmlns,
     load_json,
@@ -46,15 +47,6 @@ def parse_args() -> argparse.Namespace:
 
 
 @dataclass
-class CaseSpec:
-    name: str
-    case_dir: Path
-    original: Path
-    modified: Path
-    is_archive: bool
-
-
-@dataclass
 class CaseResult:
     name: str
     ok: bool
@@ -63,70 +55,7 @@ class CaseResult:
     message: str = ""
 
 
-def is_archive_case(case_dir: Path) -> bool:
-    return (case_dir / "original").is_dir() and (case_dir / "modified").is_dir()
-
-
-def find_single_file_pair(case_dir: Path) -> tuple[Path, Path] | None:
-    originals: list[Path] = []
-    modifieds: list[Path] = []
-
-    for child in case_dir.iterdir():
-        if not child.is_file():
-            continue
-        if child.stem == "original":
-            originals.append(child)
-        elif child.stem == "modified":
-            modifieds.append(child)
-
-    if len(originals) == 1 and len(modifieds) == 1:
-        return originals[0], modifieds[0]
-
-    if len(originals) == 0 and len(modifieds) == 0:
-        return None
-
-    raise RuntimeError(
-        f"{case_dir}: expected exactly one original.* and one modified.* file"
-    )
-
-
-def find_cases(root: Path) -> list[CaseSpec]:
-    out: list[CaseSpec] = []
-
-    for child in sorted(root.iterdir()):
-        if not child.is_dir():
-            continue
-        if child.name == "__pycache__":
-            continue
-
-        if is_archive_case(child):
-            out.append(
-                CaseSpec(
-                    name=child.name,
-                    case_dir=child,
-                    original=child / "original",
-                    modified=child / "modified",
-                    is_archive=True,
-                )
-            )
-            continue
-
-        pair = find_single_file_pair(child)
-        if pair is not None:
-            out.append(
-                CaseSpec(
-                    name=child.name,
-                    case_dir=child,
-                    original=pair[0],
-                    modified=pair[1],
-                    is_archive=False,
-                )
-            )
-
-    return out
-
-
-def prepare_srcdiff_inputs(case: CaseSpec) -> tuple[str, str, Path | None]:
+def prepare_srcdiff_inputs(case: SourceCaseSpec) -> tuple[str, str, Path | None]:
     if case.is_archive:
         return str(case.original), str(case.modified), None
 
@@ -134,7 +63,7 @@ def prepare_srcdiff_inputs(case: CaseSpec) -> tuple[str, str, Path | None]:
 
 
 def run_case(
-    case: CaseSpec,
+    case: SourceCaseSpec,
     repo_root: Path,
     srcdiff_bin: str,
     srcmove_bin: str,
@@ -142,10 +71,9 @@ def run_case(
     diff_xml = case.case_dir / "diff.xml"
     diff_new_xml = case.case_dir / "diff_new.xml"
     results_json = case.case_dir / "results.json"
-    oracle_path = case.case_dir / "oracle.json"
 
     try:
-        expected = load_json(oracle_path)
+        expected = load_json(case.oracle_json)
     except Exception as e:
         return CaseResult(
             name=case.name,
@@ -259,19 +187,13 @@ def run_case(
 
 def main() -> int:
     args = parse_args()
-    script_path = Path(__file__).resolve()
-    cases_root = script_path.parent
-    repo_root = cases_root.parents[2]
+    repo_root = Path(__file__).resolve().parents[3]
 
     try:
-        cases = find_cases(cases_root)
-    except Exception as e:
-        print(f"error: {e}", file=sys.stderr)
-        return 1
-
-    if not cases:
-        print(f"error: no test cases found under {cases_root}", file=sys.stderr)
-        return 1
+        cases = discover_source_cases()
+    except CaseDefinitionError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
 
     if args.list:
         for case in cases:

@@ -12,15 +12,13 @@ TESTS_ROOT = SCRIPT_DIR.parents[1]
 if str(TESTS_ROOT) not in sys.path:
     sys.path.insert(0, str(TESTS_ROOT))
 
+from support.cases import CaseDefinitionError, XmlCaseSpec, discover_xml_cases
 from support.validation import (
     compare_xml_files_exact,
     load_json,
     validate_results,
 )
 from support.tooling import find_srcmove, format_process_failure, run_command
-
-
-REQUIRED_CASE_FILES = ("input.xml", "expected.json", "expected.xml")
 
 
 def parse_args() -> argparse.Namespace:
@@ -50,9 +48,8 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def run_case(srcmove_path: Path, xml_file: Path, out_root: Path):
-    case_name = xml_file.parent.name
-    case_out_dir = out_root / case_name
+def run_case(srcmove_path: Path, case: XmlCaseSpec, out_root: Path):
+    case_out_dir = out_root / case.name
     case_out_dir.mkdir(parents=True, exist_ok=True)
 
     out_xml = case_out_dir / "output.xml"
@@ -60,7 +57,7 @@ def run_case(srcmove_path: Path, xml_file: Path, out_root: Path):
 
     cmd = [
         str(srcmove_path),
-        str(xml_file),
+        str(case.input_xml),
         str(out_xml),
         "--results",
         str(out_json),
@@ -69,70 +66,30 @@ def run_case(srcmove_path: Path, xml_file: Path, out_root: Path):
     return proc, out_xml, out_json
 
 
-def is_input_xml(path: Path) -> bool:
-    if path.suffix != ".xml":
-        return False
-
-    excluded_suffixes = (
-        ".out.xml",
-        ".expected.xml",
-    )
-
-    return not any(path.name.endswith(suffix) for suffix in excluded_suffixes)
-
-
-def find_invalid_cases(case_dirs: list[Path]) -> list[tuple[Path, list[str]]]:
-    invalid_cases: list[tuple[Path, list[str]]] = []
-    for case_dir in case_dirs:
-        missing_files = [
-            filename
-            for filename in REQUIRED_CASE_FILES
-            if not (case_dir / filename).is_file()
-        ]
-        if missing_files:
-            invalid_cases.append((case_dir, missing_files))
-    return invalid_cases
-
-
 def main() -> int:
     args = parse_args()
     script_dir = Path(__file__).resolve().parent
     repo_root = script_dir.parents[2]
     out_dir = script_dir / "test_out"
 
-    cases_dir = script_dir / "cases"
-    if not cases_dir.is_dir():
-        print(f"error: cases directory not found: {cases_dir}", file=sys.stderr)
+    try:
+        cases = discover_xml_cases()
+    except CaseDefinitionError as error:
+        print(f"error: {error}", file=sys.stderr)
         return 2
 
-    case_dirs = sorted(p for p in cases_dir.iterdir() if p.is_dir())
-
-    if not case_dirs:
-        print(f"No test case directories found in {cases_dir}.")
-        return 0
-
     if args.list:
-        for case_dir in case_dirs:
-            print(case_dir.name)
+        for case in cases:
+            print(case.name)
         return 0
 
     if args.cases:
-        available = {case_dir.name: case_dir for case_dir in case_dirs}
+        available = {case.name: case for case in cases}
         unknown = [name for name in args.cases if name not in available]
         if unknown:
             print(f"error: unknown case(s): {', '.join(unknown)}", file=sys.stderr)
             return 2
-        case_dirs = [available[name] for name in dict.fromkeys(args.cases)]
-
-    invalid_cases = find_invalid_cases(case_dirs)
-    if invalid_cases:
-        for case_dir, missing_files in invalid_cases:
-            print(
-                f"error: invalid case {case_dir.name}: "
-                f"missing {', '.join(missing_files)}",
-                file=sys.stderr,
-            )
-        return 2
+        cases = [available[name] for name in dict.fromkeys(args.cases)]
 
     srcmove_path = find_srcmove(repo_root, args.srcmove or args.legacy_srcmove)
     if srcmove_path is None:
@@ -145,37 +102,32 @@ def main() -> int:
     passed = 0
     failed = 0
 
-    for case_dir in case_dirs:
+    for case in cases:
         total += 1
 
-        case_name = case_dir.name
-        xml_file = case_dir / "input.xml"
-        expected_json_path = case_dir / "expected.json"
-        expected_xml_path = case_dir / "expected.xml"
-
-        proc, out_xml, out_json = run_case(srcmove_path, xml_file, out_dir)
+        proc, out_xml, out_json = run_case(srcmove_path, case, out_dir)
 
         if proc.returncode != 0:
-            print(f"FAIL  {case_name}")
+            print(f"FAIL  {case.name}")
             for line in format_process_failure("srcMove", proc).splitlines():
                 print(f"  {line}")
             failed += 1
             continue
 
         if not out_json.exists():
-            print(f"FAIL  {case_name}")
+            print(f"FAIL  {case.name}")
             print("  missing output results json")
             failed += 1
             continue
 
         if not out_xml.exists():
-            print(f"FAIL  {case_name}")
+            print(f"FAIL  {case.name}")
             print("  missing output xml")
             failed += 1
             continue
 
         try:
-            expected_json = load_json(expected_json_path)
+            expected_json = load_json(case.expected_json)
             results_json = load_json(out_json)
 
             from support.validation import assert_no_inline_xmlns
@@ -183,20 +135,20 @@ def main() -> int:
             failures: list[str] = []
             failures.extend(validate_results(expected_json, results_json))
             failures.extend(assert_no_inline_xmlns(out_xml))
-            failures.extend(compare_xml_files_exact(expected_xml_path, out_xml))
+            failures.extend(compare_xml_files_exact(case.expected_xml, out_xml))
         except Exception as e:
-            print(f"FAIL  {case_name}")
+            print(f"FAIL  {case.name}")
             print(f"  exception while validating: {e}")
             failed += 1
             continue
 
         if failures:
-            print(f"FAIL  {case_name}")
+            print(f"FAIL  {case.name}")
             for msg in failures:
                 print(f"  - {msg}")
             failed += 1
         else:
-            print(f"PASS  {case_name}")
+            print(f"PASS  {case.name}")
             passed += 1
 
     print()
