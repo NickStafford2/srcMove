@@ -113,12 +113,15 @@ repository revisions or BigCloneBench rows
           + preparation manifest
                     |
                     v
-             srcDiff stage
+       srcDiff attempt in unique staging directory
+                         |
+                         v
+             exit/output/XML validation
        /                              \
 valid checksummed XML             incident record
        |                    (exit/signal/timeout/XML error)
        v
- reusable srcDiff corpus
+atomic promotion into corpus
        |
        v
  repeated srcMove runs
@@ -130,6 +133,11 @@ valid checksummed XML             incident record
 The srcDiff corpus is a first-class input dataset. Once prepared, it can be used
 to compare srcMove revisions without rerunning srcDiff. Changing srcDiff or
 srcML creates a new corpus identity rather than mutating the old corpus.
+
+Every srcDiff invocation writes to a unique attempt staging directory, never
+directly to a corpus case path. Only successful, validated, checksummed XML is
+atomically promoted. Missing, partial, malformed, timed-out, signaled, or
+nonzero-exit output remains attempt evidence and cannot become corpus input.
 
 For BigCloneBench, well-formed srcDiff XML is necessary but not sufficient. The
 corpus must also record whether srcDiff exposed the intended synthetic payload
@@ -318,6 +326,14 @@ Record stdout, stderr, elapsed time, peak memory when available, the exact
 command, partial-output metadata, and the source-case manifest. Batch execution
 must continue after one case fails and support resuming incomplete work.
 
+The minimum execution envelope is part of corpus creation, not a later
+hardening step. It must use a unique attempt directory, enforce a timeout,
+classify process termination, verify that output exists, parse and structurally
+validate the XML, compute its checksum, and write a terminal attempt record.
+Corpus publication occurs only after those checks and uses an atomic rename or
+equivalent operation. A failed attempt may retain partial XML for diagnosis, but
+that path must never be accepted as a corpus case.
+
 Repository filtering must be explicit and non-destructive. For example, Python
 files may be excluded by a recorded policy while srcDiff's current Python bugs
 are unresolved; exported source snapshots should not be silently mutated.
@@ -409,27 +425,37 @@ bytes, and input bytes it observed, and either verifies the binary against a
 build-time receipt or truthfully labels the source-to-binary relationship as
 unverified.
 
-### Phase 2: Split preparation, srcDiff, and srcMove execution
+### Phase 2: Safe staged corpus vertical slice
 
-- Refactor repository benchmarking into resumable stages.
-- Make prepared srcDiff XML reusable by checksum.
-- Write reports atomically and preserve prior runs.
+- Split repository preparation, srcDiff corpus generation, and srcMove execution.
+- Run each srcDiff attempt in a unique staging directory.
+- Add the minimum timeout, exit/signal, missing-output, and malformed-XML
+  classifications before accepting any corpus output.
+- Retain stdout, stderr, partial-output metadata, the exact command, elapsed time,
+  and a terminal attempt record even when srcDiff fails.
+- Validate and checksum successful XML, then atomically promote it into an
+  immutable corpus case.
+- Make prepared srcDiff XML reusable by checksum and preserve prior runs.
 - Allow selection of an existing corpus without requiring source repositories or
   srcDiff at srcMove execution time.
 
 **Complete when:** srcMove can be rerun or compared across revisions without
-rerunning srcDiff.
+rerunning srcDiff, every srcDiff invocation has one terminal attempt record, and
+no missing, partial, malformed, timed-out, signaled, or nonzero-exit output can
+appear as a corpus case.
 
-### Phase 3: Robust srcDiff failure handling
+### Phase 3: Resumability and srcDiff investigation tooling
 
-- Add timeouts, signal/exit classification, XML validation, and partial-artifact
-  retention.
 - Replace implicit Python deletion with a manifest-recorded filter.
 - Continue batches after failures and support resume/retry selection.
+- Add retry lineage without overwriting earlier attempt evidence.
+- Extend resource-exhaustion detection and peak-memory reporting where the
+  environment supports them.
 - Add single-file replay and archive-subset isolation tooling.
 
-**Complete when:** every srcDiff attempt yields either a valid corpus case or a
-repeatable incident record.
+**Complete when:** interrupted or partially failing batches resume without
+repeating completed work or losing evidence, and a failed repository case can be
+replayed or reduced from its preserved attempt record.
 
 ### Phase 4: BigCloneBench evaluation migration
 
