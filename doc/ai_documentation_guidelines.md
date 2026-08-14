@@ -51,7 +51,7 @@ Use these homes unless a more specific file already exists:
 
 - `README.md`: user-facing overview, build/run basics, major project status
 - `doc/README.md`: documentation map and where-to-look index
-- `doc/technical_summary.md`: architecture and implementation overview
+- `doc/architecture.md`: architecture and implementation overview
 - `doc/srcDiff_notes.md`: srcDiff behavior, formats, and quirks
 - `doc/bigclonebench_notes.md`: BigCloneBench/IJaDataset setup and database facts
 - `doc/bigclonebench_srcmove_conversion.md`: converting BigCloneBench clone pairs

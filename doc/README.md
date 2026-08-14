@@ -6,8 +6,8 @@ and command-line usage.
 
 ## Architecture and behavior
 
-- [Technical summary](technical_summary.md): research-oriented system summary,
-  current benchmark context, and major limitations
+- [Architecture](architecture.md): verified current pipeline, matching behavior,
+  output annotations, performance model, and limitations
 - [Pipeline diagram](diagrams/pipeline_diagram.md): one-page view of the
   processing stages
 - [Data structure diagram](diagrams/data_structure_diagram.md): relationships
@@ -42,6 +42,9 @@ summaries or diagrams disagree with current behavior.
 - [Backlog](backlog.md): open questions and candidate improvements
 - [`user-notes/`](user-notes/): thesis outlines, terminology, hypotheses, and
   other exploratory material that does not define current behavior
+- [Thesis summary draft](user-notes/thesis-summary-draft.md): preserved thesis
+  prose and aspirational research framing; not authoritative implementation
+  documentation
 - [Notes migrated from the former documentation index](user-notes/legacy_doc_readme_notes.md):
   historical design questions preserved when this file became an index
 
