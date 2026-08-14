@@ -12,7 +12,12 @@ TESTS_ROOT = SCRIPT_DIR.parents[1]
 if str(TESTS_ROOT) not in sys.path:
     sys.path.insert(0, str(TESTS_ROOT))
 
-from support.cases import CaseDefinitionError, XmlCaseSpec, discover_xml_cases
+from support.cases import (
+    TEST_RESULTS_ROOT,
+    CaseDefinitionError,
+    XmlCaseSpec,
+    discover_xml_cases,
+)
 from support.validation import (
     compare_xml_files_exact,
     load_json,
@@ -70,7 +75,7 @@ def main() -> int:
     args = parse_args()
     script_dir = Path(__file__).resolve().parent
     repo_root = script_dir.parents[2]
-    out_dir = script_dir / "test_out"
+    out_dir = TEST_RESULTS_ROOT / "xml"
 
     try:
         cases = discover_xml_cases()
@@ -96,7 +101,7 @@ def main() -> int:
         print("error: srcMove not found", file=sys.stderr)
         return 2
 
-    out_dir.mkdir(exist_ok=True)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
     total = 0
     passed = 0

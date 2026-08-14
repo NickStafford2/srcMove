@@ -12,7 +12,12 @@ TESTS_ROOT = SCRIPT_DIR.parents[1]
 if str(TESTS_ROOT) not in sys.path:
     sys.path.insert(0, str(TESTS_ROOT))
 
-from support.cases import CaseDefinitionError, SourceCaseSpec, discover_source_cases
+from support.cases import (
+    TEST_RESULTS_ROOT,
+    CaseDefinitionError,
+    SourceCaseSpec,
+    discover_source_cases,
+)
 from support.validation import (
     assert_no_inline_xmlns,
     load_json,
@@ -65,12 +70,15 @@ def prepare_srcdiff_inputs(case: SourceCaseSpec) -> tuple[str, str, Path | None]
 def run_case(
     case: SourceCaseSpec,
     repo_root: Path,
+    out_root: Path,
     srcdiff_bin: str,
     srcmove_bin: str,
 ) -> CaseResult:
-    srcdiff_xml = case.case_dir / "srcdiff.xml"
-    srcmove_xml = case.case_dir / "srcmove.xml"
-    results_json = case.case_dir / "results.json"
+    case_out_dir = out_root / case.name
+    case_out_dir.mkdir(parents=True, exist_ok=True)
+    srcdiff_xml = case_out_dir / "srcdiff.xml"
+    srcmove_xml = case_out_dir / "srcmove.xml"
+    results_json = case_out_dir / "results.json"
 
     try:
         expected = load_json(case.oracle_json)
@@ -188,6 +196,7 @@ def run_case(
 def main() -> int:
     args = parse_args()
     repo_root = Path(__file__).resolve().parents[3]
+    out_root = TEST_RESULTS_ROOT / "source"
 
     try:
         cases = discover_source_cases()
@@ -226,6 +235,7 @@ def main() -> int:
         result = run_case(
             case=case,
             repo_root=repo_root,
+            out_root=out_root,
             srcdiff_bin=str(srcdiff_bin),
             srcmove_bin=str(srcmove_bin),
         )

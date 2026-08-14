@@ -7,6 +7,7 @@ from pathlib import Path
 
 
 TESTS_ROOT = Path(__file__).resolve().parents[1]
+TEST_RESULTS_ROOT = TESTS_ROOT.parent / "build" / "test-results"
 XML_CASES_ROOT = TESTS_ROOT / "regression" / "xml" / "cases"
 SOURCE_CASES_ROOT = TESTS_ROOT / "regression" / "source"
 REGRESSION_SUITES = ("xml", "source")

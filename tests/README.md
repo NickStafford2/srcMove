@@ -36,6 +36,10 @@ Fixture discovery and layout validation are defined once in
 archive comparisons. Malformed case directories are errors rather than being
 silently ignored.
 
+Generated artifacts never live beside checked-in fixtures. Both regression
+suites write to `build/test-results/<suite>/<case>/`, using `srcdiff.xml`,
+`srcmove.xml`, and `results.json` where applicable.
+
 CTest is retired for this project. Use `tests/run.py` for all deterministic
 correctness-test selection and execution.
 
