@@ -1,9 +1,15 @@
 # BigCloneBench Benchmark
 
-This suite generates synthetic move benchmarks from BigCloneBench clone pairs.
-It supports both quick smoke runs and large Type-1/Type-2 batches. The generated
-case directories live under `benchmarks/bigclonebench/cases/` and are ignored by
-git.
+This suite currently generates synthetic positive move cases from BigCloneBench
+clone pairs. It supports both quick smoke runs and large Type-1/Type-2 batches.
+The resulting pass rate is a synthetic detection rate for the selected cases,
+not general accuracy, recall, or precision. The generated case directories live
+under `benchmarks/bigclonebench/cases/` and are ignored by git.
+
+A major future goal is a broad negative suite derived from BigCloneBench's known
+false-positive clone pairs. That work is not implemented yet and requires its own
+srcMove-specific conversion and oracle. See the
+[conversion methodology](../../doc/bigclonebench_srcmove_conversion.md).
 
 Run the default one-case Type-1 smoke test:
 

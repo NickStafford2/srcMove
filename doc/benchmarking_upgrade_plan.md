@@ -41,16 +41,16 @@ Small, checked-in, deterministic cases belong in `tests/`. They should be fast
 enough for routine development and should normally pass before a change is
 merged.
 
-### BigCloneBench-derived accuracy evaluation
+### BigCloneBench-derived synthetic positive-case evaluation
 
 BigCloneBench belongs under `benchmarks/`, even though each generated case uses
-an oracle like a test. The complete generated workload is an accuracy evaluation:
-it measures Type-1 and Type-2 detection capability over an externally sourced
-dataset. A benchmark does not have to measure only execution time.
+an oracle like a test. The current generated workload measures whether srcMove
+recognizes whole-fragment synthetic moves constructed from selected Type-1 and
+Type-2 clone pairs. A benchmark does not have to measure only execution time.
 
-The current positive cases measure recall on **synthetic moves derived from
-BigCloneBench clone pairs**. They do not establish general move-detection
-recall, historical-edit accuracy, or precision. See the
+These are positive cases, so their pass rate is a synthetic detection rate for
+the declared BigCloneBench slice and oracle. It is not general move-detection
+recall, historical-edit accuracy, overall accuracy, or precision. See the
 [conversion methodology](bigclonebench_srcmove_conversion.md) for the exact
 construction and its limitations.
 
@@ -58,9 +58,13 @@ When this evaluation discovers a useful failure, minimize it and promote the
 small stable example into `tests/regression/`. The large evaluation continues
 to measure breadth; the promoted test prevents recurrence.
 
-False-positive evaluation can be added only when a defensible negative or
-complete-case oracle exists. Unexpected extra moves in a positive synthetic
-case are worth reporting, but are not by themselves a general precision metric.
+BigCloneBench also contains known false-positive clone pairs. They are a
+promising future source of synthetic negative cases because srcMove needs many
+tests showing which similar regions it must not label as moves. That extension
+is deliberately later work: it needs a documented conversion and negative
+oracle that are appropriate for srcMove rather than assuming a clone-detector
+false positive transfers directly to move detection. Unexpected extra moves in
+a positive synthetic case remain diagnostics, not a precision metric.
 
 ### Repository evaluation
 
@@ -125,6 +129,12 @@ valid checksummed XML             incident record
 The srcDiff corpus is a first-class input dataset. Once prepared, it can be used
 to compare srcMove revisions without rerunning srcDiff. Changing srcDiff or
 srcML creates a new corpus identity rather than mutating the old corpus.
+
+For BigCloneBench, well-formed srcDiff XML is necessary but not sufficient. The
+corpus must also record whether srcDiff exposed the intended synthetic payload
+as usable delete/insert regions. That dataset-specific eligibility rule belongs
+in the [conversion methodology](bigclonebench_srcmove_conversion.md), not in the
+generic corpus format.
 
 ## Artifact and Provenance Model
 
@@ -290,21 +300,32 @@ implemented in srcDiff itself.
 
 ## Evaluation Outputs
 
-### BigCloneBench-derived evaluation
+### BigCloneBench-derived synthetic positive-case evaluation
 
 Report Type-1 and Type-2 separately. At minimum include:
 
 - eligible, selected, generated, executed, passed, and failed counts
 - distinct raw-text-pair count and deduplication policy
-- detection misses separately from srcDiff/srcMove/tool failures
+- srcDiff tool failures, srcDiff semantic-ineligibility outcomes, and srcMove
+  detection misses as separate categories
 - strict versus encoding-tolerant validation
 - token-size and raw-text-relationship strata
 - unexpected extra or child moves as diagnostic categories
 - manifest and dataset checksums
 
-The main thesis metric may be recall within a precisely defined slice, but the
-slice, denominator, conversion method, and exclusions must accompany every
-percentage.
+Describe the main metric as the whole-fragment synthetic detection rate for a
+precisely defined slice. The slice, denominator, conversion method, selection
+policy, and exclusions must accompany every percentage. Reserve `recall` for a
+design whose eligible population and sampling interpretation justify that term.
+
+A later negative-case evaluation derived from BigCloneBench's known
+false-positive pairs must be reported separately. Its results must not be mixed
+into the current positive-case pass rate.
+
+Report an end-to-end rate over generated cases and a conditional srcMove rate
+over cases where srcDiff exposed the intended candidate regions. A valid XML
+document that aligned away or otherwise failed to expose the payload is an
+upstream semantic-ineligibility outcome, not a srcMove miss.
 
 ### Repository evaluation
 
@@ -372,15 +393,29 @@ repeatable incident record.
 
 ### Phase 4: BigCloneBench evaluation migration
 
+Begin this phase only after the repository benchmark has established the shared
+preparation, corpus, provenance, and srcDiff failure-handling infrastructure.
+BigCloneBench should adapt that foundation rather than create a second runner
+architecture.
+
 - Add a clear preflight error and setup guidance when BigCloneBench is absent.
 - Separate case generation, srcDiff corpus generation, and srcMove evaluation.
+- Add a semantic eligibility check that verifies srcDiff exposed the intended
+  synthetic payload as usable delete/insert regions before attributing an
+  outcome to srcMove.
 - Store each run summary under its run identifier instead of overwriting one
   shared `summary.csv`.
 - Preserve deterministic selection and the existing positional/text oracle.
-- Report aggregate recall and strata with tool failures separated from misses.
+- Report the synthetic positive-case detection rate and strata with tool
+  failures separated from misses.
+- Preserve BigCloneBench's known false-positive pairs as a documented future
+  negative-case source; do not make their conversion a prerequisite for the
+  positive-case migration.
 
 **Complete when:** the same generated corpus can evaluate multiple srcMove
-builds with immutable manifests and comparable summaries.
+builds with immutable manifests and comparable summaries, and every generated
+case is classified separately as an upstream tool failure, srcDiff semantic
+ineligibility, srcMove miss, or oracle pass.
 
 ### Phase 5: Performance measurement
 
@@ -447,6 +482,7 @@ and repository-scale data remain outside the deterministic default test suite.
 - whether development runs store a patch or only its hash by default
 - corpus distribution and archival location for thesis reproducibility
 - annotation and sampling protocol for real-world precision review
+- conversion and negative oracle for BigCloneBench known false-positive pairs
 - exact Linux revisions and whether the first large run targets a subsystem
 
 These decisions should be made before their corresponding phase, not used to
@@ -457,7 +493,8 @@ delay the provenance and stage-separation foundation.
 - forcing ordinary builds to match a source lock
 - switching or cleaning active development checkouts automatically
 - treating repository move counts as accuracy
-- presenting BigCloneBench-derived synthetic recall as general detector recall
+- presenting the current BigCloneBench-derived positive-case pass rate as
+  general recall, accuracy, or precision
 - rerunning srcDiff for every srcMove performance comparison
 - committing large generated corpora or benchmark results to the srcMove source
   repository
