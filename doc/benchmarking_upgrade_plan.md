@@ -326,13 +326,79 @@ Record stdout, stderr, elapsed time, peak memory when available, the exact
 command, partial-output metadata, and the source-case manifest. Batch execution
 must continue after one case fails and support resuming incomplete work.
 
-The minimum execution envelope is part of corpus creation, not a later
-hardening step. It must use a unique attempt directory, enforce a timeout,
-classify process termination, verify that output exists, parse and structurally
-validate the XML, compute its checksum, and write a terminal attempt record.
-Corpus publication occurs only after those checks and uses an atomic rename or
-equivalent operation. A failed attempt may retain partial XML for diagnosis, but
-that path must never be accepted as a corpus case.
+### Process execution contract
+
+Process termination and output validation are separate fields, not one
+overloaded status. The attempt record should represent termination as one of
+`exited`, `signaled`, `timed_out`, `spawn_failed`, or
+`orchestration_interrupted`. Record `exit_code` only for a normal exit and record
+both signal number and portable signal name for a signal. A timeout remains
+`timed_out` even though termination later sends signals; record those cleanup
+signals separately.
+
+The timeout covers wall-clock time from successful process creation until the
+entire child process group has exited and been reaped. Initial CLI defaults are:
+
+- 60 seconds for one synthetic or single-file srcDiff case
+- 30 minutes for one repository/archive srcDiff case
+- 5 minutes for one srcMove evaluation
+
+Every override is recorded per stage in the manifest. Larger scale tiers must
+choose and record an explicit override rather than silently disabling the
+timeout. On the supported Linux environment, start the tool in a new process
+group. At timeout, send `SIGTERM`, allow a five-second grace period, then send
+`SIGKILL` to the remaining group and reap it. If a platform cannot provide the
+same process-tree guarantee, record that limitation and reject publication mode.
+
+Capture stdout and stderr as byte streams while the process runs so a full pipe
+cannot deadlock it. The initial retained-log limit is 16 MiB per stream: preserve
+the first and last 8 MiB, continue draining excess bytes, and record the total
+byte count, omitted byte count, truncation flag, and full-stream checksum.
+The limit applies to logs, not to the expected srcDiff XML artifact. Partial XML
+records its byte count and checksum; retention or externalization follows the
+declared artifact-storage policy and must never silently discard evidence.
+
+### Attempt identity, validation, and publication
+
+Give every invocation a collision-resistant attempt identifier. A retry creates
+a new attempt, records its parent attempt identifier and retry ordinal, and
+never overwrites the earlier evidence. The attempt owns unique staging paths for
+stdout, stderr, XML, and its record, so files left by an earlier invocation
+cannot satisfy a later attempt.
+
+A zero exit code alone is not success. Corpus admission requires all of the
+following:
+
+- normal zero exit without a timeout or cleanup signal
+- a present, nonempty output file created in this attempt's staging directory
+- a complete XML parse with no trailing malformed content
+- the expected single-file or archive document shape and required srcML/srcDiff
+  namespace and element invariants
+- recorded byte size and checksum
+
+Dataset-specific semantic checks, such as BigCloneBench candidate exposure, run
+after this generic structural admission and retain their own status.
+
+Write the terminal attempt or incident record through a temporary file and
+atomically rename it only after its referenced artifacts are finalized. If the
+orchestrator itself stops first, the next invocation recovers the abandoned
+staging directory as `orchestration_interrupted`; it never promotes its XML.
+Likewise, promote validated XML and its case metadata into the corpus with one
+atomic directory rename on the same filesystem.
+
+Classify OOM or another resource exhaustion only when the operating system,
+container runtime, or resource monitor supplies affirmative evidence. `SIGKILL`
+alone is not proof of OOM; absent evidence, use `unknown_resource_failure` and
+retain the observed signal and resource data.
+
+### Repeatable incidents
+
+An incident is repeatable only when it contains the exact prepared inputs or a
+verified immutable reference to them, plus their checksums and filtering
+manifest. It must also preserve the executable checksum and receipt or observed
+provenance, argument vector, working directory, relevant environment, timeout
+and cleanup policy, and all retained diagnostics. A command string that points
+to mutable paths is not a repeatable incident.
 
 Repository filtering must be explicit and non-destructive. For example, Python
 files may be excluded by a recorded policy while srcDiff's current Python bugs
@@ -429,8 +495,9 @@ unverified.
 
 - Split repository preparation, srcDiff corpus generation, and srcMove execution.
 - Run each srcDiff attempt in a unique staging directory.
-- Add the minimum timeout, exit/signal, missing-output, and malformed-XML
-  classifications before accepting any corpus output.
+- Implement the process execution contract, including timeout cleanup, bounded
+  logs, termination fields, structural XML admission, and interrupted-attempt
+  recovery, before accepting any corpus output.
 - Retain stdout, stderr, partial-output metadata, the exact command, elapsed time,
   and a terminal attempt record even when srcDiff fails.
 - Validate and checksum successful XML, then atomically promote it into an
@@ -448,7 +515,8 @@ appear as a corpus case.
 
 - Replace implicit Python deletion with a manifest-recorded filter.
 - Continue batches after failures and support resume/retry selection.
-- Add retry lineage without overwriting earlier attempt evidence.
+- Use the attempt parent/ordinal lineage to retry without overwriting earlier
+  evidence.
 - Extend resource-exhaustion detection and peak-memory reporting where the
   environment supports them.
 - Add single-file replay and archive-subset isolation tooling.
@@ -528,9 +596,15 @@ the real toolchain. Cover:
 
 - successful output
 - nonzero exit and terminating signal
-- timeout
-- missing and malformed XML
+- timeout with graceful termination and forced process-group cleanup
+- distinct exit-code, signal, timeout, spawn-failure, and interrupted-attempt
+  records
+- missing, empty, structurally invalid, malformed, and truncated XML
 - partial output
+- stale staging output and interrupted-staging recovery
+- stdout/stderr truncation with correct byte counts and checksums
+- retry lineage and preservation of the original attempt
+- `SIGKILL` without OOM evidence classified as `unknown_resource_failure`
 - stale build receipt or input checksum
 - executable without a build-time receipt
 - current checkout differing from a valid older build receipt
