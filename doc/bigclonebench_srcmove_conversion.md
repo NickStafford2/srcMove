@@ -7,9 +7,10 @@ before/after edit where one clone fragment is deleted from the old version and
 its paired clone fragment is inserted at a different location in the new
 version.
 
-The resulting pass rate is a whole-fragment synthetic detection rate for the
-declared slice and oracle. It is not historical-move accuracy, general detector
-recall, overall accuracy, or precision.
+The resulting pass rate is a strict whole-fragment synthetic
+detection-and-classification rate for the declared slice and oracle. It is not
+historical-move accuracy, general detector recall, overall accuracy, or
+precision.
 
 ## Local Assets
 
@@ -54,6 +55,15 @@ For each selected clone pair:
 9. Score whether srcMove reports one delete/insert move whose annotated positions
    overlap the generated line ranges for the two benchmark fragments.
 
+The current evaluation uses a strict detection-and-classification oracle:
+Type-1 cases must report the intended whole-fragment move as `exact`, and Type-2
+cases must report it as `type2`. Position and per-side text validation must also
+pass. Detecting the intended payload with the wrong match kind is useful failure
+evidence, but it is not counted as a pass. The benchmark deliberately uses
+BigCloneBench as the best available large labeled source; questionable labels,
+unsupported variations, extraction problems, or conversion artifacts discovered
+in the failure set should be analyzed and reported rather than silently removed.
+
 This converts clone similarity into move similarity. Exact and Type-2 clone pairs
 are the best first target for srcMove because they align with the current exact and
 Type-2 match categories. Type-3 and Type-4 pairs are useful later as expected misses
@@ -78,16 +88,17 @@ these outcomes distinct:
 - srcMove ran on an eligible input but missed the expected move
 - srcMove satisfied the positional, text, and match-kind oracle
 
-Report both the end-to-end synthetic detection rate over generated cases and the
-conditional srcMove detection rate over srcDiff-eligible cases. The exact
-eligibility rule and both denominators must be versioned with the benchmark
-oracle.
+Report both the end-to-end strict pass rate over generated cases and the
+conditional srcMove detection-and-classification rate over srcDiff-eligible
+cases. The exact eligibility rule and both denominators must be versioned with
+the benchmark oracle.
 
 ## Future Negative Cases From Known False Positives
 
-BigCloneBench also provides known false-positive clone pairs. These are valuable
-future inputs for srcMove because a useful detector needs extensive negative
-tests: similar-looking regions that it must not annotate as moves.
+BigCloneBench also provides known false-positive clone pairs. They are an
+optional future source of negative cases: similar-looking regions that srcMove
+must not annotate as moves. Their absence does not make the current positive-case
+detection-and-classification evaluation incomplete for its declared purpose.
 
 This work is intentionally deferred until the positive-case pipeline is
 reproducible. A BigCloneBench clone-detector false positive is not automatically

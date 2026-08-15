@@ -20,8 +20,8 @@ cumbersome.
 The upgraded system must answer four different questions:
 
 1. **Correctness:** Did a known behavior regress?
-2. **Detection capability:** How often does srcMove recognize moves in a defined
-   evaluation dataset?
+2. **Detection and classification capability:** How often does srcMove recognize
+   and correctly classify moves in a defined evaluation dataset?
 3. **Performance:** How much time and memory does srcMove require for a fixed
    srcDiff input?
 4. **Reliability and scale:** Which real repositories can the srcML/srcDiff/srcMove
@@ -30,15 +30,24 @@ The upgraded system must answer four different questions:
 These questions require related infrastructure, but their results must not be
 combined into one ambiguous score.
 
+The thesis evaluation has two central empirical pillars. BigCloneBench provides
+the best available large labeled source of Type-1 and Type-2 clone pairs for the
+synthetic detection-and-classification evaluation. Repository revision pairs
+provide the primary workloads for real-world scale, reliability, performance,
+and failure analysis. The BigCloneBench implementation already provides a strong
+baseline; most new engineering in this plan is therefore directed at reusable
+srcDiff corpora and large-repository execution rather than redesigning its
+generator or oracle.
+
 The current implementation already has useful BigCloneBench generation,
 position/text validation, repository export, internal profiling, and shared tool
 discovery. Its main gaps are that srcDiff and srcMove execution are coupled,
 repository failure reports are written only after both tools succeed, processes
 have no timeout policy, Python files are removed implicitly, prepared srcDiff
 XML is only an incidental cache, BigCloneBench summaries overwrite one shared
-path, the BigCloneBench oracle currently maps dataset clone types directly to
-srcMove match kinds, and performance provenance does not yet bind source state
-to binaries and input checksums.
+path, BigCloneBench does not yet distinguish srcDiff semantic ineligibility from
+srcMove misses, and performance provenance does not yet bind source state to
+binaries and input checksums.
 
 ## Terminology and Suite Boundaries
 
@@ -55,40 +64,36 @@ an oracle like a test. The current generated workload measures whether srcMove
 recognizes whole-fragment synthetic moves constructed from selected Type-1 and
 Type-2 clone pairs. A benchmark does not have to measure only execution time.
 
-These are positive cases, so their pass rate is a synthetic detection rate for
-the declared BigCloneBench slice and oracle. It is not general move-detection
-recall, historical-edit accuracy, overall accuracy, or precision. See the
+These are positive cases, so their pass rate is a strict synthetic
+detection-and-classification rate for the declared BigCloneBench slice and
+oracle. It is not general move-detection recall, historical-edit accuracy,
+overall accuracy, or precision. See the
 [conversion methodology](bigclonebench_srcmove_conversion.md) for the exact
 construction and its limitations.
 
-BigCloneBench's `syntactic_type` and srcMove's `match_kind` describe different
-things. A BigCloneBench Type-1 or Type-2 label classifies the relationship
-between two benchmark fragments under BigCloneBench's definitions and
-normalizations. srcMove's `exact` or `type2` result describes the algorithmic
-path by which the current implementation matched regions in generated srcDiff
-XML. The similar names do not make them equivalent or define a valid oracle
-mapping.
-
-The primary positive-case oracle therefore asks whether srcMove reports the
-intended whole-fragment delete/insert correspondence and satisfies the frozen
-position and text checks. It does not require a particular `match_kind` merely
-because of the BigCloneBench clone type. Report the observed `match_kind` as an
-outcome and cross-tabulate it by BigCloneBench clone type. Any narrower analysis
-that requires a particular srcMove match kind must first define and justify an
-independently computed compatibility subset; it must not apply that expectation
-to every BigCloneBench row of the similarly named type.
+The current strict oracle is intentional: a Type-1 case must detect the intended
+whole-fragment move as `exact`, and a Type-2 case must detect it as `type2`, in
+addition to satisfying the frozen position and text checks. A detected payload
+with the wrong classification is useful diagnostic evidence but is not a pass.
+The resulting percentage measures detection and classification under the
+declared BigCloneBench slice and srcMove conversion—not universal agreement
+between every possible clone taxonomy. Questionable labels, unsupported
+variations, extraction problems, and conversion artifacts found among failures
+belong in the thesis analysis rather than being silently removed to improve the
+score. The canonical oracle is documented in the
+[conversion methodology](bigclonebench_srcmove_conversion.md).
 
 When this evaluation discovers a useful failure, minimize it and promote the
 small stable example into `tests/regression/`. The large evaluation continues
 to measure breadth; the promoted test prevents recurrence.
 
-BigCloneBench also contains known false-positive clone pairs. They are a
-promising future source of synthetic negative cases because srcMove needs many
-tests showing which similar regions it must not label as moves. That extension
-is deliberately later work: it needs a documented conversion and negative
-oracle that are appropriate for srcMove rather than assuming a clone-detector
-false positive transfers directly to move detection. Unexpected extra moves in
-a positive synthetic case remain diagnostics, not a precision metric.
+BigCloneBench also contains known false-positive clone pairs. They are an
+optional future source of synthetic negative cases, not a missing requirement
+for the current positive-case evaluation. Such an extension would need a
+documented conversion and negative oracle appropriate for srcMove rather than
+assuming a clone-detector false positive transfers directly to move detection.
+Unexpected extra moves in a positive synthetic case remain diagnostics, not a
+precision metric.
 
 ### Repository evaluation
 
@@ -488,7 +493,8 @@ implemented in srcDiff itself.
 Report Type-1 and Type-2 separately. At minimum include:
 
 - eligible, selected, generated, executed, passed, and failed counts
-- distinct raw-text-pair count and deduplication policy
+- row counts before deduplication, distinct raw-text-pair counts after
+  deduplication, and the deduplication policy
 - declared population or sampling frame, exact eligibility query, ordering,
   candidate count, and census or sampling method
 - seed and strata for a random sample, or an explicit statement that a
@@ -497,21 +503,20 @@ Report Type-1 and Type-2 separately. At minimum include:
 - srcDiff tool failures, srcDiff semantic-ineligibility outcomes, and srcMove
   detection misses as separate categories
 - strict versus encoding-tolerant validation
-- observed srcMove match-kind counts and a cross-tabulation of BigCloneBench
-  clone type against srcMove match kind
+- expected and observed srcMove match-kind counts
 - token-size and raw-text-relationship strata
 - unexpected extra or child moves as diagnostic categories
 - manifest and dataset checksums
 
-Describe the main metric as the whole-fragment synthetic detection rate for a
-precisely defined slice. The slice, denominator, conversion method, selection
-policy, and exclusions must accompany every percentage. Reserve `recall` for a
-design whose eligible population and sampling interpretation justify that term.
-Passing the primary oracle depends on the intended whole-fragment
-correspondence, positional coverage, and text validation, not on equality
-between BigCloneBench `syntactic_type` and srcMove `match_kind`. Match-kind
-distributions are secondary behavioral results unless a separately declared and
-justified compatibility-subset analysis defines a stronger expectation.
+Describe the main metric as the strict whole-fragment synthetic
+detection-and-classification rate for a precisely defined slice. The slice,
+denominator, conversion method, selection policy, and exclusions must accompany
+every percentage. Reserve `recall` for a design whose eligible population and
+sampling interpretation justify that term.
+Passing the strict oracle requires the intended whole-fragment correspondence,
+positional coverage, text validation, and the expected srcMove classification:
+`exact` for Type-1 and `type2` for Type-2. Report wrong-classification outcomes
+separately when they occur, but do not count them as passes.
 
 A later negative-case evaluation derived from BigCloneBench's known
 false-positive pairs must be reported separately. Its results must not be mixed
@@ -573,17 +578,17 @@ measurements must be counted.
   orchestration outcomes in the testing strategy.
 - Freeze the initial status vocabulary, identity rules, and dataset-adapter
   boundary before moving outputs.
-- Freeze the BigCloneBench primary oracle independently of srcMove match kind;
-  record the current clone-type-to-match-kind requirement as legacy behavior to
-  replace, not a compatibility contract to preserve.
+- Preserve the current strict BigCloneBench oracle, including the Type-1 to
+  `exact` and Type-2 to `type2` classification requirements, while characterizing
+  its existing outputs before moving them.
 - Record that BigCloneBench is an external manual prerequisite; preflight may
   explain its absence but must not download it.
 
 **Complete when:** the legacy commands and historical artifacts are identified,
 the refactored code has a tiny offline characterization path, and no acceptance
 criterion depends on an unavailable large dataset or a pre-refactor pass count.
-The frozen oracle contract must state explicitly that BigCloneBench clone type
-does not determine the required srcMove match kind.
+The frozen oracle contract must retain both whole-fragment detection and correct
+srcMove classification as pass requirements.
 
 ### Phase 1: Minimum provenance foundation
 
@@ -644,33 +649,38 @@ after corpus creation must not break srcMove replay.
 repeating completed work or losing evidence, and a failed repository case can be
 replayed or reduced from its preserved attempt record.
 
-### Phase 4: BigCloneBench evaluation migration
+### Phase 4: Targeted BigCloneBench reproducibility migration
 
 Begin this phase only after the repository benchmark has established the shared
 preparation, corpus, provenance, and srcDiff failure-handling infrastructure.
 BigCloneBench should adapt that foundation rather than create a second runner
 architecture.
 
+Retain the current generator, deduplication policy, position/text validation,
+and strict Type-1/Type-2 classification oracle unless a separately justified
+methodology change is made. This phase adapts a successful benchmark to shared
+corpus, failure-handling, provenance, and append-only reporting infrastructure;
+it is not a new benchmark design.
+
 - Add a clear preflight error and setup guidance when BigCloneBench is absent.
 - Separate case generation, srcDiff corpus generation, and srcMove evaluation.
 - Add a semantic eligibility check that verifies srcDiff exposed the intended
   synthetic payload as usable delete/insert regions before attributing an
   outcome to srcMove.
-- Replace the current BigCloneBench-type-to-srcMove-match-kind oracle mapping.
-  Score the intended whole-fragment correspondence independently and retain
-  srcMove match kind as a reported outcome.
+- Preserve the strict oracle requiring Type-1 cases to report `exact` and Type-2
+  cases to report `type2`; retain wrong-classification outcomes as diagnostics
+  rather than passes.
 - Store each run summary under its run identifier instead of overwriting one
   shared `summary.csv`.
 - Define the eligible population, pair direction, census or sampling method,
   tuning/evaluation split, and selection-manifest fields before reporting a rate.
 - Preserve reproducible selection and version the positional/text and srcDiff
   semantic-eligibility oracles.
-- Report the synthetic positive-case detection rate and strata with tool
-  failures separated from misses.
-- Cross-tabulate BigCloneBench clone type and observed srcMove match kind. If a
-  match-kind-specific analysis is desired, define its compatibility subset and
-  oracle before examining its results and report it separately from the primary
-  detection rate.
+- Report the strict synthetic positive-case detection-and-classification rate
+  and strata with tool failures separated from misses.
+- Report wrong classifications, questionable source ranges, unsupported
+  variations, and conversion artifacts clearly enough to support thesis failure
+  analysis without silently changing the selected population.
 - Preserve BigCloneBench's known false-positive pairs as a documented future
   negative-case source; do not make their conversion a prerequisite for the
   positive-case migration.
@@ -678,10 +688,9 @@ architecture.
 **Infrastructure complete when:** tiny fixture-backed tests prove that the same
 generated corpus can evaluate multiple srcMove builds with immutable manifests,
 reconciled counts, and separate upstream failure, srcDiff semantic-ineligibility,
-srcMove miss, and oracle-pass outcomes. The fixtures must also prove that a case
-can pass the primary whole-fragment oracle when its BigCloneBench clone type and
-reported srcMove match kind do not share the same label, while still recording
-that combination in the result data.
+srcMove miss, wrong-classification, and oracle-pass outcomes. The fixtures must
+also prove that detecting the intended payload with the wrong match kind remains
+diagnostic evidence but fails the strict oracle.
 
 **Dataset validation complete when:** an explicitly installed and checksummed
 BigCloneBench distribution passes preflight, Type-1 is evaluated first under a
@@ -767,8 +776,8 @@ the real toolchain. Cover:
 - srcMove corpus replay with source repositories and `srcdiff` unavailable
 - exact reconciliation of selected, excluded, failed, eligible, executed, and
   scored counts
-- independence of primary BigCloneBench oracle success from srcMove match kind,
-  with complete clone-type-by-match-kind reporting
+- strict BigCloneBench oracle enforcement, including detection of the intended
+  payload and the expected Type-1/`exact` or Type-2/`type2` classification
 - reproducible paired/interleaved performance ordering
 
 Keep a small real integration case for srcDiff-to-srcMove behavior. BigCloneBench
@@ -809,11 +818,12 @@ late publication phase:
   policy and censored count.
 - **Schema or oracle drift:** changed validators can alter results without a code
   change. Version schemas, generators, and oracles and reject silent mixing.
-- **Clone-type/match-kind conflation:** BigCloneBench Type-1/Type-2 labels and
-  srcMove `exact`/`type2` outcomes use similar terminology but encode different
-  classifications. Keep primary oracle success independent of match kind,
-  report both dimensions, and require a separately justified compatibility
-  subset for any match-kind-specific claim.
+- **Dataset and conversion limitations:** BigCloneBench is the best available
+  large labeled source for this evaluation, but individual labels, extracted
+  ranges, unsupported variations, or synthetic wrappers may contribute to
+  failures. Preserve the strict declared oracle and selected population, inspect
+  failures, and report credible dataset or conversion limitations in the thesis
+  instead of silently excluding them.
 - **Measurement bias:** fixed revision order, cache warmth, host load, and thermal
   state can distort comparisons. Use paired/interleaved ordering and record the
   environment and cache policy.
@@ -845,8 +855,6 @@ late publication phase:
   archival location for thesis reproducibility
 - BigCloneBench census or sampling frame, pair direction, randomization seed,
   strata, and tuning/evaluation separation
-- whether a secondary match-kind-specific BigCloneBench analysis is useful and,
-  if so, the independently computed compatibility-subset criteria and oracle
 - annotation and sampling protocol for real-world precision review
 - conversion and negative oracle for BigCloneBench known false-positive pairs
 - exact Linux revisions and whether the first large run targets a subsystem

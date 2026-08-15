@@ -2,14 +2,16 @@
 
 This suite currently generates synthetic positive move cases from BigCloneBench
 clone pairs. It supports both quick smoke runs and large Type-1/Type-2 batches.
-The resulting pass rate is a synthetic detection rate for the selected cases,
-not general accuracy, recall, or precision. The generated case directories live
-under `benchmarks/bigclonebench/cases/` and are ignored by git.
+The resulting pass rate is a strict synthetic detection-and-classification rate
+for the selected cases: Type-1 must report `exact`, Type-2 must report `type2`,
+and the position/text oracle must pass. It is not general accuracy, recall, or
+precision. The generated case directories live under
+`benchmarks/bigclonebench/cases/` and are ignored by git.
 
-A major future goal is a broad negative suite derived from BigCloneBench's known
-false-positive clone pairs. That work is not implemented yet and requires its own
-srcMove-specific conversion and oracle. See the
-[conversion methodology](../../doc/bigclonebench_srcmove_conversion.md).
+BigCloneBench's known false-positive clone pairs are an optional future source of
+negative cases; they are not required for this positive-case benchmark's declared
+purpose. Any such extension needs its own srcMove-specific conversion and oracle.
+See the [conversion methodology](../../doc/bigclonebench_srcmove_conversion.md).
 
 Run the default one-case Type-1 smoke test:
 
