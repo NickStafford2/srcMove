@@ -162,6 +162,26 @@ Each worker that invokes libxml or srcReader must own its reader, writer, and
 associated document state. A `srcml_reader`, iterator, or libxml document must
 not be shared concurrently.
 
+Generic unit capture and fragment serialization belong in srcReader rather than
+being copied into srcMove. srcReader should provide thread-safe operations that:
+
+- return a self-contained archive child unit with its ordinal and explicit
+  namespace context;
+- serialize one child unit to a memory, file, or callback sink without adding an
+  XML declaration or archive wrapper;
+- assemble serialized child units beneath one coordinator-owned archive root;
+- share element, attribute, namespace, and text serialization logic with the
+  existing whole-document writer.
+
+srcMove owns the bounded executor, global matching barrier, annotation plan,
+cancellation, and ordered publication. srcReader must not gain srcMove-specific
+scheduling or matching policy.
+
+Before concurrent readers or writers are enabled, audit srcReader for mutable
+process-global state, including namespace interning. Per-reader state should be
+preferred; any unavoidable global initialization must finish before workers
+start and remain immutable during execution.
+
 The implementation must explicitly preserve namespace context when a child
 unit is processed separately from the archive root. It must also preserve the
 current XPath rules and output formatting expected by regression fixtures.
@@ -242,10 +262,14 @@ evidence predicts only a small OpenCV speedup from candidate work alone.
 **Decision gate:** retain the parallel path only if it improves a candidate-heavy
 workload without material small-input or memory regression.
 
-### Phase 3: prototype unit retention versus unit replay
+### Phase 3: establish srcReader unit capture and fragment writing
 
 The remaining annotation pass cannot be removed until the complete move plan is
-known. Compare two bounded designs:
+known. Add the smallest general-purpose srcReader interface needed to capture
+and serialize archive child units independently. Do not move or duplicate
+srcReader's XML serialization code in srcMove.
+
+Compare two bounded unit representations:
 
 1. **Retained compact units:** keep a compact token representation from the
    first parse, then annotate it after grouping. This avoids reparsing but uses
@@ -257,11 +281,20 @@ known. Compare two bounded designs:
 Do not use naive byte scanning to split XML. Encodings, entities, namespaces,
 and quoted delimiters require XML-aware boundaries.
 
+Before adding multiple workers, run capture, annotation, fragment serialization,
+and ordered assembly with one worker. Require byte-identical XML, identical JSON,
+stable candidate identities and partner XPaths, and correct inherited namespaces
+across single-unit, multi-unit, cross-file, and nested-diff fixtures. The fragment
+writer and current document writer must use shared serialization primitives so
+this does not become a second XML implementation.
+
 Measure wall time, CPU time, peak RSS, temporary bytes, and output equivalence
 for both designs.
 
-**Decision gate:** select a representation only if it improves the large-input
-wall time while staying within an explicit memory budget.
+**Decision gate:** do not parallelize annotation until one-worker fragment
+assembly is equivalent to the current writer. Select a representation only if
+it improves large-input wall time while staying within an explicit memory
+budget.
 
 ### Phase 4: parallel unit annotation and ordered assembly
 
