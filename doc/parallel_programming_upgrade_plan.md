@@ -186,13 +186,18 @@ an afterthought.
 ### Phase 0: establish the current baseline
 
 Prepare immutable, checksummed srcDiff inputs through the benchmarking plan.
-At minimum, use:
+The performance corpus must use multi-file repository archives. At minimum, use:
 
 - the same large OpenCV corpus or an equivalently documented repository
   archive;
 - a candidate-heavy archive, because the historical OpenCV input had almost no
-  grouping work;
-- representative small regression and BigCloneBench inputs.
+  grouping work.
+
+Use representative small regression inputs to measure startup and scheduling
+overhead. BigCloneBench is not a performance corpus for this upgrade: its
+single-file synthetic cases do not exercise archive-unit parallelism. Use it
+only for its declared synthetic detection-and-classification evaluation when
+confirming that behavior remains unchanged.
 
 Record input bytes, archive-unit count and size distribution, region and
 candidate counts, wall time, CPU time, peak RSS, output checksum, build receipt,
