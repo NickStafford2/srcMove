@@ -41,6 +41,8 @@ summaries or diagrams disagree with current behavior.
 
 - [Benchmarking upgrade plan](benchmarking_upgrade_plan.md): staged design for
   reproducible accuracy, performance, reliability, and thesis data runs
+- [Parallel programming upgrade plan](parallel_programming_upgrade_plan.md):
+  staged design for bounded archive-level parallelism on large srcDiff inputs
 - [Backlog](backlog.md): open questions and candidate improvements
 - [`user-notes/`](user-notes/): thesis outlines, terminology, hypotheses, and
   other exploratory material that does not define current behavior
