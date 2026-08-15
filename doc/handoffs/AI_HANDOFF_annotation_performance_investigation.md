@@ -1,5 +1,11 @@
 # srcMove Handoff: Investigate Annotation Performance
 
+> Historical note: commit `3afbc86` implemented this handoff's primary
+> recommendation by retaining candidate XPaths and removing the extra
+> `collect_start_node_xpaths(...)` pass. The profiles below describe the older
+> three-pass pipeline. Current performance work is planned in the
+> [parallel programming upgrade plan](../parallel_programming_upgrade_plan.md).
+
 ## Situation
 
 Recent profiling shows `srcMove` spends most runtime in XML parsing and
