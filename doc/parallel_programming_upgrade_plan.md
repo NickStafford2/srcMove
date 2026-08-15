@@ -207,13 +207,14 @@ current baseline.
 Before adding threads:
 
 1. gate `print_greedy_matches(...)` behind an explicit diagnostic option;
-2. determine how much XPath construction the annotation pass performs for
-   untagged nodes;
-3. carry each candidate's own XPath into its annotation tag;
-4. prototype a no-XPath or lightweight annotation-reader mode;
-5. remove repeated temporary `vector<srcml_node>` copies during
+2. measure the remaining XPath cost for tagged nodes during annotation writing;
+   untagged nodes are already copied without requesting their XPath;
+3. if that cost is material, reuse the XPath already retained by each candidate
+   when materializing move summaries, or prototype a lightweight annotation-reader
+   mode;
+4. remove repeated temporary `vector<srcml_node>` copies during
    canonicalization;
-6. compute exact and Type-2 canonical forms in one traversal when practical.
+5. compute exact and Type-2 canonical forms in one traversal when practical.
 
 These changes simplify later worker tasks and may reduce the serial fraction
 enough to alter the parallel design.
@@ -351,4 +352,3 @@ The upgrade is complete when:
 - benchmark artifacts bind input, binary, source, machine, and thread count;
 - current architecture and user-facing CLI documentation describe the final
   implemented behavior without duplicating this plan.
-

@@ -43,3 +43,22 @@ The legacy interfaces remain unchanged at this checkpoint:
 
 Previously archived thesis results are historical evidence, not regression
 expectations for the refactored implementation.
+
+## Provenance foundation
+
+`provenance.py` provides read-only collection of repository state, relevant
+untracked source checksums, executable and input checksums, and a small host
+environment snapshot. It validates a build receipt when one exists but never
+infers that a nearby binary came from the current checkout. Binary verification
+and current-checkout agreement are reported separately.
+
+The supported CMake build writes
+`<srcMove executable>.build-receipt.json` immediately after linking `srcMove`.
+The receipt binds the executable checksum to the observed srcMove/srcReader
+source state, workspace-lock checksum when available, compiler, configuration,
+and relevant CMake options. It records tests as `not_run`; building alone is not
+evidence that tests passed.
+
+Development and publication labels are now part of observation manifests, but
+publication requirements are not enforced yet. Existing benchmark runners do
+not consume these observations until the staged corpus workflow is introduced.

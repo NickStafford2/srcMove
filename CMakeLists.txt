@@ -20,6 +20,7 @@ set(SRCREADER_BUILD_DIR "${SRCREADER_ROOT}/build" CACHE PATH "Path to the srcRea
 set(SRCML_INSTALL_PREFIX "${WORKSPACE_ROOT}/srcML-install" CACHE PATH "srcML install prefix")
 
 find_package(LibXml2 REQUIRED)
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 # ------------------------------------------------------------
 # Common configuration for all binaries
@@ -70,6 +71,35 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
 
 add_executable(srcMove ${SRC_FILES})
 configure_srcmove_target(srcMove)
+
+set(SRCMOVE_RECEIPT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/emit_build_receipt.py")
+set(SRCMOVE_SOURCE_LOCK "${WORKSPACE_ROOT}/workspace.lock.json")
+set(SRCMOVE_BUILD_ENTRY_POINT "cmake --build ${CMAKE_BINARY_DIR} --target srcMove")
+if(CMAKE_BUILD_TYPE STREQUAL "")
+  set(SRCMOVE_BUILD_CONFIGURATION "Unspecified")
+else()
+  set(SRCMOVE_BUILD_CONFIGURATION "${CMAKE_BUILD_TYPE}")
+endif()
+set(SRCMOVE_CMAKE_OPTIONS
+  "{\"build_type\":\"${CMAKE_BUILD_TYPE}\",\"cxx_standard\":\"${CMAKE_CXX_STANDARD}\"}"
+)
+
+add_custom_command(TARGET srcMove POST_BUILD
+  COMMAND "${Python3_EXECUTABLE}" "${SRCMOVE_RECEIPT_SCRIPT}"
+    --output "$<TARGET_FILE:srcMove>.build-receipt.json"
+    --artifact "$<TARGET_FILE:srcMove>"
+    --repository "srcMove=${CMAKE_CURRENT_SOURCE_DIR}"
+    --repository "srcReader=${SRCREADER_ROOT}"
+    --source-lock "${SRCMOVE_SOURCE_LOCK}"
+    --build-entry-point "${SRCMOVE_BUILD_ENTRY_POINT}"
+    --configuration "${SRCMOVE_BUILD_CONFIGURATION}"
+    --cmake-options "${SRCMOVE_CMAKE_OPTIONS}"
+    --compiler-id "${CMAKE_CXX_COMPILER_ID}"
+    --compiler-version "${CMAKE_CXX_COMPILER_VERSION}"
+    --test-status not_run
+  COMMENT "Writing srcMove build receipt"
+  VERBATIM
+)
 
 # ------------------------------------------------------------
 # Debug tools
