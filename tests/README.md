@@ -39,6 +39,12 @@ Generated artifacts never live beside checked-in fixtures. Both regression
 suites write to `build/test-results/<suite>/<case>/`, using `srcdiff.xml`,
 `srcmove.xml`, and `results.json` where applicable.
 
+The unit suite also exercises benchmark attempts and corpus replay entirely
+offline with fake executables. These cases cover termination and XML failures,
+timeout process-group cleanup, bounded logs, interrupted-attempt recovery,
+content-stable identifiers, checksum enforcement, and replay without source
+trees or srcDiff.
+
 CTest is retired for this project. The Makefile owns building; `tests/run.py`
 owns deterministic correctness-test selection and execution.
 

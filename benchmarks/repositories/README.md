@@ -23,3 +23,45 @@ python3 benchmarks/repositories/run_case.py notepadpp \
 `run.py` executes the small configured batch. `build_examples.py` turns selected
 benchmark results into ignored example artifacts for documentation or manual
 inspection.
+
+## Staged workflow
+
+For reusable measurements, prepare already-exported revision trees as an
+immutable input snapshot:
+
+```bash
+python3 benchmarks/pipeline.py prepare \
+  --case-id my-repository-case \
+  --original /path/to/old/export \
+  --modified /path/to/new/export \
+  --source-json '{"repository":"URL","old":"COMMIT","new":"COMMIT"}'
+```
+
+The command prints a preparation identifier. Generate a reusable srcDiff corpus
+from it:
+
+```bash
+python3 benchmarks/pipeline.py generate PREPARATION_ID \
+  --srcdiff /path/to/srcdiff \
+  --timeout 1800
+```
+
+Generation writes a terminal attempt record even when srcDiff exits nonzero,
+receives a signal, times out, omits output, or emits invalid XML. Only admitted
+XML appears below `benchmark-data/corpora/`.
+
+Run srcMove from the immutable corpus as many times as needed:
+
+```bash
+python3 benchmarks/pipeline.py run CORPUS_ID \
+  --srcmove /path/to/srcMove \
+  --timeout 300
+```
+
+Each invocation creates a new directory below `benchmark-data/runs/`. Corpus
+replay does not access the original exports or invoke srcDiff. Use `--data-root`
+before the subcommand to select an external generated-data location.
+
+`run_case.py` remains the legacy coupled clone/export/srcdiff/srcMove interface.
+It is retained for compatibility while repository checkout/export automation is
+migrated onto the staged workflow.

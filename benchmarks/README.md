@@ -60,5 +60,24 @@ and relevant CMake options. It records tests as `not_run`; building alone is not
 evidence that tests passed.
 
 Development and publication labels are now part of observation manifests, but
-publication requirements are not enforced yet. Existing benchmark runners do
-not consume these observations until the staged corpus workflow is introduced.
+publication requirements are not enforced yet. The staged workflow records
+these observations; legacy benchmark runners do not yet consume them.
+
+## Staged corpus workflow
+
+`pipeline.py` provides the shared preparation, attempt, corpus, and run stages.
+Generated data defaults to the ignored `benchmark-data/` directory.
+Preparations and corpora use content-derived identifiers; runs use unique,
+append-only identifiers.
+
+Every tool invocation owns a unique attempt directory. Its atomic terminal
+record keeps process termination separate from XML validation, retains bounded
+stdout/stderr with full-stream checksums, and records timeout cleanup. Only a
+normal zero exit with structurally valid, checksummed srcDiff XML can be
+promoted into a corpus. Prepared inputs and corpus XML are checksum-verified
+again whenever consumed.
+
+Repository commands are documented in the
+[repository benchmark guide](repositories/README.md). An existing corpus can be
+replayed with a different srcMove executable without the source preparation or
+`srcdiff` being available.

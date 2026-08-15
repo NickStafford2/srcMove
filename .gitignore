@@ -8,5 +8,6 @@ compile_commands.json
 context-export.toml
 examples/
 profile-results/
+benchmark-data/
 benchmarks/bigclonebench/data/
 srcReader/

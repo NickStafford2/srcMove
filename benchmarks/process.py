@@ -1,0 +1,445 @@
+"""Failure-preserving process execution for benchmark attempts."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import signal
+import subprocess
+import threading
+import time
+import uuid
+import xml.etree.ElementTree as ET
+from collections.abc import Callable, Mapping, Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+from typing import Any
+
+from benchmarks.contracts import TerminationStatus, XmlStatus
+from benchmarks.provenance import observe_file, utc_now
+
+
+ATTEMPT_SCHEMA_VERSION = 1
+DEFAULT_LOG_LIMIT = 16 * 1024 * 1024
+DEFAULT_TIMEOUT_GRACE_SECONDS = 5.0
+SRCML_NAMESPACE = "http://www.srcML.org/srcML/src"
+SRCDIFF_NAMESPACES = {
+    "http://www.srcML.org/srcDiff",
+    "http://www.srcML.org/srcDiff/diff",
+}
+CommandFactory = Callable[[Path], Sequence[str | os.PathLike[str]]]
+XmlValidator = Callable[[Path], dict[str, Any]]
+
+
+def write_json_atomic(path: Path, value: Mapping[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_name(f".{path.name}.tmp-{os.getpid()}-{uuid.uuid4().hex}")
+    temporary.write_text(
+        json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    os.replace(temporary, path)
+
+
+@dataclass
+class BoundedCapture:
+    limit: int = DEFAULT_LOG_LIMIT
+    _head: bytearray = field(default_factory=bytearray)
+    _tail: bytearray = field(default_factory=bytearray)
+    _total: int = 0
+    _hasher: Any = field(default_factory=hashlib.sha256)
+
+    @property
+    def head_limit(self) -> int:
+        return self.limit // 2
+
+    @property
+    def tail_limit(self) -> int:
+        return self.limit - self.head_limit
+
+    def add(self, block: bytes) -> None:
+        self._total += len(block)
+        self._hasher.update(block)
+        head_remaining = max(0, self.head_limit - len(self._head))
+        self._head.extend(block[:head_remaining])
+        remainder = block[head_remaining:]
+        if remainder:
+            self._tail.extend(remainder)
+            if len(self._tail) > self.tail_limit:
+                del self._tail[: len(self._tail) - self.tail_limit]
+
+    def retained(self) -> bytes:
+        return bytes(self._head + self._tail)
+
+    def metadata(self, filename: str) -> dict[str, Any]:
+        retained = len(self._head) + len(self._tail)
+        return {
+            "path": filename,
+            "total_bytes": self._total,
+            "retained_bytes": retained,
+            "omitted_bytes": self._total - retained,
+            "truncated": retained < self._total,
+            "sha256": self._hasher.hexdigest(),
+        }
+
+
+def _drain(stream: Any, capture: BoundedCapture) -> None:
+    try:
+        while block := stream.read(64 * 1024):
+            capture.add(block)
+    finally:
+        stream.close()
+
+
+def _process_group_exists(process_group: int) -> bool:
+    if os.name != "posix":
+        return False
+    try:
+        os.killpg(process_group, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _process_exists(process_id: int) -> bool:
+    try:
+        os.kill(process_id, 0)
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    return True
+
+
+def _wait_for_process_group(
+    process: subprocess.Popen[bytes], deadline: float
+) -> bool:
+    while time.monotonic() < deadline:
+        process.poll()
+        leader_done = process.returncode is not None
+        group_done = os.name != "posix" or not _process_group_exists(process.pid)
+        if leader_done and group_done:
+            return True
+        time.sleep(0.01)
+    return False
+
+
+def _send_group_signal(process: subprocess.Popen[bytes], number: int) -> bool:
+    try:
+        if os.name == "posix":
+            os.killpg(process.pid, number)
+        else:
+            process.send_signal(number)
+    except ProcessLookupError:
+        return False
+    return True
+
+
+def _signal_name(number: int) -> str:
+    try:
+        return signal.Signals(number).name
+    except ValueError:
+        return f"SIGNAL_{number}"
+
+
+def validate_srcdiff_xml(path: Path, expected_shape: str) -> dict[str, Any]:
+    """Perform generic structural admission without dataset semantics."""
+
+    artifact = observe_file(path)
+    if artifact["status"] != "observed":
+        return {"status": XmlStatus.MISSING.value}
+    base = {
+        "size_bytes": artifact["size_bytes"],
+        "sha256": artifact["sha256"],
+    }
+    if artifact["size_bytes"] == 0:
+        return {"status": XmlStatus.EMPTY.value, **base}
+
+    namespaces = set()
+    try:
+        for _, namespace in ET.iterparse(path, events=("start-ns",)):
+            namespaces.add(namespace[1])
+        tree = ET.parse(path)
+    except (ET.ParseError, OSError) as error:
+        return {
+            "status": XmlStatus.MALFORMED.value,
+            "error": str(error),
+            **base,
+        }
+
+    root = tree.getroot()
+    if root.tag != f"{{{SRCML_NAMESPACE}}}unit":
+        return {
+            "status": XmlStatus.INVALID_STRUCTURE.value,
+            "error": "root must be a srcML unit element",
+            **base,
+        }
+    if not namespaces.intersection(SRCDIFF_NAMESPACES):
+        return {
+            "status": XmlStatus.INVALID_STRUCTURE.value,
+            "error": "srcDiff namespace declaration is missing",
+            **base,
+        }
+
+    child_units = [
+        child for child in root if child.tag == f"{{{SRCML_NAMESPACE}}}unit"
+    ]
+    if expected_shape == "archive" and not child_units:
+        return {
+            "status": XmlStatus.INVALID_STRUCTURE.value,
+            "error": "archive output must contain child unit elements",
+            **base,
+        }
+    if expected_shape == "single_file" and child_units:
+        return {
+            "status": XmlStatus.INVALID_STRUCTURE.value,
+            "error": "single-file output must not contain child unit elements",
+            **base,
+        }
+    if expected_shape not in {"archive", "single_file"}:
+        raise ValueError(f"unknown srcDiff XML shape: {expected_shape}")
+    return {"status": XmlStatus.VALID.value, **base}
+
+
+def execute_attempt(
+    *,
+    attempts_root: Path,
+    stage: str,
+    case_id: str,
+    command_factory: CommandFactory,
+    cwd: Path,
+    timeout_seconds: float,
+    xml_validator: XmlValidator,
+    output_filename: str,
+    log_limit: int = DEFAULT_LOG_LIMIT,
+    timeout_grace_seconds: float = DEFAULT_TIMEOUT_GRACE_SECONDS,
+    parent_attempt_id: str | None = None,
+    retry_ordinal: int = 0,
+    environment: Mapping[str, str] | None = None,
+) -> tuple[Path, dict[str, Any]]:
+    """Run one isolated attempt and atomically write exactly one terminal record."""
+
+    if log_limit < 2:
+        raise ValueError("log limit must be at least two bytes")
+    attempt_id = f"attempt-{uuid.uuid4()}"
+    attempt_dir = attempts_root / attempt_id
+    attempt_dir.mkdir(parents=True, exist_ok=False)
+    output_path = attempt_dir / output_filename
+    command = [os.fspath(part) for part in command_factory(output_path)]
+    started_at = utc_now()
+    effective_environment = os.environ if environment is None else environment
+    started = {
+        "schema_version": ATTEMPT_SCHEMA_VERSION,
+        "attempt_id": attempt_id,
+        "stage": stage,
+        "case_id": case_id,
+        "started_at": started_at,
+        "command": command,
+        "working_directory": str(cwd.expanduser().resolve()),
+        "timeout_seconds": timeout_seconds,
+        "timeout_grace_seconds": timeout_grace_seconds,
+        "parent_attempt_id": parent_attempt_id,
+        "retry_ordinal": retry_ordinal,
+        "output_path": output_filename,
+        "environment": {
+            key: effective_environment.get(key)
+            for key in ("PATH", "LANG", "LC_ALL", "TZ")
+            if effective_environment.get(key) is not None
+        },
+    }
+    write_json_atomic(attempt_dir / "started.json", started)
+
+    stdout_capture = BoundedCapture(log_limit)
+    stderr_capture = BoundedCapture(log_limit)
+    cleanup_signals: list[dict[str, Any]] = []
+    termination: dict[str, Any]
+    process: subprocess.Popen[bytes] | None = None
+    threads: list[threading.Thread] = []
+    start = time.monotonic()
+
+    try:
+        try:
+            process = subprocess.Popen(
+                command,
+                cwd=cwd,
+                env=dict(environment) if environment is not None else None,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                start_new_session=os.name == "posix",
+            )
+        except OSError as error:
+            termination = {
+                "status": TerminationStatus.SPAWN_FAILED.value,
+                "error": f"{type(error).__name__}: {error}",
+            }
+        else:
+            started["pid"] = process.pid
+            started["process_group"] = process.pid if os.name == "posix" else None
+            write_json_atomic(attempt_dir / "started.json", started)
+            assert process.stdout is not None
+            assert process.stderr is not None
+            threads = [
+                threading.Thread(
+                    target=_drain, args=(process.stdout, stdout_capture), daemon=True
+                ),
+                threading.Thread(
+                    target=_drain, args=(process.stderr, stderr_capture), daemon=True
+                ),
+            ]
+            for thread in threads:
+                thread.start()
+
+            completed = _wait_for_process_group(
+                process, start + max(0.0, timeout_seconds)
+            )
+            timed_out = not completed
+            if timed_out:
+                if _send_group_signal(process, signal.SIGTERM):
+                    cleanup_signals.append(
+                        {"number": signal.SIGTERM, "name": "SIGTERM"}
+                    )
+                completed = _wait_for_process_group(
+                    process, time.monotonic() + timeout_grace_seconds
+                )
+                if not completed and _send_group_signal(process, signal.SIGKILL):
+                    cleanup_signals.append(
+                        {"number": signal.SIGKILL, "name": "SIGKILL"}
+                    )
+                    _wait_for_process_group(process, time.monotonic() + 0.5)
+
+            returncode = process.wait()
+            if timed_out:
+                termination = {"status": TerminationStatus.TIMED_OUT.value}
+            elif returncode < 0:
+                number = -returncode
+                termination = {
+                    "status": TerminationStatus.SIGNALED.value,
+                    "signal_number": number,
+                    "signal_name": _signal_name(number),
+                }
+            else:
+                termination = {
+                    "status": TerminationStatus.EXITED.value,
+                    "exit_code": returncode,
+                }
+    except BaseException:
+        if process is not None and (
+            process.poll() is None or _process_group_exists(process.pid)
+        ):
+            if _send_group_signal(process, signal.SIGTERM):
+                cleanup_signals.append(
+                    {"number": signal.SIGTERM, "name": "SIGTERM"}
+                )
+            if not _wait_for_process_group(process, time.monotonic() + 1.0):
+                if _send_group_signal(process, signal.SIGKILL):
+                    cleanup_signals.append(
+                        {"number": signal.SIGKILL, "name": "SIGKILL"}
+                    )
+                    _wait_for_process_group(process, time.monotonic() + 0.5)
+            if process.poll() is None:
+                process.wait()
+        for thread in threads:
+            thread.join(timeout=5.0)
+        stdout_path = attempt_dir / "stdout.bin"
+        stderr_path = attempt_dir / "stderr.bin"
+        stdout_path.write_bytes(stdout_capture.retained())
+        stderr_path.write_bytes(stderr_capture.retained())
+        record = {
+            **started,
+            "completed_at": utc_now(),
+            "elapsed_seconds": time.monotonic() - start,
+            "termination": {
+                "status": TerminationStatus.ORCHESTRATION_INTERRUPTED.value
+            },
+            "cleanup_signals": cleanup_signals,
+            "stdout": stdout_capture.metadata(stdout_path.name),
+            "stderr": stderr_capture.metadata(stderr_path.name),
+            "xml": {"status": XmlStatus.NOT_CHECKED.value},
+            "admitted": False,
+        }
+        write_json_atomic(attempt_dir / "attempt.json", record)
+        raise
+
+    for thread in threads:
+        thread.join(timeout=5.0)
+    log_capture_complete = not any(thread.is_alive() for thread in threads)
+    stdout_path = attempt_dir / "stdout.bin"
+    stderr_path = attempt_dir / "stderr.bin"
+    stdout_path.write_bytes(stdout_capture.retained())
+    stderr_path.write_bytes(stderr_capture.retained())
+    xml = xml_validator(output_path)
+    admitted = (
+        termination["status"] == TerminationStatus.EXITED.value
+        and termination.get("exit_code") == 0
+        and xml["status"] == XmlStatus.VALID.value
+        and log_capture_complete
+    )
+    record = {
+        **started,
+        "completed_at": utc_now(),
+        "elapsed_seconds": time.monotonic() - start,
+        "termination": termination,
+        "cleanup_signals": cleanup_signals,
+        "resource_failure": (
+            "unknown_resource_failure"
+            if termination["status"] == TerminationStatus.SIGNALED.value
+            and termination.get("signal_number") == signal.SIGKILL
+            else None
+        ),
+        "process_tree_guarantee": "posix_process_group" if os.name == "posix" else "none",
+        "log_capture_complete": log_capture_complete,
+        "stdout": stdout_capture.metadata(stdout_path.name),
+        "stderr": stderr_capture.metadata(stderr_path.name),
+        "xml": xml,
+        "output_path": output_filename,
+        "admitted": admitted,
+    }
+    write_json_atomic(attempt_dir / "attempt.json", record)
+    return attempt_dir, record
+
+
+def recover_interrupted_attempts(attempts_root: Path) -> list[str]:
+    """Seal abandoned staging directories that have no terminal record."""
+
+    recovered = []
+    if not attempts_root.is_dir():
+        return recovered
+    for attempt_dir in sorted(attempts_root.glob("attempt-*")):
+        terminal_path = attempt_dir / "attempt.json"
+        started_path = attempt_dir / "started.json"
+        if terminal_path.exists() or not started_path.is_file():
+            continue
+        try:
+            started = json.loads(started_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            started = {
+                "schema_version": ATTEMPT_SCHEMA_VERSION,
+                "attempt_id": attempt_dir.name,
+            }
+        process_id = started.get("pid")
+        if isinstance(process_id, int) and _process_exists(process_id):
+            continue
+        record = {
+            **started,
+            "completed_at": utc_now(),
+            "termination": {
+                "status": TerminationStatus.ORCHESTRATION_INTERRUPTED.value
+            },
+            "cleanup_signals": [],
+            "stdout": {"status": "unavailable"},
+            "stderr": {"status": "unavailable"},
+            "elapsed_seconds": None,
+            "xml": {
+                "status": XmlStatus.NOT_CHECKED.value,
+                "partial_artifact": observe_file(
+                    attempt_dir / started.get("output_path", "partial.srcdiff.xml")
+                ),
+            },
+            "admitted": False,
+            "recovered": True,
+        }
+        write_json_atomic(terminal_path, record)
+        recovered.append(attempt_dir.name)
+    return recovered

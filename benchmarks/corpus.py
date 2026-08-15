@@ -1,0 +1,552 @@
+"""Immutable preparation, srcDiff corpus, and srcMove run stages."""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+import uuid
+from pathlib import Path
+from typing import Any, Mapping, Sequence
+
+from benchmarks.contracts import (
+    canonical_json,
+    DatasetAdapter,
+    PreparedCase,
+    RunMode,
+    SemanticStatus,
+    content_identifier,
+)
+from benchmarks.process import (
+    execute_attempt,
+    recover_interrupted_attempts,
+    validate_srcdiff_xml,
+    write_json_atomic,
+)
+from benchmarks.provenance import (
+    collect_run_observation,
+    observe_executable,
+    sha256_file,
+    utc_now,
+)
+
+
+PREPARATION_SCHEMA_VERSION = 1
+CORPUS_SCHEMA_VERSION = 1
+RUN_SCHEMA_VERSION = 1
+
+
+def _validate_case_id(case_id: str) -> None:
+    if not case_id or case_id in {".", ".."}:
+        raise ValueError("case id must not be empty")
+    if Path(case_id).name != case_id or "/" in case_id or "\\" in case_id:
+        raise ValueError("case id must be one safe path component")
+
+
+def _inventory(path: Path) -> tuple[str, list[dict[str, Any]]]:
+    resolved = path.expanduser().resolve()
+    if resolved.is_symlink():
+        raise ValueError(f"prepared input must not be a symbolic link: {resolved}")
+    if resolved.is_file():
+        return "file", [
+            {
+                "path": resolved.name,
+                "size_bytes": resolved.stat().st_size,
+                "sha256": sha256_file(resolved),
+            }
+        ]
+    if not resolved.is_dir():
+        raise ValueError(f"prepared input not found: {resolved}")
+
+    files = []
+    for candidate in sorted(resolved.rglob("*")):
+        if candidate.is_symlink():
+            raise ValueError(
+                f"prepared input tree must not contain symbolic links: {candidate}"
+            )
+        if candidate.is_file():
+            files.append(
+                {
+                    "path": candidate.relative_to(resolved).as_posix(),
+                    "size_bytes": candidate.stat().st_size,
+                    "sha256": sha256_file(candidate),
+                }
+            )
+    return "directory", files
+
+
+def _input_identity(path: Path) -> dict[str, Any]:
+    kind, files = _inventory(path)
+    return {"kind": kind, "files": files}
+
+
+def _copy_input(source: Path, destination: Path, identity: Mapping[str, Any]) -> str:
+    destination.mkdir(parents=True, exist_ok=False)
+    if identity["kind"] == "file":
+        target = destination / source.name
+        shutil.copy2(source, target)
+        return target.name
+    for entry in identity["files"]:
+        relative = Path(entry["path"])
+        target = destination / relative
+        target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source / relative, target)
+    return "."
+
+
+def _manifest_checksum(path: Path) -> str:
+    return sha256_file(path)
+
+
+def _observe_json(path: Path) -> dict[str, Any]:
+    if not path.is_file():
+        return {"status": "missing"}
+    observation = {
+        "path": path.name,
+        "sha256": sha256_file(path),
+        "size_bytes": path.stat().st_size,
+    }
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        return {"status": "malformed", "error": str(error), **observation}
+    if not isinstance(value, dict):
+        return {
+            "status": "malformed",
+            "error": "results root must be an object",
+            **observation,
+        }
+    return {"status": "valid", **observation}
+
+
+def _resolve_manifest(root: Path, kind: str, identifier_or_path: str | Path) -> Path:
+    supplied = Path(identifier_or_path)
+    if supplied.is_file():
+        return supplied.resolve()
+    if supplied.is_dir():
+        candidate = supplied / "manifest.json"
+        if candidate.is_file():
+            return candidate.resolve()
+    candidate = root / kind / os.fspath(identifier_or_path) / "manifest.json"
+    if not candidate.is_file():
+        raise FileNotFoundError(f"{kind} manifest not found: {identifier_or_path}")
+    return candidate.resolve()
+
+
+def _load_manifest(path: Path, schema_version: int, id_field: str) -> dict[str, Any]:
+    value = json.loads(path.read_text(encoding="utf-8"))
+    if not isinstance(value, dict) or value.get("schema_version") != schema_version:
+        raise ValueError(f"unsupported or malformed manifest: {path}")
+    if not isinstance(value.get(id_field), str):
+        raise ValueError(f"manifest is missing {id_field}: {path}")
+    return value
+
+
+def _verify_preparation(directory: Path, manifest: Mapping[str, Any]) -> None:
+    identity_payload = {
+        "schema_version": PREPARATION_SCHEMA_VERSION,
+        "adapter": manifest["adapter"],
+        "source": manifest["source"],
+        "filter_configuration": manifest["filter_configuration"],
+        "cases": [
+            {
+                key: case[key]
+                for key in ("case_id", "original", "modified", "metadata")
+            }
+            for case in manifest["cases"]
+        ],
+    }
+    expected_id = content_identifier("preparation", identity_payload)
+    expected_identity_checksum = hashlib.sha256(
+        canonical_json(identity_payload)
+    ).hexdigest()
+    if manifest["preparation_id"] != expected_id:
+        raise ValueError("preparation identity does not match its manifest")
+    if manifest["identity_sha256"] != expected_identity_checksum:
+        raise ValueError("preparation identity checksum does not match its manifest")
+    for case in manifest["cases"]:
+        original = directory / case["original_path"]
+        modified = directory / case["modified_path"]
+        if _input_identity(original) != case["original"]:
+            raise ValueError(f"prepared original input checksum mismatch: {case['case_id']}")
+        if _input_identity(modified) != case["modified"]:
+            raise ValueError(f"prepared modified input checksum mismatch: {case['case_id']}")
+
+
+def _verify_corpus(directory: Path, manifest: Mapping[str, Any]) -> None:
+    artifact = manifest["srcdiff"].get("artifact", {})
+    accepted_checksums = [
+        {"case_id": case["case_id"], "sha256": case["xml"]["sha256"]}
+        for case in manifest["cases"]
+        if case["generation_status"] == "accepted"
+    ]
+    expected_id = content_identifier(
+        "corpus",
+        {
+            "schema_version": CORPUS_SCHEMA_VERSION,
+            "preparation_identity_sha256": manifest[
+                "preparation_identity_sha256"
+            ],
+            "srcdiff_sha256": artifact.get("sha256"),
+            "generation_configuration": manifest["generation_configuration"],
+            "accepted_xml": accepted_checksums,
+        },
+    )
+    if manifest["corpus_id"] != expected_id:
+        raise ValueError("corpus identity does not match its manifest")
+    for case in manifest["cases"]:
+        if case["generation_status"] != "accepted":
+            continue
+        input_path = directory / case["input_path"]
+        if not input_path.is_file() or sha256_file(input_path) != case["xml"]["sha256"]:
+            raise ValueError(f"corpus input checksum mismatch: {case['case_id']}")
+
+
+def create_preparation(
+    *,
+    data_root: Path,
+    adapter: DatasetAdapter,
+    source: Mapping[str, Any],
+    filter_configuration: Mapping[str, Any] | None = None,
+) -> tuple[Path, dict[str, Any]]:
+    cases = list(adapter.prepare())
+    if not cases:
+        raise ValueError("dataset adapter produced no cases")
+
+    identities = []
+    for case in cases:
+        _validate_case_id(case.case_id)
+        identities.append(
+            {
+                "case_id": case.case_id,
+                "original": _input_identity(case.original),
+                "modified": _input_identity(case.modified),
+                "metadata": dict(case.metadata),
+            }
+        )
+    identity_payload = {
+        "schema_version": PREPARATION_SCHEMA_VERSION,
+        "adapter": {"name": adapter.name, "version": adapter.version},
+        "source": dict(source),
+        "filter_configuration": dict(filter_configuration or {}),
+        "cases": identities,
+    }
+    preparation_id = content_identifier("preparation", identity_payload)
+    final_dir = data_root / "preparations" / preparation_id
+    if final_dir.is_dir():
+        manifest = _load_manifest(
+            final_dir / "manifest.json", PREPARATION_SCHEMA_VERSION, "preparation_id"
+        )
+        _verify_preparation(final_dir, manifest)
+        return final_dir, manifest
+
+    staging = data_root / "preparations" / f".staging-{uuid.uuid4()}"
+    staging.mkdir(parents=True, exist_ok=False)
+    manifest_cases = []
+    try:
+        for case, identity in zip(cases, identities, strict=True):
+            case_root = staging / "sources" / case.case_id
+            original_path = _copy_input(
+                case.original, case_root / "original", identity["original"]
+            )
+            modified_path = _copy_input(
+                case.modified, case_root / "modified", identity["modified"]
+            )
+            manifest_cases.append(
+                {
+                    **identity,
+                    "original_path": (
+                        Path("sources") / case.case_id / "original" / original_path
+                    ).as_posix(),
+                    "modified_path": (
+                        Path("sources") / case.case_id / "modified" / modified_path
+                    ).as_posix(),
+                }
+            )
+        manifest = {
+            "schema_version": PREPARATION_SCHEMA_VERSION,
+            "preparation_id": preparation_id,
+            "identity_sha256": hashlib.sha256(canonical_json(identity_payload)).hexdigest(),
+            "created_at": utc_now(),
+            "adapter": identity_payload["adapter"],
+            "source": identity_payload["source"],
+            "filter_configuration": identity_payload["filter_configuration"],
+            "counts": {"selected": len(manifest_cases)},
+            "cases": manifest_cases,
+        }
+        write_json_atomic(staging / "manifest.json", manifest)
+        final_dir.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(staging, final_dir)
+        return final_dir, manifest
+    except BaseException:
+        if staging.exists():
+            shutil.rmtree(staging)
+        raise
+
+
+def generate_corpus(
+    *,
+    data_root: Path,
+    preparation: str | Path,
+    srcdiff: Path,
+    timeout_seconds: float,
+    use_position: bool = False,
+    use_archive: bool = True,
+    source_encoding: str = "UTF-8",
+) -> tuple[Path, dict[str, Any]]:
+    preparation_manifest_path = _resolve_manifest(
+        data_root, "preparations", preparation
+    )
+    preparation_manifest = _load_manifest(
+        preparation_manifest_path, PREPARATION_SCHEMA_VERSION, "preparation_id"
+    )
+    preparation_dir = preparation_manifest_path.parent
+    _verify_preparation(preparation_dir, preparation_manifest)
+    attempts_root = data_root / "attempts"
+    attempts_root.mkdir(parents=True, exist_ok=True)
+    recover_interrupted_attempts(attempts_root)
+    srcdiff_observation = observe_executable(srcdiff)
+    generation_configuration = {
+        "position": use_position,
+        "archive": use_archive,
+        "source_encoding": source_encoding,
+        "timeout_seconds": timeout_seconds,
+    }
+
+    case_records = []
+    accepted_checksums = []
+    for case in preparation_manifest["cases"]:
+        original = preparation_dir / case["original_path"]
+        modified = preparation_dir / case["modified_path"]
+
+        def command(output: Path) -> Sequence[str]:
+            value = [str(srcdiff)]
+            if use_position:
+                value.append("--position")
+            if use_archive:
+                value.append("--archive")
+            if source_encoding:
+                value.extend(["--src-encoding", source_encoding])
+            value.extend([str(original), str(modified), "-o", str(output)])
+            return value
+
+        attempt_dir, attempt = execute_attempt(
+            attempts_root=attempts_root,
+            stage="srcdiff",
+            case_id=case["case_id"],
+            command_factory=command,
+            cwd=preparation_dir,
+            timeout_seconds=timeout_seconds,
+            xml_validator=lambda path: validate_srcdiff_xml(
+                path, "archive" if use_archive else "single_file"
+            ),
+            output_filename="partial.srcdiff.xml",
+        )
+        case_record = {
+            "case_id": case["case_id"],
+            "metadata": case["metadata"],
+            "attempt_id": attempt["attempt_id"],
+            "generation_status": "accepted" if attempt["admitted"] else "failed",
+            "xml": attempt["xml"],
+            "semantic_status": SemanticStatus.NOT_APPLICABLE.value,
+            "attempt_path": str(attempt_dir.relative_to(data_root)),
+        }
+        if attempt["admitted"]:
+            accepted_checksums.append(
+                {"case_id": case["case_id"], "sha256": attempt["xml"]["sha256"]}
+            )
+        case_records.append(case_record)
+
+    artifact = srcdiff_observation.get("artifact", {})
+    identity_payload = {
+        "schema_version": CORPUS_SCHEMA_VERSION,
+        "preparation_identity_sha256": preparation_manifest["identity_sha256"],
+        "srcdiff_sha256": artifact.get("sha256"),
+        "generation_configuration": generation_configuration,
+        "accepted_xml": accepted_checksums,
+    }
+    corpus_id = content_identifier("corpus", identity_payload)
+    final_dir = data_root / "corpora" / corpus_id
+    if final_dir.is_dir():
+        manifest = _load_manifest(
+            final_dir / "manifest.json", CORPUS_SCHEMA_VERSION, "corpus_id"
+        )
+        _verify_corpus(final_dir, manifest)
+        return final_dir, manifest
+
+    staging = data_root / "corpora" / f".staging-{uuid.uuid4()}"
+    staging.mkdir(parents=True, exist_ok=False)
+    try:
+        promoted_cases = []
+        records_by_id = {record["case_id"]: record for record in case_records}
+        for case in preparation_manifest["cases"]:
+            record = records_by_id[case["case_id"]]
+            promoted = dict(record)
+            if record["generation_status"] == "accepted":
+                source_xml = (
+                    data_root
+                    / record["attempt_path"]
+                    / "partial.srcdiff.xml"
+                )
+                case_dir = staging / "cases" / case["case_id"]
+                case_dir.mkdir(parents=True)
+                shutil.copy2(source_xml, case_dir / "input.srcdiff.xml")
+                promoted["input_path"] = (
+                    Path("cases") / case["case_id"] / "input.srcdiff.xml"
+                ).as_posix()
+                write_json_atomic(case_dir / "case.json", promoted)
+            promoted_cases.append(promoted)
+        manifest = {
+            "schema_version": CORPUS_SCHEMA_VERSION,
+            "corpus_id": corpus_id,
+            "created_at": utc_now(),
+            "preparation_id": preparation_manifest["preparation_id"],
+            "adapter": preparation_manifest["adapter"],
+            "source": preparation_manifest["source"],
+            "filter_configuration": preparation_manifest["filter_configuration"],
+            "preparation_identity_sha256": identity_payload[
+                "preparation_identity_sha256"
+            ],
+            "observed_preparation_manifest_sha256": _manifest_checksum(
+                preparation_manifest_path
+            ),
+            "srcdiff": srcdiff_observation,
+            "generation_configuration": generation_configuration,
+            "counts": {
+                "selected": len(promoted_cases),
+                "accepted": sum(
+                    case["generation_status"] == "accepted"
+                    for case in promoted_cases
+                ),
+                "failed": sum(
+                    case["generation_status"] == "failed" for case in promoted_cases
+                ),
+            },
+            "cases": promoted_cases,
+        }
+        write_json_atomic(staging / "manifest.json", manifest)
+        final_dir.parent.mkdir(parents=True, exist_ok=True)
+        os.replace(staging, final_dir)
+        return final_dir, manifest
+    except BaseException:
+        if staging.exists():
+            shutil.rmtree(staging)
+        raise
+
+
+def run_corpus(
+    *,
+    data_root: Path,
+    corpus: str | Path,
+    srcmove: Path,
+    timeout_seconds: float,
+    mode: RunMode = RunMode.DEVELOPMENT,
+) -> tuple[Path, dict[str, Any]]:
+    corpus_manifest_path = _resolve_manifest(data_root, "corpora", corpus)
+    corpus_manifest = _load_manifest(
+        corpus_manifest_path, CORPUS_SCHEMA_VERSION, "corpus_id"
+    )
+    corpus_dir = corpus_manifest_path.parent
+    _verify_corpus(corpus_dir, corpus_manifest)
+    recover_interrupted_attempts(data_root / "attempts")
+    for prior_run_attempts in (data_root / "runs").glob("*/attempts"):
+        recover_interrupted_attempts(prior_run_attempts)
+    run_id = f"run-{utc_now().replace(':', '').replace('+', '-')}-{uuid.uuid4()}"
+    final_dir = data_root / "runs" / run_id
+    final_dir.mkdir(parents=True, exist_ok=False)
+    case_records = []
+    input_paths = {
+        case["case_id"]: corpus_dir / case["input_path"]
+        for case in corpus_manifest["cases"]
+        if case["generation_status"] == "accepted"
+    }
+    observation = collect_run_observation(
+        mode=mode,
+        repositories={},
+        executables={"srcMove": srcmove},
+        inputs=input_paths,
+    )
+    try:
+        for case_id, input_xml in input_paths.items():
+
+            def command(output: Path) -> Sequence[str]:
+                return [
+                    str(srcmove),
+                    str(input_xml),
+                    str(output),
+                    "--results",
+                    str(output.parent / "results.json"),
+                ]
+
+            attempt_dir, attempt = execute_attempt(
+                attempts_root=final_dir / "attempts",
+                stage="srcmove",
+                case_id=case_id,
+                command_factory=command,
+                cwd=corpus_dir,
+                timeout_seconds=timeout_seconds,
+                xml_validator=lambda path: validate_srcdiff_xml(
+                    path,
+                    "archive"
+                    if corpus_manifest["generation_configuration"]["archive"]
+                    else "single_file",
+                ),
+                output_filename="srcmove.xml",
+            )
+            results_path = attempt_dir / "results.json"
+            results = _observe_json(results_path)
+            if results["status"] != "missing":
+                results["path"] = str(results_path.relative_to(final_dir))
+            completed = attempt["admitted"] and results["status"] == "valid"
+            case_records.append(
+                {
+                    "case_id": case_id,
+                    "attempt_id": attempt["attempt_id"],
+                    "status": "completed" if completed else "failed",
+                    "input_sha256": sha256_file(input_xml),
+                    "xml": attempt["xml"],
+                    "results": results,
+                }
+            )
+        manifest = {
+            "schema_version": RUN_SCHEMA_VERSION,
+            "run_id": run_id,
+            "created_at": utc_now(),
+            "status": "completed",
+            "mode": mode.value,
+            "corpus_id": corpus_manifest["corpus_id"],
+            "corpus_manifest_sha256": _manifest_checksum(corpus_manifest_path),
+            "timeout_seconds": timeout_seconds,
+            "observation": observation,
+            "counts": {
+                "corpus_selected": len(corpus_manifest["cases"]),
+                "corpus_accepted": len(input_paths),
+                "corpus_failed": sum(
+                    case["generation_status"] == "failed"
+                    for case in corpus_manifest["cases"]
+                ),
+                "executed": len(case_records),
+                "completed": sum(
+                    case["status"] == "completed" for case in case_records
+                ),
+                "failed": sum(case["status"] == "failed" for case in case_records),
+            },
+            "cases": case_records,
+        }
+        write_json_atomic(final_dir / "run.json", manifest)
+        return final_dir, manifest
+    except BaseException:
+        write_json_atomic(
+            final_dir / "run.json",
+            {
+                "schema_version": RUN_SCHEMA_VERSION,
+                "run_id": run_id,
+                "mode": mode.value,
+                "corpus_id": corpus_manifest["corpus_id"],
+                "status": "orchestration_interrupted",
+                "completed_at": utc_now(),
+                "cases": case_records,
+            },
+        )
+        raise
