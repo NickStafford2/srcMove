@@ -106,9 +106,12 @@ rate. Once the conversion and oracle are defensible, useful failures can be
 minimized into small checked-in regression tests while the generated suite
 continues to provide breadth.
 
-## Recommended Sampling Query
+## Exploratory Query and Thesis Selection
 
-Start with a deterministic exact/Type-2 sample:
+The following ordered query is useful for smoke tests and debugging, beginning
+with Type-1. Its first `LIMIT` rows are a deterministic convenience slice, not a
+random or representative sample and not a basis for inference about the wider
+eligible population:
 
 ```sql
 SELECT
@@ -141,6 +144,24 @@ internal = FALSE/TRUE          default BigCloneEval rows vs internal rows
 f1.project = f2.project        intra-project rows
 f1.project != f2.project       inter-project rows
 ```
+
+Before a thesis evaluation, choose and freeze one of two defensible designs:
+
+- a census of a precisely declared eligible population
+- a seeded sample from a declared frame, stratified where needed by clone type,
+  functionality, size, raw-text relationship, or project relationship
+
+The selection manifest must preserve the exact query and parameters, database
+checksum, ordered eligible and selected row IDs, pre/post-deduplication counts,
+sampling seed and strata when applicable, and generator/oracle versions. Report
+functionality coverage and distinct raw-text-pair coverage so repeated clone rows
+cannot masquerade as independent variety.
+
+BigCloneBench treats clone pairs as unordered, but the synthetic edit has a
+direction. The evaluation must declare whether `(A, B)` means only deleting A and
+inserting B, whether both directions are evaluated, or whether a canonical
+direction is chosen. Keep cases used to tune srcMove identifiable and freeze a
+separate evaluation census or sample for the final thesis result.
 
 ## Practical Test Layout
 

@@ -6,6 +6,12 @@ This document is a plan, not a description of implemented behavior. The current
 commands and output formats remain documented in the
 [benchmark index](../benchmarks/README.md).
 
+BigCloneBench is not installed in the current workspace, and the large
+BigCloneBench and repository workloads have not been rerun since the current
+srcMove refactor. Previously archived results are historical evidence, not a
+validation baseline for the refactored implementation. This plan does not
+authorize downloading or running large datasets as part of implementation.
+
 The goal is to turn srcMove's early benchmark scripts into a reproducible,
 inspectable evaluation system suitable for master's thesis results without
 making normal development across srcML, srcDiff, srcReader, and srcMove
@@ -99,7 +105,13 @@ instability do not distort srcMove timing.
    silently overwrite a previous summary.
 7. **Report denominators and exclusions.** Skipped languages, files, duplicate
    pairs, invalid cases, and tool failures must remain visible.
-8. **Keep one source of truth.** Methodology belongs in `doc/`; operational
+8. **Build one orchestration core.** Repository and BigCloneBench workflows are
+   adapters over the same preparation, attempt, corpus, run, and reporting
+   abstractions.
+9. **Separate tuning from evaluation.** Cases used to diagnose and tune srcMove
+   must remain identifiable; a thesis claim should use a frozen census or a
+   separately declared evaluation sample.
+10. **Keep one source of truth.** Methodology belongs in `doc/`; operational
    commands belong in the relevant `benchmarks/**/README.md`; schemas belong
    beside their implementation.
 
@@ -118,7 +130,7 @@ repository revisions or BigCloneBench rows
                          v
              exit/output/XML validation
        /                              \
-valid checksummed XML             incident record
+valid checksummed XML      failed terminal attempt (incident)
        |                    (exit/signal/timeout/XML error)
        v
 atomic promotion into corpus
@@ -152,6 +164,17 @@ conceptual layout is:
 
 ```text
 benchmark-data/
+  preparations/
+    <preparation-id>/
+      manifest.json
+      sources/                 # retained inputs when licensing permits
+      external-artifacts.json  # immutable references otherwise
+  attempts/
+    <attempt-id>/
+      attempt.json
+      stdout.bin
+      stderr.bin
+      partial.srcdiff.xml
   corpora/
     <corpus-id>/
       manifest.json
@@ -159,14 +182,6 @@ benchmark-data/
         <case-id>/
           input.srcdiff.xml
           case.json
-          srcdiff.stdout.txt
-          srcdiff.stderr.txt
-  incidents/
-    <incident-id>/
-      incident.json
-      srcdiff.stdout.txt
-      srcdiff.stderr.txt
-      partial.srcdiff.xml
   runs/
     <run-id>/
       run.json
@@ -176,7 +191,25 @@ benchmark-data/
 ```
 
 Exact names may change during implementation, but the separation between
-corpora, incidents, and runs should remain.
+prepared inputs, execution attempts, accepted corpora, and evaluation runs
+should remain. An incident is a failed terminal attempt, not a second execution
+record with a competing schema.
+
+### Prepared source manifest
+
+A preparation is the exact input offered to srcDiff. Its manifest records the
+source origin and revisions, selected scope, post-filter file inventory and
+checksums, filtering policy, preparation-tool version, and retained-source or
+external-artifact location. Repository exports may be retained locally;
+BigCloneBench material may instead require a verified external reference because
+of size or redistribution constraints. Either form must make replay possible
+without relying on a mutable checkout.
+
+Preparation identity is content-derived from a documented canonical identity
+payload. Machine-specific paths, timestamps, and labels are metadata and do not
+change the identity. The payload includes the schema version, ordered input
+checksums, source revisions or dataset identity, selected scope, and filter
+configuration.
 
 ### Observed source and artifact state
 
@@ -245,13 +278,22 @@ match the workspace lock.
 Each srcDiff corpus records:
 
 - schema version and stable corpus identifier
+- preparation identifier and manifest checksum
 - source dataset or repository URLs and exact revisions
 - selected subdirectories and explicit include/exclude policy
 - file counts, language counts, byte counts, and excluded-file counts
 - srcML/srcDiff build receipt and verification status, or an explicitly
   unverified observed-artifact snapshot, plus the exact command
-- per-case XML checksum, byte size, validity, and generation status
+- per-case attempt identifier, XML checksum, byte size, validity, and generation
+  status
 - dataset-specific metadata, including BigCloneBench database/corpus identity
+
+The corpus identifier is the hash of a canonical identity payload containing the
+schema version, preparation-manifest checksum, srcML/srcDiff artifact checksums,
+generation configuration, and ordered accepted-case XML checksums. It excludes
+timestamps, labels, absolute paths, and logs. An implementation must test that
+copying the same content to another generated root preserves the identifier and
+that changing any identity input changes it.
 
 ### Run manifest
 
@@ -265,6 +307,7 @@ Each srcMove run records:
 - command, environment, timestamps, and exit status
 - development or publication mode
 - warmup, repetition, ordering, timeout, and resource-measurement policy
+- runner, validator, and dataset-specific oracle versions or checksums
 - validation result and paths to raw measurements
 
 The run directory should contain a copy or immutable snapshot of critical
@@ -284,6 +327,8 @@ Development runs use the binaries already available. They should:
 - continue when the run remains technically possible
 - clearly label results as development data
 - never switch branches, clean repositories, or rebuild unrelated projects
+- never fetch, clone, or refresh a benchmark repository unless preparation was
+  explicitly requested; corpus replay should work offline
 
 Dirty development results can be useful for comparison and diagnosis, but are
 not publication-ready unless the tested patch is preserved.
@@ -300,6 +345,8 @@ Publication mode is explicit. It should:
 - consume immutable, checksummed inputs
 - write an append-only result directory
 - fail when required provenance is missing
+- record host CPU, memory, kernel, container identity and limits, locale,
+  timezone, and measurement-tool versions for performance claims
 
 Builds should be cached by their source and configuration identity. A
 publication run may reuse a verified matching build; it need not rebuild all
@@ -424,6 +471,11 @@ Report Type-1 and Type-2 separately. At minimum include:
 
 - eligible, selected, generated, executed, passed, and failed counts
 - distinct raw-text-pair count and deduplication policy
+- declared population or sampling frame, exact eligibility query, ordering,
+  candidate count, and census or sampling method
+- seed and strata for a random sample, or an explicit statement that a
+  deterministic convenience slice does not estimate the wider population
+- pair-direction policy and functionality-group coverage
 - srcDiff tool failures, srcDiff semantic-ineligibility outcomes, and srcMove
   detection misses as separate categories
 - strict versus encoding-tolerant validation
@@ -444,6 +496,14 @@ Report an end-to-end rate over generated cases and a conditional srcMove rate
 over cases where srcDiff exposed the intended candidate regions. A valid XML
 document that aligned away or otherwise failed to expose the payload is an
 upstream semantic-ineligibility outcome, not a srcMove miss.
+
+The selection manifest must preserve the BigCloneBench database checksum, H2 and
+Java identities, exact query and parameters, ordered selected row identifiers,
+selected source-file checksums, extraction/decoding policy, generator checksum,
+and oracle checksum. If cases are directed from fragment one to fragment two,
+say so; if direction is intended to be irrelevant, canonicalize or evaluate both
+directions. Results used during algorithm tuning remain labeled as tuning data
+and are not silently reused as a held-out thesis evaluation.
 
 ### Repository evaluation
 
@@ -468,16 +528,38 @@ Retain both raw observations and summaries. Prefer:
 - warmups plus multiple measured repetitions
 - median and distribution/dispersion, not only a mean
 - identical input checksums when comparing srcMove revisions
+- paired, interleaved revision execution with a recorded randomization seed
+- host and container resource identity and measurement-tool versions
 
-Case ordering and cache policy must be stable or recorded. Performance failures
-must remain rows in the raw dataset instead of disappearing from summaries.
+Use a recorded paired/interleaved schedule so one revision is not always favored
+by warm caches, thermal state, or run order. Cache policy must be controlled or
+recorded. Report raw observations and at least median plus an explicit dispersion
+measure such as IQR or MAD. Performance failures and timeouts remain rows in the
+raw dataset instead of disappearing from summaries; exclusions and censored
+measurements must be counted.
 
 ## Implementation Phases
 
-### Phase 1: Schemas and provenance foundation
+### Phase 0: Freeze the current baseline and contracts
 
-- Define versioned observed-state, build-receipt, corpus-manifest, incident, and
-  run-manifest schemas.
+- Inventory current runner interfaces, ignored output locations, and historical
+  result archives without treating old large-run counts as current expectations.
+- Add tiny checked-in source/srcDiff fixtures and fake executables for the
+  orchestration outcomes in the testing strategy.
+- Freeze the initial status vocabulary, identity rules, and dataset-adapter
+  boundary before moving outputs.
+- Record that BigCloneBench is an external manual prerequisite; preflight may
+  explain its absence but must not download it.
+
+**Complete when:** the legacy commands and historical artifacts are identified,
+the refactored code has a tiny offline characterization path, and no acceptance
+criterion depends on an unavailable large dataset or a pre-refactor pass count.
+
+### Phase 1: Minimum provenance foundation
+
+- Define only the versioned observed-state and build-receipt core plus the shared
+  identifiers/status fields needed by the first vertical slice. Add later schema
+  fields with the phase that consumes them rather than designing unused formats.
 - Add a read-only collector for repository state, binaries, and environment. It
   may validate a build-time receipt but must not infer a source-to-binary binding.
 - Add cheap build-time receipt emission to the supported build path, with the
@@ -493,7 +575,11 @@ unverified.
 
 ### Phase 2: Safe staged corpus vertical slice
 
+- Implement one generic preparation/attempt/corpus/run core and a repository
+  adapter; do not create dataset-specific orchestration paths.
 - Split repository preparation, srcDiff corpus generation, and srcMove execution.
+- Define the minimum preparation, attempt, corpus, and run schemas as their first
+  real artifacts are implemented.
 - Run each srcDiff attempt in a unique staging directory.
 - Implement the process execution contract, including timeout cleanup, bounded
   logs, termination fields, structural XML admission, and interrupted-attempt
@@ -509,7 +595,8 @@ unverified.
 **Complete when:** srcMove can be rerun or compared across revisions without
 rerunning srcDiff, every srcDiff invocation has one terminal attempt record, and
 no missing, partial, malformed, timed-out, signaled, or nonzero-exit output can
-appear as a corpus case.
+appear as a corpus case. Hiding the source repositories and `srcdiff` executable
+after corpus creation must not break srcMove replay.
 
 ### Phase 3: Resumability and srcDiff investigation tooling
 
@@ -520,6 +607,8 @@ appear as a corpus case.
 - Extend resource-exhaustion detection and peak-memory reporting where the
   environment supports them.
 - Add single-file replay and archive-subset isolation tooling.
+- Make network refresh explicit and support offline reuse of cached repository
+  preparations and corpora.
 
 **Complete when:** interrupted or partially failing batches resume without
 repeating completed work or losing evidence, and a failed repository case can be
@@ -539,28 +628,41 @@ architecture.
   outcome to srcMove.
 - Store each run summary under its run identifier instead of overwriting one
   shared `summary.csv`.
-- Preserve deterministic selection and the existing positional/text oracle.
+- Define the eligible population, pair direction, census or sampling method,
+  tuning/evaluation split, and selection-manifest fields before reporting a rate.
+- Preserve reproducible selection and version the positional/text and srcDiff
+  semantic-eligibility oracles.
 - Report the synthetic positive-case detection rate and strata with tool
   failures separated from misses.
 - Preserve BigCloneBench's known false-positive pairs as a documented future
   negative-case source; do not make their conversion a prerequisite for the
   positive-case migration.
 
-**Complete when:** the same generated corpus can evaluate multiple srcMove
-builds with immutable manifests and comparable summaries, and every generated
-case is classified separately as an upstream tool failure, srcDiff semantic
-ineligibility, srcMove miss, or oracle pass.
+**Infrastructure complete when:** tiny fixture-backed tests prove that the same
+generated corpus can evaluate multiple srcMove builds with immutable manifests,
+reconciled counts, and separate upstream failure, srcDiff semantic-ineligibility,
+srcMove miss, and oracle-pass outcomes.
+
+**Dataset validation complete when:** an explicitly installed and checksummed
+BigCloneBench distribution passes preflight, Type-1 is evaluated first under a
+frozen selection/oracle specification, and Type-2 is enabled only after the
+Type-1 pipeline and reporting are accepted. This validation is a deliberate
+external run, not part of ordinary implementation testing.
 
 ### Phase 5: Performance measurement
 
 - Extend the current internal profiler runner rather than creating a competing
   timing path.
-- Add external wall/CPU time, peak memory, workload sizes, warmups, and stable
-  repeated measurements.
+- Add external wall/CPU time, peak memory, workload sizes, warmups, and repeated
+  measurements.
+- Generate a recorded paired/interleaved schedule with a reproducible seed when
+  comparing revisions.
 - Produce raw CSV or JSON rows plus a machine-readable summary.
 
 **Complete when:** two srcMove revisions can be fairly compared on identical
-inputs with sufficient provenance to reproduce the comparison.
+input checksums, neither revision always runs first, environment and cache policy
+are recorded, failures remain raw rows, and the comparison can be reproduced
+from its manifest.
 
 ### Phase 6: Publication workflow
 
@@ -569,25 +671,32 @@ inputs with sufficient provenance to reproduce the comparison.
 - Build or reuse verified artifacts in isolation from active development.
 - Generate a compact thesis archive containing manifests, summaries, and the
   checksums/locations of large external artifacts.
+- Add an archive-verification command that validates schemas, checksums,
+  provenance status, count reconciliation, and external-artifact references
+  without consulting mutable `latest` paths.
 
 **Complete when:** one command can either produce a self-describing thesis run
-or stop before measurement with a precise unmet precondition.
+or stop before measurement with a precise unmet precondition, and a second clean
+environment can verify the resulting compact archive.
 
 ### Phase 7: Scale progression
 
 Increase scale only after the preceding layers are reliable:
 
 1. tiny hand-authored and generated smoke cases
-2. small BigCloneBench Type-1 sample
-3. zlib or Notepad++ repository pair
-4. larger BigCloneBench Type-1 and Type-2 slices
-5. srcMove, SQLite, or similar medium repositories
+2. zlib or Notepad++ repository pair
+3. srcMove, SQLite, or similar medium repositories
+4. small BigCloneBench Type-1 sample after its external prerequisite is installed
+5. larger BigCloneBench Type-1, then Type-2, slices
 6. OpenCV or a Linux subsystem
 7. two exact full Linux kernel revisions
 
 Each tier should establish expected runtime, storage, and failure behavior before
 advancing. Full-kernel execution is a final scale target, not the first test of
-the infrastructure.
+the infrastructure. Before running a tier, declare its case count, timeout and
+storage budgets, and acceptable failure classes. Advance only after all counts
+reconcile, replay succeeds, and no unexplained orchestration failure remains;
+expected tool limitations may remain when they are classified and reported.
 
 ## Testing Strategy for the Infrastructure
 
@@ -612,17 +721,83 @@ the real toolchain. Cover:
 - strict publication rejection
 - interrupted batch resume
 - preservation of earlier run directories
+- identical content producing the same preparation/corpus identity after moving
+  the generated root
+- an identity-changing input producing a different identifier
+- srcMove corpus replay with source repositories and `srcdiff` unavailable
+- exact reconciliation of selected, excluded, failed, eligible, executed, and
+  scored counts
+- reproducible paired/interleaved performance ordering
 
 Keep a small real integration case for srcDiff-to-srcMove behavior. BigCloneBench
 and repository-scale data remain outside the deterministic default test suite.
 
+## Cross-Phase Acceptance Invariants
+
+These conditions apply throughout implementation rather than belonging to one
+late publication phase:
+
+- Every process invocation has exactly one recoverable terminal attempt record.
+- Only structurally admitted, checksummed srcDiff output appears in a corpus.
+- Prepared inputs, accepted corpus data, and run results are immutable once
+  referenced by a completed manifest.
+- All generated identifiers follow one documented canonicalization algorithm and
+  are independent of absolute paths and timestamps.
+- Every aggregate reconciles to raw rows; failures, exclusions, and semantic
+  ineligibility never disappear from the denominator accounting.
+- Dataset adapters add metadata and semantic validation but use the shared
+  execution, provenance, storage, and reporting core.
+- Development mode does not fetch, switch, clean, rebuild, or modify sibling
+  repositories implicitly.
+- Publication output contains immutable provenance snapshots and verifies without
+  a mutable workspace lock, current checkout, or `latest` result.
+
+## Risks and Mitigations
+
+- **Sampling bias:** ordered first-N BigCloneBench rows can overrepresent repeated
+  functionality. Use a declared census or seeded stratified sample and report
+  distinct text-pair and functionality coverage.
+- **Benchmark overfitting:** promoting failures into regressions can tune srcMove
+  to the evaluation set. Label tuning cases and freeze a separate evaluation
+  census or sample before the thesis run.
+- **srcDiff confounding:** valid XML may omit the intended candidate. Preserve
+  end-to-end and conditional srcMove results with semantic eligibility explicit.
+- **Timeout censoring:** timeouts can make a faster tool appear more reliable or
+  remove hard cases from summaries. Preserve them as rows and report the timeout
+  policy and censored count.
+- **Schema or oracle drift:** changed validators can alter results without a code
+  change. Version schemas, generators, and oracles and reject silent mixing.
+- **Measurement bias:** fixed revision order, cache warmth, host load, and thermal
+  state can distort comparisons. Use paired/interleaved ordering and record the
+  environment and cache policy.
+- **Storage and corruption:** XML corpora and partial outputs can be large. Use
+  checksums, atomic writes, explicit retention, optional transparent compression,
+  and a verification command before reuse.
+- **Licensing and redistribution:** repository exports and BigCloneBench data may
+  not be suitable for a thesis archive. Archive manifests, checksums, acquisition
+  instructions, and permitted artifacts rather than assuming sources can be
+  redistributed.
+- **False provenance confidence:** a nearby clean checkout does not identify a
+  binary's source. Require build-time receipts for verified claims and label
+  everything else honestly.
+- **External-tool concurrency:** BigCloneBench H2 access and large repository runs
+  may have locking or resource contention. Serialize constrained stages and
+  record any configured concurrency.
+
 ## Decisions to Resolve During Implementation
 
-- final schema representation and generated-data root name
+- final schema representation, canonical identity encoding, and generated-data
+  root name
+- schema compatibility/migration policy and rules for comparing results produced
+  by different oracle versions
 - compression policy for large srcDiff XML and transparent replay
+- attempt, preparation, corpus, and run retention/garbage-collection policy
 - portable peak-memory collection inside the supported Docker environment
 - whether development runs store a patch or only its hash by default
-- corpus distribution and archival location for thesis reproducibility
+- prepared-source retention, licensing boundaries, corpus distribution, and
+  archival location for thesis reproducibility
+- BigCloneBench census or sampling frame, pair direction, randomization seed,
+  strata, and tuning/evaluation separation
 - annotation and sampling protocol for real-world precision review
 - conversion and negative oracle for BigCloneBench known false-positive pairs
 - exact Linux revisions and whether the first large run targets a subsystem
