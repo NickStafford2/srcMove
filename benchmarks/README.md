@@ -17,3 +17,29 @@ authoritative result.
 The planned upgrade to separate prepared srcDiff corpora, provenance, failure
 incidents, and publication runs is described in the
 [benchmarking upgrade plan](../doc/benchmarking_upgrade_plan.md).
+
+## Upgrade contracts
+
+`contracts.py` is the versioned shared boundary for the upgrade. It defines the
+canonical content-identity encoding, process/XML/provenance status vocabulary,
+development/publication labels, and the narrow interface implemented by dataset
+adapters. Dataset adapters may prepare inputs and add semantic eligibility
+checks; they must not replace shared execution, provenance, storage, or
+reporting.
+
+Phase 0 characterization is entirely offline. Tiny source and srcDiff fixtures,
+a configurable fake executable, and strict BigCloneBench oracle tests live under
+`tests/`. BigCloneBench remains an external manual prerequisite and normal tests
+must neither download it nor depend on historical large-run counts.
+
+The legacy interfaces remain unchanged at this checkpoint:
+
+- `benchmarks/bigclonebench/run.py` generates and evaluates cases together,
+  writing ignored cases and a replaceable `cases/summary.csv`.
+- `benchmarks/repositories/run_case.py` exports revisions and runs both tools,
+  writing ignored artifacts below each case's `work/` directory.
+- `benchmarks/profile.py` reads existing XML inputs and writes ignored local
+  profiles unless an explicit output is selected.
+
+Previously archived thesis results are historical evidence, not regression
+expectations for the refactored implementation.
