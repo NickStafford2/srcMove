@@ -30,6 +30,32 @@ The upgraded system must answer four different questions:
 These questions require related infrastructure, but their results must not be
 combined into one ambiguous score.
 
+## Scope Checkpoint After Phase 5
+
+Phases 0 through 5 created enough infrastructure to begin collecting thesis
+evidence. Further general framework development is now frozen until a real run
+demonstrates a concrete need. The next priority is to exercise the system on
+representative inputs, not to complete every possible publication or scale
+feature.
+
+srcDiff reliability is an exception to this freeze. srcMove depends on srcDiff,
+and srcDiff has failed inconsistently on required workloads. The retained
+attempt records, timeout handling, replay, resumability, and archive-isolation
+tools are therefore part of the research workflow rather than optional
+benchmark polish. Use them to distinguish srcDiff defects, resource exhaustion,
+input-specific failures, and orchestration failures, and preserve enough
+evidence to reproduce or minimize each important incident.
+
+The remaining phases are evidence-driven:
+
+- validate the implemented runner with real binaries and correct only defects
+  that threaten measurement validity
+- conduct a small thesis pilot that deliberately exercises srcDiff failure
+  diagnosis
+- increase dataset scale only when it supports a stated thesis question
+- simplify the interfaces and produce a minimal reproducibility bundle after
+  actual usage reveals what is necessary
+
 The thesis evaluation has two central empirical pillars. BigCloneBench provides
 the best available large labeled source of Type-1 and Type-2 clone pairs for the
 synthetic detection-and-classification evaluation. Repository revision pairs
@@ -39,15 +65,14 @@ baseline; most new engineering in this plan is therefore directed at reusable
 srcDiff corpora and large-repository execution rather than redesigning its
 generator or oracle.
 
-The current implementation already has useful BigCloneBench generation,
-position/text validation, repository export, internal profiling, and shared tool
-discovery. Its main gaps are that srcDiff and srcMove execution are coupled,
-repository failure reports are written only after both tools succeed, processes
-have no timeout policy, Python files are removed implicitly, prepared srcDiff
-XML is only an incidental cache, BigCloneBench summaries overwrite one shared
-path, BigCloneBench does not yet distinguish srcDiff semantic ineligibility from
-srcMove misses, and performance provenance does not yet bind source state to
-binaries and input checksums.
+The upgrade began with useful BigCloneBench generation, position/text
+validation, repository export, internal profiling, and shared tool discovery.
+Its motivating gaps were coupled srcDiff/srcMove execution, missing failure
+records and timeout policy, implicit file filtering, incidental rather than
+first-class srcDiff corpora, replaceable summaries, ambiguous srcDiff semantic
+ineligibility, and performance results not bound to binary and input checksums.
+Phases 0 through 5 addressed these infrastructure gaps; the pilot must now
+verify the behavior with real workloads.
 
 ## Terminology and Suite Boundaries
 
@@ -728,39 +753,71 @@ input checksums, neither revision always runs first, environment and cache polic
 are recorded, failures remain raw rows, and the comparison can be reproduced
 from its manifest.
 
-### Phase 6: Publication workflow
+Before moving beyond this phase, validate the runner with real srcMove binaries.
+In particular, either require a repetition count that gives every variant equal
+occupancy in every schedule position or describe the schedule as rotating rather
+than exactly position-balanced. Do not make a stronger methodological claim than
+the recorded schedule supports.
 
-- Add explicit strict validation for clean source, receipts, checksums, tests,
-  Release configuration, and immutable output.
-- Build or reuse verified artifacts in isolation from active development.
-- Generate a compact thesis archive containing manifests, summaries, and the
-  checksums/locations of large external artifacts.
-- Add an archive-verification command that validates schemas, checksums,
-  provenance status, count reconciliation, and external-artifact references
-  without consulting mutable `latest` paths.
+### Phase 6: Thesis pilot and srcDiff reliability study
 
-**Complete when:** one command can either produce a self-describing thesis run
-or stop before measurement with a precise unmet precondition, and a second clean
-environment can verify the resulting compact archive.
+- Freeze new generic abstractions and run the existing pipeline on a small
+  repository pair plus any preserved workload known to expose inconsistent
+  srcDiff behavior.
+- Reproduce and classify srcDiff crashes using the existing attempt, replay, and
+  isolation tools. Retain the exact input, command, termination evidence,
+  bounded logs, partial-output status, and available resource evidence.
+- Minimize a recurring failure when practical. Promote a small deterministic
+  case into regression coverage when licensing and size permit; otherwise retain
+  a checksummed incident and acquisition/replay instructions.
+- Verify one real two-build srcMove performance comparison on identical srcDiff
+  XML. Fix measurement-validity defects, but add no convenience or publication
+  feature merely because it appears in the earlier target design.
+- Produce a minimal pilot bundle containing the manifests, raw observations,
+  summaries, checksums, commands, and a short account of unresolved failures.
 
-### Phase 7: Scale progression
+**Complete when:** one representative repository corpus can be generated or its
+srcDiff failure can be reproduced and classified; the resulting srcMove run and
+performance comparison reconcile with their raw records; and another developer
+has enough recorded information to inspect the pilot without relying on a
+mutable `latest` path. A srcDiff defect may remain unresolved if it is minimized,
+reproducible, and reported honestly.
 
-Increase scale only after the preceding layers are reliable:
+### Phase 7: Evidence-driven thesis runs
 
-1. tiny hand-authored and generated smoke cases
-2. zlib or Notepad++ repository pair
+Increase scale only where the next tier supports a stated evaluation or
+reliability claim:
+
+1. tiny hand-authored and generated integration cases
+2. a small repository pair and a known or suspected srcDiff failure workload
 3. srcMove, SQLite, or similar medium repositories
-4. small BigCloneBench Type-1 sample after its external prerequisite is installed
-5. larger BigCloneBench Type-1, then Type-2, slices
-6. OpenCV or a Linux subsystem
-7. two exact full Linux kernel revisions
+4. a small BigCloneBench Type-1 sample after its external prerequisite is installed
+5. a frozen larger BigCloneBench Type-1 selection
+6. Type-2, OpenCV, or a Linux subsystem only when needed by the thesis evaluation
+7. full Linux revisions only if kernel scale is itself an explicit research target
 
-Each tier should establish expected runtime, storage, and failure behavior before
-advancing. Full-kernel execution is a final scale target, not the first test of
-the infrastructure. Before running a tier, declare its case count, timeout and
-storage budgets, and acceptable failure classes. Advance only after all counts
-reconcile, replay succeeds, and no unexplained orchestration failure remains;
-expected tool limitations may remain when they are classified and reported.
+Before each run, declare its selection, timeout, storage budget, and acceptable
+failure classes. Reconcile all counts and investigate unexplained orchestration
+failures. Expected srcDiff or srcMove limitations may remain when they are
+classified and reported. Completion of one tier does not require advancing to
+the next; stop when the collected evidence answers the thesis questions.
+
+### Phase 8: Consolidation and minimal publication bundle
+
+- Keep one documented entry point for each workflow actually used by the thesis.
+- Remove or clearly retire duplicate legacy interfaces only after the replacement
+  has produced verified real results.
+- Archive manifests, raw data, summaries, exact revisions, executable and input
+  checksums, environment facts, commands, and locations of external artifacts.
+- Provide a lightweight checksum/count verification procedure. Automate strict
+  publication gating or isolated builds only if the pilot shows that the manual
+  procedure is unreliable or repeatedly burdensome.
+- Remove, defer, or mark internal any infrastructure that was not exercised and
+  does not strengthen a thesis claim or srcDiff failure investigation.
+
+**Complete when:** the thesis results are independently understandable, their
+important artifacts can be verified, and the supported benchmark surface is no
+larger than actual research use requires.
 
 ## Testing Strategy for the Infrastructure
 
@@ -782,7 +839,7 @@ the real toolchain. Cover:
 - executable without a build-time receipt
 - current checkout differing from a valid older build receipt
 - dirty development provenance
-- strict publication rejection
+- verification of archived checksums and reconciled counts
 - interrupted batch resume
 - preservation of earlier run directories
 - identical content producing the same preparation/corpus identity after moving
@@ -800,8 +857,8 @@ and repository-scale data remain outside the deterministic default test suite.
 
 ## Cross-Phase Acceptance Invariants
 
-These conditions apply throughout implementation rather than belonging to one
-late publication phase:
+These conditions apply throughout implementation rather than belonging only to
+the final consolidation phase:
 
 - Every process invocation has exactly one recoverable terminal attempt record.
 - Only structurally admitted, checksummed srcDiff output appears in a corpus.
@@ -815,8 +872,10 @@ late publication phase:
   execution, provenance, storage, and reporting core.
 - Development mode does not fetch, switch, clean, rebuild, or modify sibling
   repositories implicitly.
-- Publication output contains immutable provenance snapshots and verifies without
-  a mutable workspace lock, current checkout, or `latest` result.
+- Thesis result bundles contain immutable provenance snapshots and verify without
+  a mutable workspace lock, current checkout, or `latest` result. This guarantee
+  may be provided by a documented lightweight procedure rather than a new
+  publication framework.
 
 ## Risks and Mitigations
 
