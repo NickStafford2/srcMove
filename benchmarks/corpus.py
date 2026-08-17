@@ -235,6 +235,20 @@ def _verify_corpus(directory: Path, manifest: Mapping[str, Any]) -> None:
             raise ValueError(f"corpus input checksum mismatch: {case['case_id']}")
 
 
+def load_corpus(
+    data_root: Path, identifier_or_path: str | Path
+) -> tuple[Path, dict[str, Any]]:
+    """Load and checksum-verify one current-schema corpus."""
+
+    manifest_path = _resolve_manifest(data_root, "corpora", identifier_or_path)
+    manifest = _load_manifest(
+        manifest_path, CORPUS_SCHEMA_VERSION, "corpus_id"
+    )
+    directory = manifest_path.parent
+    _verify_corpus(directory, manifest)
+    return directory, manifest
+
+
 def create_preparation(
     *,
     data_root: Path,
@@ -646,12 +660,8 @@ def run_corpus(
     selected_case_ids: Sequence[str] = (),
     require_semantic_eligible: bool = False,
 ) -> tuple[Path, dict[str, Any]]:
-    corpus_manifest_path = _resolve_manifest(data_root, "corpora", corpus)
-    corpus_manifest = _load_manifest(
-        corpus_manifest_path, CORPUS_SCHEMA_VERSION, "corpus_id"
-    )
-    corpus_dir = corpus_manifest_path.parent
-    _verify_corpus(corpus_dir, corpus_manifest)
+    corpus_dir, corpus_manifest = load_corpus(data_root, corpus)
+    corpus_manifest_path = corpus_dir / "manifest.json"
     if require_semantic_eligible:
         unclassified = [
             case["case_id"]

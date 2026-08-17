@@ -50,6 +50,11 @@ match-kind enforcement, append-only summaries, reconciled outcomes, and reuse
 of one immutable corpus across multiple fake srcMove builds. They do not require
 or download BigCloneBench.
 
+Performance-runner fixtures compare fake srcMove builds over checked-in srcDiff
+XML. They verify reproducible position-balanced schedules, identical input
+checksums, paired summaries, append-only artifacts, and preservation of failed
+measurements without running large workloads.
+
 CTest is retired for this project. The Makefile owns building; `tests/run.py`
 owns deterministic correctness-test selection and execution.
 

@@ -7,8 +7,8 @@ correctness tests in `tests/`.
   Type-2 detection workloads generated from BigCloneBench clone pairs.
 - [Repository benchmarks](repositories/README.md): end-to-end `srcdiff` and
   `srcMove` runs across configured revisions of real repositories.
-- `profile.py`: repeatable internal `srcMove --profile` measurements over
-  prepared XML inputs.
+- `profile.py`: paired/interleaved internal and external performance measurements
+  over immutable srcDiff XML.
 
 Generated benchmark data is ignored. Archive thesis-quality results with their
 manifest and metadata rather than treating a mutable working directory as the
@@ -103,3 +103,44 @@ cgroup OOM evidence when those interfaces are available.
 preparation. A repeatable `--relative-path` selects individual files while
 preserving their paths; `isolate` bisects an archive inventory and retains the
 candidate subsets and every attempt below `benchmark-data/investigations/`.
+
+## Performance measurements
+
+`profile.py` compares one or more named srcMove builds on identical checksummed
+inputs. The first `--variant` is the comparison baseline. The recorded schedule
+keeps builds adjacent for each case/repetition, rotates their order, and uses the
+declared seed to make the schedule reproducible:
+
+```bash
+python3 benchmarks/profile.py \
+  --variant baseline=/path/to/baseline/srcMove \
+  --variant candidate=/path/to/candidate/srcMove \
+  --corpus CORPUS_ID \
+  --warmups 1 \
+  --repetitions 6 \
+  --seed 2026 \
+  --cache-policy warm_os_cache
+```
+
+Use repeatable `--case CASE_ID` to select accepted corpus cases. For a small
+standalone experiment, replace `--corpus` with repeatable
+`--input NAME=/path/to/input.srcdiff.xml`. Measured repetitions must be at least
+the number of variants so each build can occupy each schedule position.
+
+Each append-only run is stored below
+`benchmark-data/performance/runs/<run-id>/` with:
+
+- `run.json`: input and binary checksums, provenance, environment, policy, and
+  the complete schedule
+- `raw.csv`: warmup and measured attempts, including failures, external wall/CPU
+  time, Linux peak RSS when available, workload sizes, and srcMove internal
+  timings
+- `summary.json`: per-build and per-case median/MAD summaries plus paired deltas
+  and ratios against the baseline
+- `attempts/`: exact commands, bounded logs, result JSON, terminal records, and
+  failed output evidence. Successful output XML is checksummed and structurally
+  validated, then discarded to avoid multiplying large corpus storage.
+
+The cache policy is declared metadata; the runner does not flush or warm caches
+implicitly. A completed run can contain failed measurements, returns a nonzero
+CLI status when it does, and retains those failures in `raw.csv` and the summary.

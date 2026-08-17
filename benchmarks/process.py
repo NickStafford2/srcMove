@@ -350,6 +350,7 @@ def execute_attempt(
     threads: list[threading.Thread] = []
     resource_monitor: ResourceMonitor | None = None
     start = time.monotonic()
+    process_elapsed_seconds: float | None = None
 
     try:
         try:
@@ -405,6 +406,7 @@ def execute_attempt(
                     _wait_for_process_group(process, time.monotonic() + 0.5)
 
             returncode = process.wait()
+            process_elapsed_seconds = time.monotonic() - start
             if timed_out:
                 termination = {"status": TerminationStatus.TIMED_OUT.value}
             elif returncode < 0:
@@ -455,6 +457,7 @@ def execute_attempt(
             **started,
             "completed_at": utc_now(),
             "elapsed_seconds": time.monotonic() - start,
+            "process_elapsed_seconds": process_elapsed_seconds,
             "termination": {
                 "status": TerminationStatus.ORCHESTRATION_INTERRUPTED.value
             },
@@ -496,6 +499,7 @@ def execute_attempt(
         **started,
         "completed_at": utc_now(),
         "elapsed_seconds": time.monotonic() - start,
+        "process_elapsed_seconds": process_elapsed_seconds,
         "termination": termination,
         "cleanup_signals": cleanup_signals,
         "resource_failure": (
@@ -515,6 +519,7 @@ def execute_attempt(
         "stderr": stderr_capture.metadata(stderr_path.name),
         "xml": xml,
         "output_path": output_filename,
+        "output_retention": "retained",
         "admitted": admitted,
     }
     write_json_atomic(attempt_dir / "attempt.json", record)

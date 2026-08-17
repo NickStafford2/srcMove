@@ -95,23 +95,10 @@ corpus reuse, and append-only run artifacts are preserved.
 For thesis or paper data, freeze the declared evaluation selection separately
 from tuning cases with `--selection-role evaluation`. Publication enforcement
 and archive verification belong to Phase 6; Phase 4 development runs already
-retain their manifests and summaries by run identifier. For repeatable
-performance data, write profiler output directly into the thesis archive and
-avoid replacing `profile-results/latest.*`:
-
-```bash
-python3 benchmarks/profile.py \
-  --suite bigclonebench \
-  --clone-type type1 \
-  --repeats 5 \
-  --label thesis-type1 \
-  --out doc/thesis/thesis-data/<timestamp>/profile/thesis-type1.csv \
-  --no-latest
-```
-
-The profiler records internal `srcMove --profile` timings only. It does not
-include Python startup, BigCloneBench database loading, case generation, or
-`srcdiff` generation time.
+retain their manifests and summaries by run identifier. Generate the immutable
+srcDiff corpus first, then use the shared
+[performance workflow](../README.md#performance-measurements) to compare srcMove
+builds without rerunning BigCloneBench or srcDiff.
 
 ## Validation
 
