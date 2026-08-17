@@ -119,31 +119,30 @@ def update_repo(repo_dir: Path, repo_url: str) -> None:
     require_ok(result, "git fetch origin --tags --prune")
 
 
-def ensure_repo(repo_url: str, clone_dir: Path) -> None:
+def ensure_repo(repo_url: str, clone_dir: Path, *, allow_network: bool) -> None:
     if not clone_dir.exists():
-        print("      repo not present; cloning")
+        if not allow_network:
+            raise RuntimeError(
+                "cached repository is missing; rerun with --refresh-repo to allow a clone"
+            )
+        print("      repo not present; cloning (network explicitly enabled)")
         clone_repo(repo_url, clone_dir)
         return
 
     if not is_git_repo(clone_dir):
         raise RuntimeError(f"existing path is not a git repo: {clone_dir}")
 
-    print("      repo already present; updating")
-    update_repo(clone_dir, repo_url)
+    current_origin = get_origin_url(clone_dir)
+    if not allow_network and current_origin != repo_url:
+        raise RuntimeError(
+            f"cached repository origin mismatch: expected {repo_url}, found {current_origin}"
+        )
 
-
-def fetch_tags(repo_dir: Path, repo_url: str) -> None:
-    result = run(["git", "fetch", "origin", "--tags", "--prune"], cwd=repo_dir)
-    if result.returncode == 0:
-        return
-
-    if is_tag_clobber_error(result):
-        print("      tag conflict detected during tag fetch; recreating cached repo")
-        shutil.rmtree(repo_dir)
-        clone_repo(repo_url, repo_dir)
-        return
-
-    require_ok(result, "git fetch origin --tags --prune")
+    if allow_network:
+        print("      refreshing cached repo (network explicitly enabled)")
+        update_repo(clone_dir, repo_url)
+    else:
+        print("      using cached repo offline")
 
 
 def resolve_commit(repo_dir: Path, rev: str) -> str:
@@ -260,7 +259,12 @@ def main() -> int:
     parser.add_argument(
         "--refresh-repo",
         action="store_true",
-        help="force a git fetch even if the repo already exists locally",
+        help="explicitly allow clone/fetch; otherwise use the cached repo offline",
+    )
+    parser.add_argument(
+        "--exclude-python",
+        action="store_true",
+        help="explicitly exclude Python files from the generated export",
     )
     parser.add_argument(
         "--position",
@@ -349,14 +353,9 @@ def main() -> int:
     work_root.mkdir(parents=True, exist_ok=True)
 
     print(f"[1/6] preparing repo {repo_url}")
-    ensure_repo(repo_url, clone_dir)
+    ensure_repo(repo_url, clone_dir, allow_network=args.refresh_repo)
 
-    if args.refresh_repo:
-        print("      refreshing existing repo")
-        update_repo(clone_dir, repo_url)
-
-    print("[2/6] fetching tags")
-    fetch_tags(clone_dir, repo_url)
+    print("[2/6] repository cache ready")
 
     print("[3/6] resolving revisions")
     old_commit = resolve_commit(clone_dir, old_rev)
@@ -373,10 +372,11 @@ def main() -> int:
     export_commit(clone_dir, old_commit, original_dir, selected_dir)
     export_commit(clone_dir, new_commit, modified_dir, selected_dir)
 
-    # Preprocess Python files out because srcdiff does not work well with
-    # Python files currently and can crash while diffing them.
-    original_python_count = delete_python_files(original_dir)
-    modified_python_count = delete_python_files(modified_dir)
+    original_python_count = 0
+    modified_python_count = 0
+    if args.exclude_python:
+        original_python_count = delete_python_files(original_dir)
+        modified_python_count = delete_python_files(modified_dir)
     if original_python_count or modified_python_count:
         print(
             "      deleted Python files: "
@@ -455,9 +455,12 @@ def main() -> int:
         "srcdiff_src_encoding": args.src_encoding,
         "srcdiff_seconds": diff_end - diff_start,
         "srcmove_seconds": move_end - move_start,
-        "deleted_python_files": {
-            "original": original_python_count,
-            "modified": modified_python_count,
+        "filter_configuration": {
+            "excluded_suffixes": [".py"] if args.exclude_python else [],
+            "excluded_files": {
+                "original": original_python_count,
+                "modified": modified_python_count,
+            },
         },
         "move_count": move_count,
         "move_group_count": move_group_count,

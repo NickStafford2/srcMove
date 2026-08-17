@@ -35,6 +35,12 @@ def parse_args() -> argparse.Namespace:
     prepare.add_argument("--modified", type=Path, required=True)
     prepare.add_argument("--source-json", default="{}")
     prepare.add_argument("--metadata-json", default="{}")
+    prepare.add_argument(
+        "--exclude-suffix",
+        action="append",
+        default=[],
+        help="Exclude a suffix without modifying the source export (repeatable).",
+    )
 
     generate = subparsers.add_parser("generate")
     generate.add_argument("preparation")
@@ -43,11 +49,26 @@ def parse_args() -> argparse.Namespace:
     generate.add_argument("--position", action="store_true")
     generate.add_argument("--single-file", action="store_true")
     generate.add_argument("--source-encoding", default="UTF-8")
+    generate.add_argument("--retry-failed", action="store_true")
+    generate.add_argument(
+        "--case",
+        action="append",
+        default=[],
+        help="With --retry-failed, retry only this failed case (repeatable).",
+    )
 
     run = subparsers.add_parser("run")
     run.add_argument("corpus")
     run.add_argument("--srcmove", type=Path)
     run.add_argument("--timeout", type=float, default=300.0)
+    run.add_argument("--resume-run")
+    run.add_argument("--retry-failed", action="store_true")
+    run.add_argument(
+        "--case",
+        action="append",
+        default=[],
+        help="With --retry-failed, retry only this failed case (repeatable).",
+    )
     run.add_argument(
         "--mode", choices=[mode.value for mode in RunMode], default="development"
     )
@@ -80,6 +101,7 @@ def main() -> int:
                 data_root=data_root,
                 adapter=adapter,
                 source=json_object(args.source_json, "--source-json"),
+                filter_configuration={"excluded_suffixes": args.exclude_suffix},
             )
             print(f"preparation_id={manifest['preparation_id']}")
         elif args.stage == "generate":
@@ -94,6 +116,8 @@ def main() -> int:
                 use_position=args.position,
                 use_archive=not args.single_file,
                 source_encoding=args.source_encoding,
+                retry_failed=args.retry_failed,
+                selected_case_ids=args.case,
             )
             print(f"corpus_id={manifest['corpus_id']}")
             failed = sum(
@@ -113,6 +137,9 @@ def main() -> int:
                 srcmove=srcmove,
                 timeout_seconds=args.timeout,
                 mode=RunMode(args.mode),
+                resume_run=args.resume_run,
+                retry_failed=args.retry_failed,
+                selected_case_ids=args.case,
             )
             print(f"run_id={manifest['run_id']}")
             failed = sum(case["status"] != "completed" for case in manifest["cases"])

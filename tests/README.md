@@ -43,7 +43,8 @@ The unit suite also exercises benchmark attempts and corpus replay entirely
 offline with fake executables. These cases cover termination and XML failures,
 timeout process-group cleanup, bounded logs, interrupted-attempt recovery,
 content-stable identifiers, checksum enforcement, and replay without source
-trees or srcDiff.
+trees or srcDiff. They also cover non-destructive filters, resumable batches,
+retry lineage, resource observations, and srcDiff replay/subset reduction.
 
 CTest is retired for this project. The Makefile owns building; `tests/run.py`
 owns deterministic correctness-test selection and execution.

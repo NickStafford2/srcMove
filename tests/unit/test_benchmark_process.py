@@ -63,6 +63,10 @@ class ProcessAttemptTests(unittest.TestCase):
             self.assertEqual(attempt["xml"]["status"], "valid")
             self.assertTrue((attempt_dir / "attempt.json").is_file())
             self.assertEqual(list(attempt_dir.glob(".attempt.json.tmp-*")), [])
+            self.assertIn(
+                attempt["resource_usage"]["peak_rss_status"],
+                {"observed", "unavailable"},
+            )
 
     def test_process_and_xml_failures_remain_distinct(self) -> None:
         outcomes = {
@@ -116,7 +120,7 @@ class ProcessAttemptTests(unittest.TestCase):
             _, attempt = self.run_attempt(
                 Path(temporary_directory),
                 "timeout-tree",
-                timeout_seconds=0.1,
+                timeout_seconds=0.5,
                 timeout_grace_seconds=0.05,
             )
 

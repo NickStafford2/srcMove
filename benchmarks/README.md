@@ -32,12 +32,14 @@ a configurable fake executable, and strict BigCloneBench oracle tests live under
 `tests/`. BigCloneBench remains an external manual prerequisite and normal tests
 must neither download it nor depend on historical large-run counts.
 
-The legacy interfaces remain unchanged at this checkpoint:
+The older benchmark-specific interfaces remain available:
 
 - `benchmarks/bigclonebench/run.py` generates and evaluates cases together,
   writing ignored cases and a replaceable `cases/summary.csv`.
 - `benchmarks/repositories/run_case.py` exports revisions and runs both tools,
-  writing ignored artifacts below each case's `work/` directory.
+  writing ignored artifacts below each case's `work/` directory. Network access
+  is disabled unless `--refresh-repo` is passed, and Python exclusion is an
+  explicit `--exclude-python` filter recorded in the report.
 - `benchmarks/profile.py` reads existing XML inputs and writes ignored local
   profiles unless an explicit output is selected.
 
@@ -81,3 +83,15 @@ Repository commands are documented in the
 [repository benchmark guide](repositories/README.md). An existing corpus can be
 replayed with a different srcMove executable without the source preparation or
 `srcdiff` being available.
+
+Generation batches checkpoint every terminal case. Repeating `generate` with
+the same preparation, executable, and options skips recorded cases; use
+`--retry-failed` (and optionally repeatable `--case`) to append child attempts
+without replacing earlier evidence. `run` supports the same selection policy
+with `--resume-run RUN_ID`. Linux attempts record process-group peak RSS and
+cgroup OOM evidence when those interfaces are available.
+
+`investigate.py` replays a preserved srcDiff incident from its checksummed
+preparation. A repeatable `--relative-path` selects individual files while
+preserving their paths; `isolate` bisects an archive inventory and retains the
+candidate subsets and every attempt below `benchmark-data/investigations/`.

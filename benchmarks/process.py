@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import platform
 import signal
 import subprocess
 import threading
@@ -20,7 +21,7 @@ from benchmarks.contracts import TerminationStatus, XmlStatus
 from benchmarks.provenance import observe_file, utc_now
 
 
-ATTEMPT_SCHEMA_VERSION = 1
+ATTEMPT_SCHEMA_VERSION = 2
 DEFAULT_LOG_LIMIT = 16 * 1024 * 1024
 DEFAULT_TIMEOUT_GRACE_SECONDS = 5.0
 SRCML_NAMESPACE = "http://www.srcML.org/srcML/src"
@@ -30,6 +31,94 @@ SRCDIFF_NAMESPACES = {
 }
 CommandFactory = Callable[[Path], Sequence[str | os.PathLike[str]]]
 XmlValidator = Callable[[Path], dict[str, Any]]
+
+
+class ResourceMonitor:
+    """Best-effort Linux process-group RSS and cgroup OOM observation."""
+
+    def __init__(self, process_group: int) -> None:
+        self.process_group = process_group
+        self.peak_rss_bytes = 0
+        self._stop = threading.Event()
+        self._supported = platform.system() == "Linux" and Path("/proc").is_dir()
+        self._thread: threading.Thread | None = None
+        self._memory_events = self._find_memory_events(process_group)
+        self._oom_before = self._read_oom_kill()
+
+    @staticmethod
+    def _find_memory_events(process_id: int) -> Path | None:
+        try:
+            lines = Path(f"/proc/{process_id}/cgroup").read_text().splitlines()
+        except OSError:
+            return None
+        for line in lines:
+            parts = line.split(":", 2)
+            if len(parts) == 3 and parts[0] == "0":
+                candidate = (
+                    Path("/sys/fs/cgroup")
+                    / parts[2].lstrip("/")
+                    / "memory.events"
+                )
+                return candidate if candidate.is_file() else None
+        return None
+
+    def _read_oom_kill(self) -> int | None:
+        if self._memory_events is None:
+            return None
+        try:
+            fields = dict(
+                line.split(maxsplit=1)
+                for line in self._memory_events.read_text().splitlines()
+            )
+            return int(fields["oom_kill"])
+        except (OSError, KeyError, ValueError):
+            return None
+
+    def _sample(self) -> None:
+        total = 0
+        try:
+            process_dirs = list(Path("/proc").glob("[0-9]*"))
+        except OSError:
+            return
+        for directory in process_dirs:
+            try:
+                stat_text = (directory / "stat").read_text()
+                stat_fields = stat_text[stat_text.rfind(")") + 2 :].split()
+                if int(stat_fields[2]) != self.process_group:
+                    continue
+                status = (directory / "status").read_text().splitlines()
+                rss_line = next(line for line in status if line.startswith("VmRSS:"))
+                total += int(rss_line.split()[1]) * 1024
+            except (OSError, StopIteration, ValueError, IndexError):
+                continue
+        self.peak_rss_bytes = max(self.peak_rss_bytes, total)
+
+    def _run(self) -> None:
+        while not self._stop.wait(0.01):
+            self._sample()
+        self._sample()
+
+    def start(self) -> None:
+        if self._supported:
+            self._thread = threading.Thread(target=self._run, daemon=True)
+            self._thread.start()
+
+    def finish(self) -> dict[str, Any]:
+        self._stop.set()
+        if self._thread is not None:
+            self._thread.join(timeout=1.0)
+        oom_after = self._read_oom_kill()
+        oom_kill_observed = (
+            self._oom_before is not None
+            and oom_after is not None
+            and oom_after > self._oom_before
+        )
+        return {
+            "peak_rss_bytes": self.peak_rss_bytes if self._supported else None,
+            "peak_rss_status": "observed" if self._supported else "unavailable",
+            "measurement": "linux_proc_process_group" if self._supported else None,
+            "cgroup_oom_kill_observed": oom_kill_observed,
+        }
 
 
 def write_json_atomic(path: Path, value: Mapping[str, Any]) -> None:
@@ -218,6 +307,7 @@ def execute_attempt(
     parent_attempt_id: str | None = None,
     retry_ordinal: int = 0,
     environment: Mapping[str, str] | None = None,
+    context: Mapping[str, Any] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     """Run one isolated attempt and atomically write exactly one terminal record."""
 
@@ -242,6 +332,7 @@ def execute_attempt(
         "timeout_grace_seconds": timeout_grace_seconds,
         "parent_attempt_id": parent_attempt_id,
         "retry_ordinal": retry_ordinal,
+        "context": dict(context or {}),
         "output_path": output_filename,
         "environment": {
             key: effective_environment.get(key)
@@ -257,6 +348,7 @@ def execute_attempt(
     termination: dict[str, Any]
     process: subprocess.Popen[bytes] | None = None
     threads: list[threading.Thread] = []
+    resource_monitor: ResourceMonitor | None = None
     start = time.monotonic()
 
     try:
@@ -275,6 +367,7 @@ def execute_attempt(
                 "error": f"{type(error).__name__}: {error}",
             }
         else:
+            start = time.monotonic()
             started["pid"] = process.pid
             started["process_group"] = process.pid if os.name == "posix" else None
             write_json_atomic(attempt_dir / "started.json", started)
@@ -290,6 +383,8 @@ def execute_attempt(
             ]
             for thread in threads:
                 thread.start()
+            resource_monitor = ResourceMonitor(process.pid)
+            resource_monitor.start()
 
             completed = _wait_for_process_group(
                 process, start + max(0.0, timeout_seconds)
@@ -342,6 +437,16 @@ def execute_attempt(
                 process.wait()
         for thread in threads:
             thread.join(timeout=5.0)
+        resource_usage = (
+            resource_monitor.finish()
+            if resource_monitor is not None
+            else {
+                "peak_rss_bytes": None,
+                "peak_rss_status": "unavailable",
+                "measurement": None,
+                "cgroup_oom_kill_observed": False,
+            }
+        )
         stdout_path = attempt_dir / "stdout.bin"
         stderr_path = attempt_dir / "stderr.bin"
         stdout_path.write_bytes(stdout_capture.retained())
@@ -354,6 +459,7 @@ def execute_attempt(
                 "status": TerminationStatus.ORCHESTRATION_INTERRUPTED.value
             },
             "cleanup_signals": cleanup_signals,
+            "resource_usage": resource_usage,
             "stdout": stdout_capture.metadata(stdout_path.name),
             "stderr": stderr_capture.metadata(stderr_path.name),
             "xml": {"status": XmlStatus.NOT_CHECKED.value},
@@ -364,6 +470,16 @@ def execute_attempt(
 
     for thread in threads:
         thread.join(timeout=5.0)
+    resource_usage = (
+        resource_monitor.finish()
+        if resource_monitor is not None
+        else {
+            "peak_rss_bytes": None,
+            "peak_rss_status": "unavailable",
+            "measurement": None,
+            "cgroup_oom_kill_observed": False,
+        }
+    )
     log_capture_complete = not any(thread.is_alive() for thread in threads)
     stdout_path = attempt_dir / "stdout.bin"
     stderr_path = attempt_dir / "stderr.bin"
@@ -383,12 +499,17 @@ def execute_attempt(
         "termination": termination,
         "cleanup_signals": cleanup_signals,
         "resource_failure": (
-            "unknown_resource_failure"
+            "out_of_memory"
+            if resource_usage["cgroup_oom_kill_observed"]
+            else "unknown_resource_failure"
             if termination["status"] == TerminationStatus.SIGNALED.value
             and termination.get("signal_number") == signal.SIGKILL
             else None
         ),
-        "process_tree_guarantee": "posix_process_group" if os.name == "posix" else "none",
+        "resource_usage": resource_usage,
+        "process_tree_guarantee": (
+            "posix_process_group" if os.name == "posix" else "none"
+        ),
         "log_capture_complete": log_capture_complete,
         "stdout": stdout_capture.metadata(stdout_path.name),
         "stderr": stderr_capture.metadata(stderr_path.name),
