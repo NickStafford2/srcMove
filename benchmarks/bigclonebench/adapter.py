@@ -138,13 +138,89 @@ class BigCloneBenchAdapter:
         self.syntactic_type = syntactic_type
         manifest_path = self.cases_dir / f"bcb_t{syntactic_type}_manifest.json"
         value = json.loads(manifest_path.read_text(encoding="utf-8"))
-        if not isinstance(value, dict) or not isinstance(value.get("cases"), list):
+        if not isinstance(value, dict):
             raise ValueError(f"invalid generated selection manifest: {manifest_path}")
+        self._validate_selection_manifest(value, manifest_path)
         self.selection_manifest = value
+
+    def _validate_selection_manifest(
+        self, value: Mapping[str, Any], manifest_path: Path
+    ) -> None:
+        cases = value.get("cases")
+        selection = value.get("selection")
+        versions = value.get("versions")
+        selected_rows = (
+            selection.get("ordered_selected_row_ids")
+            if isinstance(selection, Mapping)
+            else None
+        )
+        required_top_level = {
+            "dataset_identity": Mapping,
+            "dedupe": str,
+            "text_change": str,
+            "min_tokens": int,
+            "row_count_before_deduplication": int,
+            "distinct_raw_text_pair_count": int,
+            "functionality_group_count": int,
+            "selected_source_files": list,
+        }
+        valid = (
+            value.get("schema_version") == 2
+            and value.get("dataset") == "BigCloneBench"
+            and value.get("syntactic_type") == self.syntactic_type
+            and value.get("clone_type") == f"type{self.syntactic_type}"
+            and isinstance(cases, list)
+            and bool(cases)
+            and all(isinstance(case_id, str) for case_id in cases)
+            and len(cases) == len(set(cases))
+            and value.get("selected_count") == len(cases)
+            and all(
+                isinstance(value.get(field), expected_type)
+                for field, expected_type in required_top_level.items()
+            )
+            and isinstance(selection, Mapping)
+            and all(
+                field in selection
+                for field in (
+                    "role",
+                    "method",
+                    "population_claim",
+                    "eligibility_query",
+                    "query_parameters",
+                    "pair_direction",
+                    "ordered_selected_row_ids",
+                )
+            )
+            and isinstance(selection.get("query_parameters"), Mapping)
+            and isinstance(selected_rows, list)
+            and len(selected_rows) == len(cases)
+            and all(
+                isinstance(row, list)
+                and len(row) == 2
+                and all(isinstance(identifier, int) for identifier in row)
+                for row in selected_rows
+            )
+            and isinstance(versions, Mapping)
+            and all(
+                isinstance(versions.get(field), str)
+                for field in (
+                    "generator_sha256",
+                    "position_text_oracle_sha256",
+                    "semantic_oracle_sha256",
+                )
+            )
+        )
+        if not valid:
+            raise ValueError(f"invalid generated selection manifest: {manifest_path}")
 
     def prepare(self) -> Sequence[PreparedCase]:
         cases: list[PreparedCase] = []
-        for case_id in self.selection_manifest["cases"]:
+        selected_rows = self.selection_manifest["selection"][
+            "ordered_selected_row_ids"
+        ]
+        for case_id, selected_row in zip(
+            self.selection_manifest["cases"], selected_rows, strict=True
+        ):
             if not isinstance(case_id, str):
                 raise ValueError("selection manifest case ids must be strings")
             directory = self.cases_dir / case_id
@@ -153,6 +229,17 @@ class BigCloneBenchAdapter:
             )
             if not isinstance(metadata, dict):
                 raise ValueError(f"invalid case metadata: {directory / 'metadata.json'}")
+            if metadata.get("syntactic_type") != self.syntactic_type:
+                raise ValueError(
+                    f"case syntactic_type does not match selection manifest: {case_id}"
+                )
+            if [
+                metadata.get("function_id_one"),
+                metadata.get("function_id_two"),
+            ] != selected_row:
+                raise ValueError(
+                    f"case row identity does not match selection manifest: {case_id}"
+                )
             cases.append(
                 PreparedCase(
                     case_id=case_id,

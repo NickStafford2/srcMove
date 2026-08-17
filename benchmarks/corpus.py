@@ -652,6 +652,22 @@ def run_corpus(
     )
     corpus_dir = corpus_manifest_path.parent
     _verify_corpus(corpus_dir, corpus_manifest)
+    if require_semantic_eligible:
+        unclassified = [
+            case["case_id"]
+            for case in corpus_manifest["cases"]
+            if case["generation_status"] == "accepted"
+            and case.get("semantic_status")
+            not in {
+                SemanticStatus.ELIGIBLE.value,
+                SemanticStatus.INELIGIBLE.value,
+            }
+        ]
+        if unclassified:
+            raise ValueError(
+                "semantic eligibility was not recorded for accepted corpus case(s): "
+                + ", ".join(unclassified)
+            )
     recover_interrupted_attempts(data_root / "attempts")
     for prior_run_attempts in (data_root / "runs").glob("*/attempts"):
         recover_interrupted_attempts(prior_run_attempts)

@@ -32,7 +32,8 @@ a configurable fake executable, and strict BigCloneBench oracle tests live under
 `tests/`. BigCloneBench remains an external manual prerequisite and normal tests
 must neither download it nor depend on historical large-run counts.
 
-The older benchmark-specific interfaces remain available:
+The older benchmark-specific interfaces remain available as exploratory
+references, not compatibility contracts:
 
 - `benchmarks/bigclonebench/run.py` generates and evaluates cases together,
   writing ignored cases and a replaceable `cases/summary.csv`.

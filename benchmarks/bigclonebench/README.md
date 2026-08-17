@@ -84,10 +84,11 @@ Run a smaller Type-2 sample:
 python3 benchmarks/bigclonebench/pipeline.py cases --clone-type type2 --limit 10
 ```
 
-The legacy coupled `run.py` remains available for exploratory compatibility,
-but thesis and cross-build results should use `pipeline.py` so srcDiff failures,
-semantic eligibility, provenance, immutable corpus reuse, and append-only run
-artifacts are preserved.
+The legacy coupled `run.py` remains as an exploratory reference only. It has no
+compatibility guarantee and may be removed after the staged pipeline replaces
+its remaining diagnostic uses. Thesis and cross-build results should use
+`pipeline.py` so srcDiff failures, semantic eligibility, provenance, immutable
+corpus reuse, and append-only run artifacts are preserved.
 
 ## Thesis Data Runs
 

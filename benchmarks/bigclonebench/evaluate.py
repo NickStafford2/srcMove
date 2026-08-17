@@ -114,6 +114,18 @@ def write_evaluation(
 
     if run_manifest.get("corpus_id") != corpus_manifest.get("corpus_id"):
         raise ValueError("run and corpus manifests do not match")
+    persisted_run = _read_json(run_dir / "run.json")
+    if persisted_run != dict(run_manifest):
+        raise ValueError("run manifest does not match the persisted run artifact")
+    corpus_manifest_path = corpus_dir / "manifest.json"
+    persisted_corpus = _read_json(corpus_manifest_path)
+    if persisted_corpus != dict(corpus_manifest):
+        raise ValueError("corpus manifest does not match the persisted corpus artifact")
+    corpus_manifest_checksum = sha256_file(corpus_manifest_path)
+    if run_manifest.get("corpus_manifest_sha256") != corpus_manifest_checksum:
+        raise ValueError("corpus manifest checksum does not match the run observation")
+    if run_manifest.get("status") != "completed":
+        raise ValueError("BigCloneBench evaluation requires a completed run")
     summary_path = run_dir / "summary.json"
     cases_path = run_dir / "cases.csv"
     if summary_path.exists() or cases_path.exists():
@@ -282,7 +294,7 @@ def write_evaluation(
         "created_at": utc_now(),
         "run_id": run_manifest["run_id"],
         "corpus_id": corpus_manifest["corpus_id"],
-        "corpus_manifest_sha256": sha256_file(corpus_dir / "manifest.json"),
+        "corpus_manifest_sha256": corpus_manifest_checksum,
         "scoring_oracle": {
             "name": "bigclonebench-strict",
             "version": SCORING_ORACLE_VERSION,

@@ -109,6 +109,16 @@ Performance measurements run srcMove repeatedly over immutable, checksummed
 srcDiff XML. srcDiff generation time is measured separately so upstream cost and
 instability do not distort srcMove timing.
 
+## Benchmark Compatibility Policy
+
+Benchmark artifacts are intentionally forward-only while this infrastructure is
+under development. A schema or oracle change may invalidate old preparations,
+corpora, runs, and summaries; those artifacts may be deleted and regenerated.
+The implementation should reject obsolete schema versions rather than carry
+compatibility readers or migrations that complicate the future thesis pipeline.
+Historical results remain evidence only in the context of the code, schema, and
+oracle versions that produced them.
+
 ## Design Principles
 
 1. **Separate preparation from measurement.** Source export, srcDiff generation,
@@ -137,6 +147,8 @@ instability do not distort srcMove timing.
 10. **Keep one source of truth.** Methodology belongs in `doc/`; operational
    commands belong in the relevant `benchmarks/**/README.md`; schemas belong
    beside their implementation.
+11. **Prefer a strict current contract over benchmark backward compatibility.**
+   Follow the [forward-only compatibility policy](#benchmark-compatibility-policy).
 
 ## Target Pipeline
 
@@ -573,7 +585,8 @@ measurements must be counted.
 ### Phase 0: Freeze the current baseline and contracts
 
 - Inventory current runner interfaces, ignored output locations, and historical
-  result archives without treating old large-run counts as current expectations.
+  result archives without treating old large-run counts as current expectations
+  or making their formats a compatibility requirement.
 - Add tiny checked-in source/srcDiff fixtures and fake executables for the
   orchestration outcomes in the testing strategy.
 - Freeze the initial status vocabulary, identity rules, and dataset-adapter
@@ -624,6 +637,8 @@ unverified.
 - Validate and checksum successful XML, then atomically promote it into an
   immutable corpus case.
 - Make prepared srcDiff XML reusable by checksum and preserve prior runs.
+- Treat that reuse as a guarantee within the current schema and oracle contract,
+  not across breaking benchmark-infrastructure changes.
 - Allow selection of an existing corpus without requiring source repositories or
   srcDiff at srcMove execution time.
 
@@ -649,7 +664,7 @@ after corpus creation must not break srcMove replay.
 repeating completed work or losing evidence, and a failed repository case can be
 replayed or reduced from its preserved attempt record.
 
-### Phase 4: Targeted BigCloneBench reproducibility migration
+### Phase 4: Targeted BigCloneBench reproducibility integration
 
 Begin this phase only after the repository benchmark has established the shared
 preparation, corpus, provenance, and srcDiff failure-handling infrastructure.
@@ -683,7 +698,7 @@ it is not a new benchmark design.
   analysis without silently changing the selected population.
 - Preserve BigCloneBench's known false-positive pairs as a documented future
   negative-case source; do not make their conversion a prerequisite for the
-  positive-case migration.
+  positive-case integration.
 
 **Infrastructure complete when:** tiny fixture-backed tests prove that the same
 generated corpus can evaluate multiple srcMove builds with immutable manifests,
@@ -817,7 +832,8 @@ late publication phase:
   remove hard cases from summaries. Preserve them as rows and report the timeout
   policy and censored count.
 - **Schema or oracle drift:** changed validators can alter results without a code
-  change. Version schemas, generators, and oracles and reject silent mixing.
+  change. Follow the [forward-only compatibility policy](#benchmark-compatibility-policy),
+  then rerun measurements under one declared contract before comparing them.
 - **Dataset and conversion limitations:** BigCloneBench is the best available
   large labeled source for this evaluation, but individual labels, extracted
   ranges, unsupported variations, or synthetic wrappers may contribute to
@@ -845,8 +861,6 @@ late publication phase:
 
 - final schema representation, canonical identity encoding, and generated-data
   root name
-- schema compatibility/migration policy and rules for comparing results produced
-  by different oracle versions
 - compression policy for large srcDiff XML and transparent replay
 - attempt, preparation, corpus, and run retention/garbage-collection policy
 - portable peak-memory collection inside the supported Docker environment
