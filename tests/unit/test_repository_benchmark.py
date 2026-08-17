@@ -31,6 +31,8 @@ def source_pair(root: Path) -> tuple[Path, Path]:
     modified.mkdir(parents=True, exist_ok=True)
     (original / "sample.cpp").write_text("int before;\n", encoding="utf-8")
     (modified / "sample.cpp").write_text("int after;\n", encoding="utf-8")
+    (original / "unsupported.py").write_text("before = 1\n", encoding="utf-8")
+    (modified / "unsupported.py").write_text("after = 1\n", encoding="utf-8")
     return original, modified
 
 
@@ -73,6 +75,7 @@ class RepositoryBenchmarkTests(unittest.TestCase):
 
             self.assertEqual(first["status"], "completed")
             self.assertEqual(second["status"], "completed")
+            self.assertEqual(first["configuration"]["excluded_suffixes"], [".py"])
             self.assertTrue(
                 first["input_snapshot_id"].startswith("input-snapshot-sha256-")
             )
@@ -88,6 +91,16 @@ class RepositoryBenchmarkTests(unittest.TestCase):
             self.assertEqual(len(list((data_root / "runs").iterdir())), 2)
             self.assertTrue((data_root / first["run_manifest"]).is_file())
             self.assertTrue((data_root / second["run_manifest"]).is_file())
+            snapshot_manifest = json.loads(
+                (data_root / first["input_snapshot_manifest"]).read_text(
+                    encoding="utf-8"
+                )
+            )
+            self.assertEqual(
+                snapshot_manifest["filter_configuration"]["excluded_suffixes"],
+                [".py"],
+            )
+            self.assertEqual(snapshot_manifest["counts"]["excluded_files"], 2)
 
             summary = first_index.parent / "summary.csv"
             with summary.open(encoding="utf-8") as stream:

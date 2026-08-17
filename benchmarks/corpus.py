@@ -37,6 +37,7 @@ INPUT_SNAPSHOT_SCHEMA_VERSION = 1
 GENERATION_BATCH_SCHEMA_VERSION = 2
 CORPUS_SCHEMA_VERSION = 4
 RUN_SCHEMA_VERSION = 3
+DEFAULT_EXCLUDED_SUFFIXES = (".py",)
 
 
 def _validate_case_id(case_id: str) -> None:
@@ -52,7 +53,7 @@ def _normalized_excluded_suffixes(
     raw = (filter_configuration or {}).get("excluded_suffixes", [])
     if not isinstance(raw, list) or any(not isinstance(item, str) for item in raw):
         raise ValueError("filter_configuration.excluded_suffixes must be a string list")
-    normalized = {
+    normalized = set(DEFAULT_EXCLUDED_SUFFIXES) | {
         (item if item.startswith(".") else f".{item}").lower() for item in raw
     }
     if "." in normalized:

@@ -42,7 +42,10 @@ def parse_args() -> argparse.Namespace:
         "--exclude-suffix",
         action="append",
         default=[],
-        help="Exclude a suffix without modifying the source export (repeatable).",
+        help=(
+            "Exclude an additional suffix without modifying the source export; "
+            ".py is always excluded (repeatable)."
+        ),
     )
 
     generate = subparsers.add_parser("generate")

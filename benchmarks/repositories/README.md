@@ -75,8 +75,10 @@ python3 benchmarks/pipeline.py snapshot \
   --source-json '{"repository":"URL","old":"COMMIT","new":"COMMIT"}'
 ```
 
-Filters are non-destructive and part of the input snapshot identity. For the
-current srcDiff Python limitation, add `--exclude-suffix .py`; the manifest
+Filters are non-destructive and part of the input snapshot identity. Python
+files are always excluded because of the documented
+[srcDiff language limitation](../README.md#current-srcdiff-language-limitation).
+Use `--exclude-suffix` only for additional unsupported suffixes. The manifest
 records every excluded path and the original export remains unchanged.
 
 The command prints an input snapshot identifier. Generate a reusable srcDiff

@@ -79,6 +79,14 @@ An **input snapshot** is a frozen, checksummed old/new source pair saved for
 later srcDiff execution. It makes the exact source inputs reusable without
 depending on a mutable checkout or repeating repository export.
 
+### Current srcDiff language limitation
+
+srcDiff does not currently support Python input reliably and may terminate or
+emit unusable XML when Python files are present. The shared input-snapshot
+workflow therefore excludes `.py` files automatically and records every
+excluded path in the snapshot manifest. This is a srcDiff limitation, not a
+claim that Python is outside srcMove's intended scope.
+
 Every tool invocation owns a unique attempt directory. Its atomic terminal
 record keeps process termination separate from XML validation, retains bounded
 stdout/stderr with full-stream checksums, and records timeout cleanup. Only a

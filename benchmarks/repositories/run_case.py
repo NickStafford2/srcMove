@@ -22,7 +22,12 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
         sys.path.insert(0, str(import_root))
 
 from benchmarks.contracts import RunMode
-from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
+from benchmarks.corpus import (
+    DEFAULT_EXCLUDED_SUFFIXES,
+    create_input_snapshot,
+    generate_corpus,
+    run_corpus,
+)
 from benchmarks.process import write_json_atomic
 from benchmarks.provenance import utc_now
 from benchmarks.repositories.adapter import RepositoryAdapter
@@ -373,6 +378,9 @@ def run_staged_repository_benchmark(
     """Run and index one append-only repository benchmark without copying results."""
 
     data_root = data_root.expanduser().resolve()
+    excluded_suffixes = sorted(
+        set(DEFAULT_EXCLUDED_SUFFIXES).union(excluded_suffixes)
+    )
     validate_storage_name(case_name, "case name")
     validate_series_name(series)
     benchmark_id = (
@@ -538,11 +546,6 @@ def main() -> int:
     parser.add_argument("--srcdiff-timeout", type=float, default=1800.0)
     parser.add_argument("--srcmove-timeout", type=float, default=300.0)
     parser.add_argument(
-        "--exclude-python",
-        action="store_true",
-        help="exclude Python files non-destructively in the input snapshot",
-    )
-    parser.add_argument(
         "--position",
         action="store_true",
         help="pass --position to srcdiff and save position-annotated srcdiff.xml",
@@ -661,7 +664,7 @@ def main() -> int:
         use_position=args.position,
         use_archive=not args.no_srcdiff_archive,
         source_encoding=args.src_encoding,
-        excluded_suffixes=[".py"] if args.exclude_python else [],
+        excluded_suffixes=[],
     )
 
     print()
