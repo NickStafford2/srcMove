@@ -1,19 +1,55 @@
 # Repository Benchmarks
 
-These benchmarks compare two configured revisions of a real repository, run
-`srcdiff`, then run `srcMove`. Each case directory contains an `info.json`; its
-generated checkout, exports, XML, results, and timing report live under the
-ignored `work/` directory.
+These benchmarks compare two configured revisions of a real repository through
+the validated srcDiff corpus and srcMove run pipeline. Each invocation saves an
+append-only result automatically; the mutable `work/` directory is only a
+checkout/export cache.
 
-Run one case from the repository root:
+From the workspace root, run and save one configured case in Docker:
 
 ```bash
-python3 benchmarks/repositories/run_case.py notepadpp --refresh-repo
+make benchmark-repo CASE=notepadpp REFRESH=1
 ```
 
-`--refresh-repo` explicitly permits the initial clone or a later fetch. Without
-it, the runner uses an existing cached checkout offline and fails clearly when
-the cache is absent.
+Group related invocations into a named series:
+
+```bash
+make benchmark-repo CASE=notepadpp SERIES=thesis-pilot REFRESH=1
+make benchmark-repo CASE=sqlite SERIES=thesis-pilot REFRESH=1
+```
+
+Inside `srcMove` in the Docker shell, the same `make benchmark-repo` commands
+work. `REFRESH=1` explicitly permits the initial clone or a later fetch. Omit it
+to reuse the cached checkout offline.
+
+The command resolves exact commits, exports both revisions, creates or reuses an
+immutable preparation and srcDiff corpus, runs srcMove only on admitted XML, and
+creates a new append-only srcMove run. It prints the saved benchmark index and
+series summary. No benchmark artifacts are copied between runs.
+
+Generated data defaults to:
+
+```text
+benchmark-data/
+  preparations/<content-id>/       immutable exported inputs
+  attempts/<attempt-id>/           srcDiff commands, logs, output, and status
+  corpora/<content-id>/            admitted immutable srcDiff XML
+  runs/<run-id>/                   append-only srcMove output and results
+  repository-runs/<series>/
+    repository-<id>.json           one readable index per invocation
+    summary.csv                    concise series-level table
+```
+
+The small repository-run index references canonical artifacts; it does not
+duplicate them. Repeating an identical case reuses its preparation and corpus
+but always creates a distinct srcMove run and index record.
+
+If srcDiff crashes, times out, or emits invalid archive XML, the command returns
+nonzero, saves the failure, and prints exact `replay` and `isolate` commands. A
+zero-move srcMove result remains a valid observation; structurally empty archive
+output from srcDiff is rejected before srcMove runs.
+
+Override configured revisions from inside `srcMove` when needed:
 
 Override revisions or refresh the cached checkout when needed:
 
@@ -28,7 +64,7 @@ python3 benchmarks/repositories/run_case.py notepadpp \
 benchmark results into ignored example artifacts for documentation or manual
 inspection.
 
-## Staged workflow
+## Advanced staged workflow
 
 For reusable measurements, prepare already-exported revision trees as an
 immutable input snapshot:
@@ -101,6 +137,6 @@ python3 benchmarks/investigate.py replay ATTEMPT_ID \
 python3 benchmarks/investigate.py isolate ATTEMPT_ID
 ```
 
-`run_case.py` remains the legacy coupled clone/export/srcdiff/srcMove interface.
-It is retained for compatibility while repository checkout/export automation is
-migrated onto the staged workflow.
+The public `run_case.py` command performs these stages automatically. Use the
+low-level commands only for debugging, unusual prepared inputs, or retrying a
+specific stage.

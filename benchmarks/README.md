@@ -10,9 +10,11 @@ correctness tests in `tests/`.
 - `profile.py`: paired/interleaved internal and external performance measurements
   over immutable srcDiff XML.
 
-Generated benchmark data is ignored. Archive thesis-quality results with their
-manifest and metadata rather than treating a mutable working directory as the
-authoritative result.
+Generated benchmark data is ignored by Git but saved automatically below
+`benchmark-data/`. Repository invocations create append-only run records and a
+small series index; see the [repository benchmark guide](repositories/README.md).
+Treat those manifests and their referenced immutable artifacts—not mutable
+`work/` directories—as the authoritative result.
 
 The phased upgrade of prepared srcDiff corpora, provenance, failure incidents,
 dataset adapters, and publication runs is described in the
@@ -32,15 +34,15 @@ a configurable fake executable, and strict BigCloneBench oracle tests live under
 `tests/`. BigCloneBench remains an external manual prerequisite and normal tests
 must neither download it nor depend on historical large-run counts.
 
-The older benchmark-specific interfaces remain available as exploratory
-references, not compatibility contracts:
+Older benchmark-specific interfaces remain exploratory references, not
+compatibility contracts:
 
 - `benchmarks/bigclonebench/run.py` generates and evaluates cases together,
   writing ignored cases and a replaceable `cases/summary.csv`.
-- `benchmarks/repositories/run_case.py` exports revisions and runs both tools,
-  writing ignored artifacts below each case's `work/` directory. Network access
-  is disabled unless `--refresh-repo` is passed, and Python exclusion is an
-  explicit `--exclude-python` filter recorded in the report.
+- `benchmarks/repositories/run_case.py` is the public repository orchestrator.
+  Its case-local `work/` directory is only a checkout/export cache; authoritative
+  preparations, attempts, corpora, runs, and series indexes are stored under
+  `benchmark-data/`.
 - `benchmarks/profile.py` reads existing XML inputs and writes ignored local
   profiles unless an explicit output is selected.
 

@@ -1,7 +1,7 @@
 PYTHON ?= python3
 CMAKE ?= cmake
 
-.PHONY: help configure build test test-unit test-xml test-source
+.PHONY: help configure build test test-unit test-xml test-source benchmark-repo
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -10,6 +10,7 @@ help:
 	@printf '  %-18s %s\n' 'make test-unit' 'Run Python infrastructure tests'
 	@printf '  %-18s %s\n' 'make test-xml' 'Build and run XML regression tests'
 	@printf '  %-18s %s\n' 'make test-source' 'Build and run source-pair regression tests'
+	@printf '  %-18s %s\n' 'make benchmark-repo' 'Run and save CASE repository benchmark'
 
 configure:
 	$(CMAKE) -S . -B build -G Ninja
@@ -28,3 +29,9 @@ test-xml: build
 
 test-source: build
 	$(PYTHON) tests/run.py --suite source
+
+benchmark-repo:
+	@test -n "$(CASE)" || { echo 'error: CASE is required'; exit 2; }
+	$(PYTHON) benchmarks/repositories/run_case.py "$(CASE)" \
+		$(if $(SERIES),--series "$(SERIES)") \
+		$(if $(filter 1 yes true,$(REFRESH)),--refresh-repo)
