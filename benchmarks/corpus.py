@@ -1,4 +1,4 @@
-"""Immutable preparation, srcDiff corpus, and srcMove run stages."""
+"""Immutable input snapshot, srcDiff corpus, and srcMove run stages."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from typing import Any, Callable, Mapping, Sequence
 from benchmarks.contracts import (
     canonical_json,
     DatasetAdapter,
-    PreparedCase,
+    InputPair,
     RunMode,
     SemanticResult,
     SemanticStatus,
@@ -33,8 +33,9 @@ from benchmarks.provenance import (
 )
 
 
-PREPARATION_SCHEMA_VERSION = 2
-CORPUS_SCHEMA_VERSION = 3
+INPUT_SNAPSHOT_SCHEMA_VERSION = 1
+GENERATION_BATCH_SCHEMA_VERSION = 2
+CORPUS_SCHEMA_VERSION = 4
 RUN_SCHEMA_VERSION = 3
 
 
@@ -64,7 +65,7 @@ def _inventory(
 ) -> tuple[str, list[dict[str, Any]], list[dict[str, Any]]]:
     resolved = path.expanduser().resolve()
     if resolved.is_symlink():
-        raise ValueError(f"prepared input must not be a symbolic link: {resolved}")
+        raise ValueError(f"input snapshot source must not be a symbolic link: {resolved}")
     if resolved.is_file():
         if resolved.suffix.lower() in excluded_suffixes:
             return "file", [], [{"path": resolved.name, "reason": "excluded_suffix"}]
@@ -76,14 +77,15 @@ def _inventory(
             }
         ], []
     if not resolved.is_dir():
-        raise ValueError(f"prepared input not found: {resolved}")
+        raise ValueError(f"input snapshot source not found: {resolved}")
 
     files = []
     excluded = []
     for candidate in sorted(resolved.rglob("*")):
         if candidate.is_symlink():
             raise ValueError(
-                f"prepared input tree must not contain symbolic links: {candidate}"
+                "input snapshot source tree must not contain symbolic links: "
+                f"{candidate}"
             )
         if candidate.is_file():
             relative_path = candidate.relative_to(resolved).as_posix()
@@ -158,7 +160,10 @@ def _resolve_manifest(root: Path, kind: str, identifier_or_path: str | Path) -> 
             return candidate.resolve()
     candidate = root / kind / os.fspath(identifier_or_path) / "manifest.json"
     if not candidate.is_file():
-        raise FileNotFoundError(f"{kind} manifest not found: {identifier_or_path}")
+        label = {"input-snapshots": "input snapshot", "corpora": "corpus"}.get(
+            kind, kind
+        )
+        raise FileNotFoundError(f"{label} manifest not found: {identifier_or_path}")
     return candidate.resolve()
 
 
@@ -171,9 +176,9 @@ def _load_manifest(path: Path, schema_version: int, id_field: str) -> dict[str, 
     return value
 
 
-def _verify_preparation(directory: Path, manifest: Mapping[str, Any]) -> None:
+def _verify_input_snapshot(directory: Path, manifest: Mapping[str, Any]) -> None:
     identity_payload = {
-        "schema_version": PREPARATION_SCHEMA_VERSION,
+        "schema_version": INPUT_SNAPSHOT_SCHEMA_VERSION,
         "adapter": manifest["adapter"],
         "source": manifest["source"],
         "filter_configuration": manifest["filter_configuration"],
@@ -185,24 +190,24 @@ def _verify_preparation(directory: Path, manifest: Mapping[str, Any]) -> None:
             for case in manifest["cases"]
         ],
     }
-    expected_id = content_identifier("preparation", identity_payload)
+    expected_id = content_identifier("input-snapshot", identity_payload)
     expected_identity_checksum = hashlib.sha256(
         canonical_json(identity_payload)
     ).hexdigest()
-    if manifest["preparation_id"] != expected_id:
-        raise ValueError("preparation identity does not match its manifest")
+    if manifest["input_snapshot_id"] != expected_id:
+        raise ValueError("input snapshot identity does not match its manifest")
     if manifest["identity_sha256"] != expected_identity_checksum:
-        raise ValueError("preparation identity checksum does not match its manifest")
+        raise ValueError("input snapshot identity checksum does not match its manifest")
     for case in manifest["cases"]:
         original = directory / case["original_path"]
         modified = directory / case["modified_path"]
         if _input_identity(original) != {**case["original"], "excluded": []}:
             raise ValueError(
-                f"prepared original input checksum mismatch: {case['case_id']}"
+                f"input snapshot original checksum mismatch: {case['case_id']}"
             )
         if _input_identity(modified) != {**case["modified"], "excluded": []}:
             raise ValueError(
-                f"prepared modified input checksum mismatch: {case['case_id']}"
+                f"input snapshot modified checksum mismatch: {case['case_id']}"
             )
 
 
@@ -217,8 +222,8 @@ def _verify_corpus(directory: Path, manifest: Mapping[str, Any]) -> None:
         "corpus",
         {
             "schema_version": CORPUS_SCHEMA_VERSION,
-            "preparation_identity_sha256": manifest[
-                "preparation_identity_sha256"
+            "input_snapshot_identity_sha256": manifest[
+                "input_snapshot_identity_sha256"
             ],
             "srcdiff_sha256": artifact.get("sha256"),
             "generation_configuration": manifest["generation_configuration"],
@@ -249,14 +254,16 @@ def load_corpus(
     return directory, manifest
 
 
-def create_preparation(
+def create_input_snapshot(
     *,
     data_root: Path,
     adapter: DatasetAdapter,
     source: Mapping[str, Any],
     filter_configuration: Mapping[str, Any] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
-    cases = list(adapter.prepare())
+    """Freeze and checksum old/new source pairs for later srcDiff execution."""
+
+    cases = list(adapter.input_pairs())
     if not cases:
         raise ValueError("dataset adapter produced no cases")
 
@@ -273,7 +280,7 @@ def create_preparation(
             }
         )
     identity_payload = {
-        "schema_version": PREPARATION_SCHEMA_VERSION,
+        "schema_version": INPUT_SNAPSHOT_SCHEMA_VERSION,
         "adapter": {"name": adapter.name, "version": adapter.version},
         "source": dict(source),
         "filter_configuration": {
@@ -282,16 +289,18 @@ def create_preparation(
         },
         "cases": identities,
     }
-    preparation_id = content_identifier("preparation", identity_payload)
-    final_dir = data_root / "preparations" / preparation_id
+    input_snapshot_id = content_identifier("input-snapshot", identity_payload)
+    final_dir = data_root / "input-snapshots" / input_snapshot_id
     if final_dir.is_dir():
         manifest = _load_manifest(
-            final_dir / "manifest.json", PREPARATION_SCHEMA_VERSION, "preparation_id"
+            final_dir / "manifest.json",
+            INPUT_SNAPSHOT_SCHEMA_VERSION,
+            "input_snapshot_id",
         )
-        _verify_preparation(final_dir, manifest)
+        _verify_input_snapshot(final_dir, manifest)
         return final_dir, manifest
 
-    staging = data_root / "preparations" / f".staging-{uuid.uuid4()}"
+    staging = data_root / "input-snapshots" / f".staging-{uuid.uuid4()}"
     staging.mkdir(parents=True, exist_ok=False)
     manifest_cases = []
     try:
@@ -315,8 +324,8 @@ def create_preparation(
                 }
             )
         manifest = {
-            "schema_version": PREPARATION_SCHEMA_VERSION,
-            "preparation_id": preparation_id,
+            "schema_version": INPUT_SNAPSHOT_SCHEMA_VERSION,
+            "input_snapshot_id": input_snapshot_id,
             "identity_sha256": hashlib.sha256(
                 canonical_json(identity_payload)
             ).hexdigest(),
@@ -352,7 +361,7 @@ def create_preparation(
 def generate_corpus(
     *,
     data_root: Path,
-    preparation: str | Path,
+    input_snapshot: str | Path,
     srcdiff: Path,
     timeout_seconds: float,
     use_position: bool = False,
@@ -360,17 +369,19 @@ def generate_corpus(
     source_encoding: str = "UTF-8",
     retry_failed: bool = False,
     selected_case_ids: Sequence[str] = (),
-    semantic_validator: Callable[[PreparedCase, Path], SemanticResult] | None = None,
+    semantic_validator: Callable[[InputPair, Path], SemanticResult] | None = None,
     semantic_oracle: Mapping[str, Any] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
-    preparation_manifest_path = _resolve_manifest(
-        data_root, "preparations", preparation
+    input_snapshot_manifest_path = _resolve_manifest(
+        data_root, "input-snapshots", input_snapshot
     )
-    preparation_manifest = _load_manifest(
-        preparation_manifest_path, PREPARATION_SCHEMA_VERSION, "preparation_id"
+    input_snapshot_manifest = _load_manifest(
+        input_snapshot_manifest_path,
+        INPUT_SNAPSHOT_SCHEMA_VERSION,
+        "input_snapshot_id",
     )
-    preparation_dir = preparation_manifest_path.parent
-    _verify_preparation(preparation_dir, preparation_manifest)
+    input_snapshot_dir = input_snapshot_manifest_path.parent
+    _verify_input_snapshot(input_snapshot_dir, input_snapshot_manifest)
     attempts_root = data_root / "attempts"
     attempts_root.mkdir(parents=True, exist_ok=True)
     recover_interrupted_attempts(attempts_root)
@@ -384,7 +395,7 @@ def generate_corpus(
     }
     artifact = srcdiff_observation.get("artifact", {})
     batch_identity = {
-        "preparation_identity_sha256": preparation_manifest["identity_sha256"],
+        "input_snapshot_identity_sha256": input_snapshot_manifest["identity_sha256"],
         "srcdiff_sha256": artifact.get("sha256"),
         "generation_configuration": generation_configuration,
     }
@@ -396,15 +407,15 @@ def generate_corpus(
             raise ValueError(f"generation batch identity mismatch: {batch_path}")
     else:
         batch = {
-            "schema_version": 1,
+            "schema_version": GENERATION_BATCH_SCHEMA_VERSION,
             "generation_id": batch_id,
             "identity": batch_identity,
             "created_at": utc_now(),
             "cases": [],
         }
     records_by_id = {record["case_id"]: record for record in batch["cases"]}
-    preparation_cases = {
-        case["case_id"]: case for case in preparation_manifest["cases"]
+    input_snapshot_cases = {
+        case["case_id"]: case for case in input_snapshot_manifest["cases"]
     }
 
     def validate_semantics(case_id: str, xml_path: Path) -> dict[str, Any]:
@@ -413,13 +424,13 @@ def generate_corpus(
                 "semantic_status": SemanticStatus.NOT_APPLICABLE.value,
                 "semantic_details": {},
             }
-        prepared = preparation_cases[case_id]
+        snapshot_case = input_snapshot_cases[case_id]
         result = semantic_validator(
-            PreparedCase(
+            InputPair(
                 case_id=case_id,
-                original=preparation_dir / prepared["original_path"],
-                modified=preparation_dir / prepared["modified_path"],
-                metadata=prepared["metadata"],
+                original=input_snapshot_dir / snapshot_case["original_path"],
+                modified=input_snapshot_dir / snapshot_case["modified_path"],
+                metadata=snapshot_case["metadata"],
             ),
             xml_path,
         )
@@ -453,7 +464,7 @@ def generate_corpus(
         )
         records_by_id[case_id] = {
             "case_id": case_id,
-            "metadata": preparation_cases[case_id]["metadata"],
+            "metadata": input_snapshot_cases[case_id]["metadata"],
             "attempt_id": terminal["attempt_id"],
             "parent_attempt_id": terminal.get("parent_attempt_id"),
             "retry_ordinal": ordinal,
@@ -462,13 +473,15 @@ def generate_corpus(
             **semantic,
             "attempt_path": str(terminal_path.parent.relative_to(data_root)),
         }
-    known_ids = {case["case_id"] for case in preparation_manifest["cases"]}
+    known_ids = {case["case_id"] for case in input_snapshot_manifest["cases"]}
     selected = set(selected_case_ids) if selected_case_ids else known_ids
     unknown = selected - known_ids
     if unknown:
-        raise ValueError(f"unknown preparation case(s): {', '.join(sorted(unknown))}")
+        raise ValueError(
+            f"unknown input snapshot case(s): {', '.join(sorted(unknown))}"
+        )
 
-    for case in preparation_manifest["cases"]:
+    for case in input_snapshot_manifest["cases"]:
         case_id = case["case_id"]
         previous = records_by_id.get(case_id)
         should_retry = (
@@ -479,8 +492,8 @@ def generate_corpus(
         )
         if previous is not None and not should_retry:
             continue
-        original = preparation_dir / case["original_path"]
-        modified = preparation_dir / case["modified_path"]
+        original = input_snapshot_dir / case["original_path"]
+        modified = input_snapshot_dir / case["modified_path"]
 
         def command(output: Path) -> Sequence[str]:
             value = [str(srcdiff)]
@@ -498,7 +511,7 @@ def generate_corpus(
             stage="srcdiff",
             case_id=case_id,
             command_factory=command,
-            cwd=preparation_dir,
+            cwd=input_snapshot_dir,
             timeout_seconds=timeout_seconds,
             xml_validator=lambda path: validate_srcdiff_xml(
                 path, "archive" if use_archive else "single_file"
@@ -510,9 +523,9 @@ def generate_corpus(
             ),
             context={
                 "generation_id": batch_id,
-                "preparation_id": preparation_manifest["preparation_id"],
-                "preparation_manifest_sha256": _manifest_checksum(
-                    preparation_manifest_path
+                "input_snapshot_id": input_snapshot_manifest["input_snapshot_id"],
+                "input_snapshot_manifest_sha256": _manifest_checksum(
+                    input_snapshot_manifest_path
                 ),
                 "original_path": case["original_path"],
                 "modified_path": case["modified_path"],
@@ -542,14 +555,14 @@ def generate_corpus(
         records_by_id[case_id] = case_record
         batch["cases"] = [
             records_by_id[item["case_id"]]
-            for item in preparation_manifest["cases"]
+            for item in input_snapshot_manifest["cases"]
             if item["case_id"] in records_by_id
         ]
         batch["updated_at"] = utc_now()
         write_json_atomic(batch_path, batch)
 
     case_records = [
-        records_by_id[case["case_id"]] for case in preparation_manifest["cases"]
+        records_by_id[case["case_id"]] for case in input_snapshot_manifest["cases"]
     ]
     accepted_checksums = [
         {"case_id": record["case_id"], "sha256": record["xml"]["sha256"]}
@@ -558,7 +571,7 @@ def generate_corpus(
     ]
     identity_payload = {
         "schema_version": CORPUS_SCHEMA_VERSION,
-        "preparation_identity_sha256": preparation_manifest["identity_sha256"],
+        "input_snapshot_identity_sha256": input_snapshot_manifest["identity_sha256"],
         "srcdiff_sha256": artifact.get("sha256"),
         "generation_configuration": generation_configuration,
         "accepted_xml": accepted_checksums,
@@ -577,7 +590,7 @@ def generate_corpus(
     try:
         promoted_cases = []
         records_by_id = {record["case_id"]: record for record in case_records}
-        for case in preparation_manifest["cases"]:
+        for case in input_snapshot_manifest["cases"]:
             record = records_by_id[case["case_id"]]
             promoted = dict(record)
             if record["generation_status"] == "accepted":
@@ -598,15 +611,15 @@ def generate_corpus(
             "schema_version": CORPUS_SCHEMA_VERSION,
             "corpus_id": corpus_id,
             "created_at": utc_now(),
-            "preparation_id": preparation_manifest["preparation_id"],
-            "adapter": preparation_manifest["adapter"],
-            "source": preparation_manifest["source"],
-            "filter_configuration": preparation_manifest["filter_configuration"],
-            "preparation_identity_sha256": identity_payload[
-                "preparation_identity_sha256"
+            "input_snapshot_id": input_snapshot_manifest["input_snapshot_id"],
+            "adapter": input_snapshot_manifest["adapter"],
+            "source": input_snapshot_manifest["source"],
+            "filter_configuration": input_snapshot_manifest["filter_configuration"],
+            "input_snapshot_identity_sha256": identity_payload[
+                "input_snapshot_identity_sha256"
             ],
-            "observed_preparation_manifest_sha256": _manifest_checksum(
-                preparation_manifest_path
+            "observed_input_snapshot_manifest_sha256": _manifest_checksum(
+                input_snapshot_manifest_path
             ),
             "srcdiff": srcdiff_observation,
             "generation_configuration": generation_configuration,

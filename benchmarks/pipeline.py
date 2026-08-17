@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Prepare sources, generate an immutable srcDiff corpus, or replay srcMove."""
+"""Create an input snapshot, generate a srcDiff corpus, or replay srcMove."""
 
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
         sys.path.insert(0, str(import_root))
 
 from benchmarks.contracts import RunMode
-from benchmarks.corpus import create_preparation, generate_corpus, run_corpus
+from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
 from benchmarks.repositories.adapter import RepositoryAdapter
 from support.tooling import find_srcdiff, find_srcmove
 
@@ -29,13 +29,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
     subparsers = parser.add_subparsers(dest="stage", required=True)
 
-    prepare = subparsers.add_parser("prepare")
-    prepare.add_argument("--case-id", required=True)
-    prepare.add_argument("--original", type=Path, required=True)
-    prepare.add_argument("--modified", type=Path, required=True)
-    prepare.add_argument("--source-json", default="{}")
-    prepare.add_argument("--metadata-json", default="{}")
-    prepare.add_argument(
+    snapshot = subparsers.add_parser(
+        "snapshot",
+        help="Freeze and checksum an old/new source pair for later srcDiff runs.",
+    )
+    snapshot.add_argument("--case-id", required=True)
+    snapshot.add_argument("--original", type=Path, required=True)
+    snapshot.add_argument("--modified", type=Path, required=True)
+    snapshot.add_argument("--source-json", default="{}")
+    snapshot.add_argument("--metadata-json", default="{}")
+    snapshot.add_argument(
         "--exclude-suffix",
         action="append",
         default=[],
@@ -43,7 +46,9 @@ def parse_args() -> argparse.Namespace:
     )
 
     generate = subparsers.add_parser("generate")
-    generate.add_argument("preparation")
+    generate.add_argument(
+        "input_snapshot", help="Input snapshot ID, directory, or manifest path."
+    )
     generate.add_argument("--srcdiff", type=Path)
     generate.add_argument("--timeout", type=float, default=1800.0)
     generate.add_argument("--position", action="store_true")
@@ -90,27 +95,27 @@ def main() -> int:
     data_root = args.data_root.expanduser().resolve()
     exit_code = 0
     try:
-        if args.stage == "prepare":
+        if args.stage == "snapshot":
             adapter = RepositoryAdapter(
                 case_id=args.case_id,
                 original=args.original,
                 modified=args.modified,
                 metadata=json_object(args.metadata_json, "--metadata-json"),
             )
-            directory, manifest = create_preparation(
+            directory, manifest = create_input_snapshot(
                 data_root=data_root,
                 adapter=adapter,
                 source=json_object(args.source_json, "--source-json"),
                 filter_configuration={"excluded_suffixes": args.exclude_suffix},
             )
-            print(f"preparation_id={manifest['preparation_id']}")
+            print(f"input_snapshot_id={manifest['input_snapshot_id']}")
         elif args.stage == "generate":
             srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
             if srcdiff is None:
                 raise ValueError("srcdiff not found; pass --srcdiff")
             directory, manifest = generate_corpus(
                 data_root=data_root,
-                preparation=args.preparation,
+                input_snapshot=args.input_snapshot,
                 srcdiff=srcdiff,
                 timeout_seconds=args.timeout,
                 use_position=args.position,

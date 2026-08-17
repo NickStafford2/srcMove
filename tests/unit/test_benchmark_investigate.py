@@ -14,7 +14,7 @@ FAKE_TOOL = REPO_ROOT / "tests" / "fixtures" / "benchmark" / "fake_tool.py"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.corpus import create_preparation, generate_corpus
+from benchmarks.corpus import create_input_snapshot, generate_corpus
 from benchmarks.repositories.adapter import RepositoryAdapter
 
 
@@ -26,7 +26,7 @@ def executable_copy(root: Path, name: str) -> Path:
 
 
 class InvestigationTests(unittest.TestCase):
-    def test_failed_attempt_can_be_replayed_and_reduced_from_preparation(self) -> None:
+    def test_failed_attempt_can_be_replayed_and_reduced_from_input_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             data_root = root / "generated"
@@ -39,7 +39,7 @@ class InvestigationTests(unittest.TestCase):
                 (modified / name).parent.mkdir(parents=True, exist_ok=True)
                 (original / name).write_text("int old;\n")
                 (modified / name).write_text("int new;\n")
-            _, preparation = create_preparation(
+            _, input_snapshot = create_input_snapshot(
                 data_root=data_root,
                 adapter=RepositoryAdapter(
                     case_id="failure", original=original, modified=modified
@@ -50,7 +50,7 @@ class InvestigationTests(unittest.TestCase):
             valid = executable_copy(root, "srcdiff-valid-archive")
             _, corpus = generate_corpus(
                 data_root=data_root,
-                preparation=preparation["preparation_id"],
+                input_snapshot=input_snapshot["input_snapshot_id"],
                 srcdiff=failing,
                 timeout_seconds=2.0,
             )

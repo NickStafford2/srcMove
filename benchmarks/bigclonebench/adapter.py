@@ -1,4 +1,4 @@
-"""BigCloneBench adapter for the shared preparation and corpus pipeline."""
+"""BigCloneBench adapter for the shared input snapshot and corpus pipeline."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from benchmarks.contracts import PreparedCase, SemanticResult, SemanticStatus
+from benchmarks.contracts import InputPair, SemanticResult, SemanticStatus
 
 
 SEMANTIC_ORACLE_VERSION = 1
@@ -64,7 +64,7 @@ def _covers(candidate: tuple[int, int], expected: tuple[int, int]) -> bool:
 
 
 def validate_srcdiff_semantics(
-    case: PreparedCase, srcdiff_xml: Path
+    case: InputPair, srcdiff_xml: Path
 ) -> SemanticResult:
     """Require delete and insert candidates covering both generated payloads."""
 
@@ -213,8 +213,8 @@ class BigCloneBenchAdapter:
         if not valid:
             raise ValueError(f"invalid generated selection manifest: {manifest_path}")
 
-    def prepare(self) -> Sequence[PreparedCase]:
-        cases: list[PreparedCase] = []
+    def input_pairs(self) -> Sequence[InputPair]:
+        cases: list[InputPair] = []
         selected_rows = self.selection_manifest["selection"][
             "ordered_selected_row_ids"
         ]
@@ -241,7 +241,7 @@ class BigCloneBenchAdapter:
                     f"case row identity does not match selection manifest: {case_id}"
                 )
             cases.append(
-                PreparedCase(
+                InputPair(
                     case_id=case_id,
                     original=directory / "original.java",
                     modified=directory / "modified.java",
@@ -252,12 +252,12 @@ class BigCloneBenchAdapter:
 
     @staticmethod
     def validate_semantics(
-        case: PreparedCase, srcdiff_xml: Path
+        case: InputPair, srcdiff_xml: Path
     ) -> SemanticResult:
         return validate_srcdiff_semantics(case, srcdiff_xml)
 
     def source_manifest(self) -> dict[str, Any]:
-        """Return selection facts copied into the immutable preparation."""
+        """Return selection facts copied into the immutable input snapshot."""
 
         return {
             "dataset": "BigCloneBench",

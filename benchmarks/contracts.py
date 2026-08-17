@@ -15,7 +15,7 @@ from pathlib import Path
 from typing import Any, Mapping, Protocol, Sequence
 
 
-CONTRACT_VERSION = 1
+CONTRACT_VERSION = 2
 
 
 class RunMode(StrEnum):
@@ -90,8 +90,8 @@ def content_identifier(kind: str, payload: JsonValue) -> str:
 
 
 @dataclass(frozen=True)
-class PreparedCase:
-    """Dataset-neutral source inputs offered to one srcDiff attempt."""
+class InputPair:
+    """Dataset-neutral old/new source pair to freeze in an input snapshot."""
 
     case_id: str
     original: Path
@@ -110,7 +110,7 @@ class SemanticResult:
 class DatasetAdapter(Protocol):
     """Boundary between datasets and shared benchmark orchestration.
 
-    Adapters prepare cases and perform only dataset-specific semantic checks.
+    Adapters expose input pairs and perform only dataset-specific semantic checks.
     Process execution, provenance, artifact storage, and reporting remain the
     responsibility of the shared core.
     """
@@ -118,8 +118,8 @@ class DatasetAdapter(Protocol):
     name: str
     version: int
 
-    def prepare(self) -> Sequence[PreparedCase]: ...
+    def input_pairs(self) -> Sequence[InputPair]: ...
 
     def validate_semantics(
-        self, case: PreparedCase, srcdiff_xml: Path
+        self, case: InputPair, srcdiff_xml: Path
     ) -> SemanticResult: ...

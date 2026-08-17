@@ -20,30 +20,39 @@ modifying anything:
 python3 benchmarks/bigclonebench/pipeline.py preflight
 ```
 
-The staged workflow keeps generated sources, reusable srcDiff XML, and srcMove
-runs separate. Generate a deterministic tuning slice:
+The workflow keeps generated sources, reusable srcDiff XML, and srcMove runs
+separate. Generate a deterministic tuning slice:
 
 ```bash
 python3 benchmarks/bigclonebench/pipeline.py cases \
   --clone-type type1 --limit 10 --selection-role tuning
 ```
 
-Snapshot those cases into the shared immutable preparation store:
+Then run the complete saved benchmark without passing intermediate identifiers:
 
 ```bash
-python3 benchmarks/bigclonebench/pipeline.py prepare --clone-type type1
+python3 benchmarks/bigclonebench/pipeline.py benchmark \
+  --clone-type type1 \
+  --srcdiff /path/to/srcdiff \
+  --srcmove /path/to/srcMove
 ```
 
-Use the printed preparation identifier to generate a reusable srcDiff corpus,
-then evaluate any number of srcMove builds without BigCloneBench, its source
-files, or `srcdiff` being available:
+The command creates or reuses the input snapshot and corpus, records every
+srcDiff attempt, and writes a new append-only srcMove evaluation run.
+
+For stage-level debugging, create the input snapshot, corpus, and evaluation
+separately:
 
 ```bash
-python3 benchmarks/bigclonebench/pipeline.py corpus PREPARATION_ID \
+python3 benchmarks/bigclonebench/pipeline.py snapshot --clone-type type1
+python3 benchmarks/bigclonebench/pipeline.py corpus INPUT_SNAPSHOT_ID \
   --srcdiff /path/to/srcdiff
 python3 benchmarks/bigclonebench/pipeline.py evaluate CORPUS_ID \
   --srcmove /path/to/srcMove
 ```
+
+After corpus creation, any number of srcMove builds can be evaluated without
+BigCloneBench, its source files, or `srcdiff` being available.
 
 Each evaluation writes `summary.json` and `cases.csv` below its unique
 `benchmark-data/runs/<run-id>/` directory. Reports are never written to one

@@ -45,8 +45,8 @@ timeout process-group cleanup, bounded logs, interrupted-attempt recovery,
 content-stable identifiers, checksum enforcement, and replay without source
 trees or srcDiff. They also cover non-destructive filters, resumable batches,
 retry lineage, resource observations, and srcDiff replay/subset reduction.
-Repository-orchestrator fixtures verify that one command reuses immutable
-preparations and corpora, appends distinct srcMove runs and series records, and
+Repository-orchestrator fixtures verify that one command reuses immutable input
+snapshots and corpora, appends distinct srcMove runs and series records, and
 saves srcDiff failures without starting a misleading srcMove run.
 Tiny BigCloneBench fixtures additionally verify semantic eligibility, strict
 match-kind enforcement, append-only summaries, reconciled outcomes, and reuse

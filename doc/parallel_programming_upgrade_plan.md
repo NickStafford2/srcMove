@@ -205,7 +205,7 @@ an afterthought.
 
 ### Phase 0: establish the current baseline
 
-Prepare immutable, checksummed srcDiff inputs through the benchmarking plan.
+Create immutable, checksummed input snapshots through the benchmarking plan.
 The performance corpus must use multi-file repository archives. At minimum, use:
 
 - the same large OpenCV corpus or an equivalently documented repository

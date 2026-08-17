@@ -19,8 +19,11 @@ Command:
 
 ```bash
 scripts/build_release.sh
-python3 benchmarks/profile.py --prepare-bigclonebench
 ```
+
+The historical coupled BigCloneBench setup/profile command is retired. Use the
+current input snapshot and corpus workflow documented in
+`benchmarks/bigclonebench/README.md`.
 
 Profile file:
 
@@ -160,7 +163,8 @@ python3 benchmarks/bigclonebench/run.py --clone-type type1 --limit 10 --srcmove 
 Performance:
 
 ```bash
-python3 benchmarks/profile.py --prepare-bigclonebench --label annotation-before
+python3 benchmarks/profile.py --corpus CORPUS_ID \
+  --srcmove build-release/srcMove --run-id annotation-before
 python3 benchmarks/profile.py --suite opencv --repeats 1 --label opencv-before
 ```
 
@@ -175,9 +179,9 @@ After a change, rerun the same commands with `annotation-after` /
 
 ## Notes
 
-`benchmarks/profile.py --prepare-bigclonebench` now continues profiling if
-BigCloneBench validation reports known failures, as long as the active manifest
-was generated.
+The current workflow creates a BigCloneBench input snapshot and corpus before
+profiling. The corpus keeps benchmark generation and validation outside the
+timed srcMove measurements.
 
 The OpenCV profile is a large XML I/O/annotation stress test. It currently has
 nearly no candidate/grouping cost, so it is not a content-group stress test.

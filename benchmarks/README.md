@@ -16,7 +16,7 @@ small series index; see the [repository benchmark guide](repositories/README.md)
 Treat those manifests and their referenced immutable artifacts—not mutable
 `work/` directories—as the authoritative result.
 
-The phased upgrade of prepared srcDiff corpora, provenance, failure incidents,
+The phased upgrade of reusable srcDiff corpora, provenance, failure incidents,
 dataset adapters, and publication runs is described in the
 [benchmarking upgrade plan](../doc/benchmarking_upgrade_plan.md).
 
@@ -25,7 +25,7 @@ dataset adapters, and publication runs is described in the
 `contracts.py` is the versioned shared boundary for the upgrade. It defines the
 canonical content-identity encoding, process/XML/provenance status vocabulary,
 development/publication labels, and the narrow interface implemented by dataset
-adapters. Dataset adapters may prepare inputs and add semantic eligibility
+adapters. Dataset adapters expose old/new input pairs and add semantic eligibility
 checks; they must not replace shared execution, provenance, storage, or
 reporting.
 
@@ -41,7 +41,7 @@ compatibility contracts:
   writing ignored cases and a replaceable `cases/summary.csv`.
 - `benchmarks/repositories/run_case.py` is the public repository orchestrator.
   Its case-local `work/` directory is only a checkout/export cache; authoritative
-  preparations, attempts, corpora, runs, and series indexes are stored under
+  input snapshots, attempts, corpora, runs, and series indexes are stored under
   `benchmark-data/`.
 - `benchmarks/profile.py` reads existing XML inputs and writes ignored local
   profiles unless an explicit output is selected.
@@ -70,22 +70,26 @@ these observations; legacy coupled runners do not.
 
 ## Staged corpus workflow
 
-`pipeline.py` provides the shared preparation, attempt, corpus, and run stages.
+`pipeline.py` provides the shared input snapshot, attempt, corpus, and run stages.
 Generated data defaults to the ignored `benchmark-data/` directory.
-Preparations and corpora use content-derived identifiers; runs use unique,
+Input snapshots and corpora use content-derived identifiers; runs use unique,
 append-only identifiers.
+
+An **input snapshot** is a frozen, checksummed old/new source pair saved for
+later srcDiff execution. It makes the exact source inputs reusable without
+depending on a mutable checkout or repeating repository export.
 
 Every tool invocation owns a unique attempt directory. Its atomic terminal
 record keeps process termination separate from XML validation, retains bounded
 stdout/stderr with full-stream checksums, and records timeout cleanup. Only a
 normal zero exit with structurally valid, checksummed srcDiff XML can be
-promoted into a corpus. Prepared inputs and corpus XML are checksum-verified
+promoted into a corpus. Input snapshots and corpus XML are checksum-verified
 again whenever consumed.
 
 Repository commands are documented in the
 [repository benchmark guide](repositories/README.md). An existing corpus can be
-replayed with a different srcMove executable without the source preparation or
-`srcdiff` being available.
+replayed with a different srcMove executable without the input snapshot's
+original checkout or `srcdiff` being available.
 
 BigCloneBench uses the same core through its
 [staged benchmark guide](bigclonebench/README.md). Its adapter adds only the
@@ -95,14 +99,14 @@ reconcile upstream failures, semantic ineligibility, misses, wrong
 classifications, and passes without installing BigCloneBench.
 
 Generation batches checkpoint every terminal case. Repeating `generate` with
-the same preparation, executable, and options skips recorded cases; use
+the same input snapshot, executable, and options skips recorded cases; use
 `--retry-failed` (and optionally repeatable `--case`) to append child attempts
 without replacing earlier evidence. `run` supports the same selection policy
 with `--resume-run RUN_ID`. Linux attempts record process-group peak RSS and
 cgroup OOM evidence when those interfaces are available.
 
-`investigate.py` replays a preserved srcDiff incident from its checksummed
-preparation. A repeatable `--relative-path` selects individual files while
+`investigate.py` replays a preserved srcDiff incident from its checksummed input
+snapshot. A repeatable `--relative-path` selects individual files while
 preserving their paths; `isolate` bisects an archive inventory and retains the
 candidate subsets and every attempt below `benchmark-data/investigations/`.
 

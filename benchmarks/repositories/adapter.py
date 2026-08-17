@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from benchmarks.contracts import (
-    PreparedCase,
+    InputPair,
     SemanticResult,
     SemanticStatus,
 )
@@ -24,17 +24,17 @@ class RepositoryAdapter:
         modified: Path,
         metadata: Mapping[str, Any] | None = None,
     ) -> None:
-        self.case = PreparedCase(
+        self.case = InputPair(
             case_id=case_id,
             original=original,
             modified=modified,
             metadata=metadata or {},
         )
 
-    def prepare(self) -> Sequence[PreparedCase]:
+    def input_pairs(self) -> Sequence[InputPair]:
         return [self.case]
 
     def validate_semantics(
-        self, case: PreparedCase, srcdiff_xml: Path
+        self, case: InputPair, srcdiff_xml: Path
     ) -> SemanticResult:
         return SemanticResult(SemanticStatus.NOT_APPLICABLE)

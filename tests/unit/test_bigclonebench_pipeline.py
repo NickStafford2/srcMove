@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -15,7 +16,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from benchmarks.bigclonebench.adapter import BigCloneBenchAdapter
 from benchmarks.bigclonebench.evaluate import _score_completed_case, write_evaluation
-from benchmarks.corpus import create_preparation, generate_corpus, run_corpus
+from benchmarks.bigclonebench.pipeline import parse_args
+from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
 from benchmarks.provenance import sha256_file
 
 
@@ -26,6 +28,23 @@ def write_executable(path: Path, source: str) -> Path:
 
 
 class BigCloneBenchPipelineTests(unittest.TestCase):
+    def test_combined_benchmark_cli_needs_no_intermediate_identifier(self) -> None:
+        arguments = [
+            "pipeline.py",
+            "benchmark",
+            "--clone-type",
+            "type1",
+            "--srcdiff",
+            "/tmp/srcdiff",
+            "--srcmove",
+            "/tmp/srcMove",
+        ]
+        with mock.patch.object(sys, "argv", arguments):
+            args = parse_args()
+        self.assertEqual(args.stage, "benchmark")
+        self.assertFalse(hasattr(args, "input_snapshot"))
+        self.assertFalse(hasattr(args, "corpus"))
+
     def test_type_two_scoring_requires_type2_match_kind(self) -> None:
         metadata = {
             "syntactic_type": 2,
@@ -196,12 +215,12 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
 
             data_root = root / "benchmark-data"
             adapter = BigCloneBenchAdapter(cases_dir, 1)
-            _, preparation = create_preparation(
+            _, input_snapshot = create_input_snapshot(
                 data_root=data_root, adapter=adapter, source=adapter.source_manifest()
             )
             corpus_dir, corpus = generate_corpus(
                 data_root=data_root,
-                preparation=preparation["preparation_id"],
+                input_snapshot=input_snapshot["input_snapshot_id"],
                 srcdiff=srcdiff,
                 timeout_seconds=2.0,
                 use_position=True,
@@ -314,7 +333,7 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
                 )
             )
             with self.assertRaisesRegex(ValueError, "syntactic_type"):
-                BigCloneBenchAdapter(cases_dir, 2).prepare()
+                BigCloneBenchAdapter(cases_dir, 2).input_pairs()
 
             (case_dir / "metadata.json").write_text(
                 json.dumps(
@@ -326,7 +345,7 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
                 )
             )
             with self.assertRaisesRegex(ValueError, "row identity"):
-                BigCloneBenchAdapter(cases_dir, 2).prepare()
+                BigCloneBenchAdapter(cases_dir, 2).input_pairs()
 
 
 if __name__ == "__main__":

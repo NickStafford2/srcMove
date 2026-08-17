@@ -23,15 +23,16 @@ work. `REFRESH=1` explicitly permits the initial clone or a later fetch. Omit it
 to reuse the cached checkout offline.
 
 The command resolves exact commits, exports both revisions, creates or reuses an
-immutable preparation and srcDiff corpus, runs srcMove only on admitted XML, and
-creates a new append-only srcMove run. It prints the saved benchmark index and
-series summary. No benchmark artifacts are copied between runs.
+[input snapshot](../README.md#staged-corpus-workflow) and srcDiff corpus, runs
+srcMove only on admitted XML, and creates a new append-only srcMove run. It
+prints the saved benchmark index and series summary. No benchmark artifacts are
+copied between runs.
 
 Generated data defaults to:
 
 ```text
 benchmark-data/
-  preparations/<content-id>/       immutable exported inputs
+  input-snapshots/<content-id>/    frozen, checksummed old/new source pairs
   attempts/<attempt-id>/           srcDiff commands, logs, output, and status
   corpora/<content-id>/            admitted immutable srcDiff XML
   runs/<run-id>/                   append-only srcMove output and results
@@ -41,15 +42,13 @@ benchmark-data/
 ```
 
 The small repository-run index references canonical artifacts; it does not
-duplicate them. Repeating an identical case reuses its preparation and corpus
+duplicate them. Repeating an identical case reuses its input snapshot and corpus
 but always creates a distinct srcMove run and index record.
 
 If srcDiff crashes, times out, or emits invalid archive XML, the command returns
 nonzero, saves the failure, and prints exact `replay` and `isolate` commands. A
 zero-move srcMove result remains a valid observation; structurally empty archive
 output from srcDiff is rejected before srcMove runs.
-
-Override configured revisions from inside `srcMove` when needed:
 
 Override revisions or refresh the cached checkout when needed:
 
@@ -66,26 +65,25 @@ inspection.
 
 ## Advanced staged workflow
 
-For reusable measurements, prepare already-exported revision trees as an
-immutable input snapshot:
+For advanced use with already-exported revision trees, create an input snapshot:
 
 ```bash
-python3 benchmarks/pipeline.py prepare \
+python3 benchmarks/pipeline.py snapshot \
   --case-id my-repository-case \
   --original /path/to/old/export \
   --modified /path/to/new/export \
   --source-json '{"repository":"URL","old":"COMMIT","new":"COMMIT"}'
 ```
 
-Filters are non-destructive and part of the preparation identity. For the
+Filters are non-destructive and part of the input snapshot identity. For the
 current srcDiff Python limitation, add `--exclude-suffix .py`; the manifest
 records every excluded path and the original export remains unchanged.
 
-The command prints a preparation identifier. Generate a reusable srcDiff corpus
-from it:
+The command prints an input snapshot identifier. Generate a reusable srcDiff
+corpus from it:
 
 ```bash
-python3 benchmarks/pipeline.py generate PREPARATION_ID \
+python3 benchmarks/pipeline.py generate INPUT_SNAPSHOT_ID \
   --srcdiff /path/to/srcdiff \
   --timeout 1800
 ```
@@ -98,7 +96,7 @@ Generation is resumable. The same command skips terminal cases already present
 in its checkpoint. Retry all failed cases, or selected failures, with:
 
 ```bash
-python3 benchmarks/pipeline.py generate PREPARATION_ID \
+python3 benchmarks/pipeline.py generate INPUT_SNAPSHOT_ID \
   --srcdiff /path/to/srcdiff \
   --retry-failed \
   --case CASE_ID
@@ -138,5 +136,5 @@ python3 benchmarks/investigate.py isolate ATTEMPT_ID
 ```
 
 The public `run_case.py` command performs these stages automatically. Use the
-low-level commands only for debugging, unusual prepared inputs, or retrying a
+low-level commands only for debugging, unusual input snapshots, or retrying a
 specific stage.

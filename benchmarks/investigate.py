@@ -17,10 +17,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.corpus import (  # noqa: E402
-    PREPARATION_SCHEMA_VERSION,
+    INPUT_SNAPSHOT_SCHEMA_VERSION,
     _load_manifest,
     _resolve_manifest,
-    _verify_preparation,
+    _verify_input_snapshot,
 )
 from benchmarks.process import (  # noqa: E402
     execute_attempt,
@@ -69,20 +69,20 @@ def load_attempt(data_root: Path, value: str) -> tuple[Path, dict[str, Any]]:
     raise FileNotFoundError(f"attempt record not found: {value}")
 
 
-def prepared_inputs(
+def load_input_snapshot_pair(
     data_root: Path, attempt: dict[str, Any]
 ) -> tuple[Path, Path, Path]:
     context = attempt.get("context", {})
-    preparation = context.get("preparation_id")
-    if not isinstance(preparation, str):
-        raise ValueError("attempt predates preserved preparation references")
-    manifest_path = _resolve_manifest(data_root, "preparations", preparation)
+    input_snapshot = context.get("input_snapshot_id")
+    if not isinstance(input_snapshot, str):
+        raise ValueError("attempt does not reference a current input snapshot")
+    manifest_path = _resolve_manifest(data_root, "input-snapshots", input_snapshot)
     manifest = _load_manifest(
-        manifest_path, PREPARATION_SCHEMA_VERSION, "preparation_id"
+        manifest_path, INPUT_SNAPSHOT_SCHEMA_VERSION, "input_snapshot_id"
     )
-    _verify_preparation(manifest_path.parent, manifest)
-    if sha256_file(manifest_path) != context.get("preparation_manifest_sha256"):
-        raise ValueError("preserved preparation manifest checksum mismatch")
+    _verify_input_snapshot(manifest_path.parent, manifest)
+    if sha256_file(manifest_path) != context.get("input_snapshot_manifest_sha256"):
+        raise ValueError("preserved input snapshot manifest checksum mismatch")
     return (
         manifest_path.parent,
         manifest_path.parent / context["original_path"],
@@ -188,7 +188,7 @@ def main() -> int:
     args = parse_args()
     data_root = args.data_root.expanduser().resolve()
     _, attempt = load_attempt(data_root, args.attempt)
-    _, original, modified = prepared_inputs(data_root, attempt)
+    _, original, modified = load_input_snapshot_pair(data_root, attempt)
     executable = (args.srcdiff or Path(attempt["command"][0])).expanduser().resolve()
     observation = observe_executable(executable)
     if observation.get("artifact", {}).get("status") != "observed":
@@ -276,11 +276,11 @@ def main() -> int:
         )
 
     manifest = {
-        "schema_version": 1,
+        "schema_version": 2,
         "investigation_id": investigation_id,
         "created_at": utc_now(),
         "source_attempt_id": attempt["attempt_id"],
-        "preparation_id": attempt["context"]["preparation_id"],
+        "input_snapshot_id": attempt["context"]["input_snapshot_id"],
         "srcdiff": observation,
         "timeout_seconds": timeout,
         "selected_paths": selected,

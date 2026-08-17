@@ -40,8 +40,8 @@ def load_bigclonebench_runner():
 
 
 class BenchmarkContractTests(unittest.TestCase):
-    def test_status_vocabulary_is_frozen_at_version_one(self) -> None:
-        self.assertEqual(CONTRACT_VERSION, 1)
+    def test_status_vocabulary_is_frozen_at_version_two(self) -> None:
+        self.assertEqual(CONTRACT_VERSION, 2)
         self.assertEqual(
             [mode.value for mode in RunMode], ["development", "publication"]
         )
@@ -81,8 +81,8 @@ class BenchmarkContractTests(unittest.TestCase):
 
         self.assertEqual(canonical_json(left), canonical_json(right))
         self.assertEqual(
-            content_identifier("preparation", left),
-            content_identifier("preparation", right),
+            content_identifier("input-snapshot", left),
+            content_identifier("input-snapshot", right),
         )
 
     def test_canonical_identity_preserves_array_order_and_content(self) -> None:

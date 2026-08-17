@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate, prepare, corpus-build, and evaluate BigCloneBench in separate stages."""
+"""Generate cases, snapshot inputs, build a corpus, and evaluate BigCloneBench."""
 
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ from benchmarks.bigclonebench.adapter import (
 from benchmarks.bigclonebench.evaluate import write_evaluation
 from benchmarks.bigclonebench.generate import preflight
 from benchmarks.contracts import RunMode
-from benchmarks.corpus import create_preparation, generate_corpus, run_corpus
+from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
 from support.tooling import find_srcdiff, find_srcmove
 
 
@@ -59,12 +59,19 @@ def parse_args() -> argparse.Namespace:
     )
     cases.add_argument("--out-dir", type=Path, default=DEFAULT_CASES_ROOT)
 
-    prepare = stages.add_parser("prepare", help="Snapshot already-generated cases.")
-    prepare.add_argument("--clone-type", choices=("type1", "type2"), default="type1")
-    prepare.add_argument("--cases-dir", type=Path, default=DEFAULT_CASES_ROOT)
+    snapshot = stages.add_parser(
+        "snapshot",
+        help="Freeze and checksum generated old/new source pairs.",
+    )
+    snapshot.add_argument(
+        "--clone-type", choices=("type1", "type2"), default="type1"
+    )
+    snapshot.add_argument("--cases-dir", type=Path, default=DEFAULT_CASES_ROOT)
 
     corpus = stages.add_parser("corpus", help="Generate immutable srcDiff XML.")
-    corpus.add_argument("preparation")
+    corpus.add_argument(
+        "input_snapshot", help="Input snapshot ID, directory, or manifest path."
+    )
     corpus.add_argument("--srcdiff", type=Path)
     corpus.add_argument("--timeout", type=float, default=60.0)
     corpus.add_argument("--retry-failed", action="store_true")
@@ -78,11 +85,89 @@ def parse_args() -> argparse.Namespace:
         choices=[mode.value for mode in RunMode],
         default="development",
     )
+
+    benchmark = stages.add_parser(
+        "benchmark",
+        help="Snapshot generated cases, build the corpus, and evaluate srcMove.",
+    )
+    benchmark.add_argument(
+        "--clone-type", choices=("type1", "type2"), default="type1"
+    )
+    benchmark.add_argument("--cases-dir", type=Path, default=DEFAULT_CASES_ROOT)
+    benchmark.add_argument("--srcdiff", type=Path)
+    benchmark.add_argument("--srcmove", type=Path)
+    benchmark.add_argument("--srcdiff-timeout", type=float, default=60.0)
+    benchmark.add_argument("--srcmove-timeout", type=float, default=300.0)
+    benchmark.add_argument("--retry-failed", action="store_true")
+    benchmark.add_argument(
+        "--mode",
+        choices=[mode.value for mode in RunMode],
+        default="development",
+    )
     return parser.parse_args()
 
 
 def _syntactic_type(clone_type: str) -> int:
     return int(clone_type.removeprefix("type"))
+
+
+def build_corpus(
+    *,
+    data_root: Path,
+    input_snapshot: str | Path,
+    srcdiff: Path,
+    timeout_seconds: float,
+    retry_failed: bool,
+) -> tuple[Path, dict]:
+    return generate_corpus(
+        data_root=data_root,
+        input_snapshot=input_snapshot,
+        srcdiff=srcdiff,
+        timeout_seconds=timeout_seconds,
+        use_position=True,
+        use_archive=False,
+        retry_failed=retry_failed,
+        semantic_validator=BigCloneBenchAdapter.validate_semantics,
+        semantic_oracle={
+            "name": "bigclonebench-payload-exposure",
+            "version": SEMANTIC_ORACLE_VERSION,
+        },
+    )
+
+
+def evaluate_corpus(
+    *,
+    data_root: Path,
+    corpus: str | Path,
+    srcmove: Path,
+    timeout_seconds: float,
+    mode: RunMode,
+) -> tuple[Path, dict, dict]:
+    run_dir, run_manifest = run_corpus(
+        data_root=data_root,
+        corpus=corpus,
+        srcmove=srcmove,
+        timeout_seconds=timeout_seconds,
+        mode=mode,
+        require_semantic_eligible=True,
+    )
+    corpus_path = Path(corpus)
+    if corpus_path.is_file():
+        corpus_dir = corpus_path.resolve().parent
+    elif corpus_path.is_dir():
+        corpus_dir = corpus_path.resolve()
+    else:
+        corpus_dir = data_root / "corpora" / str(corpus)
+    corpus_manifest = json.loads(
+        (corpus_dir / "manifest.json").read_text(encoding="utf-8")
+    )
+    summary = write_evaluation(
+        run_dir=run_dir,
+        run_manifest=run_manifest,
+        corpus_dir=corpus_dir,
+        corpus_manifest=corpus_manifest,
+    )
+    return run_dir, run_manifest, summary
 
 
 def main() -> int:
@@ -132,33 +217,26 @@ def main() -> int:
                 command.extend(["--candidate-limit", str(args.candidate_limit)])
             return subprocess.run(command, cwd=REPO_ROOT, check=False).returncode
 
-        if args.stage == "prepare":
+        if args.stage == "snapshot":
             adapter = BigCloneBenchAdapter(
                 args.cases_dir, _syntactic_type(args.clone_type)
             )
-            directory, manifest = create_preparation(
+            directory, manifest = create_input_snapshot(
                 data_root=data_root,
                 adapter=adapter,
                 source=adapter.source_manifest(),
             )
-            print(f"preparation_id={manifest['preparation_id']}")
+            print(f"input_snapshot_id={manifest['input_snapshot_id']}")
         elif args.stage == "corpus":
             srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
             if srcdiff is None:
                 raise ValueError("srcdiff not found; pass --srcdiff")
-            directory, manifest = generate_corpus(
+            directory, manifest = build_corpus(
                 data_root=data_root,
-                preparation=args.preparation,
+                input_snapshot=args.input_snapshot,
                 srcdiff=srcdiff,
                 timeout_seconds=args.timeout,
-                use_position=True,
-                use_archive=False,
                 retry_failed=args.retry_failed,
-                semantic_validator=BigCloneBenchAdapter.validate_semantics,
-                semantic_oracle={
-                    "name": "bigclonebench-payload-exposure",
-                    "version": SEMANTIC_ORACLE_VERSION,
-                },
             )
             print(f"corpus_id={manifest['corpus_id']}")
             if manifest["counts"]["failed"]:
@@ -167,38 +245,65 @@ def main() -> int:
                     file=sys.stderr,
                 )
                 exit_code = 1
-        else:
+        elif args.stage == "evaluate":
             srcmove = find_srcmove(REPO_ROOT, args.srcmove)
             if srcmove is None:
                 raise ValueError("srcMove not found; pass --srcmove")
-            run_dir, run_manifest = run_corpus(
+            directory, manifest, summary = evaluate_corpus(
                 data_root=data_root,
                 corpus=args.corpus,
                 srcmove=srcmove,
                 timeout_seconds=args.timeout,
                 mode=RunMode(args.mode),
-                require_semantic_eligible=True,
             )
-            corpus_path = Path(args.corpus)
-            if corpus_path.is_file():
-                corpus_dir = corpus_path.resolve().parent
-            elif corpus_path.is_dir():
-                corpus_dir = corpus_path.resolve()
-            else:
-                corpus_dir = data_root / "corpora" / str(args.corpus)
-            corpus_manifest = json.loads(
-                (corpus_dir / "manifest.json").read_text(encoding="utf-8")
-            )
-            summary = write_evaluation(
-                run_dir=run_dir,
-                run_manifest=run_manifest,
-                corpus_dir=corpus_dir,
-                corpus_manifest=corpus_manifest,
-            )
-            directory = run_dir
-            manifest = run_manifest
             print(f"run_id={manifest['run_id']}")
-            print(f"summary={run_dir / 'summary.json'}")
+            print(f"summary={directory / 'summary.json'}")
+            if summary["counts"]["oracle_pass"] != summary["counts"]["selected"]:
+                print(
+                    "one or more selected cases did not pass the strict oracle",
+                    file=sys.stderr,
+                )
+                print(f"directory={directory}")
+                return 1
+        else:
+            srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
+            srcmove = find_srcmove(REPO_ROOT, args.srcmove)
+            if srcdiff is None:
+                raise ValueError("srcdiff not found; pass --srcdiff")
+            if srcmove is None:
+                raise ValueError("srcMove not found; pass --srcmove")
+            adapter = BigCloneBenchAdapter(
+                args.cases_dir, _syntactic_type(args.clone_type)
+            )
+            _, snapshot_manifest = create_input_snapshot(
+                data_root=data_root,
+                adapter=adapter,
+                source=adapter.source_manifest(),
+            )
+            corpus_dir, corpus_manifest = build_corpus(
+                data_root=data_root,
+                input_snapshot=snapshot_manifest["input_snapshot_id"],
+                srcdiff=srcdiff,
+                timeout_seconds=args.srcdiff_timeout,
+                retry_failed=args.retry_failed,
+            )
+            print(f"input_snapshot_id={snapshot_manifest['input_snapshot_id']}")
+            print(f"corpus_id={corpus_manifest['corpus_id']}")
+            if corpus_manifest["counts"]["failed"]:
+                print(
+                    f"failed_cases={corpus_manifest['counts']['failed']}",
+                    file=sys.stderr,
+                )
+                exit_code = 1
+            directory, manifest, summary = evaluate_corpus(
+                data_root=data_root,
+                corpus=corpus_dir,
+                srcmove=srcmove,
+                timeout_seconds=args.srcmove_timeout,
+                mode=RunMode(args.mode),
+            )
+            print(f"run_id={manifest['run_id']}")
+            print(f"summary={directory / 'summary.json'}")
             if summary["counts"]["oracle_pass"] != summary["counts"]["selected"]:
                 print(
                     "one or more selected cases did not pass the strict oracle",

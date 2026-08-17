@@ -137,7 +137,7 @@ instability do not distort srcMove timing.
 ## Benchmark Compatibility Policy
 
 Benchmark artifacts are intentionally forward-only while this infrastructure is
-under development. A schema or oracle change may invalidate old preparations,
+under development. A schema or oracle change may invalidate old input snapshots,
 corpora, runs, and summaries; those artifacts may be deleted and regenerated.
 The implementation should reject obsolete schema versions rather than carry
 compatibility readers or migrations that complicate the future thesis pipeline.
@@ -146,7 +146,7 @@ oracle versions that produced them.
 
 ## Design Principles
 
-1. **Separate preparation from measurement.** Source export, srcDiff generation,
+1. **Separate input snapshots from measurement.** Source export, srcDiff generation,
    srcMove execution, validation, and reporting are distinct resumable stages.
 2. **Observe normal development; gate only publication runs.** Development
    benchmarks record provenance and warn about uncertainty without switching
@@ -164,7 +164,7 @@ oracle versions that produced them.
 7. **Report denominators and exclusions.** Skipped languages, files, duplicate
    pairs, invalid cases, and tool failures must remain visible.
 8. **Build one orchestration core.** Repository and BigCloneBench workflows are
-   adapters over the same preparation, attempt, corpus, run, and reporting
+   adapters over the same input snapshot, attempt, corpus, run, and reporting
    abstractions.
 9. **Separate tuning from evaluation.** Cases used to diagnose and tune srcMove
    must remain identifiable; a thesis claim should use a frozen census or a
@@ -181,8 +181,8 @@ oracle versions that produced them.
 repository revisions or BigCloneBench rows
                     |
                     v
-          prepared source cases
-          + preparation manifest
+          frozen old/new source pairs
+          + input snapshot manifest
                     |
                     v
        srcDiff attempt in unique staging directory
@@ -202,9 +202,10 @@ atomic promotion into corpus
  validation + raw measurements + summary
 ```
 
-The srcDiff corpus is a first-class input dataset. Once prepared, it can be used
-to compare srcMove revisions without rerunning srcDiff. Changing srcDiff or
-srcML creates a new corpus identity rather than mutating the old corpus.
+The srcDiff corpus is a first-class input dataset. Once its input snapshot is
+captured, it can be used to compare srcMove revisions without rerunning srcDiff.
+Changing srcDiff or srcML creates a new corpus identity rather than mutating the
+old corpus.
 
 Every srcDiff invocation writes to a unique attempt staging directory, never
 directly to a corpus case path. Only successful, validated, checksummed XML is
@@ -224,8 +225,8 @@ conceptual layout is:
 
 ```text
 benchmark-data/
-  preparations/
-    <preparation-id>/
+  input-snapshots/
+    <input-snapshot-id>/
       manifest.json
       sources/                 # retained inputs when licensing permits
       external-artifacts.json  # immutable references otherwise
@@ -251,21 +252,22 @@ benchmark-data/
 ```
 
 Exact names may change during implementation, but the separation between
-prepared inputs, execution attempts, accepted corpora, and evaluation runs
+input snapshots, execution attempts, accepted corpora, and evaluation runs
 should remain. An incident is a failed terminal attempt, not a second execution
 record with a competing schema.
 
-### Prepared source manifest
+### Input snapshot manifest
 
-A preparation is the exact input offered to srcDiff. Its manifest records the
+An input snapshot is the exact frozen old/new source pair offered to srcDiff.
+Its manifest records the
 source origin and revisions, selected scope, post-filter file inventory and
-checksums, filtering policy, preparation-tool version, and retained-source or
+checksums, filtering policy, snapshot-tool version, and retained-source or
 external-artifact location. Repository exports may be retained locally;
 BigCloneBench material may instead require a verified external reference because
 of size or redistribution constraints. Either form must make replay possible
 without relying on a mutable checkout.
 
-Preparation identity is content-derived from a documented canonical identity
+Input snapshot identity is content-derived from a documented canonical identity
 payload. Machine-specific paths, timestamps, and labels are metadata and do not
 change the identity. The payload includes the schema version, ordered input
 checksums, source revisions or dataset identity, selected scope, and filter
@@ -338,7 +340,7 @@ match the workspace lock.
 Each srcDiff corpus records:
 
 - schema version and stable corpus identifier
-- preparation identifier and manifest checksum
+- input snapshot identifier and manifest checksum
 - source dataset or repository URLs and exact revisions
 - selected subdirectories and explicit include/exclude policy
 - file counts, language counts, byte counts, and excluded-file counts
@@ -349,7 +351,7 @@ Each srcDiff corpus records:
 - dataset-specific metadata, including BigCloneBench database/corpus identity
 
 The corpus identifier is the hash of a canonical identity payload containing the
-schema version, preparation-manifest checksum, srcML/srcDiff artifact checksums,
+schema version, input snapshot manifest checksum, srcML/srcDiff artifact checksums,
 generation configuration, and ordered accepted-case XML checksums. It excludes
 timestamps, labels, absolute paths, and logs. An implementation must test that
 copying the same content to another generated root preserves the identifier and
@@ -387,8 +389,8 @@ Development runs use the binaries already available. They should:
 - continue when the run remains technically possible
 - clearly label results as development data
 - never switch branches, clean repositories, or rebuild unrelated projects
-- never fetch, clone, or refresh a benchmark repository unless preparation was
-  explicitly requested; corpus replay should work offline
+- never fetch, clone, or refresh a benchmark repository unless creation of a new
+  input snapshot was explicitly requested; corpus replay should work offline
 
 Dirty development results can be useful for comparison and diagnosis, but are
 not publication-ready unless the tested patch is preserved.
@@ -500,7 +502,7 @@ retain the observed signal and resource data.
 
 ### Repeatable incidents
 
-An incident is repeatable only when it contains the exact prepared inputs or a
+An incident is repeatable only when it contains the exact input snapshot or a
 verified immutable reference to them, plus their checksums and filtering
 manifest. It must also preserve the executable checksum and receipt or observed
 provenance, argument vector, working directory, relevant environment, timeout
@@ -648,11 +650,12 @@ unverified.
 
 ### Phase 2: Safe staged corpus vertical slice
 
-- Implement one generic preparation/attempt/corpus/run core and a repository
+- Implement one generic input snapshot/attempt/corpus/run core and a repository
   adapter; do not create dataset-specific orchestration paths.
-- Split repository preparation, srcDiff corpus generation, and srcMove execution.
-- Define the minimum preparation, attempt, corpus, and run schemas as their first
-  real artifacts are implemented.
+- Split repository input snapshot creation, srcDiff corpus generation, and
+  srcMove execution.
+- Define the minimum input snapshot, attempt, corpus, and run schemas as their
+  first real artifacts are implemented.
 - Run each srcDiff attempt in a unique staging directory.
 - Implement the process execution contract, including timeout cleanup, bounded
   logs, termination fields, structural XML admission, and interrupted-attempt
@@ -661,7 +664,7 @@ unverified.
   and a terminal attempt record even when srcDiff fails.
 - Validate and checksum successful XML, then atomically promote it into an
   immutable corpus case.
-- Make prepared srcDiff XML reusable by checksum and preserve prior runs.
+- Make generated srcDiff XML reusable by checksum and preserve prior runs.
 - Treat that reuse as a guarantee within the current schema and oracle contract,
   not across breaking benchmark-infrastructure changes.
 - Allow selection of an existing corpus without requiring source repositories or
@@ -683,7 +686,7 @@ after corpus creation must not break srcMove replay.
   environment supports them.
 - Add single-file replay and archive-subset isolation tooling.
 - Make network refresh explicit and support offline reuse of cached repository
-  preparations and corpora.
+  input snapshots and corpora.
 
 **Complete when:** interrupted or partially failing batches resume without
 repeating completed work or losing evidence, and a failed repository case can be
@@ -692,7 +695,7 @@ replayed or reduced from its preserved attempt record.
 ### Phase 4: Targeted BigCloneBench reproducibility integration
 
 Begin this phase only after the repository benchmark has established the shared
-preparation, corpus, provenance, and srcDiff failure-handling infrastructure.
+input snapshot, corpus, provenance, and srcDiff failure-handling infrastructure.
 BigCloneBench should adapt that foundation rather than create a second runner
 architecture.
 
@@ -842,8 +845,8 @@ the real toolchain. Cover:
 - verification of archived checksums and reconciled counts
 - interrupted batch resume
 - preservation of earlier run directories
-- identical content producing the same preparation/corpus identity after moving
-  the generated root
+- identical content producing the same input snapshot and corpus identities
+  after moving the generated root
 - an identity-changing input producing a different identifier
 - srcMove corpus replay with source repositories and `srcdiff` unavailable
 - exact reconciliation of selected, excluded, failed, eligible, executed, and
@@ -862,7 +865,7 @@ the final consolidation phase:
 
 - Every process invocation has exactly one recoverable terminal attempt record.
 - Only structurally admitted, checksummed srcDiff output appears in a corpus.
-- Prepared inputs, accepted corpus data, and run results are immutable once
+- Input snapshots, accepted corpus data, and run results are immutable once
   referenced by a completed manifest.
 - All generated identifiers follow one documented canonicalization algorithm and
   are independent of absolute paths and timestamps.
@@ -921,10 +924,10 @@ the final consolidation phase:
 - final schema representation, canonical identity encoding, and generated-data
   root name
 - compression policy for large srcDiff XML and transparent replay
-- attempt, preparation, corpus, and run retention/garbage-collection policy
+- attempt, input snapshot, corpus, and run retention/garbage-collection policy
 - portable peak-memory collection inside the supported Docker environment
 - whether development runs store a patch or only its hash by default
-- prepared-source retention, licensing boundaries, corpus distribution, and
+- input snapshot source retention, licensing boundaries, corpus distribution, and
   archival location for thesis reproducibility
 - BigCloneBench census or sampling frame, pair direction, randomization seed,
   strata, and tuning/evaluation separation

@@ -22,7 +22,7 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
         sys.path.insert(0, str(import_root))
 
 from benchmarks.contracts import RunMode
-from benchmarks.corpus import create_preparation, generate_corpus, run_corpus
+from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
 from benchmarks.process import write_json_atomic
 from benchmarks.provenance import utc_now
 from benchmarks.repositories.adapter import RepositoryAdapter
@@ -277,7 +277,7 @@ SERIES_COLUMNS = [
     "old_commit",
     "new_commit",
     "status",
-    "preparation_id",
+    "input_snapshot_id",
     "corpus_id",
     "run_id",
     "srcdiff_accepted",
@@ -325,7 +325,7 @@ def update_series(data_root: Path, series: str, entry: Mapping[str, Any]) -> Pat
                     "old_commit": benchmark.get("source", {}).get("old_commit"),
                     "new_commit": benchmark.get("source", {}).get("new_commit"),
                     "status": benchmark.get("status"),
-                    "preparation_id": benchmark.get("preparation_id"),
+                    "input_snapshot_id": benchmark.get("input_snapshot_id"),
                     "corpus_id": benchmark.get("corpus_id"),
                     "run_id": benchmark.get("run_id"),
                     "srcdiff_accepted": counts.get("srcdiff_accepted"),
@@ -380,7 +380,7 @@ def run_staged_repository_benchmark(
         f"{case_name}-{uuid.uuid4()}"
     )
     entry: dict[str, Any] = {
-        "schema_version": 1,
+        "schema_version": 2,
         "benchmark_id": benchmark_id,
         "created_at": utc_now(),
         "series": series,
@@ -397,7 +397,7 @@ def run_staged_repository_benchmark(
         },
     }
     try:
-        preparation_dir, preparation = create_preparation(
+        input_snapshot_dir, input_snapshot = create_input_snapshot(
             data_root=data_root,
             adapter=RepositoryAdapter(
                 case_id=case_name,
@@ -410,16 +410,16 @@ def run_staged_repository_benchmark(
         )
         entry.update(
             {
-                "preparation_id": preparation["preparation_id"],
-                "preparation_manifest": _relative_to_data_root(
-                    preparation_dir / "manifest.json", data_root
+                "input_snapshot_id": input_snapshot["input_snapshot_id"],
+                "input_snapshot_manifest": _relative_to_data_root(
+                    input_snapshot_dir / "manifest.json", data_root
                 ),
             }
         )
 
         corpus_dir, corpus = generate_corpus(
             data_root=data_root,
-            preparation=preparation["preparation_id"],
+            input_snapshot=input_snapshot["input_snapshot_id"],
             srcdiff=srcdiff,
             timeout_seconds=srcdiff_timeout_seconds,
             use_position=use_position,
@@ -540,7 +540,7 @@ def main() -> int:
     parser.add_argument(
         "--exclude-python",
         action="store_true",
-        help="exclude Python files non-destructively in the preparation manifest",
+        help="exclude Python files non-destructively in the input snapshot",
     )
     parser.add_argument(
         "--position",
@@ -617,7 +617,7 @@ def main() -> int:
     modified_dir = work_root / "modified"
     work_root.mkdir(parents=True, exist_ok=True)
 
-    print(f"[1/5] preparing repo {repo_url}")
+    print(f"[1/5] loading repository {repo_url}")
     ensure_repo(repo_url, clone_dir, allow_network=args.refresh_repo)
 
     print("[2/5] repository cache ready")

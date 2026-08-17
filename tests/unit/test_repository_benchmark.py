@@ -73,14 +73,17 @@ class RepositoryBenchmarkTests(unittest.TestCase):
 
             self.assertEqual(first["status"], "completed")
             self.assertEqual(second["status"], "completed")
-            self.assertEqual(first["preparation_id"], second["preparation_id"])
+            self.assertTrue(
+                first["input_snapshot_id"].startswith("input-snapshot-sha256-")
+            )
+            self.assertEqual(first["input_snapshot_id"], second["input_snapshot_id"])
             self.assertEqual(first["corpus_id"], second["corpus_id"])
             self.assertNotEqual(first["run_id"], second["run_id"])
             self.assertNotEqual(first_index, second_index)
             self.assertEqual(first_index.read_bytes(), first_bytes)
 
             data_root = root / "benchmark-data"
-            self.assertEqual(len(list((data_root / "preparations").iterdir())), 1)
+            self.assertEqual(len(list((data_root / "input-snapshots").iterdir())), 1)
             self.assertEqual(len(list((data_root / "corpora").iterdir())), 1)
             self.assertEqual(len(list((data_root / "runs").iterdir())), 2)
             self.assertTrue((data_root / first["run_manifest"]).is_file())
@@ -90,6 +93,7 @@ class RepositoryBenchmarkTests(unittest.TestCase):
             with summary.open(encoding="utf-8") as stream:
                 rows = list(csv.DictReader(stream))
             self.assertEqual(len(rows), 2)
+            self.assertIn("input_snapshot_id", rows[0])
             self.assertEqual({row["status"] for row in rows}, {"completed"})
             self.assertTrue(all(row["srcdiff_seconds"] for row in rows))
             self.assertTrue(all(row["srcmove_seconds"] for row in rows))

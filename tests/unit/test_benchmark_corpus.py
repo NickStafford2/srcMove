@@ -14,8 +14,8 @@ FAKE_TOOL = REPO_ROOT / "tests" / "fixtures" / "benchmark" / "fake_tool.py"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.corpus import create_preparation, generate_corpus, run_corpus
-from benchmarks.contracts import PreparedCase
+from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
+from benchmarks.contracts import InputPair
 from benchmarks.repositories.adapter import RepositoryAdapter
 
 
@@ -42,10 +42,10 @@ class CorpusPipelineTests(unittest.TestCase):
             name = "fixture-failure-batch"
             version = 1
 
-            def __init__(self, cases: Sequence[PreparedCase]) -> None:
+            def __init__(self, cases: Sequence[InputPair]) -> None:
                 self.cases = cases
 
-            def prepare(self) -> Sequence[PreparedCase]:
+            def input_pairs(self) -> Sequence[InputPair]:
                 return self.cases
 
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -58,9 +58,9 @@ class CorpusPipelineTests(unittest.TestCase):
                 modified.mkdir(parents=True)
                 (original / "sample.cpp").write_text("int old;\n")
                 (modified / "sample.cpp").write_text("int new;\n")
-                cases.append(PreparedCase(case_id, original, modified))
+                cases.append(InputPair(case_id, original, modified))
             generated = root / "generated"
-            _, preparation = create_preparation(
+            _, input_snapshot = create_input_snapshot(
                 data_root=generated,
                 adapter=Adapter(cases),
                 source={"repository": "fixture"},
@@ -79,7 +79,7 @@ class CorpusPipelineTests(unittest.TestCase):
 
             _, corpus = generate_corpus(
                 data_root=generated,
-                preparation=preparation["preparation_id"],
+                input_snapshot=input_snapshot["input_snapshot_id"],
                 srcdiff=srcdiff,
                 timeout_seconds=2.0,
             )
@@ -96,7 +96,7 @@ class CorpusPipelineTests(unittest.TestCase):
             generated = root / "generated"
             original, modified = source_pair(root)
             srcdiff = executable_copy(root, "srcdiff-valid-archive")
-            _, preparation = create_preparation(
+            _, input_snapshot = create_input_snapshot(
                 data_root=generated,
                 adapter=RepositoryAdapter(
                     case_id="tiny", original=original, modified=modified
@@ -105,7 +105,7 @@ class CorpusPipelineTests(unittest.TestCase):
             )
             corpus_dir, _ = generate_corpus(
                 data_root=generated,
-                preparation=preparation["preparation_id"],
+                input_snapshot=input_snapshot["input_snapshot_id"],
                 srcdiff=srcdiff,
                 timeout_seconds=2.0,
             )
@@ -150,7 +150,7 @@ class CorpusPipelineTests(unittest.TestCase):
                 len(list((run_dir / "attempts").glob("*/attempt.json"))), 2
             )
 
-    def test_preparation_filter_is_recorded_and_non_destructive(self) -> None:
+    def test_input_snapshot_filter_is_recorded_and_non_destructive(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             original, modified = source_pair(root)
@@ -160,7 +160,7 @@ class CorpusPipelineTests(unittest.TestCase):
                 case_id="tiny", original=original, modified=modified
             )
 
-            preparation_dir, manifest = create_preparation(
+            input_snapshot_dir, manifest = create_input_snapshot(
                 data_root=root / "generated",
                 adapter=adapter,
                 source={"repository": "fixture"},
@@ -168,13 +168,17 @@ class CorpusPipelineTests(unittest.TestCase):
             )
 
             self.assertTrue((original / "unsupported.py").is_file())
+            self.assertTrue(
+                manifest["input_snapshot_id"].startswith("input-snapshot-sha256-")
+            )
+            self.assertEqual(input_snapshot_dir.parent.name, "input-snapshots")
             self.assertEqual(
                 manifest["filter_configuration"]["excluded_suffixes"], [".py"]
             )
             self.assertEqual(manifest["counts"]["excluded_files"], 2)
             self.assertFalse(
                 (
-                    preparation_dir
+                    input_snapshot_dir
                     / manifest["cases"][0]["original_path"]
                     / "unsupported.py"
                 ).exists()
@@ -185,10 +189,10 @@ class CorpusPipelineTests(unittest.TestCase):
             name = "fixture-batch"
             version = 1
 
-            def __init__(self, cases: Sequence[PreparedCase]) -> None:
+            def __init__(self, cases: Sequence[InputPair]) -> None:
                 self.cases = cases
 
-            def prepare(self) -> Sequence[PreparedCase]:
+            def input_pairs(self) -> Sequence[InputPair]:
                 return self.cases
 
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -202,8 +206,8 @@ class CorpusPipelineTests(unittest.TestCase):
                 modified.mkdir(parents=True)
                 (original / "sample.cpp").write_text("int old;\n")
                 (modified / "sample.cpp").write_text("int new;\n")
-                pairs.append(PreparedCase(case_id, original, modified))
-            _, preparation = create_preparation(
+                pairs.append(InputPair(case_id, original, modified))
+            _, input_snapshot = create_input_snapshot(
                 data_root=generated,
                 adapter=Adapter(pairs),
                 source={"repository": "fixture"},
@@ -228,13 +232,13 @@ class CorpusPipelineTests(unittest.TestCase):
                 with self.assertRaises(KeyboardInterrupt):
                     generate_corpus(
                         data_root=generated,
-                        preparation=preparation["preparation_id"],
+                        input_snapshot=input_snapshot["input_snapshot_id"],
                         srcdiff=srcdiff,
                         timeout_seconds=2.0,
                     )
             _, resumed = generate_corpus(
                 data_root=generated,
-                preparation=preparation["preparation_id"],
+                input_snapshot=input_snapshot["input_snapshot_id"],
                 srcdiff=srcdiff,
                 timeout_seconds=2.0,
             )
@@ -260,11 +264,11 @@ class CorpusPipelineTests(unittest.TestCase):
             retry_mode.write_text("fail")
             _, failed = generate_corpus(
                 data_root=root / "retry-generated",
-                preparation=create_preparation(
+                input_snapshot=create_input_snapshot(
                     data_root=root / "retry-generated",
                     adapter=Adapter([pairs[0]]),
                     source={"repository": "fixture"},
-                )[1]["preparation_id"],
+                )[1]["input_snapshot_id"],
                 srcdiff=retry_tool,
                 timeout_seconds=2.0,
             )
@@ -272,7 +276,7 @@ class CorpusPipelineTests(unittest.TestCase):
             retry_mode.write_text("success")
             _, retried = generate_corpus(
                 data_root=root / "retry-generated",
-                preparation=failed["preparation_id"],
+                input_snapshot=failed["input_snapshot_id"],
                 srcdiff=retry_tool,
                 timeout_seconds=2.0,
                 retry_failed=True,
@@ -286,7 +290,7 @@ class CorpusPipelineTests(unittest.TestCase):
             root = Path(temporary_directory)
             original, modified = source_pair(root)
             srcdiff = executable_copy(root, "srcdiff-valid-archive")
-            preparation_ids = []
+            input_snapshot_ids = []
             corpus_ids = []
 
             for generated_name in ("generated-one", "generated-two"):
@@ -294,21 +298,21 @@ class CorpusPipelineTests(unittest.TestCase):
                 adapter = RepositoryAdapter(
                     case_id="tiny", original=original, modified=modified
                 )
-                _, preparation = create_preparation(
+                _, input_snapshot = create_input_snapshot(
                     data_root=generated,
                     adapter=adapter,
                     source={"repository": "fixture", "old": "a", "new": "b"},
                 )
                 _, corpus = generate_corpus(
                     data_root=generated,
-                    preparation=preparation["preparation_id"],
+                    input_snapshot=input_snapshot["input_snapshot_id"],
                     srcdiff=srcdiff,
                     timeout_seconds=2.0,
                 )
-                preparation_ids.append(preparation["preparation_id"])
+                input_snapshot_ids.append(input_snapshot["input_snapshot_id"])
                 corpus_ids.append(corpus["corpus_id"])
 
-            self.assertEqual(preparation_ids[0], preparation_ids[1])
+            self.assertEqual(input_snapshot_ids[0], input_snapshot_ids[1])
             self.assertEqual(corpus_ids[0], corpus_ids[1])
 
     def test_corpus_replay_needs_neither_sources_nor_srcdiff(self) -> None:
@@ -321,20 +325,20 @@ class CorpusPipelineTests(unittest.TestCase):
             adapter = RepositoryAdapter(
                 case_id="tiny", original=original, modified=modified
             )
-            _, preparation = create_preparation(
+            _, input_snapshot = create_input_snapshot(
                 data_root=generated,
                 adapter=adapter,
                 source={"repository": "fixture", "old": "a", "new": "b"},
             )
             corpus_dir, corpus = generate_corpus(
                 data_root=generated,
-                preparation=preparation["preparation_id"],
+                input_snapshot=input_snapshot["input_snapshot_id"],
                 srcdiff=srcdiff,
                 timeout_seconds=2.0,
             )
 
             shutil.rmtree(root / "source")
-            shutil.rmtree(generated / "preparations")
+            shutil.rmtree(generated / "input-snapshots")
             srcdiff.unlink()
             first_dir, first = run_corpus(
                 data_root=generated,
@@ -375,7 +379,7 @@ class CorpusPipelineTests(unittest.TestCase):
             adapter = RepositoryAdapter(
                 case_id="tiny", original=original, modified=modified
             )
-            _, preparation = create_preparation(
+            _, input_snapshot = create_input_snapshot(
                 data_root=generated,
                 adapter=adapter,
                 source={"repository": "fixture", "old": "a", "new": "b"},
@@ -383,7 +387,7 @@ class CorpusPipelineTests(unittest.TestCase):
 
             corpus_dir, corpus = generate_corpus(
                 data_root=generated,
-                preparation=preparation["preparation_id"],
+                input_snapshot=input_snapshot["input_snapshot_id"],
                 srcdiff=srcdiff,
                 timeout_seconds=2.0,
             )
@@ -398,7 +402,7 @@ class CorpusPipelineTests(unittest.TestCase):
             attempt_records = list((generated / "attempts").glob("*/attempt.json"))
             self.assertEqual(len(attempt_records), 1)
 
-    def test_mutated_preparation_or_corpus_is_rejected(self) -> None:
+    def test_mutated_input_snapshot_or_corpus_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             generated = root / "generated"
@@ -408,30 +412,30 @@ class CorpusPipelineTests(unittest.TestCase):
             adapter = RepositoryAdapter(
                 case_id="tiny", original=original, modified=modified
             )
-            preparation_dir, preparation = create_preparation(
+            input_snapshot_dir, input_snapshot = create_input_snapshot(
                 data_root=generated,
                 adapter=adapter,
                 source={"repository": "fixture", "old": "a", "new": "b"},
             )
-            prepared_original = (
-                preparation_dir
-                / preparation["cases"][0]["original_path"]
+            snapshot_original = (
+                input_snapshot_dir
+                / input_snapshot["cases"][0]["original_path"]
                 / "sample.cpp"
             )
-            original_bytes = prepared_original.read_bytes()
-            prepared_original.write_bytes(b"tampered")
+            original_bytes = snapshot_original.read_bytes()
+            snapshot_original.write_bytes(b"tampered")
             with self.assertRaisesRegex(ValueError, "checksum mismatch"):
                 generate_corpus(
                     data_root=generated,
-                    preparation=preparation["preparation_id"],
+                    input_snapshot=input_snapshot["input_snapshot_id"],
                     srcdiff=srcdiff,
                     timeout_seconds=2.0,
                 )
 
-            prepared_original.write_bytes(original_bytes)
+            snapshot_original.write_bytes(original_bytes)
             corpus_dir, corpus = generate_corpus(
                 data_root=generated,
-                preparation=preparation["preparation_id"],
+                input_snapshot=input_snapshot["input_snapshot_id"],
                 srcdiff=srcdiff,
                 timeout_seconds=2.0,
             )
