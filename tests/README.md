@@ -45,6 +45,10 @@ timeout process-group cleanup, bounded logs, interrupted-attempt recovery,
 content-stable identifiers, checksum enforcement, and replay without source
 trees or srcDiff. They also cover non-destructive filters, resumable batches,
 retry lineage, resource observations, and srcDiff replay/subset reduction.
+Tiny BigCloneBench fixtures additionally verify semantic eligibility, strict
+match-kind enforcement, append-only summaries, reconciled outcomes, and reuse
+of one immutable corpus across multiple fake srcMove builds. They do not require
+or download BigCloneBench.
 
 CTest is retired for this project. The Makefile owns building; `tests/run.py`
 owns deterministic correctness-test selection and execution.

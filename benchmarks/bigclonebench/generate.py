@@ -4,6 +4,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import shutil
 import sys
 import textwrap
 from dataclasses import dataclass
@@ -22,18 +23,72 @@ BCE_DIR = SCRIPT_DIR / "data" / "BigCloneEval"
 DEFAULT_OUT = SCRIPT_DIR / "cases"
 
 
+def sha256_file(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as stream:
+        for block in iter(lambda: stream.read(1024 * 1024), b""):
+            hasher.update(block)
+    return hasher.hexdigest()
+
+
+def preflight() -> list[str]:
+    """Return actionable missing-prerequisite messages without fetching data."""
+
+    required = {
+        "BigCloneBench database": BCE_DIR / "bigclonebenchdb" / "bcb.h2.db",
+        "H2 driver": BCE_DIR / "libs" / "h2-1.3.176.jar",
+        "IJaDataset": BCE_DIR / "ijadataset",
+    }
+    failures = [
+        f"{label} not found: {path}"
+        for label, path in required.items()
+        if not path.exists()
+    ]
+    if shutil.which("java") is None:
+        failures.append("Java executable not found on PATH")
+    return failures
+
+
+def require_preflight() -> None:
+    failures = preflight()
+    if failures:
+        joined = "\n  - ".join(failures)
+        raise RuntimeError(
+            "BigCloneBench is an external manual prerequisite; it will not be "
+            "downloaded automatically.\n  - "
+            f"{joined}\nSee benchmarks/bigclonebench/README.md for setup guidance."
+        )
+
+
+def java_identity() -> dict[str, str]:
+    executable = shutil.which("java")
+    if executable is None:
+        return {"status": "unavailable"}
+    result = run_command([executable, "-version"])
+    version = (result.stderr or result.stdout).strip().splitlines()
+    resolved = Path(executable).resolve()
+    return {
+        "executable": resolved.name,
+        "sha256": sha256_file(resolved),
+        "version": version[0] if version else "unknown",
+    }
+
+
 @dataclass(frozen=True)
 class CloneRow:
+    functionality_id: int
     function_id_one: int
     type1: str
     name1: str
     startline1: int
     endline1: int
+    project1: str
     function_id_two: int
     type2: str
     name2: str
     startline2: int
     endline2: int
+    project2: str
     syntactic_type: int
     similarity_line: float
     similarity_token: float
@@ -75,6 +130,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--out-dir", type=Path, default=DEFAULT_OUT)
     parser.add_argument("--overwrite", action="store_true")
+    parser.add_argument(
+        "--selection-role",
+        choices=("tuning", "evaluation"),
+        default="tuning",
+        help="Label selected cases as tuning or frozen evaluation data.",
+    )
     return parser.parse_args()
 
 
@@ -118,13 +179,16 @@ def parse_h2_table(output: str) -> list[dict[str, str]]:
     return rows
 
 
-def load_clone_rows(limit: int, syntactic_type: int, min_tokens: int) -> list[CloneRow]:
-    sql = f"""
+def selection_query(limit: int, syntactic_type: int, min_tokens: int) -> str:
+    return f"""
 SELECT
+  c.functionality_id,
   c.function_id_one,
   f1.type AS type1, f1.name AS name1, f1.startline AS startline1, f1.endline AS endline1,
+  f1.project AS project1,
   c.function_id_two,
   f2.type AS type2, f2.name AS name2, f2.startline AS startline2, f2.endline AS endline2,
+  f2.project AS project2,
   c.syntactic_type, c.similarity_line, c.similarity_token, c.min_tokens
 FROM clones c
 JOIN functions f1 ON f1.id = c.function_id_one
@@ -135,19 +199,25 @@ WHERE c.syntactic_type = {syntactic_type}
 ORDER BY c.syntactic_type, c.functionality_id, c.function_id_one, c.function_id_two
 LIMIT {limit}
 """
-    rows = parse_h2_table(h2_shell(sql))
+
+
+def load_clone_rows(limit: int, syntactic_type: int, min_tokens: int) -> list[CloneRow]:
+    rows = parse_h2_table(h2_shell(selection_query(limit, syntactic_type, min_tokens)))
     return [
         CloneRow(
+            functionality_id=int(row["functionality_id"]),
             function_id_one=int(row["function_id_one"]),
             type1=row["type1"],
             name1=row["name1"],
             startline1=int(row["startline1"]),
             endline1=int(row["endline1"]),
+            project1=row["project1"],
             function_id_two=int(row["function_id_two"]),
             type2=row["type2"],
             name2=row["name2"],
             startline2=int(row["startline2"]),
             endline2=int(row["endline2"]),
+            project2=row["project2"],
             syntactic_type=int(row["syntactic_type"]),
             similarity_line=float(row["similarity_line"]),
             similarity_token=float(row["similarity_token"]),
@@ -341,6 +411,9 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
         "source": "BigCloneBench",
         "function_id_one": row.function_id_one,
         "function_id_two": row.function_id_two,
+        "functionality_id": row.functionality_id,
+        "project_one": row.project1,
+        "project_two": row.project2,
         "fragment_one": {
             "file": str(src1.relative_to(BCE_DIR)),
             "startline": row.startline1,
@@ -386,8 +459,27 @@ def write_manifest(
     limit: int,
     candidate_count: int,
     case_names: list[str],
+    candidate_limit: int,
+    rows: list[CloneRow],
+    selection_role: str,
 ) -> None:
+    database = BCE_DIR / "bigclonebenchdb" / "bcb.h2.db"
+    h2_jar = BCE_DIR / "libs" / "h2-1.3.176.jar"
+    source_files = sorted(
+        {
+            source_path(kind, name).resolve()
+            for row in rows
+            for kind, name in ((row.type1, row.name1), (row.type2, row.name2))
+        }
+    )
     manifest = {
+        "schema_version": 2,
+        "dataset": "BigCloneBench",
+        "dataset_identity": {
+            "database_sha256": sha256_file(database),
+            "h2_jar_sha256": sha256_file(h2_jar),
+            "java": java_identity(),
+        },
         "syntactic_type": syntactic_type,
         "clone_type": f"type{syntactic_type}",
         "dedupe": dedupe,
@@ -395,8 +487,44 @@ def write_manifest(
         "min_tokens": min_tokens,
         "requested_limit": limit,
         "candidate_count": candidate_count,
+        "candidate_limit": candidate_limit,
+        "row_count_before_deduplication": candidate_count,
+        "distinct_raw_text_pair_count": len(
+            {row_dedupe_key(row, "raw-text-pair") for row in rows}
+        ),
         "selected_count": len(case_names),
+        "functionality_group_count": len({row.functionality_id for row in rows}),
         "cases": case_names,
+        "selection": {
+            "role": selection_role,
+            "method": "ordered_deterministic_convenience_slice",
+            "population_claim": "none",
+            "eligibility_query": selection_query(
+                candidate_limit, syntactic_type, min_tokens
+            ).strip(),
+            "query_parameters": {
+                "syntactic_type": syntactic_type,
+                "min_tokens": min_tokens,
+                "internal": False,
+                "candidate_limit": candidate_limit,
+            },
+            "pair_direction": "fragment_one_deleted_fragment_two_inserted",
+            "ordered_selected_row_ids": [
+                [row.function_id_one, row.function_id_two] for row in rows
+            ],
+        },
+        "selected_source_files": [
+            {
+                "path": path.relative_to(BCE_DIR.resolve()).as_posix(),
+                "sha256": sha256_file(path),
+            }
+            for path in source_files
+        ],
+        "versions": {
+            "generator_sha256": sha256_file(Path(__file__)),
+            "position_text_oracle_sha256": sha256_file(SCRIPT_DIR / "run.py"),
+            "semantic_oracle_sha256": sha256_file(SCRIPT_DIR / "adapter.py"),
+        },
     }
     manifest_path = out_dir / f"bcb_t{syntactic_type}_manifest.json"
     manifest_path.write_text(
@@ -406,6 +534,11 @@ def write_manifest(
 
 def main() -> int:
     args = parse_args()
+    try:
+        require_preflight()
+    except RuntimeError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
     args.out_dir.mkdir(parents=True, exist_ok=True)
     candidate_limit = args.candidate_limit
     if candidate_limit is None:
@@ -436,6 +569,9 @@ def main() -> int:
         args.limit,
         len(candidates),
         case_names,
+        candidate_limit,
+        rows,
+        args.selection_role,
     )
 
     print(

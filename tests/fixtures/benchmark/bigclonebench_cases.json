@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "syntactic_type": 1,
+  "cases": [
+    "upstream-failure",
+    "semantic-ineligible",
+    "srcmove-tool-failure",
+    "srcmove-miss",
+    "wrong-classification",
+    "oracle-pass"
+  ],
+  "expected": {
+    "move_count": 1,
+    "from_raw_text": "void moved() {\n}\n",
+    "to_raw_text": "void moved() {\n}\n",
+    "from_generated_text": "void moved() {\n}\n",
+    "to_generated_text": "void moved() {\n}\n",
+    "from_start_line": 3,
+    "from_end_line": 4,
+    "to_start_line": 5,
+    "to_end_line": 6
+  }
+}

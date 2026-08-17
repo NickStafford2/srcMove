@@ -43,6 +43,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -63,6 +64,19 @@ def load_generator_module():
 
 
 class BigCloneBenchGeneratorTests(unittest.TestCase):
+    def test_preflight_reports_manual_prerequisites_without_downloading(self) -> None:
+        generator = load_generator_module()
+
+        with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
+            generator, "BCE_DIR", Path(tmp) / "missing-BigCloneEval"
+        ), mock.patch.object(generator.shutil, "which", return_value=None):
+            failures = generator.preflight()
+
+        self.assertTrue(any("database" in failure for failure in failures))
+        self.assertTrue(any("H2 driver" in failure for failure in failures))
+        self.assertTrue(any("IJaDataset" in failure for failure in failures))
+        self.assertIn("Java executable not found on PATH", failures)
+
     def test_extract_lines_uses_lf_ranges_when_comments_contain_cr(self) -> None:
         generator = load_generator_module()
 

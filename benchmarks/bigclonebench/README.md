@@ -13,37 +13,56 @@ negative cases; they are not required for this positive-case benchmark's declare
 purpose. Any such extension needs its own srcMove-specific conversion and oracle.
 See the [conversion methodology](../../doc/bigclonebench_srcmove_conversion.md).
 
-Run the default one-case Type-1 smoke test:
+BigCloneBench is an external manual prerequisite. Check it without fetching or
+modifying anything:
 
 ```bash
-python3 benchmarks/bigclonebench/run.py
+python3 benchmarks/bigclonebench/pipeline.py preflight
 ```
 
-Run more Type-1 cases:
+The staged workflow keeps generated sources, reusable srcDiff XML, and srcMove
+runs separate. Generate a deterministic tuning slice:
 
 ```bash
-python3 benchmarks/bigclonebench/run.py --limit 10
+python3 benchmarks/bigclonebench/pipeline.py cases \
+  --clone-type type1 --limit 10 --selection-role tuning
 ```
 
-Run a large Type-1 batch:
+Snapshot those cases into the shared immutable preparation store:
 
 ```bash
-python3 benchmarks/bigclonebench/run.py --clone-type type1 --limit 1000
+python3 benchmarks/bigclonebench/pipeline.py prepare --clone-type type1
 ```
 
-Run a large Type-2 batch:
+Use the printed preparation identifier to generate a reusable srcDiff corpus,
+then evaluate any number of srcMove builds without BigCloneBench, its source
+files, or `srcdiff` being available:
 
 ```bash
-python3 benchmarks/bigclonebench/run.py --clone-type type2 --limit 1000
+python3 benchmarks/bigclonebench/pipeline.py corpus PREPARATION_ID \
+  --srcdiff /path/to/srcdiff
+python3 benchmarks/bigclonebench/pipeline.py evaluate CORPUS_ID \
+  --srcmove /path/to/srcMove
 ```
+
+Each evaluation writes `summary.json` and `cases.csv` below its unique
+`benchmark-data/runs/<run-id>/` directory. Reports are never written to one
+shared summary path. The summary reconciles upstream failures, srcDiff semantic
+ineligibility, srcMove tool failures, misses, wrong classifications, other
+oracle failures, and strict passes. It reports both the end-to-end rate over all
+selected cases and the conditional rate over srcDiff-eligible cases.
 
 The selected count can be below the requested limit after dedupe and filtering.
-Treat the generated manifest and summary as the source of truth for a run.
+The selection manifest declares the exact query and parameters, ordered row
+identifiers, input and tool checksums, pair direction, dedupe policy, and
+whether the cases are tuning or evaluation data. The default ordered
+convenience slice makes no claim about the wider BigCloneBench population.
 
 By default, generated cases are deduped by exact raw extracted fragment pairs:
 
 ```bash
-python3 benchmarks/bigclonebench/run.py --dedupe raw-text-pair --limit 10
+python3 benchmarks/bigclonebench/pipeline.py cases \
+  --dedupe raw-text-pair --limit 10
 ```
 
 Raw text is the default because BigCloneBench Type-1 allows whitespace and
@@ -55,51 +74,29 @@ To focus on the rare Type-1 rows where the extracted fragments are not raw-text
 identical:
 
 ```bash
-python3 benchmarks/bigclonebench/run.py --clone-type type1 --text-change raw-different
+python3 benchmarks/bigclonebench/pipeline.py cases \
+  --clone-type type1 --text-change raw-different
 ```
 
 Run a smaller Type-2 sample:
 
 ```bash
-python3 benchmarks/bigclonebench/run.py --clone-type type2 --limit 10
+python3 benchmarks/bigclonebench/pipeline.py cases --clone-type type2 --limit 10
 ```
 
-The BigCloneBench-native spelling also works:
-
-```bash
-python3 benchmarks/bigclonebench/run.py --syntactic-type 2 --limit 10
-```
-
-Each run also writes `benchmarks/bigclonebench/cases/summary.csv`. This is the
-quick index for reviewing a batch without opening every generated case. It
-records the case id, pass/fail status, clone type, BigCloneBench function ids,
-source files, dedupe keys, per-run dedupe group sizes and indices, reported move
-counts, reported match-kind counts, whether the extracted fragments are
-raw/trim-identical, text-validation status, failure classification, and failure
-messages.
-
-The runner uses the generator's manifest for the selected cases. This prevents
-old ignored case directories from a previous larger run from silently becoming
-part of a smaller deduped run.
+The legacy coupled `run.py` remains available for exploratory compatibility,
+but thesis and cross-build results should use `pipeline.py` so srcDiff failures,
+semantic eligibility, provenance, immutable corpus reuse, and append-only run
+artifacts are preserved.
 
 ## Thesis Data Runs
 
-For thesis or paper data, archive each run's generated metadata before starting
-the next run. The Type-1 and Type-2 runners both overwrite the shared
-`benchmarks/bigclonebench/cases/summary.csv`, so copy the Type-1 summary before
-running Type-2. Archive the matching manifest with each summary:
-
-```text
-benchmarks/bigclonebench/cases/summary.csv
-benchmarks/bigclonebench/cases/bcb_t1_manifest.json
-benchmarks/bigclonebench/cases/bcb_t2_manifest.json
-```
-
-Use a timestamped archive directory in the thesis repository, currently
-`doc/thesis/thesis-data/<timestamp>/`, and keep the archived data there rather
-than duplicating large thesis data in srcMove docs. For repeatable performance
-data, write profiler output directly into the archive and avoid replacing
-`profile-results/latest.*`:
+For thesis or paper data, freeze the declared evaluation selection separately
+from tuning cases with `--selection-role evaluation`. Publication enforcement
+and archive verification belong to Phase 6; Phase 4 development runs already
+retain their manifests and summaries by run identifier. For repeatable
+performance data, write profiler output directly into the thesis archive and
+avoid replacing `profile-results/latest.*`:
 
 ```bash
 python3 benchmarks/profile.py \

@@ -77,21 +77,23 @@ and omit the delete/insert regions that srcMove would need as candidates. srcMov
 cannot recover a move that is absent from its input, so such a case must not be
 reported as a srcMove detection miss.
 
-When the BigCloneBench runner is rebuilt after the repository benchmark work, it
-must add a semantic eligibility check before srcMove evaluation. The check should
-use the generated source ranges and srcDiff structure to determine whether the
-intended deleted and inserted payloads are available as usable candidates. Keep
-these outcomes distinct:
+The staged BigCloneBench pipeline applies a versioned semantic eligibility check
+before srcMove evaluation. For each side, it finds `diff:delete` or `diff:insert`
+regions and aggregates their descendant `pos:start` and `pos:end` line numbers.
+A case is eligible only when one delete region covers the complete generated
+source range and one insert region covers the complete generated target range.
+This deliberately tests candidate exposure rather than srcMove behavior. The
+pipeline keeps these outcomes distinct:
 
 - srcDiff failed, timed out, or produced malformed output
 - srcDiff produced valid XML but did not expose the intended payload
 - srcMove ran on an eligible input but missed the expected move
 - srcMove satisfied the positional, text, and match-kind oracle
 
-Report both the end-to-end strict pass rate over generated cases and the
-conditional srcMove detection-and-classification rate over srcDiff-eligible
-cases. The exact eligibility rule and both denominators must be versioned with
-the benchmark oracle.
+The per-run summary reports both the end-to-end strict pass rate over generated
+cases and the conditional srcMove detection-and-classification rate over
+srcDiff-eligible cases. The eligibility and scoring oracle versions are recorded
+in the corpus and run artifacts.
 
 ## Future Negative Cases From Known False Positives
 

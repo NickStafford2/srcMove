@@ -14,8 +14,8 @@ Generated benchmark data is ignored. Archive thesis-quality results with their
 manifest and metadata rather than treating a mutable working directory as the
 authoritative result.
 
-The planned upgrade to separate prepared srcDiff corpora, provenance, failure
-incidents, and publication runs is described in the
+The phased upgrade of prepared srcDiff corpora, provenance, failure incidents,
+dataset adapters, and publication runs is described in the
 [benchmarking upgrade plan](../doc/benchmarking_upgrade_plan.md).
 
 ## Upgrade contracts
@@ -61,9 +61,9 @@ source state, workspace-lock checksum when available, compiler, configuration,
 and relevant CMake options. It records tests as `not_run`; building alone is not
 evidence that tests passed.
 
-Development and publication labels are now part of observation manifests, but
-publication requirements are not enforced yet. The staged workflow records
-these observations; legacy benchmark runners do not yet consume them.
+Development and publication labels are part of observation manifests, but
+publication requirements are not enforced yet. The staged workflows record
+these observations; legacy coupled runners do not.
 
 ## Staged corpus workflow
 
@@ -83,6 +83,13 @@ Repository commands are documented in the
 [repository benchmark guide](repositories/README.md). An existing corpus can be
 replayed with a different srcMove executable without the source preparation or
 `srcdiff` being available.
+
+BigCloneBench uses the same core through its
+[staged benchmark guide](bigclonebench/README.md). Its adapter adds only the
+versioned payload-exposure eligibility check and strict Type-1/Type-2 oracle.
+Fixture-backed unit tests cover corpus reuse across multiple srcMove builds and
+reconcile upstream failures, semantic ineligibility, misses, wrong
+classifications, and passes without installing BigCloneBench.
 
 Generation batches checkpoint every terminal case. Repeating `generate` with
 the same preparation, executable, and options skips recorded cases; use

@@ -8,13 +8,14 @@ import os
 import shutil
 import uuid
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Callable, Mapping, Sequence
 
 from benchmarks.contracts import (
     canonical_json,
     DatasetAdapter,
     PreparedCase,
     RunMode,
+    SemanticResult,
     SemanticStatus,
     content_identifier,
 )
@@ -33,8 +34,8 @@ from benchmarks.provenance import (
 
 
 PREPARATION_SCHEMA_VERSION = 2
-CORPUS_SCHEMA_VERSION = 2
-RUN_SCHEMA_VERSION = 2
+CORPUS_SCHEMA_VERSION = 3
+RUN_SCHEMA_VERSION = 3
 
 
 def _validate_case_id(case_id: str) -> None:
@@ -345,6 +346,8 @@ def generate_corpus(
     source_encoding: str = "UTF-8",
     retry_failed: bool = False,
     selected_case_ids: Sequence[str] = (),
+    semantic_validator: Callable[[PreparedCase, Path], SemanticResult] | None = None,
+    semantic_oracle: Mapping[str, Any] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     preparation_manifest_path = _resolve_manifest(
         data_root, "preparations", preparation
@@ -363,6 +366,7 @@ def generate_corpus(
         "archive": use_archive,
         "source_encoding": source_encoding,
         "timeout_seconds": timeout_seconds,
+        "semantic_oracle": dict(semantic_oracle or {}),
     }
     artifact = srcdiff_observation.get("artifact", {})
     batch_identity = {
@@ -385,6 +389,30 @@ def generate_corpus(
             "cases": [],
         }
     records_by_id = {record["case_id"]: record for record in batch["cases"]}
+    preparation_cases = {
+        case["case_id"]: case for case in preparation_manifest["cases"]
+    }
+
+    def validate_semantics(case_id: str, xml_path: Path) -> dict[str, Any]:
+        if semantic_validator is None:
+            return {
+                "semantic_status": SemanticStatus.NOT_APPLICABLE.value,
+                "semantic_details": {},
+            }
+        prepared = preparation_cases[case_id]
+        result = semantic_validator(
+            PreparedCase(
+                case_id=case_id,
+                original=preparation_dir / prepared["original_path"],
+                modified=preparation_dir / prepared["modified_path"],
+                metadata=prepared["metadata"],
+            ),
+            xml_path,
+        )
+        return {
+            "semantic_status": result.status.value,
+            "semantic_details": dict(result.details),
+        }
     # An interruption can occur after execute_attempt seals its evidence but before
     # the batch checkpoint is updated. Reconcile those terminal records first.
     for terminal_path in attempts_root.glob("attempt-*/attempt.json"):
@@ -401,15 +429,23 @@ def generate_corpus(
         ordinal = terminal.get("retry_ordinal", 0)
         if previous is not None and previous.get("retry_ordinal", 0) >= ordinal:
             continue
+        semantic = (
+            validate_semantics(case_id, terminal_path.parent / "partial.srcdiff.xml")
+            if terminal.get("admitted")
+            else {
+                "semantic_status": SemanticStatus.NOT_CHECKED.value,
+                "semantic_details": {},
+            }
+        )
         records_by_id[case_id] = {
             "case_id": case_id,
-            "metadata": {},
+            "metadata": preparation_cases[case_id]["metadata"],
             "attempt_id": terminal["attempt_id"],
             "parent_attempt_id": terminal.get("parent_attempt_id"),
             "retry_ordinal": ordinal,
             "generation_status": "accepted" if terminal.get("admitted") else "failed",
             "xml": terminal.get("xml", {"status": "not_checked"}),
-            "semantic_status": SemanticStatus.NOT_APPLICABLE.value,
+            **semantic,
             "attempt_path": str(terminal_path.parent.relative_to(data_root)),
         }
     known_ids = {case["case_id"] for case in preparation_manifest["cases"]}
@@ -470,6 +506,14 @@ def generate_corpus(
                 "srcdiff_sha256": artifact.get("sha256"),
             },
         )
+        semantic = (
+            validate_semantics(case_id, attempt_dir / "partial.srcdiff.xml")
+            if attempt["admitted"]
+            else {
+                "semantic_status": SemanticStatus.NOT_CHECKED.value,
+                "semantic_details": {},
+            }
+        )
         case_record = {
             "case_id": case_id,
             "metadata": case["metadata"],
@@ -478,7 +522,7 @@ def generate_corpus(
             "retry_ordinal": attempt["retry_ordinal"],
             "generation_status": "accepted" if attempt["admitted"] else "failed",
             "xml": attempt["xml"],
-            "semantic_status": SemanticStatus.NOT_APPLICABLE.value,
+            **semantic,
             "attempt_path": str(attempt_dir.relative_to(data_root)),
         }
         records_by_id[case_id] = case_record
@@ -562,6 +606,21 @@ def generate_corpus(
                 "failed": sum(
                     case["generation_status"] == "failed" for case in promoted_cases
                 ),
+                **(
+                    {
+                        "semantic_eligible": sum(
+                            case["semantic_status"] == SemanticStatus.ELIGIBLE.value
+                            for case in promoted_cases
+                        ),
+                        "semantic_ineligible": sum(
+                            case["semantic_status"]
+                            == SemanticStatus.INELIGIBLE.value
+                            for case in promoted_cases
+                        ),
+                    }
+                    if semantic_validator is not None
+                    else {}
+                ),
             },
             "cases": promoted_cases,
         }
@@ -585,6 +644,7 @@ def run_corpus(
     resume_run: str | Path | None = None,
     retry_failed: bool = False,
     selected_case_ids: Sequence[str] = (),
+    require_semantic_eligible: bool = False,
 ) -> tuple[Path, dict[str, Any]]:
     corpus_manifest_path = _resolve_manifest(data_root, "corpora", corpus)
     corpus_manifest = _load_manifest(
@@ -612,6 +672,8 @@ def run_corpus(
         prior_run = json.loads(run_path.read_text(encoding="utf-8"))
         if prior_run.get("corpus_id") != corpus_manifest["corpus_id"]:
             raise ValueError("resumed run belongs to a different corpus")
+        if prior_run.get("require_semantic_eligible", False) != require_semantic_eligible:
+            raise ValueError("resumed run uses a different semantic eligibility policy")
         run_id = prior_run["run_id"]
         created_at = prior_run.get("created_at", utc_now())
         case_records = list(prior_run.get("cases", []))
@@ -619,6 +681,10 @@ def run_corpus(
         case["case_id"]: corpus_dir / case["input_path"]
         for case in corpus_manifest["cases"]
         if case["generation_status"] == "accepted"
+        and (
+            not require_semantic_eligible
+            or case["semantic_status"] == SemanticStatus.ELIGIBLE.value
+        )
     }
     observation = collect_run_observation(
         mode=mode,
@@ -737,6 +803,7 @@ def run_corpus(
                     "status": "running",
                     "mode": mode.value,
                     "corpus_id": corpus_manifest["corpus_id"],
+                    "require_semantic_eligible": require_semantic_eligible,
                     "cases": case_records,
                 },
             )
@@ -752,15 +819,32 @@ def run_corpus(
             "status": "completed",
             "mode": mode.value,
             "corpus_id": corpus_manifest["corpus_id"],
+            "require_semantic_eligible": require_semantic_eligible,
             "corpus_manifest_sha256": _manifest_checksum(corpus_manifest_path),
             "timeout_seconds": timeout_seconds,
             "observation": observation,
             "counts": {
                 "corpus_selected": len(corpus_manifest["cases"]),
-                "corpus_accepted": len(input_paths),
+                "corpus_accepted": sum(
+                    case["generation_status"] == "accepted"
+                    for case in corpus_manifest["cases"]
+                ),
                 "corpus_failed": sum(
                     case["generation_status"] == "failed"
                     for case in corpus_manifest["cases"]
+                ),
+                **(
+                    {
+                        "semantic_eligible": len(input_paths),
+                        "semantic_ineligible": sum(
+                            case["generation_status"] == "accepted"
+                            and case["semantic_status"]
+                            == SemanticStatus.INELIGIBLE.value
+                            for case in corpus_manifest["cases"]
+                        ),
+                    }
+                    if require_semantic_eligible
+                    else {}
                 ),
                 "executed": len(case_records),
                 "completed": sum(
@@ -780,6 +864,7 @@ def run_corpus(
                 "run_id": run_id,
                 "mode": mode.value,
                 "corpus_id": corpus_manifest["corpus_id"],
+                "require_semantic_eligible": require_semantic_eligible,
                 "status": "orchestration_interrupted",
                 "completed_at": utc_now(),
                 "cases": case_records,

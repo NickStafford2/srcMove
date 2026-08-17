@@ -261,11 +261,16 @@ def validate_reported_text(
 
 
 def validate_case(
-    case_dir: Path, results_json: Path, srcmove_xml: Path, syntactic_type: int
+    case_dir: Path,
+    results_json: Path,
+    srcmove_xml: Path,
+    syntactic_type: int,
+    metadata: dict[str, Any] | None = None,
 ) -> tuple[list[str], TextValidation]:
     failures: list[str] = []
     text_validation: TextValidation = {"from": "not_checked", "to": "not_checked"}
-    metadata = load_json(case_dir / "metadata.json")
+    if metadata is None:
+        metadata = load_json(case_dir / "metadata.json")
     results = load_json(results_json)
     expected_match_kind = "exact" if syntactic_type == 1 else "type2"
 
