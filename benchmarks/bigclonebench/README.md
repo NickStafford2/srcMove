@@ -13,8 +13,11 @@ negative cases; they are not required for this positive-case benchmark's declare
 purpose. Any such extension needs its own srcMove-specific conversion and oracle.
 See the [conversion methodology](../../doc/bigclonebench_srcmove_conversion.md).
 
-BigCloneBench is an external manual prerequisite. Check it without fetching or
-modifying anything:
+BigCloneBench is an external manual prerequisite. Both the full IJaDataset and
+the smaller BigCloneEval reduced layout are supported; see the
+[installation notes](../../doc/bigclonebench_notes.md#local-installation).
+Check the installed database, H2 driver, Java runtime, and nonempty corpus
+without fetching or modifying anything:
 
 ```bash
 python3 benchmarks/bigclonebench/pipeline.py preflight
@@ -36,6 +39,10 @@ python3 benchmarks/bigclonebench/pipeline.py benchmark \
   --srcdiff /path/to/srcdiff \
   --srcmove /path/to/srcMove
 ```
+
+In SrcMLBuildTemplate, use `/workspace/srcDiff/build/bin/srcdiff`. The optional
+installed srcDiff executable has a documented
+[runtime-linking limitation](../../../docs/workspace.md#srcdiff-runtime-linking).
 
 The command creates or reuses the input snapshot and corpus, records every
 srcDiff attempt, and writes a new append-only srcMove evaluation run.

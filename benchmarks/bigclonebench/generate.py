@@ -37,13 +37,27 @@ def preflight() -> list[str]:
     required = {
         "BigCloneBench database": BCE_DIR / "bigclonebenchdb" / "bcb.h2.db",
         "H2 driver": BCE_DIR / "libs" / "h2-1.3.176.jar",
-        "IJaDataset": BCE_DIR / "ijadataset",
     }
     failures = [
         f"{label} not found: {path}"
         for label, path in required.items()
         if not path.exists()
     ]
+    ijadataset = BCE_DIR / "ijadataset"
+    has_flat_sources = any(
+        next((ijadataset / kind).glob("*.java"), None) is not None
+        for kind in ("default", "sample", "selected")
+    )
+    has_reduced_sources = (
+        next(ijadataset.glob("bcb_reduced/*/*/*.java"), None) is not None
+    )
+    if not has_flat_sources and not has_reduced_sources:
+        failures.append(
+            "IJaDataset Java corpus not found: expected either "
+            f"{ijadataset}/{{default,sample,selected}}/*.java or "
+            f"{ijadataset}/bcb_reduced/<functionality>/"
+            "{default,sample,selected}/*.java"
+        )
     if shutil.which("java") is None:
         failures.append("Java executable not found on PATH")
     return failures
@@ -285,10 +299,14 @@ def fragment_relation(fragment1: str, fragment2: str) -> dict[str, bool]:
 
 def row_fragments(row: CloneRow) -> tuple[str, str]:
     fragment1 = extract_lines(
-        source_path(row.type1, row.name1), row.startline1, row.endline1
+        source_path(row.type1, row.name1, row.functionality_id),
+        row.startline1,
+        row.endline1,
     )
     fragment2 = extract_lines(
-        source_path(row.type2, row.name2), row.startline2, row.endline2
+        source_path(row.type2, row.name2, row.functionality_id),
+        row.startline2,
+        row.endline2,
     )
     return fragment1, fragment2
 
@@ -355,8 +373,16 @@ def append_block(lines: list[str], block: str) -> tuple[int, int]:
     return start_line, len(lines)
 
 
-def source_path(kind: str, name: str) -> Path:
-    return BCE_DIR / "ijadataset" / kind / name
+def source_path(kind: str, name: str, functionality_id: int) -> Path:
+    ijadataset = BCE_DIR / "ijadataset"
+    flat = ijadataset / kind / name
+    if flat.is_file():
+        return flat
+
+    reduced = ijadataset / "bcb_reduced" / str(functionality_id) / kind / name
+    if reduced.is_file() or (ijadataset / "bcb_reduced").is_dir():
+        return reduced
+    return flat
 
 
 def build_synthetic_move_sources(
@@ -390,8 +416,8 @@ def build_synthetic_move_sources(
 
 
 def write_case(case_dir: Path, row: CloneRow) -> None:
-    src1 = source_path(row.type1, row.name1)
-    src2 = source_path(row.type2, row.name2)
+    src1 = source_path(row.type1, row.name1, row.functionality_id)
+    src2 = source_path(row.type2, row.name2, row.functionality_id)
     fragment1 = extract_lines(src1, row.startline1, row.endline1)
     fragment2 = extract_lines(src2, row.startline2, row.endline2)
     generated_fragment1 = indent_fragment(fragment1)
@@ -467,7 +493,7 @@ def write_manifest(
     h2_jar = BCE_DIR / "libs" / "h2-1.3.176.jar"
     source_files = sorted(
         {
-            source_path(kind, name).resolve()
+            source_path(kind, name, row.functionality_id).resolve()
             for row in rows
             for kind, name in ((row.type1, row.name1), (row.type2, row.name2))
         }

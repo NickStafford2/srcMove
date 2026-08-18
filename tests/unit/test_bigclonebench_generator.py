@@ -77,6 +77,70 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
         self.assertTrue(any("IJaDataset" in failure for failure in failures))
         self.assertIn("Java executable not found on PATH", failures)
 
+    def test_preflight_rejects_an_empty_ijadataset_directory(self) -> None:
+        generator = load_generator_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            bce_dir = Path(tmp) / "BigCloneEval"
+            (bce_dir / "bigclonebenchdb").mkdir(parents=True)
+            (bce_dir / "bigclonebenchdb" / "bcb.h2.db").touch()
+            (bce_dir / "libs").mkdir()
+            (bce_dir / "libs" / "h2-1.3.176.jar").touch()
+            (bce_dir / "ijadataset").mkdir()
+            with mock.patch.object(generator, "BCE_DIR", bce_dir), mock.patch.object(
+                generator.shutil, "which", return_value="/usr/bin/java"
+            ):
+                failures = generator.preflight()
+
+        self.assertEqual(len(failures), 1)
+        self.assertIn("IJaDataset Java corpus not found", failures[0])
+
+    def test_preflight_accepts_reduced_ijadataset_layout(self) -> None:
+        generator = load_generator_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            bce_dir = Path(tmp) / "BigCloneEval"
+            (bce_dir / "bigclonebenchdb").mkdir(parents=True)
+            (bce_dir / "bigclonebenchdb" / "bcb.h2.db").touch()
+            (bce_dir / "libs").mkdir()
+            (bce_dir / "libs" / "h2-1.3.176.jar").touch()
+            source_dir = bce_dir / "ijadataset" / "bcb_reduced" / "2" / "default"
+            source_dir.mkdir(parents=True)
+            (source_dir / "131818.java").touch()
+            with mock.patch.object(generator, "BCE_DIR", bce_dir), mock.patch.object(
+                generator.shutil, "which", return_value="/usr/bin/java"
+            ):
+                failures = generator.preflight()
+
+        self.assertEqual(failures, [])
+
+    def test_source_path_supports_flat_and_reduced_layouts(self) -> None:
+        generator = load_generator_module()
+
+        with tempfile.TemporaryDirectory() as tmp:
+            bce_dir = Path(tmp) / "BigCloneEval"
+            reduced = (
+                bce_dir
+                / "ijadataset"
+                / "bcb_reduced"
+                / "2"
+                / "default"
+                / "131818.java"
+            )
+            reduced.parent.mkdir(parents=True)
+            reduced.touch()
+            with mock.patch.object(generator, "BCE_DIR", bce_dir):
+                self.assertEqual(
+                    generator.source_path("default", "131818.java", 2), reduced
+                )
+
+                flat = bce_dir / "ijadataset" / "default" / "131818.java"
+                flat.parent.mkdir(parents=True)
+                flat.touch()
+                self.assertEqual(
+                    generator.source_path("default", "131818.java", 2), flat
+                )
+
     def test_extract_lines_uses_lf_ranges_when_comments_contain_cr(self) -> None:
         generator = load_generator_module()
 
