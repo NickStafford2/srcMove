@@ -506,7 +506,8 @@ def write_manifest(
     candidate_limit: int,
     rows: list[CloneRow],
     selection_role: str,
-) -> None:
+    activity_callback: Callable[[str], None] | None = None,
+) -> int:
     database = BCE_DIR / "bigclonebenchdb" / "bcb.h2.db"
     h2_jar = BCE_DIR / "libs" / "h2-1.3.176.jar"
     source_files = sorted(
@@ -516,13 +517,34 @@ def write_manifest(
             for kind, name in ((row.type1, row.name1), (row.type2, row.name2))
         }
     )
+    if activity_callback is not None:
+        database_gib = database.stat().st_size / (1024**3)
+        activity_callback(
+            f"hashing BigCloneBench database ({database_gib:.1f} GiB)"
+        )
+    database_sha256 = sha256_file(database)
+    if activity_callback is not None:
+        activity_callback("recording H2 and Java identity")
+    h2_jar_sha256 = sha256_file(h2_jar)
+    java = java_identity()
+    if activity_callback is not None:
+        activity_callback(
+            f"hashing {len(source_files):,} selected source files"
+        )
+    selected_source_files = [
+        {
+            "path": path.relative_to(BCE_DIR.resolve()).as_posix(),
+            "sha256": sha256_file(path),
+        }
+        for path in source_files
+    ]
     manifest = {
         "schema_version": 2,
         "dataset": "BigCloneBench",
         "dataset_identity": {
-            "database_sha256": sha256_file(database),
-            "h2_jar_sha256": sha256_file(h2_jar),
-            "java": java_identity(),
+            "database_sha256": database_sha256,
+            "h2_jar_sha256": h2_jar_sha256,
+            "java": java,
         },
         "syntactic_type": syntactic_type,
         "clone_type": f"type{syntactic_type}",
@@ -557,13 +579,7 @@ def write_manifest(
                 [row.function_id_one, row.function_id_two] for row in rows
             ],
         },
-        "selected_source_files": [
-            {
-                "path": path.relative_to(BCE_DIR.resolve()).as_posix(),
-                "sha256": sha256_file(path),
-            }
-            for path in source_files
-        ],
+        "selected_source_files": selected_source_files,
         "versions": {
             "generator_sha256": sha256_file(Path(__file__)),
             "position_text_oracle_sha256": sha256_file(SCRIPT_DIR / "run.py"),
@@ -571,9 +587,12 @@ def write_manifest(
         },
     }
     manifest_path = out_dir / f"bcb_t{syntactic_type}_manifest.json"
+    if activity_callback is not None:
+        activity_callback("writing selection manifest")
     manifest_path.write_text(
         json.dumps(manifest, indent=2, sort_keys=True), encoding="utf-8"
     )
+    return len(source_files)
 
 
 def main() -> int:
@@ -630,19 +649,29 @@ def main() -> int:
             progress.update(index, detail=case_dir.name)
         progress.finish(f"wrote {written}, reused {skipped}")
 
-    write_manifest(
-        args.out_dir,
-        args.syntactic_type,
-        args.dedupe,
-        args.text_change,
-        args.min_tokens,
-        args.limit,
-        len(candidates),
-        case_names,
-        candidate_limit,
-        rows,
-        args.selection_role,
-    )
+    database = BCE_DIR / "bigclonebenchdb" / "bcb.h2.db"
+    database_gib = database.stat().st_size / (1024**3)
+    with ProgressDisplay(
+        "cases/manifest",
+        detail=f"hashing BigCloneBench database ({database_gib:.1f} GiB)",
+    ) as progress:
+        source_file_count = write_manifest(
+            args.out_dir,
+            args.syntactic_type,
+            args.dedupe,
+            args.text_change,
+            args.min_tokens,
+            args.limit,
+            len(candidates),
+            case_names,
+            candidate_limit,
+            rows,
+            args.selection_role,
+            activity_callback=lambda detail: progress.update(detail=detail),
+        )
+        progress.finish(
+            f"recorded dataset identity and {source_file_count:,} source files"
+        )
 
     print(
         f"written={written} skipped={skipped} selected={len(rows)} "
