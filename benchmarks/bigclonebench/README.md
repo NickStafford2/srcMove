@@ -41,8 +41,8 @@ python3 benchmarks/bigclonebench/pipeline.py benchmark \
 ```
 
 In SrcMLBuildTemplate, use `/workspace/srcDiff/build/bin/srcdiff`. The optional
-installed srcDiff executable has a documented
-[runtime-linking limitation](../../../docs/workspace.md#srcdiff-runtime-linking).
+installed srcDiff executable is also supported by the workspace's documented
+[runtime-linking configuration](../../../docs/workspace.md#srcdiff-runtime-linking).
 
 The command creates or reuses the input snapshot and corpus, records every
 srcDiff attempt, and writes a new append-only srcMove evaluation run.
