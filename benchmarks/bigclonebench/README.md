@@ -20,34 +20,46 @@ Check the installed database, H2 driver, Java runtime, and nonempty corpus
 without fetching or modifying anything:
 
 ```bash
-python3 benchmarks/bigclonebench/pipeline.py preflight
+make bigclonebench-preflight
 ```
 
 The workflow keeps generated sources, reusable srcDiff XML, and srcMove runs
 separate. Generate a deterministic tuning slice:
 
 ```bash
-python3 benchmarks/bigclonebench/pipeline.py cases \
-  --clone-type type1 --limit 10 --selection-role tuning
+make bigclonebench-cases LIMIT=10
 ```
 
-Then run the complete saved benchmark without passing intermediate identifiers:
+Generate the slice and run the staged benchmark with the workspace's srcDiff
+and srcMove builds in one command:
 
 ```bash
-python3 benchmarks/bigclonebench/pipeline.py benchmark \
-  --clone-type type1 \
-  --srcdiff /path/to/srcdiff \
-  --srcmove /path/to/srcMove
+make bigclonebench LIMIT=10
 ```
 
-In SrcMLBuildTemplate, use `/workspace/srcDiff/build/bin/srcdiff`. The optional
-installed srcDiff executable is also supported by the workspace's documented
-[runtime-linking configuration](../../../docs/workspace.md#srcdiff-runtime-linking).
+The case generator defaults to `CLONE_TYPE=type1`, `LIMIT=100`,
+`SELECTION_ROLE=tuning`, and `CASES_DIR=benchmarks/bigclonebench/cases`.
+`CANDIDATE_LIMIT`, `DEDUPE`, and `TEXT_CHANGE` can also be set as needed.
+These targets are available from either `srcMove` or the SrcMLBuildTemplate
+workspace root and run inside Docker when invoked from the workspace root.
 
 The command creates or reuses the input snapshot and corpus, records every
 srcDiff attempt, and writes a new append-only srcMove evaluation run.
 
-For stage-level debugging, create the input snapshot, corpus, and evaluation
+For debugging, invoke the lower-level pipeline directly. The equivalent setup
+and coupled benchmark commands are:
+
+```bash
+python3 benchmarks/bigclonebench/pipeline.py preflight
+python3 benchmarks/bigclonebench/pipeline.py cases \
+  --clone-type type1 --limit 10 --selection-role tuning
+python3 benchmarks/bigclonebench/pipeline.py benchmark \
+  --clone-type type1 --cases-dir benchmarks/bigclonebench/cases \
+  --srcdiff /workspace/srcDiff/build/bin/srcdiff \
+  --srcmove /workspace/srcMove/build/srcMove
+```
+
+To debug individual stages, create the input snapshot, corpus, and evaluation
 separately:
 
 ```bash
