@@ -79,7 +79,8 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
         self.assertIn("no move; raw text differs", report)
         self.assertIn("200 cases from 35,802 eligible candidates", report)
         self.assertIn("200 distinct raw-text pairs across 3 functionality groups", report)
-        self.assertIn("summary.json, cases.csv", report)
+        self.assertIn(f"Summary:      {run_dir / 'summary.json'}", report)
+        self.assertIn(f"Case details: {run_dir / 'cases.csv'}", report)
 
     def test_combined_benchmark_cli_needs_no_intermediate_identifier(self) -> None:
         arguments = [

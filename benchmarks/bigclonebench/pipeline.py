@@ -317,8 +317,8 @@ def _report_benchmark_result(directory: Path, summary: dict) -> bool:
 
     print()
     print("Artifacts:")
-    print(f"  Run directory: {directory}")
-    print("  Files:         summary.json, cases.csv")
+    print(f"  Summary:      {directory / 'summary.json'}")
+    print(f"  Case details: {directory / 'cases.csv'}")
     if failure_count:
         print()
         print(
