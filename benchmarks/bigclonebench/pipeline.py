@@ -194,40 +194,139 @@ def _case_progress(progress: ProgressDisplay) -> Callable[[str, str], None]:
     return report
 
 
-def _report_failures(directory: Path, summary: dict) -> None:
+def _prepare_snapshot(
+    *, data_root: Path, adapter: BigCloneBenchAdapter
+) -> tuple[Path, dict]:
+    disposition = "prepared"
+
+    def record_disposition(value: str) -> None:
+        nonlocal disposition
+        disposition = value
+
+    with ProgressDisplay(
+        "snapshot", detail="hashing generated inputs"
+    ) as progress:
+        directory, manifest = create_input_snapshot(
+            data_root=data_root,
+            adapter=adapter,
+            source=adapter.source_manifest(),
+            status_callback=record_disposition,
+        )
+        case_detail = f"{manifest['counts']['selected']} cases"
+        if disposition == "reused":
+            case_detail += " verified"
+        progress.finish(case_detail, completion=disposition)
+    return directory, manifest
+
+
+_OUTCOME_LABELS = {
+    "upstream_failure": "srcDiff tool failure",
+    "srcdiff_semantic_ineligible": "srcDiff semantic rejection",
+    "srcmove_tool_failure": "srcMove tool failure",
+    "srcmove_miss": "srcMove miss",
+    "wrong_classification": "wrong classification",
+    "oracle_failure": "oracle validation failure",
+}
+
+_DIAGNOSTIC_LABELS = {
+    "no_move_raw_different": "no move; raw text differs",
+}
+
+_PLURAL_LABELS = {
+    "srcMove miss": "srcMove misses",
+}
+
+
+def _count_label(count: int, singular: str, plural: str | None = None) -> str:
+    label = singular if count == 1 else plural or _PLURAL_LABELS.get(
+        singular, singular + "s"
+    )
+    return f"{count:,} {label}"
+
+
+def _report_benchmark_result(directory: Path, summary: dict) -> bool:
     counts = summary["counts"]
     failure_count = counts["selected"] - counts["oracle_pass"]
-    if failure_count <= 0:
-        return
-    categories = [
-        f"{name}={counts[name]}"
-        for name in (
-            "upstream_failure",
-            "srcdiff_semantic_ineligible",
-            "srcmove_tool_failure",
-            "srcmove_miss",
-            "wrong_classification",
-            "oracle_failure",
-        )
-        if counts[name]
-    ]
-    print(
-        f"failures={failure_count}/{counts['selected']} ({', '.join(categories)})",
-        file=sys.stderr,
+    selected = counts["selected"]
+    pass_rate = counts["oracle_pass"] / selected if selected else 0.0
+    declared_slice = summary.get("declared_slice", {})
+    selection = declared_slice.get("selection", {}) or {}
+    clone_type = str(declared_slice.get("clone_type", "unknown"))
+    clone_type_label = (
+        f"Type-{clone_type.removeprefix('type')}"
+        if clone_type.startswith("type")
+        else clone_type
     )
-    with (directory / "cases.csv").open(encoding="utf-8", newline="") as stream:
-        failed_rows = [
-            row for row in csv.DictReader(stream) if row["outcome"] != "oracle_pass"
+    distinct_pairs = declared_slice.get("distinct_raw_text_pair_count", 0)
+    functionality_groups = declared_slice.get("functionality_group_count", 0)
+    candidate_count = declared_slice.get("row_count_before_deduplication", 0)
+
+    print()
+    print(f"BigCloneBench result: {'PASS' if failure_count == 0 else 'FAIL'}")
+    print()
+    print(
+        f"  Strict oracle:  {counts['oracle_pass']:,}/{selected:,} passed "
+        f"({pass_rate:.1%})"
+    )
+    print(f"  Failed cases:   {failure_count:,}")
+    print()
+    print(f"  Clone type:     {clone_type_label}")
+    print(f"  Selection role: {selection.get('role', 'unknown')}")
+    print(
+        f"  Selection:      {selected:,} cases from "
+        f"{candidate_count:,} eligible candidates"
+    )
+    print(
+        f"  Diversity:      {distinct_pairs:,} distinct raw-text pairs across "
+        f"{functionality_groups:,} functionality groups"
+    )
+    print(
+        f"  Filters:        min {declared_slice.get('min_tokens', 'unknown')} tokens; "
+        f"{declared_slice.get('dedupe', 'unknown')} dedupe; "
+        f"text change: {declared_slice.get('text_change', 'unknown')}"
+    )
+
+    if failure_count:
+        categories = [
+            _count_label(counts[name], label)
+            for name, label in _OUTCOME_LABELS.items()
+            if counts[name]
         ]
-    for row in failed_rows[:5]:
+        print()
+        print("Failures:")
+        print(f"  Breakdown: {', '.join(categories)}")
+        with (directory / "cases.csv").open(
+            encoding="utf-8", newline=""
+        ) as stream:
+            failed_rows = [
+                row
+                for row in csv.DictReader(stream)
+                if row["outcome"] != "oracle_pass"
+            ]
+        for row in failed_rows[:5]:
+            outcome = _OUTCOME_LABELS.get(
+                row["outcome"], row["outcome"].replace("_", " ")
+            )
+            diagnostic = _DIAGNOSTIC_LABELS.get(
+                row["diagnostic_class"],
+                row["diagnostic_class"].replace("_", " "),
+            )
+            print(f"  - {row['case_id']}: {outcome} ({diagnostic})")
+        if len(failed_rows) > 5:
+            print(f"  - … and {len(failed_rows) - 5:,} more")
+
+    print()
+    print("Artifacts:")
+    print(f"  Run directory: {directory}")
+    print("  Files:         summary.json, cases.csv")
+    if failure_count:
+        print()
         print(
-            f"  - {row['case_id']}: {row['outcome']} "
-            f"({row['diagnostic_class']})",
-            file=sys.stderr,
+            "Benchmark failed: "
+            f"{_count_label(failure_count, 'case')} did not pass the strict oracle."
         )
-    if len(failed_rows) > 5:
-        print(f"  - … and {len(failed_rows) - 5} more", file=sys.stderr)
-    print(f"failure_details={directory / 'cases.csv'}", file=sys.stderr)
+    sys.stdout.flush()
+    return failure_count == 0
 
 
 def main() -> int:
@@ -281,15 +380,9 @@ def main() -> int:
             adapter = BigCloneBenchAdapter(
                 args.cases_dir, _syntactic_type(args.clone_type)
             )
-            with ProgressDisplay(
-                "snapshot", detail="hashing generated inputs"
-            ) as progress:
-                directory, manifest = create_input_snapshot(
-                    data_root=data_root,
-                    adapter=adapter,
-                    source=adapter.source_manifest(),
-                )
-                progress.finish(f"{manifest['counts']['selected']} cases ready")
+            directory, manifest = _prepare_snapshot(
+                data_root=data_root, adapter=adapter
+            )
             print(f"input_snapshot_id={manifest['input_snapshot_id']}")
         elif args.stage == "corpus":
             srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
@@ -337,19 +430,12 @@ def main() -> int:
                     completed=manifest["counts"]["executed"],
                 )
                 progress.finish(
-                    f"{manifest['counts']['completed']} completed, "
-                    f"{manifest['counts']['failed']} failed"
+                    f"{manifest['counts']['completed']} executed, "
+                    f"{manifest['counts']['failed']} tool failures"
                 )
-            print(f"run_id={manifest['run_id']}")
-            print(f"summary={directory / 'summary.json'}")
-            if summary["counts"]["oracle_pass"] != summary["counts"]["selected"]:
-                _report_failures(directory, summary)
-                print(
-                    "one or more selected cases did not pass the strict oracle",
-                    file=sys.stderr,
-                )
-                print(f"directory={directory}")
+            if not _report_benchmark_result(directory, summary):
                 return 1
+            return 0
         else:
             srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
             srcmove = find_srcmove(REPO_ROOT, args.srcmove)
@@ -360,17 +446,9 @@ def main() -> int:
             adapter = BigCloneBenchAdapter(
                 args.cases_dir, _syntactic_type(args.clone_type)
             )
-            with ProgressDisplay(
-                "snapshot", detail="hashing generated inputs"
-            ) as progress:
-                _, snapshot_manifest = create_input_snapshot(
-                    data_root=data_root,
-                    adapter=adapter,
-                    source=adapter.source_manifest(),
-                )
-                progress.finish(
-                    f"{snapshot_manifest['counts']['selected']} cases ready"
-                )
+            _, snapshot_manifest = _prepare_snapshot(
+                data_root=data_root, adapter=adapter
+            )
             with ProgressDisplay(
                 "srcDiff", total=snapshot_manifest["counts"]["selected"]
             ) as progress:
@@ -386,13 +464,7 @@ def main() -> int:
                     f"{corpus_manifest['counts']['accepted']} accepted, "
                     f"{corpus_manifest['counts']['failed']} failed"
                 )
-            print(f"input_snapshot_id={snapshot_manifest['input_snapshot_id']}")
-            print(f"corpus_id={corpus_manifest['corpus_id']}")
             if corpus_manifest["counts"]["failed"]:
-                print(
-                    f"failed_cases={corpus_manifest['counts']['failed']}",
-                    file=sys.stderr,
-                )
                 exit_code = 1
             eligible = corpus_manifest["counts"]["semantic_eligible"]
             with ProgressDisplay("srcMove", total=eligible) as progress:
@@ -405,19 +477,12 @@ def main() -> int:
                     activity_callback=_case_progress(progress),
                 )
                 progress.finish(
-                    f"{manifest['counts']['completed']} completed, "
-                    f"{manifest['counts']['failed']} failed"
+                    f"{manifest['counts']['completed']} executed, "
+                    f"{manifest['counts']['failed']} tool failures"
                 )
-            print(f"run_id={manifest['run_id']}")
-            print(f"summary={directory / 'summary.json'}")
-            if summary["counts"]["oracle_pass"] != summary["counts"]["selected"]:
-                _report_failures(directory, summary)
-                print(
-                    "one or more selected cases did not pass the strict oracle",
-                    file=sys.stderr,
-                )
-                print(f"directory={directory}")
+            if not _report_benchmark_result(directory, summary):
                 return 1
+            return exit_code
         print(f"directory={directory}")
         return exit_code
     except (OSError, ValueError) as error:

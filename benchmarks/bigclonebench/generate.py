@@ -673,11 +673,8 @@ def main() -> int:
             f"recorded dataset identity and {source_file_count:,} source files"
         )
 
-    print(
-        f"written={written} skipped={skipped} selected={len(rows)} "
-        f"candidates={len(candidates)} dedupe={args.dedupe} "
-        f"text_change={args.text_change} out_dir={args.out_dir}"
-    )
+    print(f"Generated cases: {args.out_dir}")
+    print()
     if len(rows) < args.limit:
         print(
             f"warning: requested {args.limit} cases but only selected {len(rows)} "

@@ -37,6 +37,32 @@ def source_pair(root: Path) -> tuple[Path, Path]:
 
 
 class CorpusPipelineTests(unittest.TestCase):
+    def test_input_snapshot_reports_created_then_verified_reuse(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            original, modified = source_pair(root)
+            adapter = RepositoryAdapter(
+                case_id="tiny", original=original, modified=modified
+            )
+            first_status: list[str] = []
+            second_status: list[str] = []
+
+            create_input_snapshot(
+                data_root=root / "generated",
+                adapter=adapter,
+                source={"repository": "fixture"},
+                status_callback=first_status.append,
+            )
+            create_input_snapshot(
+                data_root=root / "generated",
+                adapter=adapter,
+                source={"repository": "fixture"},
+                status_callback=second_status.append,
+            )
+
+            self.assertEqual(first_status, ["created"])
+            self.assertEqual(second_status, ["reused"])
+
     def test_generation_reports_running_then_reused_activity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

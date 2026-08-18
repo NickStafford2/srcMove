@@ -261,6 +261,7 @@ def create_input_snapshot(
     adapter: DatasetAdapter,
     source: Mapping[str, Any],
     filter_configuration: Mapping[str, Any] | None = None,
+    status_callback: Callable[[str], None] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     """Freeze and checksum old/new source pairs for later srcDiff execution."""
 
@@ -299,6 +300,8 @@ def create_input_snapshot(
             "input_snapshot_id",
         )
         _verify_input_snapshot(final_dir, manifest)
+        if status_callback is not None:
+            status_callback("reused")
         return final_dir, manifest
 
     staging = data_root / "input-snapshots" / f".staging-{uuid.uuid4()}"
@@ -352,6 +355,8 @@ def create_input_snapshot(
         write_json_atomic(staging / "manifest.json", manifest)
         final_dir.parent.mkdir(parents=True, exist_ok=True)
         os.replace(staging, final_dir)
+        if status_callback is not None:
+            status_callback("created")
         return final_dir, manifest
     except BaseException:
         if staging.exists():

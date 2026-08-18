@@ -104,7 +104,13 @@ class ProgressDisplay:
         if self._live:
             self._render_live()
 
-    def finish(self, detail: str | None = None, *, success: bool = True) -> None:
+    def finish(
+        self,
+        detail: str | None = None,
+        *,
+        success: bool = True,
+        completion: str | None = None,
+    ) -> None:
         if self._finished:
             return
         if detail is not None:
@@ -119,10 +125,11 @@ class ProgressDisplay:
             suffix = f" — {self.detail}" if self.detail else ""
             if self._live:
                 icon = "✓" if success else "✗"
-                line = f"{icon} {self.phase} {count} in {elapsed}{suffix}".strip()
+                result = completion or count
+                line = f"{icon} {self.phase} {result} in {elapsed}{suffix}".strip()
                 self.stream.write(f"\r\033[2K{self._truncate(line)}\n")
             else:
-                status = "complete" if success else "failed"
+                status = completion or ("complete" if success else "failed")
                 self.stream.write(
                     f"[{self.phase}] {status}: {count} in {elapsed}{suffix}\n"
                 )

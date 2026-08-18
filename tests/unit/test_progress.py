@@ -14,6 +14,22 @@ from benchmarks.progress import ProgressDisplay
 
 
 class ProgressDisplayTests(unittest.TestCase):
+    def test_live_completion_can_name_the_completed_operation(self) -> None:
+        class LiveOutput(io.StringIO):
+            def isatty(self) -> bool:
+                return True
+
+        output = LiveOutput()
+        with ProgressDisplay(
+            "snapshot", detail="hashing generated inputs", stream=output
+        ) as progress:
+            progress.finish("200 cases verified", completion="reused")
+
+        self.assertIn(
+            "✓ snapshot reused in 00:00 — 200 cases verified",
+            output.getvalue(),
+        )
+
     def test_redirected_output_is_sparse_and_durable(self) -> None:
         output = io.StringIO()
         with ProgressDisplay(

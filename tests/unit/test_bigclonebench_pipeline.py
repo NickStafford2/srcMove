@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 import csv
+import io
 import json
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -16,7 +18,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from benchmarks.bigclonebench.adapter import BigCloneBenchAdapter
 from benchmarks.bigclonebench.evaluate import _score_completed_case, write_evaluation
-from benchmarks.bigclonebench.pipeline import parse_args
+from benchmarks.bigclonebench.pipeline import _report_benchmark_result, parse_args
 from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
 from benchmarks.provenance import sha256_file
 
@@ -28,6 +30,57 @@ def write_executable(path: Path, source: str) -> Path:
 
 
 class BigCloneBenchPipelineTests(unittest.TestCase):
+    def test_combined_result_report_separates_oracle_and_tool_outcomes(self) -> None:
+        summary = {
+            "counts": {
+                "selected": 200,
+                "oracle_pass": 199,
+                "upstream_failure": 0,
+                "srcdiff_semantic_ineligible": 0,
+                "srcmove_tool_failure": 0,
+                "srcmove_miss": 1,
+                "wrong_classification": 0,
+                "oracle_failure": 0,
+            },
+            "declared_slice": {
+                "clone_type": "type1",
+                "dedupe": "raw-text-pair",
+                "text_change": "any",
+                "min_tokens": 50,
+                "row_count_before_deduplication": 35_802,
+                "distinct_raw_text_pair_count": 200,
+                "functionality_group_count": 3,
+                "selection": {"role": "tuning"},
+            },
+        }
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            run_dir = Path(temporary_directory)
+            with (run_dir / "cases.csv").open("w", encoding="utf-8", newline="") as stream:
+                writer = csv.DictWriter(
+                    stream, fieldnames=("case_id", "outcome", "diagnostic_class")
+                )
+                writer.writeheader()
+                writer.writerow(
+                    {
+                        "case_id": "bcb_t1_000012",
+                        "outcome": "srcmove_miss",
+                        "diagnostic_class": "no_move_raw_different",
+                    }
+                )
+            output = io.StringIO()
+            with redirect_stdout(output):
+                passed = _report_benchmark_result(run_dir, summary)
+
+        report = output.getvalue()
+        self.assertFalse(passed)
+        self.assertIn("BigCloneBench result: FAIL", report)
+        self.assertIn("199/200 passed (99.5%)", report)
+        self.assertIn("1 srcMove miss", report)
+        self.assertIn("no move; raw text differs", report)
+        self.assertIn("200 cases from 35,802 eligible candidates", report)
+        self.assertIn("200 distinct raw-text pairs across 3 functionality groups", report)
+        self.assertIn("summary.json, cases.csv", report)
+
     def test_combined_benchmark_cli_needs_no_intermediate_identifier(self) -> None:
         arguments = [
             "pipeline.py",
