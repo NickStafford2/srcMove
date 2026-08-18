@@ -6,7 +6,7 @@ SELECTION_ROLE ?= tuning
 CASES_DIR ?= benchmarks/bigclonebench/cases
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 
-.PHONY: help configure build test test-unit test-xml test-source benchmark-repo bigclonebench-preflight bigclonebench-cases bigclonebench
+.PHONY: help configure build test test-unit test-xml test-source benchmark-repo benchmark-repos bigclonebench-preflight bigclonebench-cases bigclonebench
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -16,6 +16,7 @@ help:
 	@printf '  %-28s %s\n' 'make test-xml' 'Build and run XML regression tests'
 	@printf '  %-28s %s\n' 'make test-source' 'Build and run source-pair regression tests'
 	@printf '  %-28s %s\n' 'make benchmark-repo' 'Run and save CASE repository benchmark'
+	@printf '  %-28s %s\n' 'make benchmark-repos' 'Run the explicit standard repository suite'
 	@printf '  %-28s %s\n' 'make bigclonebench-preflight' 'Check the local BigCloneBench installation'
 	@printf '  %-28s %s\n' 'make bigclonebench-cases' 'Generate a configurable BigCloneBench case slice'
 	@printf '  %-28s %s\n' 'make bigclonebench' 'Generate cases and run the staged BigCloneBench pipeline'
@@ -40,8 +41,21 @@ test-source: build
 
 benchmark-repo:
 	@test -n "$(CASE)" || { echo 'error: CASE is required'; exit 2; }
-	$(PYTHON) benchmarks/repositories/run_case.py "$(CASE)" \
+	@$(PYTHON) benchmarks/repositories/run_case.py "$(CASE)" \
+		$(if $(OLD_REV),--old-rev "$(OLD_REV)") \
+		$(if $(NEW_REV),--new-rev "$(NEW_REV)") \
+		$(if $(DIRECTORY),--directory "$(DIRECTORY)") \
 		$(if $(SERIES),--series "$(SERIES)") \
+		$(if $(filter 1 yes true,$(UPDATE)),--fetch) \
+		$(if $(filter 1 yes true,$(OFFLINE)),--offline)
+
+benchmark-repos:
+	@$(PYTHON) benchmarks/repositories/run.py \
+		$(if $(SUITE),--suite "$(SUITE)") \
+		$(if $(SERIES),--series "$(SERIES)") \
+		$(if $(CASE),--case "$(CASE)") \
+		$(if $(EXCLUDE_CASE),--exclude-case "$(EXCLUDE_CASE)") \
+		$(if $(filter 1 yes true,$(LIST)),--list) \
 		$(if $(filter 1 yes true,$(UPDATE)),--fetch) \
 		$(if $(filter 1 yes true,$(OFFLINE)),--offline)
 

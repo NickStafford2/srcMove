@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "default_suite": "standard",
+  "suites": {
+    "standard": {
+      "description": "Small cross-project baseline for routine repository benchmarking.",
+      "cases": ["notepadpp", "sqlite", "srcMove"]
+    },
+    "focused": {
+      "description": "Narrow changes intended for focused analysis rather than cross-project aggregation.",
+      "cases": ["srcMoveFormattingOnly"]
+    },
+    "large": {
+      "description": "Large stress cases that require an explicit opt-in.",
+      "cases": ["opencv"]
+    }
+  }
+}

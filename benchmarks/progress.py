@@ -130,9 +130,14 @@ class ProgressDisplay:
                 self.stream.write(f"\r\033[2K{self._truncate(line)}\n")
             else:
                 status = completion or ("complete" if success else "failed")
-                self.stream.write(
-                    f"[{self.phase}] {status}: {count} in {elapsed}{suffix}\n"
-                )
+                if completion is not None and self.total is None:
+                    self.stream.write(
+                        f"[{self.phase}] {status} in {elapsed}{suffix}\n"
+                    )
+                else:
+                    self.stream.write(
+                        f"[{self.phase}] {status}: {count} in {elapsed}{suffix}\n"
+                    )
             self.stream.flush()
             self._active = False
             self._finished = True

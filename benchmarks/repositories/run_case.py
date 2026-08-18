@@ -29,6 +29,7 @@ from benchmarks.corpus import (
     run_corpus,
 )
 from benchmarks.process import write_json_atomic
+from benchmarks.progress import ProgressDisplay
 from benchmarks.provenance import utc_now
 from benchmarks.repositories.adapter import RepositoryAdapter
 from support.tooling import (
@@ -130,7 +131,6 @@ def ensure_repo(
             raise RuntimeError(
                 f"repository cache is missing in offline mode: {clone_dir}"
             )
-        print("      repo not present; cloning")
         clone_repo(repo_url, clone_dir)
         return True
 
@@ -144,11 +144,9 @@ def ensure_repo(
         )
 
     if update:
-        print("      updating cached repo")
         update_repo(clone_dir)
         return True
 
-    print("      using cached repo")
     return False
 
 
@@ -292,9 +290,13 @@ SERIES_COLUMNS = [
     "benchmark_id",
     "created_at",
     "case",
+    "requested_old_revision",
+    "requested_new_revision",
     "old_commit",
     "new_commit",
     "status",
+    "included_files",
+    "excluded_files",
     "input_snapshot_id",
     "corpus_id",
     "run_id",
@@ -309,6 +311,10 @@ SERIES_COLUMNS = [
     "srcmove_seconds",
     "srcmove_peak_rss_bytes",
     "move_count",
+    "move_group_count",
+    "move_pair_count",
+    "annotated_region_count",
+    "regions_total",
 ]
 
 
@@ -340,9 +346,17 @@ def update_series(data_root: Path, series: str, entry: Mapping[str, Any]) -> Pat
                     "benchmark_id": benchmark.get("benchmark_id"),
                     "created_at": benchmark.get("created_at"),
                     "case": benchmark.get("case"),
+                    "requested_old_revision": benchmark.get("source", {}).get(
+                        "requested_old_revision"
+                    ),
+                    "requested_new_revision": benchmark.get("source", {}).get(
+                        "requested_new_revision"
+                    ),
                     "old_commit": benchmark.get("source", {}).get("old_commit"),
                     "new_commit": benchmark.get("source", {}).get("new_commit"),
                     "status": benchmark.get("status"),
+                    "included_files": counts.get("included_files"),
+                    "excluded_files": counts.get("excluded_files"),
                     "input_snapshot_id": benchmark.get("input_snapshot_id"),
                     "corpus_id": benchmark.get("corpus_id"),
                     "run_id": benchmark.get("run_id"),
@@ -365,10 +379,103 @@ def update_series(data_root: Path, series: str, entry: Mapping[str, Any]) -> Pat
                         "resource_usage", {}
                     ).get("peak_rss_bytes"),
                     "move_count": results.get("move_count"),
+                    "move_group_count": results.get("move_group_count"),
+                    "move_pair_count": results.get("move_pair_count"),
+                    "annotated_region_count": results.get("annotated_region_count"),
+                    "regions_total": results.get("regions_total"),
                 }
             )
     temporary.replace(summary_path)
     return manifest_path
+
+
+def _format_duration(value: object) -> str:
+    return "unavailable" if not isinstance(value, (int, float)) else f"{value:.1f}s"
+
+
+def _format_memory(value: object) -> str:
+    if not isinstance(value, int):
+        return "unavailable"
+    return f"{value / (1024 * 1024):.1f} MiB peak"
+
+
+def print_benchmark_summary(
+    entry: Mapping[str, Any], index_path: Path, data_root: Path
+) -> None:
+    completed = entry.get("status") == "completed"
+    heading = "COMPLETED" if completed else "FAILED"
+    source = entry.get("source", {})
+    counts = entry.get("counts", {})
+    results = entry.get("results", {})
+    dispositions = entry.get("dispositions", {})
+    srcdiff = entry.get("srcdiff_attempt", {})
+    srcmove = entry.get("srcmove_attempt", {})
+
+    print()
+    print(f"Repository benchmark: {heading}")
+    print()
+    print(f"  Case:        {entry['case']}")
+    print(f"  Series:      {entry['series']}")
+    print(
+        "  Revisions:   "
+        f"{source.get('requested_old_revision')} ({source.get('old_commit')})"
+    )
+    print(
+        "               "
+        f"{source.get('requested_new_revision')} ({source.get('new_commit')})"
+    )
+    print(
+        "  Files:       "
+        f"{counts.get('included_files', 0)} included, "
+        f"{counts.get('excluded_files', 0)} excluded"
+    )
+    if srcdiff:
+        print(
+            "  srcDiff:     "
+            f"{_format_duration(srcdiff.get('elapsed_seconds'))}, "
+            f"{_format_memory(srcdiff.get('resource_usage', {}).get('peak_rss_bytes'))} "
+            f"({dispositions.get('srcdiff_corpus', 'unknown')})"
+        )
+    if srcmove:
+        print(
+            "  srcMove:     "
+            f"{_format_duration(srcmove.get('elapsed_seconds'))}, "
+            f"{_format_memory(srcmove.get('resource_usage', {}).get('peak_rss_bytes'))} "
+            f"({dispositions.get('srcmove_run', 'unknown')})"
+        )
+    if results:
+        print()
+        print(
+            "  Moves:       "
+            f"{results.get('move_count', 0)} moves, "
+            f"{results.get('move_group_count', 0)} groups, "
+            f"{results.get('move_pair_count', 0)} pairs"
+        )
+        print(
+            "  Regions:     "
+            f"{results.get('annotated_region_count', 0)} annotated / "
+            f"{results.get('regions_total', 0)} total"
+        )
+    if entry.get("error"):
+        print()
+        print(f"  Failure:     {entry['error'].get('message', entry['error'])}")
+
+    print()
+    print("Artifacts:")
+    if entry.get("results_path"):
+        print(f"  Results:        {(data_root / entry['results_path']).resolve()}")
+    if entry.get("run_manifest"):
+        print(f"  Run manifest:   {(data_root / entry['run_manifest']).resolve()}")
+    print(f"  Benchmark index: {index_path.resolve()}")
+    print(f"  Series summary:  {(index_path.parent / 'summary.csv').resolve()}")
+    if entry.get("status") == "srcdiff_failed":
+        attempt_path = (data_root / entry["srcdiff_attempt"]["path"]).resolve()
+        investigate = (REPO_ROOT / "benchmarks" / "investigate.py").resolve()
+        print()
+        print("Diagnostics:")
+        print(f"  srcDiff attempt: {attempt_path}")
+        print(f"  Replay: python3 {investigate} replay {attempt_path}")
+        print(f"  Isolate: python3 {investigate} isolate {attempt_path}")
 
 
 def run_staged_repository_benchmark(
@@ -418,51 +525,80 @@ def run_staged_repository_benchmark(
         },
     }
     try:
-        print("[5/7] preparing immutable input snapshot")
-        input_snapshot_dir, input_snapshot = create_input_snapshot(
-            data_root=data_root,
-            adapter=RepositoryAdapter(
-                case_id=case_name,
-                original=original,
-                modified=modified,
-                metadata={"source": dict(source)},
-            ),
-            source=source,
-            filter_configuration={"excluded_suffixes": excluded_suffixes},
-        )
+        snapshot_disposition = "created"
+
+        def record_snapshot_disposition(value: str) -> None:
+            nonlocal snapshot_disposition
+            snapshot_disposition = value
+
+        with ProgressDisplay(
+            "4/6 Input snapshot", detail="hashing and verifying exported files"
+        ) as progress:
+            input_snapshot_dir, input_snapshot = create_input_snapshot(
+                data_root=data_root,
+                adapter=RepositoryAdapter(
+                    case_id=case_name,
+                    original=original,
+                    modified=modified,
+                    metadata={"source": dict(source)},
+                ),
+                source=source,
+                filter_configuration={"excluded_suffixes": excluded_suffixes},
+                status_callback=record_snapshot_disposition,
+            )
+            snapshot_completion = (
+                "verified and reused"
+                if snapshot_disposition == "reused"
+                else "created"
+            )
+            progress.finish(
+                f"{input_snapshot['counts']['included_files']} included, "
+                f"{input_snapshot['counts']['excluded_files']} excluded",
+                completion=snapshot_completion,
+            )
         entry.update(
             {
                 "input_snapshot_id": input_snapshot["input_snapshot_id"],
                 "input_snapshot_manifest": _relative_to_data_root(
                     input_snapshot_dir / "manifest.json", data_root
                 ),
+                "dispositions": {"input_snapshot": snapshot_completion},
+                "counts": {
+                    "included_files": input_snapshot["counts"]["included_files"],
+                    "excluded_files": input_snapshot["counts"]["excluded_files"],
+                },
             }
         )
-        print(f"      snapshot: {input_snapshot['input_snapshot_id']}")
-        print(
-            "      files: "
-            f"{input_snapshot['counts']['included_files']} included, "
-            f"{input_snapshot['counts']['excluded_files']} excluded"
-        )
 
-        print("[6/7] preparing validated srcDiff corpus")
+        srcdiff_disposition = "executed"
+        srcdiff_progress = ProgressDisplay(
+            "5/6 srcDiff corpus", detail=f"preparing {case_name}"
+        )
+        srcdiff_progress.start()
 
         def report_srcdiff_activity(activity: str, case_id: str) -> None:
+            nonlocal srcdiff_disposition
             if activity == "running":
-                print(f"      running srcDiff: {srcdiff}")
+                srcdiff_disposition = "executed"
+                srcdiff_progress.update(detail=f"executing {case_id}")
             elif activity == "reused":
-                print(f"      reusing prior srcDiff attempt for {case_id}")
+                srcdiff_disposition = "verified and reused"
+                srcdiff_progress.update(detail=f"verifying prior attempt for {case_id}")
 
-        corpus_dir, corpus = generate_corpus(
-            data_root=data_root,
-            input_snapshot=input_snapshot["input_snapshot_id"],
-            srcdiff=srcdiff,
-            timeout_seconds=srcdiff_timeout_seconds,
-            use_position=use_position,
-            use_archive=use_archive,
-            source_encoding=source_encoding,
-            activity_callback=report_srcdiff_activity,
-        )
+        try:
+            corpus_dir, corpus = generate_corpus(
+                data_root=data_root,
+                input_snapshot=input_snapshot["input_snapshot_id"],
+                srcdiff=srcdiff,
+                timeout_seconds=srcdiff_timeout_seconds,
+                use_position=use_position,
+                use_archive=use_archive,
+                source_encoding=source_encoding,
+                activity_callback=report_srcdiff_activity,
+            )
+        except BaseException as error:
+            srcdiff_progress.finish(str(error), success=False, completion="failed")
+            raise
         entry.update(
             {
                 "corpus_id": corpus["corpus_id"],
@@ -470,6 +606,7 @@ def run_staged_repository_benchmark(
                     corpus_dir / "manifest.json", data_root
                 ),
                 "counts": {
+                    **entry["counts"],
                     "srcdiff_accepted": corpus["counts"]["accepted"],
                     "srcdiff_failed": corpus["counts"]["failed"],
                 },
@@ -480,30 +617,39 @@ def run_staged_repository_benchmark(
             data_root / generation_case["attempt_path"] / "attempt.json"
         )
         entry["srcdiff_attempt"] = _attempt_summary(srcdiff_attempt_path, data_root)
-        print(f"      corpus: {corpus['corpus_id']}")
-        print(
-            "      result: "
+        entry["dispositions"]["srcdiff_corpus"] = srcdiff_disposition
+        srcdiff_seconds = entry["srcdiff_attempt"].get("elapsed_seconds")
+        srcdiff_progress.finish(
             f"{corpus['counts']['accepted']} accepted, "
             f"{corpus['counts']['failed']} failed"
+            + (f", recorded execution {srcdiff_seconds:.1f}s" if srcdiff_seconds is not None else ""),
+            success=corpus["counts"]["failed"] == 0,
+            completion=srcdiff_disposition,
         )
-        srcdiff_seconds = entry["srcdiff_attempt"].get("elapsed_seconds")
-        if srcdiff_seconds is not None:
-            print(f"      recorded srcDiff time: {srcdiff_seconds:.3f}s")
 
         if corpus["counts"]["accepted"] == 0:
             entry.update({"status": "srcdiff_failed", "completed_at": utc_now()})
             series_path = update_series(data_root, series, entry)
             return entry, series_path
 
-        print("[7/7] running srcMove")
-        print(f"      executable: {srcmove}")
-        run_dir, run_manifest = run_corpus(
-            data_root=data_root,
-            corpus=corpus["corpus_id"],
-            srcmove=srcmove,
-            timeout_seconds=srcmove_timeout_seconds,
-            mode=RunMode.DEVELOPMENT,
+        srcmove_progress = ProgressDisplay(
+            "6/6 srcMove run", detail=f"executing {case_name}"
         )
+        srcmove_progress.start()
+        try:
+            run_dir, run_manifest = run_corpus(
+                data_root=data_root,
+                corpus=corpus["corpus_id"],
+                srcmove=srcmove,
+                timeout_seconds=srcmove_timeout_seconds,
+                mode=RunMode.DEVELOPMENT,
+                activity_callback=lambda activity, case_id: srcmove_progress.update(
+                    detail=f"{activity} {case_id}"
+                ),
+            )
+        except BaseException as error:
+            srcmove_progress.finish(str(error), success=False, completion="failed")
+            raise
         entry.update(
             {
                 "run_id": run_manifest["run_id"],
@@ -517,6 +663,7 @@ def run_staged_repository_benchmark(
                 ),
                 "completed_at": utc_now(),
                 "results": _results_summary(run_dir, run_manifest),
+                "dispositions": {**entry["dispositions"], "srcmove_run": "executed"},
             }
         )
         entry["counts"].update(
@@ -533,16 +680,22 @@ def run_staged_repository_benchmark(
                 / "attempt.json"
             )
             entry["srcmove_attempt"] = _attempt_summary(srcmove_attempt_path, data_root)
+            completed_case = next(
+                (case for case in run_manifest["cases"] if case["status"] == "completed"),
+                None,
+            )
+            if completed_case is not None:
+                entry["results_path"] = _relative_to_data_root(
+                    run_dir / completed_case["results"]["path"], data_root
+                )
             srcmove_seconds = entry["srcmove_attempt"].get("elapsed_seconds")
-            if srcmove_seconds is not None:
-                print(f"      srcMove time: {srcmove_seconds:.3f}s")
-        print(
-            "      result: "
+        srcmove_progress.finish(
             f"{run_manifest['counts']['completed']} completed, "
             f"{run_manifest['counts']['failed']} failed"
+            + (f", {srcmove_seconds:.1f}s" if srcmove_seconds is not None else ""),
+            success=run_manifest["counts"]["failed"] == 0,
+            completion="executed",
         )
-        if "move_count" in entry["results"]:
-            print(f"      moves: {entry['results']['move_count']}")
         series_path = update_series(data_root, series, entry)
         return entry, series_path
     except Exception as error:
@@ -661,8 +814,12 @@ def main() -> int:
     new_rev = args.new_rev if args.new_rev is not None else config["new_rev"]
 
     if old_rev is None or new_rev is None:
-        print(f"skipping case '{args.case}': old_rev/new_rev not specified")
-        return 0
+        print(
+            f"error: case '{args.case}' has no configured revisions; "
+            "pass both --old-rev and --new-rev",
+            file=sys.stderr,
+        )
+        return 2
     if args.srcdiff_timeout <= 0 or args.srcmove_timeout <= 0:
         print("error: benchmark timeouts must be positive", file=sys.stderr)
         return 1
@@ -678,35 +835,35 @@ def main() -> int:
     modified_dir = work_root / "modified"
     work_root.mkdir(parents=True, exist_ok=True)
 
-    print(f"[1/7] loading repository {repo_url}")
-    repository_updated = ensure_repo(
-        repo_url,
-        clone_dir,
-        offline=args.offline,
-        update=args.fetch,
-    )
+    cache_existed = clone_dir.exists()
+    with ProgressDisplay("1/6 Repository cache", detail=repo_url) as progress:
+        repository_updated = ensure_repo(
+            repo_url,
+            clone_dir,
+            offline=args.offline,
+            update=args.fetch,
+        )
+        cache_completion = (
+            "created" if not cache_existed else "fetched" if args.fetch else "reused"
+        )
+        progress.finish(str(clone_dir.resolve()), completion=cache_completion)
 
-    print("[2/7] repository cache ready")
+    with ProgressDisplay("2/6 Revisions", detail=f"resolving {old_rev} → {new_rev}") as progress:
+        old_commit, new_commit = resolve_requested_commits(
+            clone_dir,
+            old_rev,
+            new_rev,
+            offline=args.offline,
+            repository_updated=repository_updated,
+        )
+        progress.finish("requested revisions resolved to commits", completion="verified")
 
-    print("[3/7] resolving revisions")
-    old_commit, new_commit = resolve_requested_commits(
-        clone_dir,
-        old_rev,
-        new_rev,
-        offline=args.offline,
-        repository_updated=repository_updated,
-    )
-
-    print(f"      old rev   : {old_rev}")
-    print(f"      new rev   : {new_rev}")
-    print(f"      old commit: {old_commit}")
-    print(f"      new commit: {new_commit}")
-
-    print("[4/7] exporting revisions")
-    if selected_dir:
-        print(f"      directory : {selected_dir}")
-    export_commit(clone_dir, old_commit, original_dir, selected_dir)
-    export_commit(clone_dir, new_commit, modified_dir, selected_dir)
+    export_detail = selected_dir or "complete repository trees"
+    with ProgressDisplay("3/6 Exports", detail=export_detail) as progress:
+        export_commit(clone_dir, old_commit, original_dir, selected_dir)
+        progress.update(detail="old revision exported; exporting new revision")
+        export_commit(clone_dir, new_commit, modified_dir, selected_dir)
+        progress.finish("old and new source trees", completion="created")
 
     source = {
         "repository": repo_url,
@@ -734,26 +891,7 @@ def main() -> int:
         excluded_suffixes=[],
     )
 
-    print()
-    print(f"status={entry['status']}")
-    print(f"benchmark_id={entry['benchmark_id']}")
-    print(f"series={entry['series']}")
-    print(f"saved={index_path}")
-    print(f"series_summary={index_path.parent / 'summary.csv'}")
-    if entry.get("run_manifest"):
-        print(f"run={data_root / entry['run_manifest']}")
-    if entry["status"] == "srcdiff_failed":
-        attempt = entry["srcdiff_attempt"]
-        attempt_path = data_root / attempt["path"]
-        print(f"srcdiff_attempt={attempt_path}")
-        print(
-            "replay="
-            f"python3 benchmarks/investigate.py replay {attempt_path}"
-        )
-        print(
-            "isolate="
-            f"python3 benchmarks/investigate.py isolate {attempt_path}"
-        )
+    print_benchmark_summary(entry, index_path, data_root)
     return 0 if entry["status"] == "completed" else 1
 
 

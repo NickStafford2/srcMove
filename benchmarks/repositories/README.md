@@ -11,7 +11,40 @@ From the workspace root, run and save one configured case in Docker:
 make benchmark-repo CASE=notepadpp
 ```
 
-Group related invocations into a named series:
+Run the deterministic standard suite:
+
+```bash
+make benchmark-repos SERIES=thesis-pilot
+```
+
+[`suites.json`](suites.json) is the versioned source of truth for suite
+membership and ordering. The runner never discovers cases from directories.
+The standard suite is intentionally small:
+
+| Case | Scope | Role |
+| --- | --- | --- |
+| `notepadpp` | full tree, adjacent releases | cross-project baseline |
+| `sqlite` | `src/`, pinned releases | source-focused baseline |
+| `srcMove` | full tree, `v0.1.0` to `v0.1.3` | project-of-interest baseline |
+
+`srcMoveFormattingOnly` is in the opt-in `focused` suite. `opencv` is in the
+opt-in `large` suite. List the resolved suites without running them, or select
+one explicitly:
+
+```bash
+make benchmark-repos LIST=1
+make benchmark-repos SUITE=focused SERIES=formatting-study
+make benchmark-repos SUITE=large SERIES=stress-study
+```
+
+Add or exclude a configured case for a one-off suite invocation with `CASE` or
+`EXCLUDE_CASE`. The configured suite order is preserved, and explicit additions
+follow it. Every selected case uses the same series. The runner continues after
+a failed case, preserves its manifest, prints all case outcomes, and exits
+nonzero if any case failed.
+
+Group manual single-case invocations into a named series when a suite is not the
+right abstraction:
 
 ```bash
 make benchmark-repo CASE=notepadpp SERIES=thesis-pilot
@@ -25,8 +58,14 @@ If a requested revision is missing, it fetches once and retries.
 The command resolves exact commits, exports both revisions, creates or reuses an
 [input snapshot](../README.md#staged-corpus-workflow) and srcDiff corpus, runs
 srcMove only on admitted XML, and creates a new append-only srcMove run. It
-prints the saved benchmark index and series summary. No benchmark artifacts are
-copied between runs.
+prints live or periodic progress plus a readable result and artifact summary.
+No benchmark artifacts are copied between runs.
+
+Progress and summaries distinguish operations that were `created`, `reused`,
+checksum-`verified`, or `executed`. A reused corpus reports the recorded time and
+peak memory of its original srcDiff execution; it is not presented as time spent
+by the current invocation. Manifests and CSV files retain the detailed numeric
+and provenance fields used for later analysis.
 
 Generated data defaults to:
 
@@ -66,9 +105,30 @@ both the requested tags and their resolved commit hashes for exact provenance.
 Avoid moving references such as `HEAD` or branch names; use a full commit hash
 when no suitable release tag exists.
 
-`run.py` executes the small configured batch. `build_examples.py` turns selected
-benchmark results into ignored example artifacts for documentation or manual
-inspection.
+The Linux kernel case is available as a deliberately unpinned heavyweight case,
+but it is not in any suite. Choose and document stable revisions and whether the
+measurement covers the full tree or a repository subdirectory before running or
+adding it to a suite. After that scientific choice, run it explicitly:
+
+```bash
+make benchmark-repo CASE=linux \
+  OLD_REV=<pinned-old-revision> NEW_REV=<pinned-new-revision> \
+  DIRECTORY=<chosen-scope> SERIES=linux-study
+```
+
+Omit `DIRECTORY` only when the intended measurement is explicitly the full
+kernel tree. A case with no configured revisions is an error rather than a
+successful skip. The kernel is never cloned by listing or running the standard
+suite.
+
+`wowy_advanced_analytics` is excluded from every suite because it is Python and
+the current snapshot pipeline excludes `.py` files. `zlib` is also excluded:
+its current configuration runs backward from `v1.3.2` to `v1.2.3` and must not
+be used until the intended comparison is confirmed. `context_export` and
+`firefox` remain unavailable because they have no pinned revisions.
+
+`build_examples.py` turns selected benchmark results into ignored example
+artifacts for documentation or manual inspection.
 
 ## Advanced staged workflow
 
