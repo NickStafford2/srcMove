@@ -37,6 +37,44 @@ def source_pair(root: Path) -> tuple[Path, Path]:
 
 
 class CorpusPipelineTests(unittest.TestCase):
+    def test_generation_reports_running_then_reused_activity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            generated = root / "generated"
+            original, modified = source_pair(root)
+            srcdiff = executable_copy(root, "srcdiff-valid-archive")
+            _, input_snapshot = create_input_snapshot(
+                data_root=generated,
+                adapter=RepositoryAdapter(
+                    case_id="tiny", original=original, modified=modified
+                ),
+                source={"repository": "fixture"},
+            )
+
+            first_activity: list[tuple[str, str]] = []
+            generate_corpus(
+                data_root=generated,
+                input_snapshot=input_snapshot["input_snapshot_id"],
+                srcdiff=srcdiff,
+                timeout_seconds=2.0,
+                activity_callback=lambda activity, case_id: first_activity.append(
+                    (activity, case_id)
+                ),
+            )
+            second_activity: list[tuple[str, str]] = []
+            generate_corpus(
+                data_root=generated,
+                input_snapshot=input_snapshot["input_snapshot_id"],
+                srcdiff=srcdiff,
+                timeout_seconds=2.0,
+                activity_callback=lambda activity, case_id: second_activity.append(
+                    (activity, case_id)
+                ),
+            )
+
+            self.assertEqual(first_activity, [("running", "tiny")])
+            self.assertEqual(second_activity, [("reused", "tiny")])
+
     def test_generation_continues_after_a_case_failure(self) -> None:
         class Adapter:
             name = "fixture-failure-batch"

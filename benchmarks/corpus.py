@@ -372,6 +372,7 @@ def generate_corpus(
     selected_case_ids: Sequence[str] = (),
     semantic_validator: Callable[[InputPair, Path], SemanticResult] | None = None,
     semantic_oracle: Mapping[str, Any] | None = None,
+    activity_callback: Callable[[str, str], None] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     input_snapshot_manifest_path = _resolve_manifest(
         data_root, "input-snapshots", input_snapshot
@@ -492,6 +493,8 @@ def generate_corpus(
             and case_id in selected
         )
         if previous is not None and not should_retry:
+            if activity_callback is not None:
+                activity_callback("reused", case_id)
             continue
         original = input_snapshot_dir / case["original_path"]
         modified = input_snapshot_dir / case["modified_path"]
@@ -507,6 +510,8 @@ def generate_corpus(
             value.extend([str(original), str(modified), "-o", str(output)])
             return value
 
+        if activity_callback is not None:
+            activity_callback("running", case_id)
         attempt_dir, attempt = execute_attempt(
             attempts_root=attempts_root,
             stage="srcdiff",

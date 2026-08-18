@@ -418,6 +418,7 @@ def run_staged_repository_benchmark(
         },
     }
     try:
+        print("[5/7] preparing immutable input snapshot")
         input_snapshot_dir, input_snapshot = create_input_snapshot(
             data_root=data_root,
             adapter=RepositoryAdapter(
@@ -437,6 +438,20 @@ def run_staged_repository_benchmark(
                 ),
             }
         )
+        print(f"      snapshot: {input_snapshot['input_snapshot_id']}")
+        print(
+            "      files: "
+            f"{input_snapshot['counts']['included_files']} included, "
+            f"{input_snapshot['counts']['excluded_files']} excluded"
+        )
+
+        print("[6/7] preparing validated srcDiff corpus")
+
+        def report_srcdiff_activity(activity: str, case_id: str) -> None:
+            if activity == "running":
+                print(f"      running srcDiff: {srcdiff}")
+            elif activity == "reused":
+                print(f"      reusing prior srcDiff attempt for {case_id}")
 
         corpus_dir, corpus = generate_corpus(
             data_root=data_root,
@@ -446,6 +461,7 @@ def run_staged_repository_benchmark(
             use_position=use_position,
             use_archive=use_archive,
             source_encoding=source_encoding,
+            activity_callback=report_srcdiff_activity,
         )
         entry.update(
             {
@@ -464,12 +480,23 @@ def run_staged_repository_benchmark(
             data_root / generation_case["attempt_path"] / "attempt.json"
         )
         entry["srcdiff_attempt"] = _attempt_summary(srcdiff_attempt_path, data_root)
+        print(f"      corpus: {corpus['corpus_id']}")
+        print(
+            "      result: "
+            f"{corpus['counts']['accepted']} accepted, "
+            f"{corpus['counts']['failed']} failed"
+        )
+        srcdiff_seconds = entry["srcdiff_attempt"].get("elapsed_seconds")
+        if srcdiff_seconds is not None:
+            print(f"      recorded srcDiff time: {srcdiff_seconds:.3f}s")
 
         if corpus["counts"]["accepted"] == 0:
             entry.update({"status": "srcdiff_failed", "completed_at": utc_now()})
             series_path = update_series(data_root, series, entry)
             return entry, series_path
 
+        print("[7/7] running srcMove")
+        print(f"      executable: {srcmove}")
         run_dir, run_manifest = run_corpus(
             data_root=data_root,
             corpus=corpus["corpus_id"],
@@ -506,6 +533,16 @@ def run_staged_repository_benchmark(
                 / "attempt.json"
             )
             entry["srcmove_attempt"] = _attempt_summary(srcmove_attempt_path, data_root)
+            srcmove_seconds = entry["srcmove_attempt"].get("elapsed_seconds")
+            if srcmove_seconds is not None:
+                print(f"      srcMove time: {srcmove_seconds:.3f}s")
+        print(
+            "      result: "
+            f"{run_manifest['counts']['completed']} completed, "
+            f"{run_manifest['counts']['failed']} failed"
+        )
+        if "move_count" in entry["results"]:
+            print(f"      moves: {entry['results']['move_count']}")
         series_path = update_series(data_root, series, entry)
         return entry, series_path
     except Exception as error:
@@ -641,7 +678,7 @@ def main() -> int:
     modified_dir = work_root / "modified"
     work_root.mkdir(parents=True, exist_ok=True)
 
-    print(f"[1/5] loading repository {repo_url}")
+    print(f"[1/7] loading repository {repo_url}")
     repository_updated = ensure_repo(
         repo_url,
         clone_dir,
@@ -649,9 +686,9 @@ def main() -> int:
         update=args.fetch,
     )
 
-    print("[2/5] repository cache ready")
+    print("[2/7] repository cache ready")
 
-    print("[3/5] resolving revisions")
+    print("[3/7] resolving revisions")
     old_commit, new_commit = resolve_requested_commits(
         clone_dir,
         old_rev,
@@ -665,13 +702,12 @@ def main() -> int:
     print(f"      old commit: {old_commit}")
     print(f"      new commit: {new_commit}")
 
-    print("[4/5] exporting revisions")
+    print("[4/7] exporting revisions")
     if selected_dir:
         print(f"      directory : {selected_dir}")
     export_commit(clone_dir, old_commit, original_dir, selected_dir)
     export_commit(clone_dir, new_commit, modified_dir, selected_dir)
 
-    print("[5/5] running validated, append-only benchmark")
     source = {
         "repository": repo_url,
         "requested_old_revision": old_rev,
