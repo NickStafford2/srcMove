@@ -559,6 +559,13 @@ def generate_corpus(
             "attempt_path": str(attempt_dir.relative_to(data_root)),
         }
         records_by_id[case_id] = case_record
+        if activity_callback is not None:
+            activity_callback(
+                "accepted"
+                if case_record["generation_status"] == "accepted"
+                else "failed",
+                case_id,
+            )
         batch["cases"] = [
             records_by_id[item["case_id"]]
             for item in input_snapshot_manifest["cases"]
@@ -678,6 +685,7 @@ def run_corpus(
     retry_failed: bool = False,
     selected_case_ids: Sequence[str] = (),
     require_semantic_eligible: bool = False,
+    activity_callback: Callable[[str, str], None] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     corpus_dir, corpus_manifest = load_corpus(data_root, corpus)
     corpus_manifest_path = corpus_dir / "manifest.json"
@@ -784,6 +792,8 @@ def run_corpus(
                 and case_id in selected
             )
             if previous is not None and not should_retry:
+                if activity_callback is not None:
+                    activity_callback("reused", case_id)
                 continue
 
             def command(output: Path) -> Sequence[str]:
@@ -795,6 +805,8 @@ def run_corpus(
                     str(output.parent / "results.json"),
                 ]
 
+            if activity_callback is not None:
+                activity_callback("running", case_id)
             attempt_dir, attempt = execute_attempt(
                 attempts_root=final_dir / "attempts",
                 stage="srcmove",
@@ -824,6 +836,8 @@ def run_corpus(
             if results["status"] != "missing":
                 results["path"] = str(results_path.relative_to(final_dir))
             completed = attempt["admitted"] and results["status"] == "valid"
+            if activity_callback is not None:
+                activity_callback("completed" if completed else "failed", case_id)
             records_by_id[case_id] = {
                 "case_id": case_id,
                 "attempt_id": attempt["attempt_id"],

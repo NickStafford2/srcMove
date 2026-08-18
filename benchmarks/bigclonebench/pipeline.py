@@ -4,10 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import subprocess
 import sys
 from pathlib import Path
+from typing import Callable
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -25,6 +27,7 @@ from benchmarks.bigclonebench.evaluate import write_evaluation
 from benchmarks.bigclonebench.generate import preflight
 from benchmarks.contracts import RunMode
 from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
+from benchmarks.progress import ProgressDisplay
 from support.tooling import find_srcdiff, find_srcmove
 
 
@@ -118,6 +121,7 @@ def build_corpus(
     srcdiff: Path,
     timeout_seconds: float,
     retry_failed: bool,
+    activity_callback: Callable[[str, str], None] | None = None,
 ) -> tuple[Path, dict]:
     return generate_corpus(
         data_root=data_root,
@@ -132,6 +136,7 @@ def build_corpus(
             "name": "bigclonebench-payload-exposure",
             "version": SEMANTIC_ORACLE_VERSION,
         },
+        activity_callback=activity_callback,
     )
 
 
@@ -142,6 +147,7 @@ def evaluate_corpus(
     srcmove: Path,
     timeout_seconds: float,
     mode: RunMode,
+    activity_callback: Callable[[str, str], None] | None = None,
 ) -> tuple[Path, dict, dict]:
     run_dir, run_manifest = run_corpus(
         data_root=data_root,
@@ -150,6 +156,7 @@ def evaluate_corpus(
         timeout_seconds=timeout_seconds,
         mode=mode,
         require_semantic_eligible=True,
+        activity_callback=activity_callback,
     )
     corpus_path = Path(corpus)
     if corpus_path.is_file():
@@ -168,6 +175,59 @@ def evaluate_corpus(
         corpus_manifest=corpus_manifest,
     )
     return run_dir, run_manifest, summary
+
+
+def _case_progress(progress: ProgressDisplay) -> Callable[[str, str], None]:
+    completed = 0
+
+    def report(activity: str, case_id: str) -> None:
+        nonlocal completed
+        if activity == "running":
+            progress.update(completed, detail=case_id)
+            return
+        if activity in {"accepted", "completed", "reused", "failed"}:
+            completed += 1
+            progress.update(completed, detail=case_id)
+        if activity == "failed":
+            progress.event(f"{case_id} failed; continuing (details are preserved)")
+
+    return report
+
+
+def _report_failures(directory: Path, summary: dict) -> None:
+    counts = summary["counts"]
+    failure_count = counts["selected"] - counts["oracle_pass"]
+    if failure_count <= 0:
+        return
+    categories = [
+        f"{name}={counts[name]}"
+        for name in (
+            "upstream_failure",
+            "srcdiff_semantic_ineligible",
+            "srcmove_tool_failure",
+            "srcmove_miss",
+            "wrong_classification",
+            "oracle_failure",
+        )
+        if counts[name]
+    ]
+    print(
+        f"failures={failure_count}/{counts['selected']} ({', '.join(categories)})",
+        file=sys.stderr,
+    )
+    with (directory / "cases.csv").open(encoding="utf-8", newline="") as stream:
+        failed_rows = [
+            row for row in csv.DictReader(stream) if row["outcome"] != "oracle_pass"
+        ]
+    for row in failed_rows[:5]:
+        print(
+            f"  - {row['case_id']}: {row['outcome']} "
+            f"({row['diagnostic_class']})",
+            file=sys.stderr,
+        )
+    if len(failed_rows) > 5:
+        print(f"  - … and {len(failed_rows) - 5} more", file=sys.stderr)
+    print(f"failure_details={directory / 'cases.csv'}", file=sys.stderr)
 
 
 def main() -> int:
@@ -221,23 +281,37 @@ def main() -> int:
             adapter = BigCloneBenchAdapter(
                 args.cases_dir, _syntactic_type(args.clone_type)
             )
-            directory, manifest = create_input_snapshot(
-                data_root=data_root,
-                adapter=adapter,
-                source=adapter.source_manifest(),
-            )
+            with ProgressDisplay(
+                "snapshot", detail="hashing generated inputs"
+            ) as progress:
+                directory, manifest = create_input_snapshot(
+                    data_root=data_root,
+                    adapter=adapter,
+                    source=adapter.source_manifest(),
+                )
+                progress.finish(f"{manifest['counts']['selected']} cases ready")
             print(f"input_snapshot_id={manifest['input_snapshot_id']}")
         elif args.stage == "corpus":
             srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
             if srcdiff is None:
                 raise ValueError("srcdiff not found; pass --srcdiff")
-            directory, manifest = build_corpus(
-                data_root=data_root,
-                input_snapshot=args.input_snapshot,
-                srcdiff=srcdiff,
-                timeout_seconds=args.timeout,
-                retry_failed=args.retry_failed,
-            )
+            with ProgressDisplay("srcDiff", detail="preparing corpus") as progress:
+                directory, manifest = build_corpus(
+                    data_root=data_root,
+                    input_snapshot=args.input_snapshot,
+                    srcdiff=srcdiff,
+                    timeout_seconds=args.timeout,
+                    retry_failed=args.retry_failed,
+                    activity_callback=_case_progress(progress),
+                )
+                progress.set_total(
+                    manifest["counts"]["selected"],
+                    completed=manifest["counts"]["selected"],
+                )
+                progress.finish(
+                    f"{manifest['counts']['accepted']} accepted, "
+                    f"{manifest['counts']['failed']} failed"
+                )
             print(f"corpus_id={manifest['corpus_id']}")
             if manifest["counts"]["failed"]:
                 print(
@@ -249,16 +323,27 @@ def main() -> int:
             srcmove = find_srcmove(REPO_ROOT, args.srcmove)
             if srcmove is None:
                 raise ValueError("srcMove not found; pass --srcmove")
-            directory, manifest, summary = evaluate_corpus(
-                data_root=data_root,
-                corpus=args.corpus,
-                srcmove=srcmove,
-                timeout_seconds=args.timeout,
-                mode=RunMode(args.mode),
-            )
+            with ProgressDisplay("srcMove", detail="evaluating corpus") as progress:
+                directory, manifest, summary = evaluate_corpus(
+                    data_root=data_root,
+                    corpus=args.corpus,
+                    srcmove=srcmove,
+                    timeout_seconds=args.timeout,
+                    mode=RunMode(args.mode),
+                    activity_callback=_case_progress(progress),
+                )
+                progress.set_total(
+                    manifest["counts"]["semantic_eligible"],
+                    completed=manifest["counts"]["executed"],
+                )
+                progress.finish(
+                    f"{manifest['counts']['completed']} completed, "
+                    f"{manifest['counts']['failed']} failed"
+                )
             print(f"run_id={manifest['run_id']}")
             print(f"summary={directory / 'summary.json'}")
             if summary["counts"]["oracle_pass"] != summary["counts"]["selected"]:
+                _report_failures(directory, summary)
                 print(
                     "one or more selected cases did not pass the strict oracle",
                     file=sys.stderr,
@@ -275,18 +360,32 @@ def main() -> int:
             adapter = BigCloneBenchAdapter(
                 args.cases_dir, _syntactic_type(args.clone_type)
             )
-            _, snapshot_manifest = create_input_snapshot(
-                data_root=data_root,
-                adapter=adapter,
-                source=adapter.source_manifest(),
-            )
-            corpus_dir, corpus_manifest = build_corpus(
-                data_root=data_root,
-                input_snapshot=snapshot_manifest["input_snapshot_id"],
-                srcdiff=srcdiff,
-                timeout_seconds=args.srcdiff_timeout,
-                retry_failed=args.retry_failed,
-            )
+            with ProgressDisplay(
+                "snapshot", detail="hashing generated inputs"
+            ) as progress:
+                _, snapshot_manifest = create_input_snapshot(
+                    data_root=data_root,
+                    adapter=adapter,
+                    source=adapter.source_manifest(),
+                )
+                progress.finish(
+                    f"{snapshot_manifest['counts']['selected']} cases ready"
+                )
+            with ProgressDisplay(
+                "srcDiff", total=snapshot_manifest["counts"]["selected"]
+            ) as progress:
+                corpus_dir, corpus_manifest = build_corpus(
+                    data_root=data_root,
+                    input_snapshot=snapshot_manifest["input_snapshot_id"],
+                    srcdiff=srcdiff,
+                    timeout_seconds=args.srcdiff_timeout,
+                    retry_failed=args.retry_failed,
+                    activity_callback=_case_progress(progress),
+                )
+                progress.finish(
+                    f"{corpus_manifest['counts']['accepted']} accepted, "
+                    f"{corpus_manifest['counts']['failed']} failed"
+                )
             print(f"input_snapshot_id={snapshot_manifest['input_snapshot_id']}")
             print(f"corpus_id={corpus_manifest['corpus_id']}")
             if corpus_manifest["counts"]["failed"]:
@@ -295,16 +394,24 @@ def main() -> int:
                     file=sys.stderr,
                 )
                 exit_code = 1
-            directory, manifest, summary = evaluate_corpus(
-                data_root=data_root,
-                corpus=corpus_dir,
-                srcmove=srcmove,
-                timeout_seconds=args.srcmove_timeout,
-                mode=RunMode(args.mode),
-            )
+            eligible = corpus_manifest["counts"]["semantic_eligible"]
+            with ProgressDisplay("srcMove", total=eligible) as progress:
+                directory, manifest, summary = evaluate_corpus(
+                    data_root=data_root,
+                    corpus=corpus_dir,
+                    srcmove=srcmove,
+                    timeout_seconds=args.srcmove_timeout,
+                    mode=RunMode(args.mode),
+                    activity_callback=_case_progress(progress),
+                )
+                progress.finish(
+                    f"{manifest['counts']['completed']} completed, "
+                    f"{manifest['counts']['failed']} failed"
+                )
             print(f"run_id={manifest['run_id']}")
             print(f"summary={directory / 'summary.json'}")
             if summary["counts"]["oracle_pass"] != summary["counts"]["selected"]:
+                _report_failures(directory, summary)
                 print(
                     "one or more selected cases did not pass the strict oracle",
                     file=sys.stderr,

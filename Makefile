@@ -46,16 +46,16 @@ benchmark-repo:
 		$(if $(filter 1 yes true,$(OFFLINE)),--offline)
 
 bigclonebench-preflight:
-	$(PYTHON) benchmarks/bigclonebench/pipeline.py preflight
+	@$(PYTHON) benchmarks/bigclonebench/pipeline.py preflight
 
 bigclonebench-cases:
-	$(PYTHON) benchmarks/bigclonebench/pipeline.py cases \
+	@$(PYTHON) benchmarks/bigclonebench/pipeline.py cases \
 		--clone-type "$(CLONE_TYPE)" --limit "$(LIMIT)" \
 		--selection-role "$(SELECTION_ROLE)" $(BIGCLONEBENCH_CASE_OPTIONS) \
 		--out-dir "$(CASES_DIR)"
 
 bigclonebench: bigclonebench-cases
-	$(PYTHON) benchmarks/bigclonebench/pipeline.py benchmark \
+	@$(PYTHON) benchmarks/bigclonebench/pipeline.py benchmark \
 		--clone-type "$(CLONE_TYPE)" --cases-dir "$(CASES_DIR)" \
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
 		--srcmove /workspace/srcMove/build/srcMove

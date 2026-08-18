@@ -42,6 +42,10 @@ The case generator defaults to `CLONE_TYPE=type1`, `LIMIT=100`,
 `CANDIDATE_LIMIT`, `DEDUPE`, and `TEXT_CHANGE` can also be set as needed.
 These targets are available from either `srcMove` or the SrcMLBuildTemplate
 workspace root and run inside Docker when invoked from the workspace root.
+Interactive runs use one updating progress line per phase, including the current
+case and elapsed time. Redirected output uses sparse progress checkpoints. Tool
+failures appear immediately; detailed stdout and stderr remain in the saved
+attempt artifacts, and the final digest lists up to five failing cases.
 
 The command creates or reuses the input snapshot and corpus, records every
 srcDiff attempt, and writes a new append-only srcMove evaluation run.

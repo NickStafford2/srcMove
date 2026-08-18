@@ -9,14 +9,17 @@ import sys
 import textwrap
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Callable
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
 TESTS_ROOT = REPO_ROOT / "tests"
-if str(TESTS_ROOT) not in sys.path:
-    sys.path.insert(0, str(TESTS_ROOT))
+for import_root in (REPO_ROOT, TESTS_ROOT):
+    if str(import_root) not in sys.path:
+        sys.path.insert(0, str(import_root))
 
+from benchmarks.progress import ProgressDisplay
 from support.tooling import format_process_failure, run_command
 
 BCE_DIR = SCRIPT_DIR / "data" / "BigCloneEval"
@@ -340,23 +343,38 @@ def row_matches_text_change(row: CloneRow, text_change: str) -> bool:
 
 
 def select_rows(
-    rows: list[CloneRow], limit: int, dedupe: str, text_change: str
+    rows: list[CloneRow],
+    limit: int,
+    dedupe: str,
+    text_change: str,
+    activity_callback: Callable[[int, int], None] | None = None,
 ) -> list[CloneRow]:
-    if dedupe == "none":
-        return [row for row in rows if row_matches_text_change(row, text_change)][:limit]
-
     selected: list[CloneRow] = []
+    if limit <= 0:
+        if activity_callback is not None:
+            activity_callback(0, 0)
+        return selected
     seen: set[str] = set()
-    for row in rows:
+    scanned = 0
+    for scanned, row in enumerate(rows, start=1):
         if not row_matches_text_change(row, text_change):
+            if activity_callback is not None and scanned % 100 == 0:
+                activity_callback(len(selected), scanned)
             continue
-        key = row_dedupe_key(row, dedupe)
-        if key is None or key in seen:
-            continue
-        seen.add(key)
+        if dedupe != "none":
+            key = row_dedupe_key(row, dedupe)
+            if key is None or key in seen:
+                if activity_callback is not None and scanned % 100 == 0:
+                    activity_callback(len(selected), scanned)
+                continue
+            seen.add(key)
         selected.append(row)
+        if activity_callback is not None:
+            activity_callback(len(selected), scanned)
         if len(selected) >= limit:
             break
+    if activity_callback is not None:
+        activity_callback(len(selected), scanned)
     return selected
 
 
@@ -570,21 +588,47 @@ def main() -> int:
     if candidate_limit is None:
         candidate_limit = default_candidate_limit(args.limit, args.syntactic_type)
 
-    candidates = load_clone_rows(candidate_limit, args.syntactic_type, args.min_tokens)
-    rows = select_rows(candidates, args.limit, args.dedupe, args.text_change)
+    with ProgressDisplay(
+        "cases/query",
+        detail=f"scanning up to {candidate_limit:,} eligible rows",
+    ) as progress:
+        candidates = load_clone_rows(
+            candidate_limit, args.syntactic_type, args.min_tokens
+        )
+        progress.finish(f"found {len(candidates):,} candidates")
+    with ProgressDisplay(
+        "cases/select",
+        total=args.limit,
+        detail=f"scanned 0/{len(candidates):,} candidates",
+    ) as progress:
+        rows = select_rows(
+            candidates,
+            args.limit,
+            args.dedupe,
+            args.text_change,
+            activity_callback=lambda selected, scanned: progress.update(
+                selected,
+                detail=f"scanned {scanned:,}/{len(candidates):,} candidates",
+            ),
+        )
+        progress.finish(f"selected {len(rows)} cases")
 
     written = 0
     skipped = 0
     prefix = f"bcb_t{args.syntactic_type}"
     case_names: list[str] = []
-    for index, row in enumerate(rows, start=1):
-        case_dir = args.out_dir / f"{prefix}_{index:06d}"
-        case_names.append(case_dir.name)
-        if case_dir.exists() and not args.overwrite:
-            skipped += 1
-            continue
-        write_case(case_dir, row)
-        written += 1
+    with ProgressDisplay("cases/write", total=len(rows)) as progress:
+        for index, row in enumerate(rows, start=1):
+            case_dir = args.out_dir / f"{prefix}_{index:06d}"
+            case_names.append(case_dir.name)
+            progress.update(index - 1, detail=case_dir.name)
+            if case_dir.exists() and not args.overwrite:
+                skipped += 1
+            else:
+                write_case(case_dir, row)
+                written += 1
+            progress.update(index, detail=case_dir.name)
+        progress.finish(f"wrote {written}, reused {skipped}")
 
     write_manifest(
         args.out_dir,

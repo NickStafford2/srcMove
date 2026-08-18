@@ -72,7 +72,9 @@ class CorpusPipelineTests(unittest.TestCase):
                 ),
             )
 
-            self.assertEqual(first_activity, [("running", "tiny")])
+            self.assertEqual(
+                first_activity, [("running", "tiny"), ("accepted", "tiny")]
+            )
             self.assertEqual(second_activity, [("reused", "tiny")])
 
     def test_generation_continues_after_a_case_failure(self) -> None:
