@@ -79,9 +79,14 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--refresh-repo",
+        "--fetch",
         action="store_true",
-        help="Pass --refresh-repo through to run_case.py.",
+        help="Fetch cached repositories before resolving revisions.",
+    )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Forbid cloning or fetching repositories.",
     )
     return parser.parse_args()
 
@@ -381,7 +386,8 @@ def existing_outputs_for_spec(
 def run_single_example(
     *,
     spec: ExampleSpec,
-    refresh_repo: bool,
+    fetch: bool,
+    offline: bool,
 ) -> dict[str, Any]:
     resolved_old_rev = resolve_config_rev(spec.case, spec.old_rev)
     resolved_new_rev = resolve_config_rev(spec.case, spec.new_rev)
@@ -402,8 +408,10 @@ def run_single_example(
     if spec.directory:
         cmd.extend(["--directory", spec.directory])
 
-    if refresh_repo:
-        cmd.append("--refresh-repo")
+    if fetch:
+        cmd.append("--fetch")
+    if offline:
+        cmd.append("--offline")
 
     print(f"running: {' '.join(cmd)}")
     result = run_command(cmd, cwd=REPO_ROOT, capture_output=False)
@@ -606,7 +614,8 @@ def build_examples(
     specs: list[ExampleSpec],
     force: bool,
     dry_run: bool,
-    refresh_repo: bool,
+    fetch: bool,
+    offline: bool,
 ) -> int:
     built_examples: list[BuiltExample] = []
     skipped = 0
@@ -640,7 +649,8 @@ def build_examples(
         print(f"build: {label}")
         runner_report = run_single_example(
             spec=spec,
-            refresh_repo=refresh_repo,
+            fetch=fetch,
+            offline=offline,
         )
         built = copy_built_files(
             examples_root=examples_root,
@@ -672,6 +682,10 @@ def build_examples(
 def main() -> int:
     args = parse_args()
 
+    if args.fetch and args.offline:
+        print("error: --fetch and --offline cannot be used together", file=sys.stderr)
+        return 2
+
     if not RUNNER.is_file():
         print(f"error: runner not found: {RUNNER}", file=sys.stderr)
         return 1
@@ -684,7 +698,8 @@ def main() -> int:
         specs=specs,
         force=args.force,
         dry_run=args.dry_run,
-        refresh_repo=args.refresh_repo,
+        fetch=args.fetch,
+        offline=args.offline,
     )
 
 

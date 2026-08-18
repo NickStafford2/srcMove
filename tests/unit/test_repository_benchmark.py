@@ -3,6 +3,7 @@ from __future__ import annotations
 import csv
 import json
 import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -14,7 +15,44 @@ FAKE_TOOL = REPO_ROOT / "tests" / "fixtures" / "benchmark" / "fake_tool.py"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.repositories.run_case import run_staged_repository_benchmark
+from benchmarks.repositories.run_case import (
+    ensure_repo,
+    resolve_requested_commits,
+    run_staged_repository_benchmark,
+)
+
+
+def git(repo: Path, *args: str) -> str:
+    result = subprocess.run(
+        ["git", *args],
+        cwd=repo,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    return result.stdout.strip()
+
+
+def create_remote(root: Path) -> tuple[Path, Path, str]:
+    source = root / "source"
+    source.mkdir()
+    git(source, "init", "--initial-branch=main")
+    git(source, "config", "user.name", "Benchmark Test")
+    git(source, "config", "user.email", "benchmark@example.invalid")
+    (source / "sample.cpp").write_text("int first;\n", encoding="utf-8")
+    git(source, "add", "sample.cpp")
+    git(source, "commit", "-m", "first")
+    first_commit = git(source, "rev-parse", "HEAD")
+
+    remote = root / "remote.git"
+    subprocess.run(
+        ["git", "clone", "--bare", str(source), str(remote)],
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    git(source, "remote", "add", "origin", str(remote))
+    return source, remote, first_commit
 
 
 def executable_copy(root: Path, name: str) -> Path:
@@ -37,6 +75,73 @@ def source_pair(root: Path) -> tuple[Path, Path]:
 
 
 class RepositoryBenchmarkTests(unittest.TestCase):
+    def test_missing_repository_cache_is_cloned_automatically(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            _, remote, first_commit = create_remote(root)
+            cache = root / "cache" / "repo"
+
+            updated = ensure_repo(
+                str(remote),
+                cache,
+                offline=False,
+                update=False,
+            )
+
+            self.assertTrue(updated)
+            self.assertEqual(git(cache, "rev-parse", "HEAD"), first_commit)
+
+    def test_offline_mode_rejects_missing_repository_cache(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            cache = Path(temporary_directory) / "missing" / "repo"
+
+            with self.assertRaisesRegex(RuntimeError, "missing in offline mode"):
+                ensure_repo(
+                    "unused",
+                    cache,
+                    offline=True,
+                    update=False,
+                )
+
+    def test_missing_revision_is_fetched_once(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            source, remote, first_commit = create_remote(root)
+            cache = root / "cache" / "repo"
+            ensure_repo(str(remote), cache, offline=False, update=False)
+
+            (source / "sample.cpp").write_text("int second;\n", encoding="utf-8")
+            git(source, "add", "sample.cpp")
+            git(source, "commit", "-m", "second")
+            second_commit = git(source, "rev-parse", "HEAD")
+            git(source, "push", "origin", "main")
+
+            resolved = resolve_requested_commits(
+                cache,
+                first_commit,
+                second_commit,
+                offline=False,
+                repository_updated=False,
+            )
+
+            self.assertEqual(resolved, (first_commit, second_commit))
+
+    def test_offline_mode_does_not_fetch_a_missing_revision(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            _, remote, first_commit = create_remote(root)
+            cache = root / "cache" / "repo"
+            ensure_repo(str(remote), cache, offline=False, update=False)
+
+            with self.assertRaisesRegex(RuntimeError, "unavailable.*offline"):
+                resolve_requested_commits(
+                    cache,
+                    first_commit,
+                    "f" * 40,
+                    offline=True,
+                    repository_updated=False,
+                )
+
     def run_benchmark(
         self, root: Path, *, srcdiff_name: str = "srcdiff-valid-archive"
     ):

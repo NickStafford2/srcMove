@@ -30,14 +30,34 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Pass --position through to run_case.py.",
     )
+    _ = parser.add_argument(
+        "--fetch",
+        action="store_true",
+        help="Fetch cached repositories before resolving revisions.",
+    )
+    _ = parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="Forbid cloning or fetching repositories.",
+    )
     return parser.parse_args()
 
 
-def build_benchmark_command(cmd: list[str], *, use_position: bool) -> list[str]:
-    if not use_position:
-        return cmd
-
-    return [*cmd, "--position"]
+def build_benchmark_command(
+    cmd: list[str],
+    *,
+    use_position: bool,
+    fetch: bool,
+    offline: bool,
+) -> list[str]:
+    result = list(cmd)
+    if use_position:
+        result.append("--position")
+    if fetch:
+        result.append("--fetch")
+    if offline:
+        result.append("--offline")
+    return result
 
 
 def run_benchmark(cmd: list[str]) -> int:
@@ -55,10 +75,19 @@ def run_benchmark(cmd: list[str]) -> int:
 
 def main() -> int:
     args = parse_args()
+    if args.fetch and args.offline:
+        print("error: --fetch and --offline cannot be used together", file=sys.stderr)
+        return 2
+
     failures = 0
 
     for base_cmd in BENCHMARKS:
-        cmd = build_benchmark_command(base_cmd, use_position=args.position)
+        cmd = build_benchmark_command(
+            base_cmd,
+            use_position=args.position,
+            fetch=args.fetch,
+            offline=args.offline,
+        )
         rc = run_benchmark(cmd)
 
         if rc != 0:

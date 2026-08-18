@@ -34,4 +34,5 @@ benchmark-repo:
 	@test -n "$(CASE)" || { echo 'error: CASE is required'; exit 2; }
 	$(PYTHON) benchmarks/repositories/run_case.py "$(CASE)" \
 		$(if $(SERIES),--series "$(SERIES)") \
-		$(if $(filter 1 yes true,$(REFRESH)),--refresh-repo)
+		$(if $(filter 1 yes true,$(UPDATE)),--fetch) \
+		$(if $(filter 1 yes true,$(OFFLINE)),--offline)

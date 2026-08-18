@@ -8,19 +8,19 @@ checkout/export cache.
 From the workspace root, run and save one configured case in Docker:
 
 ```bash
-make benchmark-repo CASE=notepadpp REFRESH=1
+make benchmark-repo CASE=notepadpp
 ```
 
 Group related invocations into a named series:
 
 ```bash
-make benchmark-repo CASE=notepadpp SERIES=thesis-pilot REFRESH=1
-make benchmark-repo CASE=sqlite SERIES=thesis-pilot REFRESH=1
+make benchmark-repo CASE=notepadpp SERIES=thesis-pilot
+make benchmark-repo CASE=sqlite SERIES=thesis-pilot
 ```
 
 Inside `srcMove` in the Docker shell, the same `make benchmark-repo` commands
-work. `REFRESH=1` explicitly permits the initial clone or a later fetch. Omit it
-to reuse the cached checkout offline.
+work. The runner clones a missing repository, otherwise reuses its local cache.
+If a requested revision is missing, it fetches once and retries.
 
 The command resolves exact commits, exports both revisions, creates or reuses an
 [input snapshot](../README.md#staged-corpus-workflow) and srcDiff corpus, runs
@@ -50,14 +50,21 @@ nonzero, saves the failure, and prints exact `replay` and `isolate` commands. A
 zero-move srcMove result remains a valid observation; structurally empty archive
 output from srcDiff is rejected before srcMove runs.
 
-Override revisions or refresh the cached checkout when needed:
+Override revisions or explicitly update the cached checkout when needed:
 
 ```bash
 python3 benchmarks/repositories/run_case.py notepadpp \
   --old-rev OLD \
   --new-rev NEW \
-  --refresh-repo
+  --fetch
 ```
+
+Use `UPDATE=1` with the Make target to fetch before a run. Use `OFFLINE=1` (or
+`--offline` with `run_case.py`) to prohibit all clone and fetch operations.
+Case configuration may use stable release tags for readability. Every run saves
+both the requested tags and their resolved commit hashes for exact provenance.
+Avoid moving references such as `HEAD` or branch names; use a full commit hash
+when no suitable release tag exists.
 
 `run.py` executes the small configured batch. `build_examples.py` turns selected
 benchmark results into ignored example artifacts for documentation or manual

@@ -158,3 +158,52 @@ Each append-only run is stored below
 The cache policy is declared metadata; the runner does not flush or warm caches
 implicitly. A completed run can contain failed measurements, returns a nonzero
 CLI status when it does, and retains those failures in `raw.csv` and the summary.
+
+## Reporting wishlist
+
+These are desired thesis-facing outputs, not claims about fields already present
+in every summary. Some underlying counts are recorded today but still need to be
+calculated and presented consistently.
+
+Highest priority:
+
+- **Moved-region share:** report `annotated_region_count / regions_total` as a
+  percentage, always alongside both counts. This answers what proportion of
+  srcDiff's inserted and deleted regions srcMove classified as belonging to a
+  move. Keep move-group and move-pair counts separate because they use different
+  units.
+- **Change composition:** report inserted regions, deleted regions, total changed
+  regions, and unchanged or whitespace-only elements excluded from the
+  denominator.
+- **Move structure:** report one-to-one, many-region, exact, Type-2, ambiguous,
+  insertion-only, deletion-only, and copy-or-repeat groups, with counts and
+  percentages.
+- **Move size distribution:** report moved lines or tokens per move using median,
+  quartiles, range, and a small histogram. A few very large moves should not
+  obscure the typical detected move.
+- **Scale-normalized results:** report moves and moved regions per thousand
+  changed lines or per thousand diff regions, together with files and source
+  lines examined. This makes projects of different sizes comparable.
+- **Per-project distributions:** retain every project/revision-pair result and
+  summarize across projects with medians and quartiles. Do not rely only on one
+  pooled total dominated by the largest repository.
+
+For datasets with a trustworthy oracle, such as the controlled BigCloneBench
+cases:
+
+- report true positives, false positives, false negatives, precision, recall,
+  and F1, split by Type-1 and Type-2 cases;
+- report the number selected, excluded, semantically ineligible, executed, and
+  successfully scored so every accuracy denominator is auditable;
+- keep tuning and evaluation results separate and label them prominently.
+
+For performance and reliability:
+
+- report srcDiff and srcMove wall time and peak memory separately, plus srcMove
+  throughput normalized by input bytes and diff-region count;
+- report repeated-run medians, variability, paired deltas, and practical effect
+  sizes when comparing srcMove builds;
+- report srcDiff failures, invalid XML, timeouts, srcMove failures, and excluded
+  files as first-class results rather than silently dropping them;
+- attach input, corpus, executable, configuration, environment, and source
+  revision identifiers to every table intended for the thesis.

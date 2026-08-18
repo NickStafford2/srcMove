@@ -48,11 +48,6 @@ def require_ok(result: subprocess.CompletedProcess, what: str) -> None:
         raise RuntimeError(format_process_failure(what, result))
 
 
-def is_tag_clobber_error(result: subprocess.CompletedProcess) -> bool:
-    stderr = result.stderr or ""
-    return "would clobber existing tag" in stderr
-
-
 def normalize_repo_subdir(value: object, context: str) -> str | None:
     if value is None:
         return None
@@ -117,55 +112,73 @@ def clone_repo(repo_url: str, clone_dir: Path) -> None:
     require_ok(result, "git clone")
 
 
-def update_repo(repo_dir: Path, repo_url: str) -> None:
-    current_origin = get_origin_url(repo_dir)
-    if current_origin != repo_url:
-        result = run(["git", "remote", "set-url", "origin", repo_url], cwd=repo_dir)
-        require_ok(result, "git remote set-url origin")
-
+def update_repo(repo_dir: Path) -> None:
     result = run(["git", "fetch", "origin", "--tags", "--prune"], cwd=repo_dir)
-    if result.returncode == 0:
-        return
-
-    if is_tag_clobber_error(result):
-        print("      tag conflict detected; recreating cached repo")
-        shutil.rmtree(repo_dir)
-        clone_repo(repo_url, repo_dir)
-        return
-
     require_ok(result, "git fetch origin --tags --prune")
 
 
-def ensure_repo(repo_url: str, clone_dir: Path, *, allow_network: bool) -> None:
+def ensure_repo(
+    repo_url: str,
+    clone_dir: Path,
+    *,
+    offline: bool,
+    update: bool,
+) -> bool:
+    """Prepare the repository cache and report whether network work was done."""
     if not clone_dir.exists():
-        if not allow_network:
+        if offline:
             raise RuntimeError(
-                "cached repository is missing; rerun with --refresh-repo to allow a clone"
+                f"repository cache is missing in offline mode: {clone_dir}"
             )
-        print("      repo not present; cloning (network explicitly enabled)")
+        print("      repo not present; cloning")
         clone_repo(repo_url, clone_dir)
-        return
+        return True
 
     if not is_git_repo(clone_dir):
         raise RuntimeError(f"existing path is not a git repo: {clone_dir}")
 
     current_origin = get_origin_url(clone_dir)
-    if not allow_network and current_origin != repo_url:
+    if current_origin != repo_url:
         raise RuntimeError(
             f"cached repository origin mismatch: expected {repo_url}, found {current_origin}"
         )
 
-    if allow_network:
-        print("      refreshing cached repo (network explicitly enabled)")
-        update_repo(clone_dir, repo_url)
-    else:
-        print("      using cached repo offline")
+    if update:
+        print("      updating cached repo")
+        update_repo(clone_dir)
+        return True
+
+    print("      using cached repo")
+    return False
 
 
 def resolve_commit(repo_dir: Path, rev: str) -> str:
-    result = run(["git", "rev-parse", rev], cwd=repo_dir)
+    result = run(["git", "rev-parse", "--verify", f"{rev}^{{commit}}"], cwd=repo_dir)
     require_ok(result, f"git rev-parse {rev}")
     return result.stdout.strip()
+
+
+def resolve_requested_commits(
+    repo_dir: Path,
+    old_rev: str,
+    new_rev: str,
+    *,
+    offline: bool,
+    repository_updated: bool,
+) -> tuple[str, str]:
+    try:
+        return resolve_commit(repo_dir, old_rev), resolve_commit(repo_dir, new_rev)
+    except RuntimeError as error:
+        if offline:
+            raise RuntimeError(
+                "requested revision is unavailable in the offline repository cache"
+            ) from error
+        if repository_updated:
+            raise
+
+    print("      requested revision not cached; fetching once")
+    update_repo(repo_dir)
+    return resolve_commit(repo_dir, old_rev), resolve_commit(repo_dir, new_rev)
 
 
 def export_commit(
@@ -526,9 +539,14 @@ def main() -> int:
         help="new git revision/tag/commit (overrides info.json)",
     )
     parser.add_argument(
-        "--refresh-repo",
+        "--fetch",
         action="store_true",
-        help="explicitly allow clone/fetch; otherwise use the cached repo offline",
+        help="fetch the cached repository before resolving revisions",
+    )
+    parser.add_argument(
+        "--offline",
+        action="store_true",
+        help="forbid cloning or fetching; require all revisions in the cache",
     )
     parser.add_argument(
         "--series",
@@ -566,6 +584,9 @@ def main() -> int:
         help="limit export/srcdiff to a repository subdirectory (overrides info.json)",
     )
     args = parser.parse_args()
+
+    if args.fetch and args.offline:
+        parser.error("--fetch and --offline cannot be used together")
 
     script_path = Path(__file__).resolve()
     benchmark_root = script_path.parent
@@ -621,13 +642,23 @@ def main() -> int:
     work_root.mkdir(parents=True, exist_ok=True)
 
     print(f"[1/5] loading repository {repo_url}")
-    ensure_repo(repo_url, clone_dir, allow_network=args.refresh_repo)
+    repository_updated = ensure_repo(
+        repo_url,
+        clone_dir,
+        offline=args.offline,
+        update=args.fetch,
+    )
 
     print("[2/5] repository cache ready")
 
     print("[3/5] resolving revisions")
-    old_commit = resolve_commit(clone_dir, old_rev)
-    new_commit = resolve_commit(clone_dir, new_rev)
+    old_commit, new_commit = resolve_requested_commits(
+        clone_dir,
+        old_rev,
+        new_rev,
+        offline=args.offline,
+        repository_updated=repository_updated,
+    )
 
     print(f"      old rev   : {old_rev}")
     print(f"      new rev   : {new_rev}")
