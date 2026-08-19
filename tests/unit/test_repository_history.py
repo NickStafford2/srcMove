@@ -4,6 +4,7 @@ import json
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 from io import StringIO
 from pathlib import Path
@@ -13,8 +14,10 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from benchmarks.progress import ProgressDisplay
 from benchmarks.repositories.run_history import (
     _aggregate,
+    _coordinate_history_pairs,
     export_changed_files,
     finalize_history_retention,
     inventory_changed_paths,
@@ -73,11 +76,81 @@ class RepositoryHistoryTests(unittest.TestCase):
         base = ["start", "sqlite", "--start", "HEAD", "--count", "1"]
 
         self.assertEqual(parse_args(base).retention, "results")
+        self.assertEqual(parse_args(base).jobs, 1)
+        self.assertEqual(parse_args([*base, "--jobs", "4"]).jobs, 4)
         self.assertEqual(parse_args([*base, "--no-cache"]).retention, "results")
         self.assertEqual(
             parse_args([*base, "--retention", "ephemeral"]).retention,
             "ephemeral",
         )
+
+    def test_parallel_coordinator_publishes_in_order_with_isolated_work(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            history_dir = Path(temporary_directory) / "history"
+            history_dir.mkdir()
+            history = {
+                "schema_version": 4,
+                "history_id": "history-fixture",
+                "status": "running",
+                "pairs": [
+                    {
+                        "schema_version": 1,
+                        "sequence": sequence,
+                        "old_commit": chr(97 + sequence) * 40,
+                        "new_commit": chr(98 + sequence) * 40,
+                        "status": "pending",
+                    }
+                    for sequence in range(2)
+                ],
+            }
+            completed: list[int] = []
+            work_directories: list[Path] = []
+
+            def worker(
+                pair: dict, *, pair_work_dir: Path, **_: object
+            ) -> dict:
+                work_directories.append(pair_work_dir)
+                pair_work_dir.mkdir(parents=True)
+                if pair["sequence"] == 0:
+                    time.sleep(0.1)
+                completed.append(pair["sequence"])
+                return {
+                    **pair,
+                    "status": "completed",
+                    "counts": {"included_files": 2},
+                    "metrics": {
+                        "move_group_count": pair["sequence"],
+                        "move_pair_count": pair["sequence"],
+                    },
+                    "timings": {"pair_seconds": 0.1},
+                }
+
+            _coordinate_history_pairs(
+                history_dir,
+                history,
+                jobs=2,
+                worker_arguments={},
+                worker=worker,
+                progress=ProgressDisplay("test", total=2, enabled=False),
+            )
+
+            self.assertEqual(completed, [1, 0])
+            self.assertEqual(
+                [path.name for path in work_directories], ["000001", "000002"]
+            )
+            self.assertEqual(len(set(work_directories)), 2)
+            self.assertFalse((history_dir / ".work").exists())
+            receipts = sorted((history_dir / "pairs").glob("*.json"))
+            self.assertEqual(
+                [path.name for path in receipts],
+                ["000001.json", "000002.json"],
+            )
+            self.assertEqual(
+                [json.loads(path.read_text())["sequence"] for path in receipts],
+                [0, 1],
+            )
+            self.assertFalse((history_dir / "summary.csv").exists())
+            self.assertFalse((history_dir / "moves").exists())
 
     def test_results_retention_keeps_results_and_removes_pipeline(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -358,6 +431,43 @@ class RepositoryHistoryTests(unittest.TestCase):
         self.assertNotIn("repository index", text)
         self.assertIn("history artifacts", text)
         self.assertIn("2/2 bbbbbbbb → cccccccc — srcDiff timed out", text)
+
+    def test_parallel_summary_separates_wall_time_from_summed_pair_work(self) -> None:
+        pairs = [
+            {
+                "sequence": sequence,
+                "old_commit": "a" * 40,
+                "new_commit": "b" * 40,
+                "status": "completed",
+                "metrics": {},
+                "timings": {
+                    "pair_seconds": 8.0,
+                    "srcdiff_execution_seconds": 5.0,
+                    "cache_reuse_seconds": 0.0,
+                    "srcmove_execution_seconds": 1.0,
+                    "other_seconds": 2.0,
+                },
+            }
+            for sequence in range(2)
+        ]
+        history = {
+            "history_id": "history-parallel",
+            "status": "completed",
+            "case": "sqlite",
+            "jobs": 2,
+            "elapsed_seconds": 9.0,
+            "pairs": pairs,
+            "aggregates": _aggregate(pairs),
+        }
+        output = StringIO()
+
+        print_history_summary(history, Path("/tmp/history-parallel"), stream=output)
+
+        text = output.getvalue()
+        self.assertIn("00:09 wall; summed pair work", text)
+        self.assertIn("srcDiff execution 10.0s", text)
+        self.assertIn("srcMove execution 2.0s, other 4.0s", text)
+        self.assertNotIn("other -", text)
 
     def test_history_manifest_references_separate_pair_receipts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

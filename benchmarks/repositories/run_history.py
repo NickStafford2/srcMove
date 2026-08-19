@@ -14,9 +14,10 @@ import subprocess
 import sys
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence, TextIO
+from typing import Any, Callable, Mapping, Sequence, TextIO
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
@@ -375,14 +376,6 @@ def _duration(seconds: float) -> str:
     if hours:
         return f"{hours:d}:{minutes:02d}:{seconds:02d}"
     return f"{minutes:02d}:{seconds:02d}"
-
-
-def _pair_identity(
-    pair: Mapping[str, Any], commits: Mapping[str, Mapping[str, Any]]
-) -> str:
-    new_commit = pair["new_commit"]
-    subject = commits[new_commit]["subject"]
-    return f"{pair['old_commit'][:8]} → {new_commit[:8]}  {subject}"
 
 
 def _entry_failure_detail(entry: Mapping[str, Any]) -> str:
@@ -897,6 +890,35 @@ def write_history_artifacts(
     return time.monotonic() - started
 
 
+def checkpoint_history_pair(
+    history_dir: Path,
+    history: dict[str, Any],
+    pair: dict[str, Any],
+) -> float:
+    """Checkpoint one ordered result without rebuilding derived history views."""
+
+    started = time.monotonic()
+    history["aggregates"] = _aggregate(history["pairs"])
+    history["updated_at"] = utc_now()
+    manifest = {key: value for key, value in history.items() if key != "pairs"}
+    manifest["pair_receipts"] = {
+        "directory": "pairs",
+        "filename_pattern": "%06d.json",
+        "count": len(history["pairs"]),
+    }
+    write_json_atomic(history_dir / "history.json", manifest)
+    pairs_dir = history_dir / "pairs"
+    pairs_dir.mkdir(exist_ok=True)
+    write_json_atomic(pairs_dir / f"{pair['sequence'] + 1:06d}.json", pair)
+    elapsed = time.monotonic() - started
+    pair.setdefault("timings", {})["history_artifact_write_seconds"] = elapsed
+    # The timing belongs to coordinator work and is not known until the first
+    # atomic receipt has landed. Updating only this receipt avoids rebuilding
+    # the history-wide CSV and browse view for every pair.
+    write_json_atomic(pairs_dir / f"{pair['sequence'] + 1:06d}.json", pair)
+    return time.monotonic() - started
+
+
 def _finalize_pair_timings(
     pair: dict[str, Any], pair_started: float, history_artifact_write_seconds: float
 ) -> None:
@@ -909,6 +931,292 @@ def _finalize_pair_timings(
         - _seconds(timings.get("srcdiff_execution_seconds"))
         - _seconds(timings.get("cache_reuse_seconds"))
         - _seconds(timings.get("srcmove_execution_seconds"))
+    )
+
+
+def _run_history_pair(
+    pair_template: Mapping[str, Any],
+    *,
+    pair_work_dir: Path,
+    clone_dir: Path,
+    selected_dir: str | None,
+    excluded_suffixes: Sequence[str],
+    pipeline_root: Path,
+    data_root: Path,
+    history_id: str,
+    case_name: str,
+    repo_url: str,
+    srcdiff: Path,
+    srcmove: Path,
+    srcdiff_timeout: float,
+    srcmove_timeout: float,
+    position: bool,
+    source_encoding: str,
+) -> dict[str, Any]:
+    """Execute one pair without touching coordinator-owned history state."""
+
+    pair = dict(pair_template)
+    pair_started = time.monotonic()
+    pair.update({"status": "running", "started_at": utc_now()})
+    original_dir = pair_work_dir / "original"
+    modified_dir = pair_work_dir / "modified"
+    inventory_seconds = 0.0
+    export_seconds = 0.0
+    try:
+        inventory_started = time.monotonic()
+        changed, analyzable = inventory_changed_paths(
+            clone_dir,
+            pair["old_commit"],
+            pair["new_commit"],
+            selected_dir,
+            excluded_suffixes,
+        )
+        inventory_seconds = time.monotonic() - inventory_started
+        pair["path_counts"] = {
+            "changed": len(changed),
+            "analyzable": len(analyzable),
+        }
+        pair["changed_paths"] = [change.as_json() for change in changed]
+        if not analyzable:
+            pair.update(
+                {
+                    "status": "no_analyzable_change",
+                    "completed_at": utc_now(),
+                    "timings": {
+                        "inventory_seconds": inventory_seconds,
+                        "export_seconds": 0.0,
+                        "input_snapshot_seconds": 0.0,
+                        "srcdiff_stage_seconds": 0.0,
+                        "srcdiff_execution_seconds": 0.0,
+                        "srcdiff_cached_execution_seconds": 0.0,
+                        "cache_reuse_seconds": 0.0,
+                        "srcmove_stage_seconds": 0.0,
+                        "srcmove_execution_seconds": 0.0,
+                    },
+                }
+            )
+            _finalize_pair_timings(pair, pair_started, 0.0)
+            return pair
+
+        export_started = time.monotonic()
+        try:
+            export_changed_files(
+                clone_dir,
+                pair["old_commit"],
+                pair["new_commit"],
+                analyzable,
+                original_dir,
+                modified_dir,
+            )
+            export_seconds = time.monotonic() - export_started
+        except Exception as error:
+            export_seconds = time.monotonic() - export_started
+            pair.update(
+                {
+                    "status": "export_failed",
+                    "completed_at": utc_now(),
+                    "error": {"type": type(error).__name__, "message": str(error)},
+                    "timings": {
+                        "inventory_seconds": inventory_seconds,
+                        "export_seconds": export_seconds,
+                        "input_snapshot_seconds": 0.0,
+                        "srcdiff_stage_seconds": 0.0,
+                        "srcdiff_execution_seconds": 0.0,
+                        "srcdiff_cached_execution_seconds": 0.0,
+                        "cache_reuse_seconds": 0.0,
+                        "srcmove_stage_seconds": 0.0,
+                        "srcmove_execution_seconds": 0.0,
+                    },
+                }
+            )
+            _finalize_pair_timings(pair, pair_started, 0.0)
+            return pair
+
+        source = {
+            "case": case_name,
+            "repository": repo_url,
+            "old_commit": pair["old_commit"],
+            "new_commit": pair["new_commit"],
+            "directory": selected_dir,
+            "filtering_scope": {
+                "mode": INPUT_SCOPE,
+                "excluded_suffixes": list(excluded_suffixes),
+                "paths": [change.as_json() for change in analyzable],
+            },
+        }
+        benchmark_started = time.monotonic()
+        entry, _ = run_staged_repository_benchmark(
+            data_root=pipeline_root,
+            series=history_id,
+            case_name=case_name,
+            original=original_dir,
+            modified=modified_dir,
+            source=source,
+            srcdiff=srcdiff,
+            srcmove=srcmove,
+            srcdiff_timeout_seconds=srcdiff_timeout,
+            srcmove_timeout_seconds=srcmove_timeout,
+            use_position=position,
+            use_archive=True,
+            source_encoding=source_encoding,
+            excluded_suffixes=[],
+            show_progress=False,
+            index_series=False,
+        )
+        benchmark_seconds = time.monotonic() - benchmark_started
+        entry_timings = entry.get("timings", {})
+        dispositions = entry.get("dispositions", {})
+        input_snapshot_seconds = _seconds(
+            entry_timings.get("input_snapshot_wall_seconds")
+        )
+        srcdiff_stage_seconds = _seconds(
+            entry_timings.get("srcdiff_stage_wall_seconds")
+        )
+        srcdiff_execution_seconds = _seconds(
+            entry_timings.get("srcdiff_execution_seconds")
+        )
+        srcdiff_cached_execution_seconds = _seconds(
+            entry_timings.get("srcdiff_cached_execution_seconds")
+        )
+        srcmove_stage_seconds = _seconds(
+            entry_timings.get("srcmove_stage_wall_seconds")
+        )
+        srcmove_execution_seconds = _seconds(
+            entry_timings.get("srcmove_execution_seconds")
+        )
+        cache_reuse_seconds = (
+            input_snapshot_seconds
+            if _is_reused(dispositions.get("input_snapshot"))
+            else 0.0
+        ) + (
+            srcdiff_stage_seconds
+            if _is_reused(dispositions.get("srcdiff_corpus"))
+            else 0.0
+        )
+        pair.update(
+            {
+                "status": entry["status"],
+                "completed_at": utc_now(),
+                "artifacts": _history_entry_artifacts(
+                    entry, pipeline_root, data_root
+                ),
+                "counts": entry.get("counts", {}),
+                "metrics": entry.get("results", {}),
+                "dispositions": dispositions,
+                "timings": {
+                    "inventory_seconds": inventory_seconds,
+                    "export_seconds": export_seconds,
+                    "benchmark_seconds": benchmark_seconds,
+                    "input_snapshot_seconds": input_snapshot_seconds,
+                    "srcdiff_stage_seconds": srcdiff_stage_seconds,
+                    "srcdiff_execution_seconds": srcdiff_execution_seconds,
+                    "srcdiff_cached_execution_seconds": (
+                        srcdiff_cached_execution_seconds
+                    ),
+                    "cache_reuse_seconds": cache_reuse_seconds,
+                    "srcmove_stage_seconds": srcmove_stage_seconds,
+                    "srcmove_execution_seconds": srcmove_execution_seconds,
+                    **{
+                        key: _seconds(entry_timings.get(key))
+                        for key in PROFILE_TIMING_KEYS
+                        if key != "history_artifact_write_seconds"
+                    },
+                },
+            }
+        )
+        if entry["status"] != "completed":
+            pair["error"] = {
+                "type": entry["status"],
+                "message": _entry_failure_detail(entry),
+            }
+        _finalize_pair_timings(pair, pair_started, 0.0)
+        return pair
+    except Exception as error:
+        pair.update(
+            {
+                "status": "orchestration_failed",
+                "completed_at": utc_now(),
+                "error": {"type": type(error).__name__, "message": str(error)},
+                "timings": {
+                    **pair.get("timings", {}),
+                    "inventory_seconds": inventory_seconds,
+                    "export_seconds": export_seconds,
+                },
+            }
+        )
+        _finalize_pair_timings(pair, pair_started, 0.0)
+        return pair
+
+
+def _coordinate_history_pairs(
+    history_dir: Path,
+    history: dict[str, Any],
+    *,
+    jobs: int,
+    worker_arguments: Mapping[str, Any],
+    worker: Callable[..., dict[str, Any]] = _run_history_pair,
+    progress: ProgressDisplay | None = None,
+) -> None:
+    """Run bounded workers and publish their results in deterministic order."""
+
+    pair_work_root = history_dir / ".work"
+    pair_work_root.mkdir(exist_ok=False)
+    display = progress or ProgressDisplay(
+        "History pairs",
+        total=len(history["pairs"]),
+        detail=f"{jobs} worker{'s' if jobs != 1 else ''}",
+    )
+    display.start()
+    try:
+        with ThreadPoolExecutor(
+            max_workers=jobs,
+            thread_name_prefix="history-pair",
+        ) as executor:
+            futures = [
+                executor.submit(
+                    worker,
+                    pair,
+                    pair_work_dir=(
+                        pair_work_root / f"{pair['sequence'] + 1:06d}"
+                    ),
+                    **worker_arguments,
+                )
+                for pair in history["pairs"]
+            ]
+            # Later pairs may finish first, but only the coordinator publishes
+            # receipts and terminal output, always in selected sequence order.
+            for sequence, future in enumerate(futures):
+                pair = future.result()
+                if pair["sequence"] != sequence:
+                    raise RuntimeError("history worker returned an out-of-order pair")
+                history["pairs"][sequence] = pair
+                checkpoint_history_pair(history_dir, history, pair)
+                if pair["status"] == "completed":
+                    metrics = pair["metrics"]
+                    detail = (
+                        f"pair {sequence + 1}: "
+                        f"{pair['counts'].get('included_files', 0)} files; "
+                        f"{metrics.get('move_group_count', 0)} move groups, "
+                        f"{metrics.get('move_pair_count', 0)} move pairs"
+                    )
+                elif pair["status"] == "no_analyzable_change":
+                    detail = (
+                        f"pair {sequence + 1}: "
+                        f"{pair.get('path_counts', {}).get('changed', 0)} changed "
+                        "paths; skipped"
+                    )
+                else:
+                    detail = f"pair {sequence + 1}: {_entry_failure_detail(pair)}"
+                display.update(sequence + 1, detail=detail)
+    except BaseException as error:
+        display.finish(str(error), success=False, completion="interrupted")
+        raise
+    finally:
+        if pair_work_root.is_dir() and not pair_work_root.is_symlink():
+            shutil.rmtree(pair_work_root)
+    display.finish(
+        f"processed with {jobs} worker{'s' if jobs != 1 else ''}",
+        completion="complete",
     )
 
 
@@ -989,6 +1297,7 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         "retained_start_ref": retained_ref,
         "retention": args.retention,
         "cache_reuse_enabled": args.retention == "full",
+        "jobs": args.jobs,
         "traversal_mode": TRAVERSAL_MODE,
         "requested_pair_count": args.count,
         "available_pair_count": len(pairs),
@@ -1006,267 +1315,34 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     }
     write_history_artifacts(history_dir, history)
 
-    original_dir = work_root / "history-original"
-    modified_dir = work_root / "history-modified"
-    commits_by_id = {commit["commit"]: commit for commit in history["commits"]}
-    for pair in history["pairs"]:
-        pair_started = time.monotonic()
-        progress = ProgressDisplay(
-            f"Pair {pair['sequence'] + 1}/{len(history['pairs'])}",
-            detail=_pair_identity(pair, commits_by_id),
+    worker_arguments = {
+        "clone_dir": clone_dir,
+        "selected_dir": selected_dir,
+        "excluded_suffixes": excluded_suffixes,
+        "pipeline_root": pipeline_root,
+        "data_root": data_root,
+        "history_id": history_id,
+        "case_name": args.case,
+        "repo_url": repo_url,
+        "srcdiff": srcdiff,
+        "srcmove": srcmove,
+        "srcdiff_timeout": args.srcdiff_timeout,
+        "srcmove_timeout": args.srcmove_timeout,
+        "position": args.position,
+        "source_encoding": args.src_encoding,
+    }
+    try:
+        _coordinate_history_pairs(
+            history_dir,
+            history,
+            jobs=args.jobs,
+            worker_arguments=worker_arguments,
         )
-        progress.start()
-        pair["status"] = "running"
-        pair["started_at"] = utc_now()
-        history_artifact_write_seconds = write_history_artifacts(
-            history_dir, history, pair
-        )
-        try:
-            inventory_started = time.monotonic()
-            changed, analyzable = inventory_changed_paths(
-                clone_dir,
-                pair["old_commit"],
-                pair["new_commit"],
-                selected_dir,
-                excluded_suffixes,
-            )
-            inventory_seconds = time.monotonic() - inventory_started
-            pair["path_counts"] = {
-                "changed": len(changed),
-                "analyzable": len(analyzable),
-            }
-            pair["changed_paths"] = [change.as_json() for change in changed]
-            if not analyzable:
-                pair_seconds = time.monotonic() - pair_started
-                pair.update(
-                    {
-                        "status": "no_analyzable_change",
-                        "completed_at": utc_now(),
-                        "timings": {
-                            "pair_seconds": pair_seconds,
-                            "inventory_seconds": inventory_seconds,
-                            "export_seconds": 0.0,
-                            "input_snapshot_seconds": 0.0,
-                            "srcdiff_stage_seconds": 0.0,
-                            "srcdiff_execution_seconds": 0.0,
-                            "srcdiff_cached_execution_seconds": 0.0,
-                            "cache_reuse_seconds": 0.0,
-                            "srcmove_stage_seconds": 0.0,
-                            "srcmove_execution_seconds": 0.0,
-                            "other_seconds": pair_seconds,
-                        },
-                    }
-                )
-                history_artifact_write_seconds += write_history_artifacts(
-                    history_dir, history, pair
-                )
-                _finalize_pair_timings(
-                    pair, pair_started, history_artifact_write_seconds
-                )
-                write_history_artifacts(history_dir, history, pair)
-                progress.finish(
-                    f"{len(changed)} changed paths; no analyzable source changes",
-                    completion="skipped",
-                )
-                continue
-            try:
-                export_started = time.monotonic()
-                export_changed_files(
-                    clone_dir,
-                    pair["old_commit"],
-                    pair["new_commit"],
-                    analyzable,
-                    original_dir,
-                    modified_dir,
-                )
-                export_seconds = time.monotonic() - export_started
-            except Exception as error:
-                pair_seconds = time.monotonic() - pair_started
-                pair.update(
-                    {
-                        "status": "export_failed",
-                        "completed_at": utc_now(),
-                        "error": {"type": type(error).__name__, "message": str(error)},
-                        "timings": {
-                            "pair_seconds": pair_seconds,
-                            "inventory_seconds": inventory_seconds,
-                            "export_seconds": time.monotonic() - export_started,
-                            "input_snapshot_seconds": 0.0,
-                            "srcdiff_stage_seconds": 0.0,
-                            "srcdiff_execution_seconds": 0.0,
-                            "srcdiff_cached_execution_seconds": 0.0,
-                            "cache_reuse_seconds": 0.0,
-                            "srcmove_stage_seconds": 0.0,
-                            "srcmove_execution_seconds": 0.0,
-                            "other_seconds": pair_seconds,
-                        },
-                    }
-                )
-                history_artifact_write_seconds += write_history_artifacts(
-                    history_dir, history, pair
-                )
-                _finalize_pair_timings(
-                    pair, pair_started, history_artifact_write_seconds
-                )
-                write_history_artifacts(history_dir, history, pair)
-                progress.finish(str(error), success=False, completion="export failed")
-                continue
-
-            source = {
-                "case": args.case,
-                "repository": repo_url,
-                "old_commit": pair["old_commit"],
-                "new_commit": pair["new_commit"],
-                "directory": selected_dir,
-                "filtering_scope": {
-                    "mode": INPUT_SCOPE,
-                    "excluded_suffixes": excluded_suffixes,
-                    "paths": [change.as_json() for change in analyzable],
-                },
-            }
-            benchmark_started = time.monotonic()
-            entry, _ = run_staged_repository_benchmark(
-                data_root=pipeline_root,
-                series=history_id,
-                case_name=args.case,
-                original=original_dir,
-                modified=modified_dir,
-                source=source,
-                srcdiff=srcdiff,
-                srcmove=srcmove,
-                srcdiff_timeout_seconds=args.srcdiff_timeout,
-                srcmove_timeout_seconds=args.srcmove_timeout,
-                use_position=args.position,
-                use_archive=True,
-                source_encoding=args.src_encoding,
-                excluded_suffixes=[],
-                show_progress=False,
-                index_series=False,
-            )
-            benchmark_seconds = time.monotonic() - benchmark_started
-            entry_timings = entry.get("timings", {})
-            dispositions = entry.get("dispositions", {})
-            input_snapshot_seconds = _seconds(
-                entry_timings.get("input_snapshot_wall_seconds")
-            )
-            srcdiff_stage_seconds = _seconds(
-                entry_timings.get("srcdiff_stage_wall_seconds")
-            )
-            srcdiff_execution_seconds = _seconds(
-                entry_timings.get("srcdiff_execution_seconds")
-            )
-            srcdiff_cached_execution_seconds = _seconds(
-                entry_timings.get("srcdiff_cached_execution_seconds")
-            )
-            srcmove_stage_seconds = _seconds(
-                entry_timings.get("srcmove_stage_wall_seconds")
-            )
-            srcmove_execution_seconds = _seconds(
-                entry_timings.get("srcmove_execution_seconds")
-            )
-            pair_seconds = time.monotonic() - pair_started
-            cache_reuse_seconds = (
-                input_snapshot_seconds
-                if _is_reused(dispositions.get("input_snapshot"))
-                else 0.0
-            ) + (
-                srcdiff_stage_seconds
-                if _is_reused(dispositions.get("srcdiff_corpus"))
-                else 0.0
-            )
-            other_seconds = (
-                pair_seconds
-                - srcdiff_execution_seconds
-                - cache_reuse_seconds
-                - srcmove_execution_seconds
-            )
-            pair.update(
-                {
-                    "status": entry["status"],
-                    "completed_at": utc_now(),
-                    "artifacts": _history_entry_artifacts(
-                        entry, pipeline_root, data_root
-                    ),
-                    "counts": entry.get("counts", {}),
-                    "metrics": entry.get("results", {}),
-                    "dispositions": dispositions,
-                    "timings": {
-                        "pair_seconds": pair_seconds,
-                        "inventory_seconds": inventory_seconds,
-                        "export_seconds": export_seconds,
-                        "benchmark_seconds": benchmark_seconds,
-                        "input_snapshot_seconds": input_snapshot_seconds,
-                        "srcdiff_stage_seconds": srcdiff_stage_seconds,
-                        "srcdiff_execution_seconds": srcdiff_execution_seconds,
-                        "srcdiff_cached_execution_seconds": (
-                            srcdiff_cached_execution_seconds
-                        ),
-                        "cache_reuse_seconds": cache_reuse_seconds,
-                        "srcmove_stage_seconds": srcmove_stage_seconds,
-                        "srcmove_execution_seconds": srcmove_execution_seconds,
-                        "other_seconds": other_seconds,
-                        **{
-                            key: _seconds(entry_timings.get(key))
-                            for key in PROFILE_TIMING_KEYS
-                            if key != "history_artifact_write_seconds"
-                        },
-                    },
-                }
-            )
-            if entry["status"] != "completed":
-                pair["error"] = {
-                    "type": entry["status"],
-                    "message": _entry_failure_detail(entry),
-                }
-            history_artifact_write_seconds += write_history_artifacts(
-                history_dir, history, pair
-            )
-            _finalize_pair_timings(
-                pair, pair_started, history_artifact_write_seconds
-            )
-            write_history_artifacts(history_dir, history, pair)
-            if entry["status"] == "completed":
-                metrics = pair["metrics"]
-                progress.finish(
-                    f"{pair['counts'].get('included_files', 0)} files; "
-                    f"{metrics.get('move_group_count', 0)} move groups, "
-                    f"{metrics.get('move_pair_count', 0)} move pairs; "
-                    f"{_pair_timing_detail(pair)}",
-                    completion="analyzed",
-                )
-            else:
-                progress.finish(
-                    _entry_failure_detail(entry),
-                    success=False,
-                    completion=entry["status"].replace("_", " "),
-                )
-        except Exception as error:
-            pair_seconds = time.monotonic() - pair_started
-            pair.update(
-                {
-                    "status": "orchestration_failed",
-                    "completed_at": utc_now(),
-                    "error": {"type": type(error).__name__, "message": str(error)},
-                    "timings": {
-                        **pair.get("timings", {}),
-                        "pair_seconds": pair_seconds,
-                        "other_seconds": pair_seconds,
-                    },
-                }
-            )
-            history["status"] = "interrupted"
-            history["elapsed_seconds"] = time.monotonic() - history_started
-            history_artifact_write_seconds += write_history_artifacts(
-                history_dir, history, pair
-            )
-            _finalize_pair_timings(
-                pair, pair_started, history_artifact_write_seconds
-            )
-            write_history_artifacts(history_dir, history, pair)
-            progress.finish(
-                str(error), success=False, completion="orchestration failed"
-            )
-            return history, history_dir
+    except BaseException:
+        history["status"] = "interrupted"
+        history["elapsed_seconds"] = time.monotonic() - history_started
+        write_history_artifacts(history_dir, history)
+        raise
 
     history["status"] = (
         "completed" if _aggregate(history["pairs"])["failed"] == 0 else "completed_with_failures"
@@ -1603,6 +1679,12 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     start.add_argument("case")
     start.add_argument("--start", required=True)
     start.add_argument("--count", type=int, required=True, help="number of commit pairs")
+    start.add_argument(
+        "--jobs",
+        type=int,
+        default=1,
+        help="maximum concurrent commit pairs; default: 1",
+    )
     start.add_argument("--label")
     start.add_argument("--directory")
     network = start.add_mutually_exclusive_group()
@@ -1649,6 +1731,8 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     if args.command == "start":
         if args.count <= 0:
             parser.error("--count must be positive")
+        if args.jobs <= 0:
+            parser.error("--jobs must be positive")
         if args.srcdiff_timeout <= 0 or args.srcmove_timeout <= 0:
             parser.error("timeouts must be positive")
     elif args.pair is not None and args.pair <= 0:
@@ -1689,15 +1773,26 @@ def print_history_summary(
     srcdiff_execution = timings["srcdiff_execution_seconds"]
     cache_reuse = timings["cache_reuse_seconds"]
     srcmove_execution = timings["srcmove_execution_seconds"]
-    other = elapsed_seconds - srcdiff_execution - cache_reuse - srcmove_execution
-    print(
-        f"  Time:    {_duration(elapsed_seconds)} total; "
-        f"srcDiff execution {srcdiff_execution:.1f}s, "
-        f"cache reuse {cache_reuse:.1f}s, "
-        f"srcMove execution {srcmove_execution:.1f}s, "
-        f"other {other:.1f}s",
-        file=stream,
-    )
+    jobs = history.get("jobs", 1)
+    if isinstance(jobs, int) and jobs > 1:
+        print(
+            f"  Time:    {_duration(elapsed_seconds)} wall; summed pair work: "
+            f"srcDiff execution {srcdiff_execution:.1f}s, "
+            f"cache reuse {cache_reuse:.1f}s, "
+            f"srcMove execution {srcmove_execution:.1f}s, "
+            f"other {timings['other_seconds']:.1f}s",
+            file=stream,
+        )
+    else:
+        other = elapsed_seconds - srcdiff_execution - cache_reuse - srcmove_execution
+        print(
+            f"  Time:    {_duration(elapsed_seconds)} total; "
+            f"srcDiff execution {srcdiff_execution:.1f}s, "
+            f"cache reuse {cache_reuse:.1f}s, "
+            f"srcMove execution {srcmove_execution:.1f}s, "
+            f"other {other:.1f}s",
+            file=stream,
+        )
     cached_execution = timings["srcdiff_cached_execution_seconds"]
     if cached_execution:
         print(

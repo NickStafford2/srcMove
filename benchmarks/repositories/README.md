@@ -152,8 +152,17 @@ three SQLite pairs after fetching and processes them oldest-to-newest:
 
 ```bash
 python3 benchmarks/repositories/run_history.py start sqlite \
-  --start origin/HEAD --count 3 --fetch
+  --start origin/HEAD --count 3 --fetch --jobs 2
 ```
+
+`--jobs N` bounds the number of commit pairs processed concurrently and
+defaults to `1`. Pair selection, receipts, CSV rows, and command output remain
+in oldest-to-newest sequence order. Each worker receives a separate numbered
+export/work directory and only returns a structured pair outcome. The
+coordinator alone checkpoints pair receipts and `history.json`, updates terminal
+progress, and builds `summary.csv`, `moves/`, and the `latest` link. Derived
+history-wide views are rebuilt only at history initialization and finalization,
+not after every pair.
 
 Show every detected move from the latest saved history:
 
@@ -274,7 +283,9 @@ Modified files appear on both sides, additions only on the new side, and
 deletions only on the old side. Renames are represented by their old and new
 paths so cross-file moves remain detectable. Relative repository paths are
 preserved, and the exact sparse selection is recorded in the history and input
-snapshot identity.
+snapshot identity. Parallel workers read the frozen Git repository concurrently
+but never check it out or modify it; their numbered export/work directories are
+removed after the coordinator has collected every outcome.
 
 History timings distinguish work performed by the current command from cached
 attempt provenance. `srcdiff_execution_seconds` counts only a srcDiff process
