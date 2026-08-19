@@ -3,16 +3,12 @@
   "default_suite": "standard",
   "suites": {
     "standard": {
-      "description": "Small cross-project baseline for routine repository benchmarking.",
-      "cases": ["notepadpp", "sqlite", "srcMove"]
+      "description": "External-repository baseline spanning small, medium, and large C/C++ projects.",
+      "cases": ["notepadpp", "sqlite", "opencv"]
     },
-    "focused": {
-      "description": "Narrow changes intended for focused analysis rather than cross-project aggregation.",
-      "cases": ["srcMoveFormattingOnly"]
-    },
-    "large": {
-      "description": "Large stress cases that require an explicit opt-in.",
-      "cases": ["opencv"]
+    "srcmove": {
+      "description": "Shelved srcMove self-benchmarks retained for explicit investigation.",
+      "cases": ["srcMove", "srcMoveFormattingOnly"]
     }
   }
 }

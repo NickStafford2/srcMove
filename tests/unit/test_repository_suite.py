@@ -140,8 +140,9 @@ class RepositorySuiteTests(unittest.TestCase):
         configuration = load_suite_configuration()
         self.assertEqual(
             configuration.suites["standard"].cases,
-            ("notepadpp", "sqlite", "srcMove"),
+            ("notepadpp", "sqlite", "opencv"),
         )
+        self.assertNotIn("srcMove", configuration.suites["standard"].cases)
         self.assertNotIn("wowy_advanced_analytics", configuration.suites["standard"].cases)
         self.assertNotIn("linux", configuration.suites["standard"].cases)
 

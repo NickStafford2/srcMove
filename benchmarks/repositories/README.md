@@ -19,22 +19,21 @@ make benchmark-repos SERIES=thesis-pilot
 
 [`suites.json`](suites.json) is the versioned source of truth for suite
 membership and ordering. The runner never discovers cases from directories.
-The standard suite is intentionally small:
+The standard suite contains only external repositories and spans several scales:
 
 | Case | Scope | Role |
 | --- | --- | --- |
 | `notepadpp` | full tree, adjacent releases | cross-project baseline |
 | `sqlite` | `src/`, pinned releases | source-focused baseline |
-| `srcMove` | full tree, `v0.1.0` to `v0.1.3` | project-of-interest baseline |
+| `opencv` | full tree, `4.7.0` to `4.8.0` | large-repository baseline |
 
-`srcMoveFormattingOnly` is in the opt-in `focused` suite. `opencv` is in the
-opt-in `large` suite. List the resolved suites without running them, or select
-one explicitly:
+The two srcMove self-benchmarks are shelved in the opt-in `srcmove` suite. List
+the resolved suites without running them, or select that suite explicitly for
+future investigation:
 
 ```bash
 make benchmark-repos LIST=1
-make benchmark-repos SUITE=focused SERIES=formatting-study
-make benchmark-repos SUITE=large SERIES=stress-study
+make benchmark-repos SUITE=srcmove SERIES=srcmove-investigation
 ```
 
 Add or exclude a configured case for a one-off suite invocation with `CASE` or
