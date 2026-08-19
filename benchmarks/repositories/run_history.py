@@ -8,6 +8,8 @@ import csv
 import hashlib
 import json
 import re
+import shutil
+import subprocess
 import sys
 import uuid
 from dataclasses import dataclass
@@ -28,7 +30,6 @@ from benchmarks.provenance import sha256_file, utc_now
 from benchmarks.repositories.run_case import (
     DEFAULT_DATA_ROOT,
     ensure_repo,
-    export_commit,
     load_case_config,
     normalize_repo_subdir,
     require_ok,
@@ -38,9 +39,11 @@ from benchmarks.repositories.run_case import (
 from support.tooling import find_srcdiff, find_srcmove, run_command as run
 
 
-HISTORY_SCHEMA_VERSION = 1
+HISTORY_SCHEMA_VERSION = 2
 TRAVERSAL_MODE = "first_parent"
+INPUT_SCOPE = "changed_files"
 SAFE_HISTORY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+REGULAR_GIT_MODES = {"100644", "100755"}
 
 
 @dataclass(frozen=True)
@@ -62,6 +65,38 @@ class CommitMetadata:
             "committer_time_iso8601": self.committer_time_iso8601,
             "subject": self.subject,
             "is_merge": self.is_merge,
+        }
+
+
+@dataclass(frozen=True)
+class ChangedPath:
+    status: str
+    path: str
+    old_mode: str
+    new_mode: str
+    old_blob: str
+    new_blob: str
+
+    @property
+    def exists_in_old(self) -> bool:
+        return self.old_mode != "000000"
+
+    @property
+    def exists_in_new(self) -> bool:
+        return self.new_mode != "000000"
+
+    @property
+    def content_changed(self) -> bool:
+        return self.old_blob != self.new_blob
+
+    def as_json(self) -> dict[str, Any]:
+        return {
+            "status": self.status,
+            "path": self.path,
+            "old_mode": self.old_mode,
+            "new_mode": self.new_mode,
+            "old_blob": self.old_blob,
+            "new_blob": self.new_blob,
         }
 
 
@@ -132,11 +167,13 @@ def inventory_changed_paths(
     new_commit: str,
     directory: str | None,
     excluded_suffixes: Sequence[str],
-) -> tuple[list[str], list[str]]:
+) -> tuple[list[ChangedPath], list[ChangedPath]]:
     command = [
         "git",
         "diff",
-        "--name-only",
+        "--raw",
+        "-z",
+        "--no-abbrev",
         "--no-renames",
         old_commit,
         new_commit,
@@ -146,10 +183,106 @@ def inventory_changed_paths(
         command.append(directory)
     result = run(command, cwd=repo_dir)
     require_ok(result, f"inventory changed paths for {old_commit}..{new_commit}")
-    changed = [line for line in result.stdout.splitlines() if line]
+    fields = result.stdout.split("\0")
+    if fields and fields[-1] == "":
+        fields.pop()
+    if len(fields) % 2 != 0:
+        raise RuntimeError("git returned malformed raw changed-path metadata")
+    changed: list[ChangedPath] = []
+    for index in range(0, len(fields), 2):
+        header = fields[index]
+        path = fields[index + 1]
+        parts = header.removeprefix(":").split()
+        if len(parts) != 5:
+            raise RuntimeError(f"git returned malformed change header: {header!r}")
+        old_mode, new_mode, old_blob, new_blob, status = parts
+        changed.append(
+            ChangedPath(
+                status=status,
+                path=path,
+                old_mode=old_mode,
+                new_mode=new_mode,
+                old_blob=old_blob,
+                new_blob=new_blob,
+            )
+        )
     excluded = {suffix.lower() for suffix in excluded_suffixes}
-    analyzable = [path for path in changed if Path(path).suffix.lower() not in excluded]
+    analyzable = [
+        change
+        for change in changed
+        if change.content_changed and Path(change.path).suffix.lower() not in excluded
+    ]
     return changed, analyzable
+
+
+def _validate_sparse_change(change: ChangedPath) -> None:
+    path = Path(change.path)
+    if path.is_absolute() or ".." in path.parts or not change.path:
+        raise RuntimeError(f"unsafe changed path: {change.path!r}")
+    for side, exists, mode in (
+        ("old", change.exists_in_old, change.old_mode),
+        ("new", change.exists_in_new, change.new_mode),
+    ):
+        if exists and mode not in REGULAR_GIT_MODES:
+            raise RuntimeError(
+                f"unsupported {side} Git object mode {mode} for {change.path}; "
+                "historical sparse inputs accept only regular files"
+            )
+
+
+def export_changed_files(
+    repo_dir: Path,
+    old_commit: str,
+    new_commit: str,
+    changes: Sequence[ChangedPath],
+    original_dir: Path,
+    modified_dir: Path,
+) -> None:
+    """Export sparse old/new trees while retaining repository-relative paths."""
+    for change in changes:
+        _validate_sparse_change(change)
+
+    for output in (original_dir, modified_dir):
+        if output.is_symlink():
+            raise RuntimeError(f"refusing to replace symbolic-link export path: {output}")
+        if output.exists():
+            shutil.rmtree(output)
+        output.mkdir(parents=True, exist_ok=False)
+
+    def export_side(commit: str, paths: Sequence[str], output: Path) -> None:
+        if not paths:
+            return
+        archive = subprocess.Popen(
+            ["git", "archive", commit, "--", *paths],
+            cwd=repo_dir,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        extract = subprocess.Popen(
+            ["tar", "-x", "-C", str(output)],
+            stdin=archive.stdout,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        assert archive.stdout is not None
+        archive.stdout.close()
+        _, extract_error = extract.communicate()
+        _, archive_error = archive.communicate()
+        if archive.returncode != 0:
+            raise RuntimeError(
+                f"git archive failed for sparse export {commit}\n"
+                f"stderr:\n{archive_error.decode(errors='replace')}"
+            )
+        if extract.returncode != 0:
+            raise RuntimeError(
+                f"tar extract failed for sparse export {commit}\n"
+                f"stderr:\n{extract_error.decode(errors='replace')}"
+            )
+
+    old_paths = [change.path for change in changes if change.exists_in_old]
+    new_paths = [change.path for change in changes if change.exists_in_new]
+    export_side(old_commit, old_paths, original_dir)
+    export_side(new_commit, new_paths, modified_dir)
 
 
 def _history_identifier(case_name: str) -> str:
@@ -327,6 +460,7 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         "position": args.position,
         "source_encoding": args.src_encoding,
         "excluded_suffixes": excluded_suffixes,
+        "input_scope": INPUT_SCOPE,
         "srcdiff_timeout_seconds": args.srcdiff_timeout,
         "srcmove_timeout_seconds": args.srcmove_timeout,
         "traversal_mode": TRAVERSAL_MODE,
@@ -382,13 +516,21 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
             )
             pair["changed_paths"] = len(changed)
             pair["analyzable_changed_paths"] = len(analyzable)
+            pair["changed_path_records"] = [change.as_json() for change in changed]
+            pair["analyzable_paths"] = [change.path for change in analyzable]
             if not analyzable:
                 pair.update({"status": "no_analyzable_change", "completed_at": utc_now()})
                 write_history_artifacts(history_dir, history, data_root)
                 continue
             try:
-                export_commit(clone_dir, pair["old_commit"], original_dir, selected_dir)
-                export_commit(clone_dir, pair["new_commit"], modified_dir, selected_dir)
+                export_changed_files(
+                    clone_dir,
+                    pair["old_commit"],
+                    pair["new_commit"],
+                    analyzable,
+                    original_dir,
+                    modified_dir,
+                )
             except Exception as error:
                 pair.update(
                     {
@@ -406,7 +548,11 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                 "old_commit": pair["old_commit"],
                 "new_commit": pair["new_commit"],
                 "directory": selected_dir,
-                "filtering_scope": {"excluded_suffixes": excluded_suffixes},
+                "filtering_scope": {
+                    "mode": INPUT_SCOPE,
+                    "excluded_suffixes": excluded_suffixes,
+                    "paths": [change.as_json() for change in analyzable],
+                },
             }
             entry, entry_path = run_staged_repository_benchmark(
                 data_root=data_root,

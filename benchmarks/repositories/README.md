@@ -155,6 +155,13 @@ scope and the mandatory suffix filters is recorded as `no_analyzable_change`,
 not as zero moves. Generated `history.json` and `summary.csv` files are stored
 below `benchmark-data/repository-histories/<history-id>/`.
 
+History pairs use sparse old/new exports containing only content-changing paths.
+Modified files appear on both sides, additions only on the new side, and
+deletions only on the old side. Renames are represented by their old and new
+paths so cross-file moves remain detectable. Relative repository paths are
+preserved, and the exact sparse selection is recorded in the history and input
+snapshot identity.
+
 This is the create-only pilot described in the
 [historical repository analysis plan](../../doc/historical_repository_analysis_plan.md).
 Resume, retry, and crash-window reconciliation remain planned work.

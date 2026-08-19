@@ -156,7 +156,8 @@ entry and attempt chain. Successful pairs are never rerun during resume.
 
 ### 3. Reuse the staged per-pair pipeline
 
-For each pair, export the old and new trees and call
+For each pair, export sparse old and new trees containing the changed source
+paths and call
 `run_staged_repository_benchmark()`. That function remains responsible for:
 
 - filtered, checksummed input snapshots
@@ -170,9 +171,17 @@ The history runner should orchestrate these calls, not reproduce their storage
 or process-control logic. Any small refactoring needed to expose repository
 preparation or export helpers should preserve the existing single-pair CLI.
 
-Start with two exports per pair for simplicity and correctness. A rolling export
-cache that reuses the prior pair's new tree may reduce work later, but it should
-only be introduced after measurement shows export time is material.
+Use the union of content-changing paths from both revisions, preserving their
+repository-relative paths. Modified paths appear on both sides, additions only
+on the new side, and deletions only on the old side. Treat renames as a deletion
+plus an addition so cross-file move candidates remain visible. Unchanged files
+cannot contribute insert or delete regions and needlessly dominate srcDiff time
+on large repositories. Record the sparse path selection as part of the pair's
+filtering scope and snapshot identity.
+
+Reject symbolic links, submodules, and other non-regular Git objects as explicit
+pair outcomes before extraction. Treat mode-only changes and pairs containing
+only excluded suffixes as `no_analyzable_change`.
 
 ### 4. Keep pair identity independent of history selection
 
@@ -399,9 +408,10 @@ larger study.
 ## Scalability and limitations
 
 The initial implementation favors auditable results over maximum throughput.
-Full-tree srcDiff work may dominate runtime, and each distinct adjacent pair
-normally creates a distinct input snapshot and corpus. Large projects or long
-histories should begin with a repository subdirectory and a small pilot.
+Each distinct adjacent pair normally creates a distinct sparse input snapshot
+and corpus, and a change to one very large file may still dominate runtime.
+Large projects or long histories should begin with a repository subdirectory
+and a small pilot.
 
 The existing pipeline excludes Python files because of the documented srcDiff
 limitation. All exclusions must remain visible per pair and in the history

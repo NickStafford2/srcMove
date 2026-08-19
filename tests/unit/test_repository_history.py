@@ -12,6 +12,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.repositories.run_history import (
+    export_changed_files,
     inventory_changed_paths,
     select_first_parent_history,
 )
@@ -171,8 +172,129 @@ class RepositoryHistoryTests(unittest.TestCase):
                 repo, first, second, "src", [".py"]
             )
 
-            self.assertEqual(changed, ["src/ignored.py", "src/sample.c"])
-            self.assertEqual(analyzable, ["src/sample.c"])
+            self.assertEqual(
+                [change.path for change in changed],
+                ["src/ignored.py", "src/sample.c"],
+            )
+            self.assertEqual(
+                [change.path for change in analyzable], ["src/sample.c"]
+            )
+
+    def test_sparse_export_preserves_modified_added_deleted_and_renamed_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repo = initialize_repo(root)
+            files = {
+                "src/modified.c": "int before;\n",
+                "src/deleted.c": "int deleted;\n",
+                "src/renamed.c": "int renamed;\n",
+                "src/ignored.py": "before = 1\n",
+            }
+            for relative, contents in files.items():
+                path = repo / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(contents, encoding="utf-8")
+            git(repo, "add", ".")
+            git(repo, "commit", "-m", "old tree")
+            old_commit = git(repo, "rev-parse", "HEAD")
+
+            (repo / "src" / "modified.c").write_text("int after;\n", encoding="utf-8")
+            (repo / "src" / "deleted.c").unlink()
+            (repo / "src" / "added.c").write_text("int added;\n", encoding="utf-8")
+            (repo / "src" / "ignored.py").write_text("after = 1\n", encoding="utf-8")
+            (repo / "src" / "nested").mkdir()
+            git(repo, "mv", "src/renamed.c", "src/nested/renamed.c")
+            git(repo, "add", ".")
+            git(repo, "commit", "-m", "new tree")
+            new_commit = git(repo, "rev-parse", "HEAD")
+
+            changed, analyzable = inventory_changed_paths(
+                repo, old_commit, new_commit, "src", [".py"]
+            )
+            original = root / "exports" / "original"
+            modified = root / "exports" / "modified"
+            export_changed_files(
+                repo, old_commit, new_commit, analyzable, original, modified
+            )
+
+            self.assertEqual(
+                {change.status for change in changed}, {"A", "D", "M"}
+            )
+            self.assertEqual(
+                {change.path for change in analyzable},
+                {
+                    "src/added.c",
+                    "src/deleted.c",
+                    "src/modified.c",
+                    "src/nested/renamed.c",
+                    "src/renamed.c",
+                },
+            )
+            self.assertEqual(
+                {
+                    path.relative_to(original).as_posix()
+                    for path in original.rglob("*")
+                    if path.is_file()
+                },
+                {"src/deleted.c", "src/modified.c", "src/renamed.c"},
+            )
+            self.assertEqual(
+                {
+                    path.relative_to(modified).as_posix()
+                    for path in modified.rglob("*")
+                    if path.is_file()
+                },
+                {"src/added.c", "src/modified.c", "src/nested/renamed.c"},
+            )
+            self.assertEqual(
+                (original / "src" / "modified.c").read_text(encoding="utf-8"),
+                "int before;\n",
+            )
+            self.assertEqual(
+                (modified / "src" / "modified.c").read_text(encoding="utf-8"),
+                "int after;\n",
+            )
+
+    def test_mode_only_change_is_not_analyzable(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repo = initialize_repo(Path(temporary_directory))
+            first = commit_file(repo, "int first;\n", "first")
+            source = repo / "src" / "sample.c"
+            source.chmod(0o755)
+            git(repo, "add", "src/sample.c")
+            git(repo, "commit", "-m", "mode only")
+            second = git(repo, "rev-parse", "HEAD")
+
+            changed, analyzable = inventory_changed_paths(
+                repo, first, second, "src", []
+            )
+
+            self.assertEqual(len(changed), 1)
+            self.assertFalse(changed[0].content_changed)
+            self.assertEqual(analyzable, [])
+
+    def test_sparse_export_rejects_symbolic_links(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repo = initialize_repo(root)
+            old_commit = commit_file(repo, "int first;\n", "first")
+            (repo / "src" / "link.c").symlink_to("sample.c")
+            git(repo, "add", "src/link.c")
+            git(repo, "commit", "-m", "link")
+            new_commit = git(repo, "rev-parse", "HEAD")
+            _, analyzable = inventory_changed_paths(
+                repo, old_commit, new_commit, "src", []
+            )
+
+            with self.assertRaisesRegex(RuntimeError, "regular files"):
+                export_changed_files(
+                    repo,
+                    old_commit,
+                    new_commit,
+                    analyzable,
+                    root / "original",
+                    root / "modified",
+                )
 
 
 if __name__ == "__main__":
