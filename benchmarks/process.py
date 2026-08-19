@@ -33,15 +33,94 @@ CommandFactory = Callable[[Path], Sequence[str | os.PathLike[str]]]
 XmlValidator = Callable[[Path], dict[str, Any]]
 
 
+class _ProcessGroupResourceSampler:
+    """Sample all active process groups with one shared /proc traversal."""
+
+    def __init__(self, sample_seconds: float = 0.01) -> None:
+        self.sample_seconds = sample_seconds
+        self._condition = threading.Condition()
+        self._monitors: set[ResourceMonitor] = set()
+        self._generation = 0
+        self._thread: threading.Thread | None = None
+
+    @staticmethod
+    def _read_group_rss(process_groups: set[int]) -> dict[int, int]:
+        totals = {process_group: 0 for process_group in process_groups}
+        try:
+            process_dirs = list(Path("/proc").glob("[0-9]*"))
+        except OSError:
+            return totals
+        for directory in process_dirs:
+            try:
+                stat_text = (directory / "stat").read_text()
+                stat_fields = stat_text[stat_text.rfind(")") + 2 :].split()
+                process_group = int(stat_fields[2])
+                if process_group not in totals:
+                    continue
+                status = (directory / "status").read_text().splitlines()
+                rss_line = next(line for line in status if line.startswith("VmRSS:"))
+                totals[process_group] += int(rss_line.split()[1]) * 1024
+            except (OSError, StopIteration, ValueError, IndexError):
+                continue
+        return totals
+
+    def _run(self) -> None:
+        while True:
+            with self._condition:
+                while not self._monitors:
+                    self._condition.wait()
+                monitors = {
+                    monitor.process_group: monitor for monitor in self._monitors
+                }
+            totals = self._read_group_rss(set(monitors))
+            with self._condition:
+                for process_group, monitor in monitors.items():
+                    if monitor in self._monitors:
+                        monitor.peak_rss_bytes = max(
+                            monitor.peak_rss_bytes,
+                            totals.get(process_group, 0),
+                        )
+                self._generation += 1
+                self._condition.notify_all()
+                if self._monitors:
+                    self._condition.wait(self.sample_seconds)
+
+    def register(self, monitor: ResourceMonitor) -> None:
+        with self._condition:
+            self._monitors.add(monitor)
+            if self._thread is None or not self._thread.is_alive():
+                self._thread = threading.Thread(
+                    target=self._run,
+                    name="benchmark-resource-sampler",
+                    daemon=True,
+                )
+                self._thread.start()
+            self._condition.notify_all()
+
+    def unregister(self, monitor: ResourceMonitor) -> None:
+        with self._condition:
+            if monitor not in self._monitors:
+                return
+            final_generation = self._generation + 1
+            deadline = time.monotonic() + 1.0
+            self._condition.notify_all()
+            while self._generation < final_generation:
+                remaining = deadline - time.monotonic()
+                if remaining <= 0:
+                    break
+                self._condition.wait(remaining)
+            self._monitors.discard(monitor)
+            self._condition.notify_all()
+
+
 class ResourceMonitor:
     """Best-effort Linux process-group RSS and cgroup OOM observation."""
 
     def __init__(self, process_group: int) -> None:
         self.process_group = process_group
         self.peak_rss_bytes = 0
-        self._stop = threading.Event()
         self._supported = platform.system() == "Linux" and Path("/proc").is_dir()
-        self._thread: threading.Thread | None = None
+        self._registered = False
         self._memory_events = self._find_memory_events(process_group)
         self._oom_before = self._read_oom_kill()
 
@@ -74,39 +153,15 @@ class ResourceMonitor:
         except (OSError, KeyError, ValueError):
             return None
 
-    def _sample(self) -> None:
-        total = 0
-        try:
-            process_dirs = list(Path("/proc").glob("[0-9]*"))
-        except OSError:
-            return
-        for directory in process_dirs:
-            try:
-                stat_text = (directory / "stat").read_text()
-                stat_fields = stat_text[stat_text.rfind(")") + 2 :].split()
-                if int(stat_fields[2]) != self.process_group:
-                    continue
-                status = (directory / "status").read_text().splitlines()
-                rss_line = next(line for line in status if line.startswith("VmRSS:"))
-                total += int(rss_line.split()[1]) * 1024
-            except (OSError, StopIteration, ValueError, IndexError):
-                continue
-        self.peak_rss_bytes = max(self.peak_rss_bytes, total)
-
-    def _run(self) -> None:
-        while not self._stop.wait(0.01):
-            self._sample()
-        self._sample()
-
     def start(self) -> None:
-        if self._supported:
-            self._thread = threading.Thread(target=self._run, daemon=True)
-            self._thread.start()
+        if self._supported and not self._registered:
+            _RESOURCE_SAMPLER.register(self)
+            self._registered = True
 
     def finish(self) -> dict[str, Any]:
-        self._stop.set()
-        if self._thread is not None:
-            self._thread.join(timeout=1.0)
+        if self._registered:
+            _RESOURCE_SAMPLER.unregister(self)
+            self._registered = False
         oom_after = self._read_oom_kill()
         oom_kill_observed = (
             self._oom_before is not None
@@ -119,6 +174,9 @@ class ResourceMonitor:
             "measurement": "linux_proc_process_group" if self._supported else None,
             "cgroup_oom_kill_observed": oom_kill_observed,
         }
+
+
+_RESOURCE_SAMPLER = _ProcessGroupResourceSampler()
 
 
 def write_json_atomic(path: Path, value: Mapping[str, Any]) -> None:

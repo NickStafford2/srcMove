@@ -5,6 +5,8 @@ import hashlib
 import signal
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
 
@@ -15,6 +17,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.process import (
+    _ProcessGroupResourceSampler,
     execute_attempt,
     recover_interrupted_attempts,
     validate_srcdiff_xml,
@@ -34,6 +37,12 @@ def fake_command(outcome: str):
 
 def single_file_validator(path: Path):
     return validate_srcdiff_xml(path, "single_file")
+
+
+class ResourceMonitorStub:
+    def __init__(self, process_group: int) -> None:
+        self.process_group = process_group
+        self.peak_rss_bytes = 0
 
 
 class ProcessAttemptTests(unittest.TestCase):
@@ -68,6 +77,43 @@ class ProcessAttemptTests(unittest.TestCase):
                 attempt["resource_usage"]["peak_rss_status"],
                 {"observed", "unavailable"},
             )
+
+    def test_resource_sampler_shares_one_scan_across_active_groups(self) -> None:
+        sampler = _ProcessGroupResourceSampler(sample_seconds=0.001)
+        observed_groups: list[set[int]] = []
+        observation_lock = threading.Lock()
+
+        def read_group_rss(process_groups: set[int]) -> dict[int, int]:
+            with observation_lock:
+                observed_groups.append(set(process_groups))
+            return {
+                process_group: process_group * 1024
+                for process_group in process_groups
+            }
+
+        sampler._read_group_rss = read_group_rss  # type: ignore[method-assign]
+        first = ResourceMonitorStub(101)
+        second = ResourceMonitorStub(202)
+        try:
+            sampler.register(first)
+            sampling_thread = sampler._thread
+            sampler.register(second)
+            deadline = time.monotonic() + 1.0
+            while (
+                first.peak_rss_bytes == 0 or second.peak_rss_bytes == 0
+            ) and time.monotonic() < deadline:
+                time.sleep(0.001)
+
+            self.assertIs(sampler._thread, sampling_thread)
+            self.assertEqual(first.peak_rss_bytes, 101 * 1024)
+            self.assertEqual(second.peak_rss_bytes, 202 * 1024)
+            with observation_lock:
+                self.assertIn({101, 202}, observed_groups)
+        finally:
+            sampler.unregister(first)
+            sampler.unregister(second)
+
+        self.assertEqual(sampler._monitors, set())
 
     def test_process_and_xml_failures_remain_distinct(self) -> None:
         outcomes = {
