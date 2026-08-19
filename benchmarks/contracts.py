@@ -12,7 +12,7 @@ import json
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Mapping, Protocol, Sequence
+from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
 
 CONTRACT_VERSION = 2
@@ -100,6 +100,16 @@ class InputPair:
 
 
 @dataclass(frozen=True)
+class MaterializedInputPair:
+    """One input pair written directly into input-snapshot staging."""
+
+    case_id: str
+    original: Mapping[str, Any]
+    modified: Mapping[str, Any]
+    metadata: Mapping[str, Any] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class SemanticResult:
     """Dataset-specific eligibility after generic XML admission."""
 
@@ -123,3 +133,15 @@ class DatasetAdapter(Protocol):
     def validate_semantics(
         self, case: InputPair, srcdiff_xml: Path
     ) -> SemanticResult: ...
+
+
+@runtime_checkable
+class SnapshotMaterializingAdapter(Protocol):
+    """Adapter that writes canonical inputs without an intermediate copy."""
+
+    name: str
+    version: int
+
+    def materialize_input_pairs(
+        self, sources_root: Path, excluded_suffixes: Sequence[str]
+    ) -> Sequence[MaterializedInputPair]: ...

@@ -15,6 +15,13 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.progress import ProgressDisplay
+from benchmarks.corpus import create_input_snapshot
+from benchmarks.repositories.adapter import (
+    GitRepositorySnapshotAdapter,
+    GitSnapshotEntry,
+    GitSnapshotMaterializationError,
+    RepositoryAdapter,
+)
 from benchmarks.repositories.run_history import (
     _aggregate,
     _coordinate_history_pairs,
@@ -783,6 +790,134 @@ class RepositoryHistoryTests(unittest.TestCase):
                 "int after;\n",
             )
 
+    def test_direct_git_snapshot_matches_export_then_copy_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repo = initialize_repo(root)
+            for relative, contents in {
+                "src/modified.c": "int before;\n",
+                "src/deleted.c": "int deleted;\n",
+                "src/executable.sh": "#!/bin/sh\necho before\n",
+            }.items():
+                path = repo / relative
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(contents, encoding="utf-8")
+            (repo / "src" / "executable.sh").chmod(0o755)
+            git(repo, "add", ".")
+            git(repo, "commit", "-m", "old tree")
+            old_commit = git(repo, "rev-parse", "HEAD")
+
+            (repo / "src" / "modified.c").write_text(
+                "int after;\n", encoding="utf-8"
+            )
+            (repo / "src" / "deleted.c").unlink()
+            (repo / "src" / "added.c").write_text(
+                "int added;\n", encoding="utf-8"
+            )
+            (repo / "src" / "executable.sh").write_text(
+                "#!/bin/sh\necho after\n", encoding="utf-8"
+            )
+            git(repo, "add", ".")
+            git(repo, "commit", "-m", "new tree")
+            new_commit = git(repo, "rev-parse", "HEAD")
+
+            _, analyzable = inventory_changed_paths(
+                repo, old_commit, new_commit, "src", []
+            )
+            exports = root / "exports"
+            export_changed_files(
+                repo,
+                old_commit,
+                new_commit,
+                analyzable,
+                exports / "original",
+                exports / "modified",
+            )
+            source = {
+                "repository": "example.invalid/repository",
+                "old_commit": old_commit,
+                "new_commit": new_commit,
+            }
+            legacy_dir, legacy = create_input_snapshot(
+                data_root=root / "legacy-data",
+                adapter=RepositoryAdapter(
+                    case_id="history-case",
+                    original=exports / "original",
+                    modified=exports / "modified",
+                    metadata={"source": source},
+                ),
+                source=source,
+                filter_configuration={"excluded_suffixes": []},
+            )
+            direct_adapter = GitRepositorySnapshotAdapter(
+                case_id="history-case",
+                repository=repo,
+                entries=[
+                    GitSnapshotEntry(
+                        path=change.path,
+                        old_mode=change.old_mode,
+                        new_mode=change.new_mode,
+                        old_blob=change.old_blob,
+                        new_blob=change.new_blob,
+                    )
+                    for change in analyzable
+                ],
+                work_dir=root / "pair-work",
+                metadata={"source": source},
+            )
+            direct_dir, direct = create_input_snapshot(
+                data_root=root / "direct-data",
+                adapter=direct_adapter,
+                source=source,
+                filter_configuration={"excluded_suffixes": []},
+            )
+
+            self.assertEqual(
+                direct["input_snapshot_id"], legacy["input_snapshot_id"]
+            )
+            self.assertEqual(direct["identity_sha256"], legacy["identity_sha256"])
+            self.assertEqual(direct["cases"], legacy["cases"])
+            self.assertEqual(
+                sorted(
+                    (
+                        path.relative_to(direct_dir).as_posix(),
+                        path.read_bytes(),
+                    )
+                    for path in direct_dir.rglob("*")
+                    if path.is_file() and path.name != "manifest.json"
+                ),
+                sorted(
+                    (
+                        path.relative_to(legacy_dir).as_posix(),
+                        path.read_bytes(),
+                    )
+                    for path in legacy_dir.rglob("*")
+                    if path.is_file() and path.name != "manifest.json"
+                ),
+            )
+            self.assertEqual(
+                (direct_dir / "sources/history-case/original/src/executable.sh")
+                .stat()
+                .st_mode
+                & 0o777,
+                0o755,
+            )
+            self.assertEqual(
+                (direct_dir / "sources/history-case/modified/src/executable.sh")
+                .stat()
+                .st_mode
+                & 0o777,
+                0o755,
+            )
+            reused_dir, reused = create_input_snapshot(
+                data_root=root / "direct-data",
+                adapter=direct_adapter,
+                source=source,
+                filter_configuration={"excluded_suffixes": []},
+            )
+            self.assertEqual(reused_dir, direct_dir)
+            self.assertEqual(reused, direct)
+
     def test_mode_only_change_is_not_analyzable(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             repo = initialize_repo(Path(temporary_directory))
@@ -822,6 +957,30 @@ class RepositoryHistoryTests(unittest.TestCase):
                     analyzable,
                     root / "original",
                     root / "modified",
+                )
+
+            with self.assertRaisesRegex(
+                GitSnapshotMaterializationError, "unsupported new Git object mode"
+            ):
+                create_input_snapshot(
+                    data_root=root / "direct-data",
+                    adapter=GitRepositorySnapshotAdapter(
+                        case_id="symlink-case",
+                        repository=repo,
+                        entries=[
+                            GitSnapshotEntry(
+                                path=change.path,
+                                old_mode=change.old_mode,
+                                new_mode=change.new_mode,
+                                old_blob=change.old_blob,
+                                new_blob=change.new_blob,
+                            )
+                            for change in analyzable
+                        ],
+                        work_dir=root / "pair-work",
+                    ),
+                    source={"old_commit": old_commit, "new_commit": new_commit},
+                    filter_configuration={"excluded_suffixes": []},
                 )
 
 

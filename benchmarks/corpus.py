@@ -16,6 +16,7 @@ from benchmarks.contracts import (
     canonical_json,
     DatasetAdapter,
     InputPair,
+    SnapshotMaterializingAdapter,
     RunMode,
     SemanticResult,
     SemanticStatus,
@@ -140,6 +141,64 @@ def _copy_input(source: Path, destination: Path, identity: Mapping[str, Any]) ->
         target.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source / relative, target)
     return "."
+
+
+def _snapshot_identity_payload(
+    *,
+    adapter: DatasetAdapter | SnapshotMaterializingAdapter,
+    source: Mapping[str, Any],
+    filter_configuration: Mapping[str, Any] | None,
+    excluded_suffixes: Sequence[str],
+    cases: Sequence[Mapping[str, Any]],
+) -> dict[str, Any]:
+    return {
+        "schema_version": INPUT_SNAPSHOT_SCHEMA_VERSION,
+        "adapter": {"name": adapter.name, "version": adapter.version},
+        "source": dict(source),
+        "filter_configuration": {
+            **dict(filter_configuration or {}),
+            "excluded_suffixes": list(excluded_suffixes),
+        },
+        "cases": [
+            {
+                key: case[key]
+                for key in ("case_id", "original", "modified", "metadata")
+            }
+            for case in cases
+        ],
+    }
+
+
+def _snapshot_manifest(
+    identity_payload: Mapping[str, Any], manifest_cases: Sequence[Mapping[str, Any]]
+) -> dict[str, Any]:
+    return {
+        "schema_version": INPUT_SNAPSHOT_SCHEMA_VERSION,
+        "input_snapshot_id": content_identifier(
+            "input-snapshot", dict(identity_payload)
+        ),
+        "identity_sha256": hashlib.sha256(
+            canonical_json(dict(identity_payload))
+        ).hexdigest(),
+        "created_at": utc_now(),
+        "adapter": identity_payload["adapter"],
+        "source": identity_payload["source"],
+        "filter_configuration": identity_payload["filter_configuration"],
+        "counts": {
+            "selected": len(manifest_cases),
+            "included_files": sum(
+                len(case[side]["files"])
+                for case in manifest_cases
+                for side in ("original", "modified")
+            ),
+            "excluded_files": sum(
+                len(case[side]["excluded"])
+                for case in manifest_cases
+                for side in ("original", "modified")
+            ),
+        },
+        "cases": list(manifest_cases),
+    }
 
 
 def _manifest_checksum(path: Path) -> str:
@@ -271,21 +330,101 @@ def load_corpus(
     return directory, manifest
 
 
+def _create_materialized_input_snapshot(
+    *,
+    data_root: Path,
+    adapter: SnapshotMaterializingAdapter,
+    source: Mapping[str, Any],
+    filter_configuration: Mapping[str, Any] | None,
+    excluded_suffixes: Sequence[str],
+    status_callback: Callable[[str], None] | None,
+) -> tuple[Path, dict[str, Any]]:
+    snapshots_root = data_root / "input-snapshots"
+    staging = snapshots_root / f".staging-{uuid.uuid4()}"
+    staging.mkdir(parents=True, exist_ok=False)
+    try:
+        materialized = list(
+            adapter.materialize_input_pairs(
+                staging / "sources", excluded_suffixes
+            )
+        )
+        if not materialized:
+            raise ValueError("snapshot materializer produced no cases")
+        manifest_cases = []
+        for case in materialized:
+            _validate_case_id(case.case_id)
+            manifest_cases.append(
+                {
+                    "case_id": case.case_id,
+                    "original": dict(case.original),
+                    "modified": dict(case.modified),
+                    "metadata": dict(case.metadata),
+                    "original_path": (
+                        Path("sources") / case.case_id / "original"
+                    ).as_posix(),
+                    "modified_path": (
+                        Path("sources") / case.case_id / "modified"
+                    ).as_posix(),
+                }
+            )
+        identity_payload = _snapshot_identity_payload(
+            adapter=adapter,
+            source=source,
+            filter_configuration=filter_configuration,
+            excluded_suffixes=excluded_suffixes,
+            cases=manifest_cases,
+        )
+        manifest = _snapshot_manifest(identity_payload, manifest_cases)
+        final_dir = snapshots_root / manifest["input_snapshot_id"]
+        if final_dir.is_dir():
+            shutil.rmtree(staging)
+            existing = _load_manifest(
+                final_dir / "manifest.json",
+                INPUT_SNAPSHOT_SCHEMA_VERSION,
+                "input_snapshot_id",
+            )
+            _verify_input_snapshot(final_dir, existing)
+            if status_callback is not None:
+                status_callback("reused")
+            return final_dir, existing
+
+        write_json_atomic(staging / "manifest.json", manifest)
+        snapshots_root.mkdir(parents=True, exist_ok=True)
+        os.replace(staging, final_dir)
+        if status_callback is not None:
+            status_callback("created")
+        return final_dir, manifest
+    except BaseException:
+        if staging.exists():
+            shutil.rmtree(staging)
+        raise
+
+
 def create_input_snapshot(
     *,
     data_root: Path,
-    adapter: DatasetAdapter,
+    adapter: DatasetAdapter | SnapshotMaterializingAdapter,
     source: Mapping[str, Any],
     filter_configuration: Mapping[str, Any] | None = None,
     status_callback: Callable[[str], None] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     """Freeze and checksum old/new source pairs for later srcDiff execution."""
 
+    excluded_suffixes = _normalized_excluded_suffixes(filter_configuration)
+    if isinstance(adapter, SnapshotMaterializingAdapter):
+        return _create_materialized_input_snapshot(
+            data_root=data_root,
+            adapter=adapter,
+            source=source,
+            filter_configuration=filter_configuration,
+            excluded_suffixes=excluded_suffixes,
+            status_callback=status_callback,
+        )
+
     cases = list(adapter.input_pairs())
     if not cases:
         raise ValueError("dataset adapter produced no cases")
 
-    excluded_suffixes = _normalized_excluded_suffixes(filter_configuration)
     identities = []
     for case in cases:
         _validate_case_id(case.case_id)
@@ -297,16 +436,13 @@ def create_input_snapshot(
                 "metadata": dict(case.metadata),
             }
         )
-    identity_payload = {
-        "schema_version": INPUT_SNAPSHOT_SCHEMA_VERSION,
-        "adapter": {"name": adapter.name, "version": adapter.version},
-        "source": dict(source),
-        "filter_configuration": {
-            **dict(filter_configuration or {}),
-            "excluded_suffixes": list(excluded_suffixes),
-        },
-        "cases": identities,
-    }
+    identity_payload = _snapshot_identity_payload(
+        adapter=adapter,
+        source=source,
+        filter_configuration=filter_configuration,
+        excluded_suffixes=excluded_suffixes,
+        cases=identities,
+    )
     input_snapshot_id = content_identifier("input-snapshot", identity_payload)
     final_dir = data_root / "input-snapshots" / input_snapshot_id
     if final_dir.is_dir():
@@ -343,31 +479,7 @@ def create_input_snapshot(
                     ).as_posix(),
                 }
             )
-        manifest = {
-            "schema_version": INPUT_SNAPSHOT_SCHEMA_VERSION,
-            "input_snapshot_id": input_snapshot_id,
-            "identity_sha256": hashlib.sha256(
-                canonical_json(identity_payload)
-            ).hexdigest(),
-            "created_at": utc_now(),
-            "adapter": identity_payload["adapter"],
-            "source": identity_payload["source"],
-            "filter_configuration": identity_payload["filter_configuration"],
-            "counts": {
-                "selected": len(manifest_cases),
-                "included_files": sum(
-                    len(case[side]["files"])
-                    for case in manifest_cases
-                    for side in ("original", "modified")
-                ),
-                "excluded_files": sum(
-                    len(case[side]["excluded"])
-                    for case in manifest_cases
-                    for side in ("original", "modified")
-                ),
-            },
-            "cases": manifest_cases,
-        }
+        manifest = _snapshot_manifest(identity_payload, manifest_cases)
         write_json_atomic(staging / "manifest.json", manifest)
         final_dir.parent.mkdir(parents=True, exist_ok=True)
         os.replace(staging, final_dir)

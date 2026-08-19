@@ -31,6 +31,11 @@ from benchmarks.corpus import DEFAULT_EXCLUDED_SUFFIXES
 from benchmarks.process import write_json_atomic
 from benchmarks.progress import ProgressDisplay
 from benchmarks.provenance import sha256_file, utc_now
+from benchmarks.repositories.adapter import (
+    GitRepositorySnapshotAdapter,
+    GitSnapshotEntry,
+    GitSnapshotMaterializationError,
+)
 from benchmarks.repositories.run_case import (
     DEFAULT_DATA_ROOT,
     ensure_repo,
@@ -958,8 +963,6 @@ def _run_history_pair(
     pair = dict(pair_template)
     pair_started = time.monotonic()
     pair.update({"status": "running", "started_at": utc_now()})
-    original_dir = pair_work_dir / "original"
-    modified_dir = pair_work_dir / "modified"
     inventory_seconds = 0.0
     export_seconds = 0.0
     try:
@@ -998,40 +1001,6 @@ def _run_history_pair(
             _finalize_pair_timings(pair, pair_started, 0.0)
             return pair
 
-        export_started = time.monotonic()
-        try:
-            export_changed_files(
-                clone_dir,
-                pair["old_commit"],
-                pair["new_commit"],
-                analyzable,
-                original_dir,
-                modified_dir,
-            )
-            export_seconds = time.monotonic() - export_started
-        except Exception as error:
-            export_seconds = time.monotonic() - export_started
-            pair.update(
-                {
-                    "status": "export_failed",
-                    "completed_at": utc_now(),
-                    "error": {"type": type(error).__name__, "message": str(error)},
-                    "timings": {
-                        "inventory_seconds": inventory_seconds,
-                        "export_seconds": export_seconds,
-                        "input_snapshot_seconds": 0.0,
-                        "srcdiff_stage_seconds": 0.0,
-                        "srcdiff_execution_seconds": 0.0,
-                        "srcdiff_cached_execution_seconds": 0.0,
-                        "cache_reuse_seconds": 0.0,
-                        "srcmove_stage_seconds": 0.0,
-                        "srcmove_execution_seconds": 0.0,
-                    },
-                }
-            )
-            _finalize_pair_timings(pair, pair_started, 0.0)
-            return pair
-
         source = {
             "case": case_name,
             "repository": repo_url,
@@ -1049,8 +1018,8 @@ def _run_history_pair(
             data_root=pipeline_root,
             series=history_id,
             case_name=case_name,
-            original=original_dir,
-            modified=modified_dir,
+            original=None,
+            modified=None,
             source=source,
             srcdiff=srcdiff,
             srcmove=srcmove,
@@ -1062,6 +1031,22 @@ def _run_history_pair(
             excluded_suffixes=[],
             show_progress=False,
             index_series=False,
+            snapshot_adapter=GitRepositorySnapshotAdapter(
+                case_id=case_name,
+                repository=clone_dir,
+                entries=[
+                    GitSnapshotEntry(
+                        path=change.path,
+                        old_mode=change.old_mode,
+                        new_mode=change.new_mode,
+                        old_blob=change.old_blob,
+                        new_blob=change.new_blob,
+                    )
+                    for change in analyzable
+                ],
+                work_dir=pair_work_dir,
+                metadata={"source": source},
+            ),
         )
         benchmark_seconds = time.monotonic() - benchmark_started
         entry_timings = entry.get("timings", {})
@@ -1132,9 +1117,14 @@ def _run_history_pair(
         _finalize_pair_timings(pair, pair_started, 0.0)
         return pair
     except Exception as error:
+        status = (
+            "export_failed"
+            if isinstance(error, GitSnapshotMaterializationError)
+            else "orchestration_failed"
+        )
         pair.update(
             {
-                "status": "orchestration_failed",
+                "status": status,
                 "completed_at": utc_now(),
                 "error": {"type": type(error).__name__, "message": str(error)},
                 "timings": {

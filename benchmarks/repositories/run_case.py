@@ -22,7 +22,11 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from benchmarks.contracts import RunMode
+from benchmarks.contracts import (
+    DatasetAdapter,
+    RunMode,
+    SnapshotMaterializingAdapter,
+)
 from benchmarks.corpus import (
     DEFAULT_EXCLUDED_SUFFIXES,
     create_input_snapshot,
@@ -516,8 +520,8 @@ def run_staged_repository_benchmark(
     data_root: Path,
     series: str,
     case_name: str,
-    original: Path,
-    modified: Path,
+    original: Path | None,
+    modified: Path | None,
     source: Mapping[str, Any],
     srcdiff: Path,
     srcmove: Path,
@@ -529,6 +533,7 @@ def run_staged_repository_benchmark(
     excluded_suffixes: list[str],
     show_progress: bool = True,
     index_series: bool = True,
+    snapshot_adapter: DatasetAdapter | SnapshotMaterializingAdapter | None = None,
 ) -> tuple[dict[str, Any], Path | None]:
     """Run one repository benchmark and optionally add its standalone index."""
 
@@ -572,19 +577,26 @@ def run_staged_repository_benchmark(
             snapshot_disposition = value
 
         snapshot_started = time.monotonic()
+        if snapshot_adapter is None:
+            if original is None or modified is None:
+                raise ValueError(
+                    "original and modified inputs are required without a "
+                    "snapshot adapter"
+                )
+            snapshot_adapter = RepositoryAdapter(
+                case_id=case_name,
+                original=original,
+                modified=modified,
+                metadata={"source": dict(source)},
+            )
         with ProgressDisplay(
             "4/6 Input snapshot",
-            detail="hashing and verifying exported files",
+            detail="materializing and verifying inputs",
             enabled=show_progress,
         ) as progress:
             input_snapshot_dir, input_snapshot = create_input_snapshot(
                 data_root=data_root,
-                adapter=RepositoryAdapter(
-                    case_id=case_name,
-                    original=original,
-                    modified=modified,
-                    metadata={"source": dict(source)},
-                ),
+                adapter=snapshot_adapter,
                 source=source,
                 filter_configuration={"excluded_suffixes": excluded_suffixes},
                 status_callback=record_snapshot_disposition,

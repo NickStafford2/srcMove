@@ -278,14 +278,15 @@ failure evidence, and all intermediate artifacts after a completed history. If
 a results, compact, or ephemeral run is interrupted, its isolated `.pipeline` directory
 is intentionally left intact for diagnosis rather than being cleaned blindly.
 
-History pairs use sparse old/new exports containing only content-changing paths.
-Modified files appear on both sides, additions only on the new side, and
+History pairs materialize selected Git blobs directly into content-addressed
+input-snapshot staging; there is no intermediate export tree or export-to-snapshot
+copy. Modified files appear on both sides, additions only on the new side, and
 deletions only on the old side. Renames are represented by their old and new
-paths so cross-file moves remain detectable. Relative repository paths are
-preserved, and the exact sparse selection is recorded in the history and input
-snapshot identity. Parallel workers read the frozen Git repository concurrently
-but never check it out or modify it; their numbered export/work directories are
-removed after the coordinator has collected every outcome.
+paths so cross-file moves remain detectable. Relative repository paths, snapshot
+manifest schema, content identities, and checksum verification are unchanged.
+Parallel workers read the frozen Git repository concurrently but never check it
+out or modify it; each has a numbered private work directory that is removed
+after the coordinator has collected every outcome.
 
 History timings distinguish work performed by the current command from cached
 attempt provenance. `srcdiff_execution_seconds` counts only a srcDiff process
@@ -294,6 +295,8 @@ corpus verification, while `srcdiff_cached_execution_seconds` retains the
 original attempt duration for reference and is excluded from current-run totals.
 Fine-grained profile fields record verification, interrupted-attempt recovery,
 reconciliation, executable observation, and history-artifact writes.
+The retained `export_seconds` field is zero for direct Git snapshots; Git blob
+materialization and hashing are included in `input_snapshot_seconds`.
 New srcMove runs do not recover unrelated prior runs; an explicit resume recovers
 only the selected run before reconciling its attempts.
 srcDiff writes an initial generation checkpoint before execution. Fresh and
