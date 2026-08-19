@@ -46,6 +46,19 @@ TRAVERSAL_MODE = "first_parent"
 INPUT_SCOPE = "changed_files"
 SAFE_HISTORY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 REGULAR_GIT_MODES = {"100644", "100755"}
+PROFILE_TIMING_KEYS = (
+    "srcdiff_input_snapshot_verification_seconds",
+    "srcdiff_attempt_recovery_seconds",
+    "srcdiff_executable_observation_seconds",
+    "srcdiff_attempt_reconciliation_seconds",
+    "srcdiff_corpus_verification_seconds",
+    "srcmove_corpus_verification_seconds",
+    "srcmove_attempt_recovery_seconds",
+    "srcmove_observation_seconds",
+    "srcmove_attempt_reconciliation_seconds",
+    "repository_index_seconds",
+    "history_artifact_write_seconds",
+)
 
 
 @dataclass(frozen=True)
@@ -315,7 +328,7 @@ def _aggregate(pairs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "srcmove_stage_seconds",
         "srcmove_execution_seconds",
         "other_seconds",
-    )
+    ) + PROFILE_TIMING_KEYS
     timing_totals: dict[str, float] = {}
     for key in timing_keys:
         timing_totals[key] = sum(
@@ -448,6 +461,7 @@ SUMMARY_COLUMNS = [
     "srcmove_stage_seconds",
     "srcmove_execution_seconds",
     "other_seconds",
+    *PROFILE_TIMING_KEYS,
     "repository_benchmark_id",
 ]
 
@@ -458,7 +472,8 @@ def _spreadsheet_safe(value: str) -> str:
 
 def write_history_artifacts(
     history_dir: Path, history: dict[str, Any], data_root: Path
-) -> None:
+) -> float:
+    started = time.monotonic()
     history["aggregates"] = _aggregate(history["pairs"])
     history["updated_at"] = utc_now()
     write_json_atomic(history_dir / "history.json", history)
@@ -536,10 +551,30 @@ def write_history_artifacts(
                         "srcmove_execution_seconds"
                     ),
                     "other_seconds": pair.get("timings", {}).get("other_seconds"),
+                    **{
+                        key: pair.get("timings", {}).get(key)
+                        for key in PROFILE_TIMING_KEYS
+                    },
                     "repository_benchmark_id": pair.get("repository_benchmark_id"),
                 }
             )
     temporary.replace(summary_path)
+    return time.monotonic() - started
+
+
+def _finalize_pair_timings(
+    pair: dict[str, Any], pair_started: float, history_artifact_write_seconds: float
+) -> None:
+    timings = pair.setdefault("timings", {})
+    pair_seconds = time.monotonic() - pair_started
+    timings["pair_seconds"] = pair_seconds
+    timings["history_artifact_write_seconds"] = history_artifact_write_seconds
+    timings["other_seconds"] = (
+        pair_seconds
+        - _seconds(timings.get("srcdiff_execution_seconds"))
+        - _seconds(timings.get("cache_reuse_seconds"))
+        - _seconds(timings.get("srcmove_execution_seconds"))
+    )
 
 
 def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
@@ -639,7 +674,9 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         progress.start()
         pair["status"] = "running"
         pair["started_at"] = utc_now()
-        write_history_artifacts(history_dir, history, data_root)
+        history_artifact_write_seconds = write_history_artifacts(
+            history_dir, history, data_root
+        )
         try:
             inventory_started = time.monotonic()
             changed, analyzable = inventory_changed_paths(
@@ -675,7 +712,12 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                         },
                     }
                 )
-                write_history_artifacts(history_dir, history, data_root)
+                history_artifact_write_seconds += write_history_artifacts(
+                    history_dir, history, data_root
+                )
+                _finalize_pair_timings(
+                    pair, pair_started, history_artifact_write_seconds
+                )
                 progress.finish(
                     f"{len(changed)} changed paths; no analyzable source changes",
                     completion="skipped",
@@ -714,7 +756,12 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                         },
                     }
                 )
-                write_history_artifacts(history_dir, history, data_root)
+                history_artifact_write_seconds += write_history_artifacts(
+                    history_dir, history, data_root
+                )
+                _finalize_pair_timings(
+                    pair, pair_started, history_artifact_write_seconds
+                )
                 progress.finish(str(error), success=False, completion="export failed")
                 continue
 
@@ -812,6 +859,11 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                         "srcmove_stage_seconds": srcmove_stage_seconds,
                         "srcmove_execution_seconds": srcmove_execution_seconds,
                         "other_seconds": other_seconds,
+                        **{
+                            key: _seconds(entry_timings.get(key))
+                            for key in PROFILE_TIMING_KEYS
+                            if key != "history_artifact_write_seconds"
+                        },
                     },
                 }
             )
@@ -820,7 +872,12 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                     "type": entry["status"],
                     "message": _entry_failure_detail(entry),
                 }
-            write_history_artifacts(history_dir, history, data_root)
+            history_artifact_write_seconds += write_history_artifacts(
+                history_dir, history, data_root
+            )
+            _finalize_pair_timings(
+                pair, pair_started, history_artifact_write_seconds
+            )
             if entry["status"] == "completed":
                 metrics = pair["metrics"]
                 progress.finish(
@@ -852,7 +909,12 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
             )
             history["status"] = "interrupted"
             history["elapsed_seconds"] = time.monotonic() - history_started
-            write_history_artifacts(history_dir, history, data_root)
+            history_artifact_write_seconds += write_history_artifacts(
+                history_dir, history, data_root
+            )
+            _finalize_pair_timings(
+                pair, pair_started, history_artifact_write_seconds
+            )
             progress.finish(
                 str(error), success=False, completion="orchestration failed"
             )
@@ -939,6 +1001,28 @@ def print_history_summary(
             "(not included in current time)",
             file=stream,
         )
+    print(
+        "  Profile: srcDiff snapshot verify "
+        f"{timings['srcdiff_input_snapshot_verification_seconds']:.1f}s, "
+        f"recovery {timings['srcdiff_attempt_recovery_seconds']:.1f}s, "
+        f"reconciliation {timings['srcdiff_attempt_reconciliation_seconds']:.1f}s, "
+        f"corpus verify {timings['srcdiff_corpus_verification_seconds']:.1f}s",
+        file=stream,
+    )
+    print(
+        "           srcMove corpus verify "
+        f"{timings['srcmove_corpus_verification_seconds']:.1f}s, "
+        f"recovery {timings['srcmove_attempt_recovery_seconds']:.1f}s, "
+        f"observation {timings['srcmove_observation_seconds']:.1f}s, "
+        f"reconciliation {timings['srcmove_attempt_reconciliation_seconds']:.1f}s",
+        file=stream,
+    )
+    print(
+        "           repository index "
+        f"{timings['repository_index_seconds']:.1f}s, "
+        f"history artifacts {timings['history_artifact_write_seconds']:.1f}s",
+        file=stream,
+    )
 
     failures = [
         pair

@@ -6,9 +6,11 @@ import hashlib
 import json
 import os
 import shutil
+import time
 import uuid
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Callable, Mapping, Sequence
+from typing import Any, Callable, Iterator, Mapping, Sequence
 
 from benchmarks.contracts import (
     canonical_json,
@@ -38,6 +40,19 @@ GENERATION_BATCH_SCHEMA_VERSION = 2
 CORPUS_SCHEMA_VERSION = 4
 RUN_SCHEMA_VERSION = 3
 DEFAULT_EXCLUDED_SUFFIXES = (".py",)
+TimingCallback = Callable[[str, float], None]
+
+
+@contextmanager
+def _timed(
+    callback: TimingCallback | None, name: str
+) -> Iterator[None]:
+    started = time.monotonic()
+    try:
+        yield
+    finally:
+        if callback is not None:
+            callback(name, time.monotonic() - started)
 
 
 def _validate_case_id(case_id: str) -> None:
@@ -378,6 +393,7 @@ def generate_corpus(
     semantic_validator: Callable[[InputPair, Path], SemanticResult] | None = None,
     semantic_oracle: Mapping[str, Any] | None = None,
     activity_callback: Callable[[str, str], None] | None = None,
+    timing_callback: TimingCallback | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     input_snapshot_manifest_path = _resolve_manifest(
         data_root, "input-snapshots", input_snapshot
@@ -388,11 +404,12 @@ def generate_corpus(
         "input_snapshot_id",
     )
     input_snapshot_dir = input_snapshot_manifest_path.parent
-    _verify_input_snapshot(input_snapshot_dir, input_snapshot_manifest)
+    with _timed(timing_callback, "srcdiff_input_snapshot_verification_seconds"):
+        _verify_input_snapshot(input_snapshot_dir, input_snapshot_manifest)
     attempts_root = data_root / "attempts"
     attempts_root.mkdir(parents=True, exist_ok=True)
-    recover_interrupted_attempts(attempts_root)
-    srcdiff_observation = observe_executable(srcdiff)
+    with _timed(timing_callback, "srcdiff_executable_observation_seconds"):
+        srcdiff_observation = observe_executable(srcdiff)
     generation_configuration = {
         "position": use_position,
         "archive": use_archive,
@@ -408,7 +425,8 @@ def generate_corpus(
     }
     batch_id = content_identifier("generation", batch_identity)
     batch_path = data_root / "generation-batches" / batch_id / "batch.json"
-    if batch_path.is_file():
+    batch_existed = batch_path.is_file()
+    if batch_existed:
         batch = json.loads(batch_path.read_text(encoding="utf-8"))
         if batch.get("identity") != batch_identity:
             raise ValueError(f"generation batch identity mismatch: {batch_path}")
@@ -420,10 +438,20 @@ def generate_corpus(
             "created_at": utc_now(),
             "cases": [],
         }
+        # Establish the generation before execution so a later invocation can
+        # distinguish an interrupted batch from a genuinely new one.
+        write_json_atomic(batch_path, batch)
     records_by_id = {record["case_id"]: record for record in batch["cases"]}
     input_snapshot_cases = {
         case["case_id"]: case for case in input_snapshot_manifest["cases"]
     }
+    known_ids = set(input_snapshot_cases)
+    selected = set(selected_case_ids) if selected_case_ids else known_ids
+    unknown = selected - known_ids
+    if unknown:
+        raise ValueError(
+            f"unknown input snapshot case(s): {', '.join(sorted(unknown))}"
+        )
 
     def validate_semantics(case_id: str, xml_path: Path) -> dict[str, Any]:
         if semantic_validator is None:
@@ -445,49 +473,64 @@ def generate_corpus(
             "semantic_status": result.status.value,
             "semantic_details": dict(result.details),
         }
-    # An interruption can occur after execute_attempt seals its evidence but before
-    # the batch checkpoint is updated. Reconcile those terminal records first.
-    for terminal_path in attempts_root.glob("attempt-*/attempt.json"):
-        try:
-            terminal = json.loads(terminal_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if terminal.get("context", {}).get("generation_id") != batch_id:
-            continue
-        case_id = terminal.get("case_id")
-        if not isinstance(case_id, str):
-            continue
-        previous = records_by_id.get(case_id)
-        ordinal = terminal.get("retry_ordinal", 0)
-        if previous is not None and previous.get("retry_ordinal", 0) >= ordinal:
-            continue
-        semantic = (
-            validate_semantics(case_id, terminal_path.parent / "partial.srcdiff.xml")
-            if terminal.get("admitted")
-            else {
-                "semantic_status": SemanticStatus.NOT_CHECKED.value,
-                "semantic_details": {},
-            }
-        )
-        records_by_id[case_id] = {
-            "case_id": case_id,
-            "metadata": input_snapshot_cases[case_id]["metadata"],
-            "attempt_id": terminal["attempt_id"],
-            "parent_attempt_id": terminal.get("parent_attempt_id"),
-            "retry_ordinal": ordinal,
-            "generation_status": "accepted" if terminal.get("admitted") else "failed",
-            "xml": terminal.get("xml", {"status": "not_checked"}),
-            **semantic,
-            "attempt_path": str(terminal_path.parent.relative_to(data_root)),
-        }
-    known_ids = {case["case_id"] for case in input_snapshot_manifest["cases"]}
-    selected = set(selected_case_ids) if selected_case_ids else known_ids
-    unknown = selected - known_ids
-    if unknown:
-        raise ValueError(
-            f"unknown input snapshot case(s): {', '.join(sorted(unknown))}"
-        )
+    retry_may_be_interrupted = retry_failed and any(
+        case_id in selected
+        and record.get("generation_status") == "failed"
+        for case_id, record in records_by_id.items()
+    )
+    needs_reconciliation = batch_existed and (
+        not known_ids.issubset(records_by_id) or retry_may_be_interrupted
+    )
+    if needs_reconciliation:
+        with _timed(timing_callback, "srcdiff_attempt_recovery_seconds"):
+            recover_interrupted_attempts(attempts_root)
+        terminal_paths = attempts_root.glob("attempt-*/attempt.json")
+    else:
+        if timing_callback is not None:
+            timing_callback("srcdiff_attempt_recovery_seconds", 0.0)
+        terminal_paths = ()
 
+    # Only an existing incomplete generation can contain terminal evidence that
+    # is absent from its batch checkpoint. Normal fresh and cached runs avoid the
+    # global attempt scan.
+    with _timed(timing_callback, "srcdiff_attempt_reconciliation_seconds"):
+        for terminal_path in terminal_paths:
+            try:
+                terminal = json.loads(terminal_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if terminal.get("context", {}).get("generation_id") != batch_id:
+                continue
+            case_id = terminal.get("case_id")
+            if not isinstance(case_id, str):
+                continue
+            previous = records_by_id.get(case_id)
+            ordinal = terminal.get("retry_ordinal", 0)
+            if previous is not None and previous.get("retry_ordinal", 0) >= ordinal:
+                continue
+            semantic = (
+                validate_semantics(
+                    case_id, terminal_path.parent / "partial.srcdiff.xml"
+                )
+                if terminal.get("admitted")
+                else {
+                    "semantic_status": SemanticStatus.NOT_CHECKED.value,
+                    "semantic_details": {},
+                }
+            )
+            records_by_id[case_id] = {
+                "case_id": case_id,
+                "metadata": input_snapshot_cases[case_id]["metadata"],
+                "attempt_id": terminal["attempt_id"],
+                "parent_attempt_id": terminal.get("parent_attempt_id"),
+                "retry_ordinal": ordinal,
+                "generation_status": (
+                    "accepted" if terminal.get("admitted") else "failed"
+                ),
+                "xml": terminal.get("xml", {"status": "not_checked"}),
+                **semantic,
+                "attempt_path": str(terminal_path.parent.relative_to(data_root)),
+            }
     for case in input_snapshot_manifest["cases"]:
         case_id = case["case_id"]
         previous = records_by_id.get(case_id)
@@ -600,7 +643,8 @@ def generate_corpus(
         manifest = _load_manifest(
             final_dir / "manifest.json", CORPUS_SCHEMA_VERSION, "corpus_id"
         )
-        _verify_corpus(final_dir, manifest)
+        with _timed(timing_callback, "srcdiff_corpus_verification_seconds"):
+            _verify_corpus(final_dir, manifest)
         return final_dir, manifest
 
     staging = data_root / "corpora" / f".staging-{uuid.uuid4()}"
@@ -691,8 +735,10 @@ def run_corpus(
     selected_case_ids: Sequence[str] = (),
     require_semantic_eligible: bool = False,
     activity_callback: Callable[[str, str], None] | None = None,
+    timing_callback: TimingCallback | None = None,
 ) -> tuple[Path, dict[str, Any]]:
-    corpus_dir, corpus_manifest = load_corpus(data_root, corpus)
+    with _timed(timing_callback, "srcmove_corpus_verification_seconds"):
+        corpus_dir, corpus_manifest = load_corpus(data_root, corpus)
     corpus_manifest_path = corpus_dir / "manifest.json"
     if require_semantic_eligible:
         unclassified = [
@@ -710,9 +756,6 @@ def run_corpus(
                 "semantic eligibility was not recorded for accepted corpus case(s): "
                 + ", ".join(unclassified)
             )
-    recover_interrupted_attempts(data_root / "attempts")
-    for prior_run_attempts in (data_root / "runs").glob("*/attempts"):
-        recover_interrupted_attempts(prior_run_attempts)
     if resume_run is None:
         run_id = f"run-{utc_now().replace(':', '').replace('+', '-')}-{uuid.uuid4()}"
         final_dir = data_root / "runs" / run_id
@@ -735,6 +778,8 @@ def run_corpus(
         run_id = prior_run["run_id"]
         created_at = prior_run.get("created_at", utc_now())
         case_records = list(prior_run.get("cases", []))
+        with _timed(timing_callback, "srcmove_attempt_recovery_seconds"):
+            recover_interrupted_attempts(final_dir / "attempts")
     input_paths = {
         case["case_id"]: corpus_dir / case["input_path"]
         for case in corpus_manifest["cases"]
@@ -744,12 +789,13 @@ def run_corpus(
             or case["semantic_status"] == SemanticStatus.ELIGIBLE.value
         )
     }
-    observation = collect_run_observation(
-        mode=mode,
-        repositories={},
-        executables={"srcMove": srcmove},
-        inputs=input_paths,
-    )
+    with _timed(timing_callback, "srcmove_observation_seconds"):
+        observation = collect_run_observation(
+            mode=mode,
+            repositories={},
+            executables={"srcMove": srcmove},
+            inputs=input_paths,
+        )
     records_by_id = {record["case_id"]: record for record in case_records}
     selected = set(selected_case_ids) if selected_case_ids else set(input_paths)
     unknown = selected - set(input_paths)
@@ -758,35 +804,38 @@ def run_corpus(
             f"unknown accepted corpus case(s): {', '.join(sorted(unknown))}"
         )
 
-    for terminal_path in (final_dir / "attempts").glob("attempt-*/attempt.json"):
-        try:
-            terminal = json.loads(terminal_path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        if terminal.get("context", {}).get("run_id") != run_id:
-            continue
-        case_id = terminal.get("case_id")
-        if not isinstance(case_id, str) or case_id not in input_paths:
-            continue
-        previous = records_by_id.get(case_id)
-        ordinal = terminal.get("retry_ordinal", 0)
-        if previous is not None and previous.get("retry_ordinal", 0) >= ordinal:
-            continue
-        results_path = terminal_path.parent / "results.json"
-        results = _observe_json(results_path)
-        if results["status"] != "missing":
-            results["path"] = str(results_path.relative_to(final_dir))
-        completed = terminal.get("admitted", False) and results["status"] == "valid"
-        records_by_id[case_id] = {
-            "case_id": case_id,
-            "attempt_id": terminal["attempt_id"],
-            "parent_attempt_id": terminal.get("parent_attempt_id"),
-            "retry_ordinal": ordinal,
-            "status": "completed" if completed else "failed",
-            "input_sha256": sha256_file(input_paths[case_id]),
-            "xml": terminal.get("xml", {"status": "not_checked"}),
-            "results": results,
-        }
+    with _timed(timing_callback, "srcmove_attempt_reconciliation_seconds"):
+        for terminal_path in (final_dir / "attempts").glob("attempt-*/attempt.json"):
+            try:
+                terminal = json.loads(terminal_path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if terminal.get("context", {}).get("run_id") != run_id:
+                continue
+            case_id = terminal.get("case_id")
+            if not isinstance(case_id, str) or case_id not in input_paths:
+                continue
+            previous = records_by_id.get(case_id)
+            ordinal = terminal.get("retry_ordinal", 0)
+            if previous is not None and previous.get("retry_ordinal", 0) >= ordinal:
+                continue
+            results_path = terminal_path.parent / "results.json"
+            results = _observe_json(results_path)
+            if results["status"] != "missing":
+                results["path"] = str(results_path.relative_to(final_dir))
+            completed = (
+                terminal.get("admitted", False) and results["status"] == "valid"
+            )
+            records_by_id[case_id] = {
+                "case_id": case_id,
+                "attempt_id": terminal["attempt_id"],
+                "parent_attempt_id": terminal.get("parent_attempt_id"),
+                "retry_ordinal": ordinal,
+                "status": "completed" if completed else "failed",
+                "input_sha256": sha256_file(input_paths[case_id]),
+                "xml": terminal.get("xml", {"status": "not_checked"}),
+                "results": results,
+            }
     try:
         for case_id, input_xml in input_paths.items():
             previous = records_by_id.get(case_id)

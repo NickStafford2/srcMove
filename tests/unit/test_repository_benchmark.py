@@ -195,6 +195,19 @@ class RepositoryBenchmarkTests(unittest.TestCase):
             self.assertNotIn("srcdiff_execution_seconds", second["timings"])
             self.assertGreater(second["timings"]["srcdiff_stage_wall_seconds"], 0)
             self.assertGreater(second["timings"]["pipeline_wall_seconds"], 0)
+            for timing_name in (
+                "srcdiff_input_snapshot_verification_seconds",
+                "srcdiff_attempt_recovery_seconds",
+                "srcdiff_executable_observation_seconds",
+                "srcdiff_attempt_reconciliation_seconds",
+                "srcdiff_corpus_verification_seconds",
+                "srcmove_corpus_verification_seconds",
+                "srcmove_observation_seconds",
+                "srcmove_attempt_reconciliation_seconds",
+                "repository_index_seconds",
+            ):
+                self.assertIn(timing_name, second["timings"])
+                self.assertGreaterEqual(second["timings"][timing_name], 0)
 
             data_root = root / "benchmark-data"
             self.assertEqual(len(list((data_root / "input-snapshots").iterdir())), 1)

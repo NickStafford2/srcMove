@@ -130,6 +130,9 @@ class RepositoryHistoryTests(unittest.TestCase):
             "srcDiff execution provenance 5.5s (not included in current time)",
             text,
         )
+        self.assertIn("Profile: srcDiff snapshot verify", text)
+        self.assertIn("srcMove corpus verify", text)
+        self.assertIn("repository index", text)
         self.assertIn("2/2 bbbbbbbb → cccccccc — srcDiff timed out", text)
 
     def test_selects_requested_pairs_in_oldest_to_newest_ancestry_order(self) -> None:

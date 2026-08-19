@@ -561,6 +561,9 @@ def run_staged_repository_benchmark(
         "timings": {},
     }
     try:
+        def record_timing(name: str, seconds: float) -> None:
+            entry["timings"][name] = entry["timings"].get(name, 0.0) + seconds
+
         snapshot_disposition = "created"
 
         def record_snapshot_disposition(value: str) -> None:
@@ -640,6 +643,7 @@ def run_staged_repository_benchmark(
                 use_archive=use_archive,
                 source_encoding=source_encoding,
                 activity_callback=report_srcdiff_activity,
+                timing_callback=record_timing,
             )
         except BaseException as error:
             srcdiff_progress.finish(str(error), success=False, completion="failed")
@@ -691,7 +695,11 @@ def run_staged_repository_benchmark(
             entry["timings"]["pipeline_wall_seconds"] = (
                 time.monotonic() - pipeline_started
             )
+            index_started = time.monotonic()
             series_path = update_series(data_root, series, entry)
+            entry["timings"]["repository_index_seconds"] = (
+                time.monotonic() - index_started
+            )
             return entry, series_path
 
         srcmove_stage_started = time.monotonic()
@@ -711,6 +719,7 @@ def run_staged_repository_benchmark(
                 activity_callback=lambda activity, case_id: srcmove_progress.update(
                     detail=f"{activity} {case_id}"
                 ),
+                timing_callback=record_timing,
             )
         except BaseException as error:
             srcmove_progress.finish(str(error), success=False, completion="failed")
@@ -769,7 +778,11 @@ def run_staged_repository_benchmark(
         entry["timings"]["pipeline_wall_seconds"] = (
             time.monotonic() - pipeline_started
         )
+        index_started = time.monotonic()
         series_path = update_series(data_root, series, entry)
+        entry["timings"]["repository_index_seconds"] = (
+            time.monotonic() - index_started
+        )
         return entry, series_path
     except Exception as error:
         entry["timings"]["pipeline_wall_seconds"] = (

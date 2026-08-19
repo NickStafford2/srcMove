@@ -88,20 +88,27 @@ class CorpusPipelineTests(unittest.TestCase):
                 ),
             )
             second_activity: list[tuple[str, str]] = []
-            generate_corpus(
-                data_root=generated,
-                input_snapshot=input_snapshot["input_snapshot_id"],
-                srcdiff=srcdiff,
-                timeout_seconds=2.0,
-                activity_callback=lambda activity, case_id: second_activity.append(
-                    (activity, case_id)
-                ),
-            )
+            second_timings: dict[str, float] = {}
+            with mock.patch(
+                "benchmarks.corpus.recover_interrupted_attempts"
+            ) as recovery:
+                generate_corpus(
+                    data_root=generated,
+                    input_snapshot=input_snapshot["input_snapshot_id"],
+                    srcdiff=srcdiff,
+                    timeout_seconds=2.0,
+                    activity_callback=lambda activity, case_id: second_activity.append(
+                        (activity, case_id)
+                    ),
+                    timing_callback=second_timings.__setitem__,
+                )
 
             self.assertEqual(
                 first_activity, [("running", "tiny"), ("accepted", "tiny")]
             )
             self.assertEqual(second_activity, [("reused", "tiny")])
+            recovery.assert_not_called()
+            self.assertEqual(second_timings["srcdiff_attempt_recovery_seconds"], 0.0)
 
     def test_generation_continues_after_a_case_failure(self) -> None:
         class Adapter:
@@ -190,22 +197,30 @@ class CorpusPipelineTests(unittest.TestCase):
             )
             srcmove.chmod(0o755)
             mode.write_text("fail")
-            run_dir, failed = run_corpus(
-                data_root=generated,
-                corpus=corpus_dir,
-                srcmove=srcmove,
-                timeout_seconds=2.0,
-            )
+            with mock.patch(
+                "benchmarks.corpus.recover_interrupted_attempts"
+            ) as recovery:
+                run_dir, failed = run_corpus(
+                    data_root=generated,
+                    corpus=corpus_dir,
+                    srcmove=srcmove,
+                    timeout_seconds=2.0,
+                )
+            recovery.assert_not_called()
             parent = failed["cases"][0]["attempt_id"]
             mode.write_text("success")
-            resumed_dir, resumed = run_corpus(
-                data_root=generated,
-                corpus=corpus_dir,
-                srcmove=srcmove,
-                timeout_seconds=2.0,
-                resume_run=failed["run_id"],
-                retry_failed=True,
-            )
+            with mock.patch(
+                "benchmarks.corpus.recover_interrupted_attempts"
+            ) as recovery:
+                resumed_dir, resumed = run_corpus(
+                    data_root=generated,
+                    corpus=corpus_dir,
+                    srcmove=srcmove,
+                    timeout_seconds=2.0,
+                    resume_run=failed["run_id"],
+                    retry_failed=True,
+                )
+            recovery.assert_called_once_with(run_dir / "attempts")
 
             self.assertEqual(run_dir, resumed_dir)
             self.assertEqual(resumed["run_id"], failed["run_id"])

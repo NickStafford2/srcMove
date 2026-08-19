@@ -167,6 +167,13 @@ attempt provenance. `srcdiff_execution_seconds` counts only a srcDiff process
 started by the current history run. Cache reuse time covers current snapshot and
 corpus verification, while `srcdiff_cached_execution_seconds` retains the
 original attempt duration for reference and is excluded from current-run totals.
+Fine-grained profile fields record verification, interrupted-attempt recovery,
+reconciliation, executable observation, indexing, and history-artifact writes.
+New srcMove runs do not recover unrelated prior runs; an explicit resume recovers
+only the selected run before reconciling its attempts.
+srcDiff writes an initial generation checkpoint before execution. Fresh and
+complete generations avoid global attempt scans; only an existing incomplete
+generation performs recovery and reconciliation.
 
 This is the create-only pilot described in the
 [historical repository analysis plan](../../doc/historical_repository_analysis_plan.md).
