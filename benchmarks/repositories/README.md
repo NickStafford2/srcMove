@@ -330,6 +330,20 @@ From the workspace root, run a three-repeat, 300-pair scaling study in Docker:
   LABEL=sqlite-300-scaling
 ```
 
+Docker Desktop bind mounts can add filesystem overhead. To keep the study and
+final reports durable on the host while executing each timed trial on
+container-local storage, add:
+
+```bash
+  SCRATCH_ROOT=/tmp
+```
+
+The scaling coordinator creates a private directory per trial, excludes report
+promotion time from the benchmark wall time, copies the finalized trial data
+back below `benchmark-data/history-scaling/`, records the promotion duration,
+and removes the private directory. `SCRATCH_ROOT` must name an existing,
+non-symbolic-link directory. Omit it when comparing normal bind-mounted I/O.
+
 The default `results` retention preserves enough evidence to compare complete
 normalized `results.json` content. Use `RETENTION=ephemeral` only when compact
 metric equivalence is sufficient and minimizing retained data matters more

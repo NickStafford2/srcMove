@@ -73,6 +73,8 @@ history-scaling:
 		$(if $(SEED),--seed "$(SEED)") \
 		$(if $(LABEL),--label "$(LABEL)") \
 		$(if $(ENVIRONMENT_LABEL),--environment-label "$(ENVIRONMENT_LABEL)") \
+		$(if $(DATA_ROOT),--data-root "$(DATA_ROOT)") \
+		$(if $(SCRATCH_ROOT),--scratch-root "$(SCRATCH_ROOT)") \
 		$(if $(DIRECTORY),--directory "$(DIRECTORY)") \
 		$(if $(RETENTION),--retention "$(RETENTION)") \
 		$(if $(filter 1 yes true,$(UPDATE)),--fetch) \

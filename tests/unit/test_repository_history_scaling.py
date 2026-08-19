@@ -12,6 +12,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.repositories.benchmark_history_scaling import (
+    _trial_data_storage,
     build_schedule,
     build_summary,
     normalize_history_results,
@@ -56,6 +57,54 @@ class RepositoryHistoryScalingTests(unittest.TestCase):
         self.assertEqual(args.jobs, [1, 2, 4, 8])
         self.assertEqual(args.repetitions, 3)
         self.assertEqual(args.retention, "results")
+        self.assertIsNone(args.scratch_root)
+
+    def test_scratch_trial_data_is_promoted_and_removed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            scratch_root = root / "scratch"
+            scratch_root.mkdir()
+            durable_root = root / "study" / "trial" / "data"
+            observation = {}
+
+            with _trial_data_storage(
+                durable_root, scratch_root, observation
+            ) as execution_root:
+                self.assertTrue(
+                    execution_root.is_relative_to(scratch_root.resolve())
+                )
+                artifact = execution_root / "repository-histories/history/pairs/000001.json"
+                artifact.parent.mkdir(parents=True)
+                artifact.write_text("{}", encoding="utf-8")
+
+            self.assertEqual(
+                (
+                    durable_root
+                    / "repository-histories/history/pairs/000001.json"
+                ).read_text(encoding="utf-8"),
+                "{}",
+            )
+            self.assertEqual(list(scratch_root.iterdir()), [])
+            self.assertTrue(observation["scratch_enabled"])
+            self.assertEqual(
+                observation["scratch_root"], str(scratch_root.resolve())
+            )
+            self.assertGreaterEqual(observation["scratch_promotion_seconds"], 0.0)
+
+            args = parse_args(
+                [
+                    "sqlite",
+                    "--start",
+                    "HEAD",
+                    "--count",
+                    "1",
+                    "--jobs",
+                    "4",
+                    "--scratch-root",
+                    str(scratch_root),
+                ]
+            )
+            self.assertEqual(args.scratch_root, scratch_root)
 
     def test_summary_reports_speedup_efficiency_and_conservative_knee(self) -> None:
         rows = []

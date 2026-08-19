@@ -12,15 +12,18 @@ import platform
 import random
 import re
 import resource
+import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import threading
 import time
 import uuid
 from collections import defaultdict
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Iterator, Mapping, MutableMapping, Sequence
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
@@ -71,6 +74,9 @@ TRIAL_COLUMNS = (
     "cpu_utilization",
     "peak_rss_bytes",
     "disk_bytes",
+    "scratch_enabled",
+    "scratch_root",
+    "scratch_promotion_seconds",
     "selected_pairs",
     "analyzed_pairs",
     "skipped_pairs",
@@ -82,6 +88,67 @@ TRIAL_COLUMNS = (
     "history_manifest",
     "log_path",
 )
+
+
+@contextmanager
+def _trial_data_storage(
+    durable_data_root: Path,
+    scratch_root: Path | None,
+    observation: MutableMapping[str, Any],
+) -> Iterator[Path]:
+    """Yield isolated trial storage and promote it after the timed command."""
+
+    if scratch_root is None:
+        observation.update(
+            {
+                "scratch_enabled": False,
+                "scratch_root": None,
+                "scratch_promotion_seconds": 0.0,
+            }
+        )
+        yield durable_data_root
+        return
+
+    supplied_root = scratch_root.expanduser()
+    if supplied_root.is_symlink():
+        raise ValueError(f"scratch root must not be a symbolic link: {supplied_root}")
+    resolved_root = supplied_root.resolve()
+    if not resolved_root.is_dir():
+        raise ValueError(f"scratch root is not an existing directory: {resolved_root}")
+    scratch_trial_root = Path(
+        tempfile.mkdtemp(prefix="srcmove-history-scaling-", dir=resolved_root)
+    )
+    execution_data_root = scratch_trial_root / "data"
+    observation.update(
+        {
+            "scratch_enabled": True,
+            "scratch_root": str(resolved_root),
+            "scratch_promotion_seconds": None,
+        }
+    )
+    try:
+        yield execution_data_root
+    finally:
+        promotion_started = time.monotonic()
+        promoted = False
+        try:
+            if execution_data_root.exists():
+                if durable_data_root.exists():
+                    raise FileExistsError(
+                        f"durable trial data already exists: {durable_data_root}"
+                    )
+                shutil.copytree(
+                    execution_data_root,
+                    durable_data_root,
+                    symlinks=True,
+                )
+            promoted = True
+        finally:
+            observation["scratch_promotion_seconds"] = (
+                time.monotonic() - promotion_started
+            )
+            if promoted:
+                shutil.rmtree(scratch_trial_root)
 SUMMARY_COLUMNS = (
     "jobs",
     "successful_trials",
@@ -346,6 +413,7 @@ def run_trial(
     source_encoding: str,
     position: bool,
     expected_files: Mapping[str, tuple[Path, str]],
+    scratch_root: Path | None = None,
 ) -> dict[str, Any]:
     """Run and observe one isolated history invocation."""
 
@@ -364,86 +432,90 @@ def run_trial(
     )
     trial_dir = study_dir / "trials" / trial_name
     trial_dir.mkdir(parents=True, exist_ok=False)
-    trial_data_root = trial_dir / "data"
+    durable_data_root = trial_dir / "data"
     log_path = trial_dir / "history.log"
-    command = [
-        sys.executable,
-        str(SCRIPT_DIR / "run_history.py"),
-        "start",
-        case_name,
-        "--start",
-        start_commit,
-        "--count",
-        str(pair_count),
-        "--jobs",
-        str(schedule_entry["jobs"]),
-        "--offline",
-        "--retention",
-        retention,
-        "--data-root",
-        str(trial_data_root),
-        "--srcdiff",
-        str(srcdiff),
-        "--srcmove",
-        str(srcmove),
-        "--srcdiff-timeout",
-        str(srcdiff_timeout),
-        "--srcmove-timeout",
-        str(srcmove_timeout),
-        "--src-encoding",
-        source_encoding,
-        "--label",
-        trial_name,
-    ]
-    if selected_dir is not None:
-        command.extend(["--directory", selected_dir])
-    if position:
-        command.append("--position")
+    storage_observation: dict[str, Any] = {}
+    with _trial_data_storage(
+        durable_data_root, scratch_root, storage_observation
+    ) as trial_data_root:
+        command = [
+            sys.executable,
+            str(SCRIPT_DIR / "run_history.py"),
+            "start",
+            case_name,
+            "--start",
+            start_commit,
+            "--count",
+            str(pair_count),
+            "--jobs",
+            str(schedule_entry["jobs"]),
+            "--offline",
+            "--retention",
+            retention,
+            "--data-root",
+            str(trial_data_root),
+            "--srcdiff",
+            str(srcdiff),
+            "--srcmove",
+            str(srcmove),
+            "--srcdiff-timeout",
+            str(srcdiff_timeout),
+            "--srcmove-timeout",
+            str(srcmove_timeout),
+            "--src-encoding",
+            source_encoding,
+            "--label",
+            trial_name,
+        ]
+        if selected_dir is not None:
+            command.extend(["--directory", selected_dir])
+        if position:
+            command.append("--position")
 
-    before_user, before_system = _child_cpu_usage()
-    started = time.monotonic()
-    with log_path.open("wb") as log:
-        process = subprocess.Popen(
-            command,
-            cwd=REPO_ROOT,
-            stdout=log,
-            stderr=subprocess.STDOUT,
-            start_new_session=True,
-        )
-        monitor = ProcessTreeMonitor(process.pid)
-        monitor.start()
-        try:
-            exit_code = process.wait()
-        except BaseException:
-            if process.poll() is None:
-                try:
-                    if os.name == "posix":
-                        os.killpg(process.pid, signal.SIGTERM)
-                    else:
-                        process.terminate()
-                except ProcessLookupError:
-                    pass
-                try:
-                    process.wait(timeout=5.0)
-                except subprocess.TimeoutExpired:
+        before_user, before_system = _child_cpu_usage()
+        started = time.monotonic()
+        with log_path.open("wb") as log:
+            process = subprocess.Popen(
+                command,
+                cwd=REPO_ROOT,
+                stdout=log,
+                stderr=subprocess.STDOUT,
+                start_new_session=True,
+            )
+            monitor = ProcessTreeMonitor(process.pid)
+            monitor.start()
+            try:
+                exit_code = process.wait()
+            except BaseException:
+                if process.poll() is None:
                     try:
                         if os.name == "posix":
-                            os.killpg(process.pid, signal.SIGKILL)
+                            os.killpg(process.pid, signal.SIGTERM)
                         else:
-                            process.kill()
+                            process.terminate()
                     except ProcessLookupError:
                         pass
-                    process.wait()
-            raise
-        finally:
-            resource_usage = monitor.finish()
-    wall_seconds = time.monotonic() - started
-    after_user, after_system = _child_cpu_usage()
+                    try:
+                        process.wait(timeout=5.0)
+                    except subprocess.TimeoutExpired:
+                        try:
+                            if os.name == "posix":
+                                os.killpg(process.pid, signal.SIGKILL)
+                            else:
+                                process.kill()
+                        except ProcessLookupError:
+                            pass
+                        process.wait()
+                raise
+            finally:
+                resource_usage = monitor.finish()
+        wall_seconds = time.monotonic() - started
+        after_user, after_system = _child_cpu_usage()
     cpu_user = max(0.0, after_user - before_user)
     cpu_system = max(0.0, after_system - before_system)
     cpu_total = cpu_user + cpu_system
 
-    history_dir = _history_directory(trial_data_root)
+    history_dir = _history_directory(durable_data_root)
     history: dict[str, Any] | None = None
     normalized_sha256 = None
     normalization_error = None
@@ -451,7 +523,7 @@ def run_trial(
         try:
             history, _ = load_history_results(history_dir)
             normalized_sha256, _ = normalize_history_results(
-                history_dir, trial_data_root
+                history_dir, durable_data_root
             )
         except Exception as error:
             normalization_error = f"{type(error).__name__}: {error}"
@@ -481,6 +553,7 @@ def run_trial(
         "cpu_utilization": cpu_total / wall_seconds if wall_seconds else None,
         **resource_usage,
         "disk_bytes": _directory_size(trial_dir),
+        **storage_observation,
         "selected_pairs": selected_pairs,
         "analyzed_pairs": analyzed_pairs,
         "skipped_pairs": aggregates.get("no_analyzable_change"),
@@ -749,6 +822,11 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
             "seed": args.seed,
             "ordering": "deterministic_interleaved_rotating",
             "retention": args.retention,
+            "scratch_root": (
+                str(args.scratch_root.expanduser().resolve())
+                if args.scratch_root is not None
+                else None
+            ),
             "marginal_threshold": args.marginal_threshold,
             "result_equivalence": "normalized_pair_receipts_and_available_results",
         },
@@ -808,6 +886,7 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
                 source_encoding=args.src_encoding,
                 position=args.position,
                 expected_files=expected_files,
+                scratch_root=args.scratch_root,
             )
             rows.append(row)
             study["trials"].append(
@@ -881,6 +960,14 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     network.add_argument("--fetch", action="store_true")
     network.add_argument("--offline", action="store_true")
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument(
+        "--scratch-root",
+        type=Path,
+        help=(
+            "existing local directory for timed trial data; finalized trial "
+            "reports are promoted to --data-root afterward"
+        ),
+    )
     parser.add_argument("--srcdiff", type=Path)
     parser.add_argument("--srcmove", type=Path)
     parser.add_argument("--srcdiff-timeout", type=float, default=1800.0)
