@@ -352,14 +352,20 @@ def collect_run_observation(
     repositories: Mapping[str, Path],
     executables: Mapping[str, Path],
     inputs: Mapping[str, Path],
+    executable_observations: Mapping[str, Mapping[str, Any]] | None = None,
+    input_observations: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> dict[str, Any]:
     """Collect the immutable observation snapshot for one future run."""
 
     repository_observations = {
         name: observe_repository(path) for name, path in repositories.items()
     }
+    supplied_executables = executable_observations or {}
     executable_observations = {
-        name: observe_executable(path) for name, path in executables.items()
+        name: dict(supplied_executables[name])
+        if name in supplied_executables
+        else observe_executable(path)
+        for name, path in executables.items()
     }
     for observation in executable_observations.values():
         observation["current_source_relationships"] = compare_receipt_sources(
@@ -373,5 +379,10 @@ def collect_run_observation(
         "environment": observe_environment(),
         "repositories": repository_observations,
         "executables": executable_observations,
-        "inputs": {name: observe_file(path) for name, path in inputs.items()},
+        "inputs": {
+            name: dict(input_observations[name])
+            if input_observations is not None and name in input_observations
+            else observe_file(path)
+            for name, path in inputs.items()
+        },
     }

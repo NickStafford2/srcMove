@@ -218,7 +218,7 @@ class BoundedCapture:
     def retained(self) -> bytes:
         return bytes(self._head + self._tail)
 
-    def metadata(self, filename: str) -> dict[str, Any]:
+    def metadata(self, filename: str | None) -> dict[str, Any]:
         retained = len(self._head) + len(self._tail)
         return {
             "path": filename,
@@ -228,6 +228,16 @@ class BoundedCapture:
             "truncated": retained < self._total,
             "sha256": self._hasher.hexdigest(),
         }
+
+
+def _persist_capture(
+    attempt_dir: Path, filename: str, capture: BoundedCapture
+) -> dict[str, Any]:
+    retained = capture.retained()
+    if not retained:
+        return capture.metadata(None)
+    (attempt_dir / filename).write_bytes(retained)
+    return capture.metadata(filename)
 
 
 def _drain(stream: Any, capture: BoundedCapture) -> None:
@@ -398,8 +408,6 @@ def execute_attempt(
             if effective_environment.get(key) is not None
         },
     }
-    write_json_atomic(attempt_dir / "started.json", started)
-
     stdout_capture = BoundedCapture(log_limit)
     stderr_capture = BoundedCapture(log_limit)
     cleanup_signals: list[dict[str, Any]] = []
@@ -507,10 +515,8 @@ def execute_attempt(
                 "cgroup_oom_kill_observed": False,
             }
         )
-        stdout_path = attempt_dir / "stdout.bin"
-        stderr_path = attempt_dir / "stderr.bin"
-        stdout_path.write_bytes(stdout_capture.retained())
-        stderr_path.write_bytes(stderr_capture.retained())
+        stdout = _persist_capture(attempt_dir, "stdout.bin", stdout_capture)
+        stderr = _persist_capture(attempt_dir, "stderr.bin", stderr_capture)
         record = {
             **started,
             "completed_at": utc_now(),
@@ -521,8 +527,8 @@ def execute_attempt(
             },
             "cleanup_signals": cleanup_signals,
             "resource_usage": resource_usage,
-            "stdout": stdout_capture.metadata(stdout_path.name),
-            "stderr": stderr_capture.metadata(stderr_path.name),
+            "stdout": stdout,
+            "stderr": stderr,
             "xml": {"status": XmlStatus.NOT_CHECKED.value},
             "admitted": False,
         }
@@ -543,10 +549,8 @@ def execute_attempt(
         }
     )
     log_capture_complete = not any(thread.is_alive() for thread in threads)
-    stdout_path = attempt_dir / "stdout.bin"
-    stderr_path = attempt_dir / "stderr.bin"
-    stdout_path.write_bytes(stdout_capture.retained())
-    stderr_path.write_bytes(stderr_capture.retained())
+    stdout = _persist_capture(attempt_dir, "stdout.bin", stdout_capture)
+    stderr = _persist_capture(attempt_dir, "stderr.bin", stderr_capture)
     xml = xml_validator(output_path)
     admitted = (
         termination["status"] == TerminationStatus.EXITED.value
@@ -574,8 +578,8 @@ def execute_attempt(
             "posix_process_group" if os.name == "posix" else "none"
         ),
         "log_capture_complete": log_capture_complete,
-        "stdout": stdout_capture.metadata(stdout_path.name),
-        "stderr": stderr_capture.metadata(stderr_path.name),
+        "stdout": stdout,
+        "stderr": stderr,
         "xml": xml,
         "output_path": output_filename,
         "output_retention": "retained",

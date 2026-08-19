@@ -15,7 +15,13 @@ FAKE_TOOL = REPO_ROOT / "tests" / "fixtures" / "benchmark" / "fake_tool.py"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
+from benchmarks.corpus import (
+    VerifiedCorpus,
+    VerifiedSnapshot,
+    create_input_snapshot,
+    generate_corpus,
+    run_corpus,
+)
 from benchmarks.contracts import InputPair
 from benchmarks.repositories.adapter import RepositoryAdapter
 
@@ -38,6 +44,55 @@ def source_pair(root: Path) -> tuple[Path, Path]:
 
 
 class CorpusPipelineTests(unittest.TestCase):
+    def test_verified_artifacts_are_passed_between_stages_without_reverification(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            generated = root / "generated"
+            original, modified = source_pair(root)
+            srcdiff = executable_copy(root, "srcdiff-valid-archive")
+            srcmove = executable_copy(root, "srcmove-valid-archive")
+            snapshot = create_input_snapshot(
+                data_root=generated,
+                adapter=RepositoryAdapter(
+                    case_id="tiny", original=original, modified=modified
+                ),
+                source={"repository": "fixture"},
+            )
+            timings: dict[str, float] = {}
+
+            self.assertIsInstance(snapshot, VerifiedSnapshot)
+            with mock.patch(
+                "benchmarks.corpus._verify_input_snapshot",
+                side_effect=AssertionError("typed snapshot was reverified"),
+            ):
+                corpus = generate_corpus(
+                    data_root=generated,
+                    input_snapshot=snapshot,
+                    srcdiff=srcdiff,
+                    timeout_seconds=2.0,
+                    timing_callback=timings.__setitem__,
+                )
+
+            self.assertIsInstance(corpus, VerifiedCorpus)
+            self.assertEqual(
+                timings["srcdiff_input_snapshot_verification_seconds"], 0.0
+            )
+            with mock.patch(
+                "benchmarks.corpus._verify_corpus",
+                side_effect=AssertionError("typed corpus was reverified"),
+            ):
+                run_corpus(
+                    data_root=generated,
+                    corpus=corpus,
+                    srcmove=srcmove,
+                    timeout_seconds=2.0,
+                    timing_callback=timings.__setitem__,
+                )
+
+            self.assertEqual(timings["srcmove_corpus_verification_seconds"], 0.0)
+
     def test_input_snapshot_reports_created_then_verified_reuse(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -350,7 +405,7 @@ class CorpusPipelineTests(unittest.TestCase):
                     data_root=root / "retry-generated",
                     adapter=Adapter([pairs[0]]),
                     source={"repository": "fixture"},
-                )[1]["input_snapshot_id"],
+                ),
                 srcdiff=retry_tool,
                 timeout_seconds=2.0,
             )

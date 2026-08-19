@@ -281,6 +281,35 @@ class ProcessAttemptTests(unittest.TestCase):
             self.assertEqual((attempt_dir / "stdout.bin").read_bytes(), b"a" * 40)
             self.assertEqual(attempt["stderr"]["total_bytes"], 180)
 
+    def test_empty_logs_are_described_without_creating_empty_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            script = root / "silent.py"
+            script.write_text(
+                "import sys\nfrom pathlib import Path\n"
+                "Path(sys.argv[1]).write_text(\"<unit "
+                "xmlns='http://www.srcML.org/srcML/src' "
+                "xmlns:diff='http://www.srcML.org/srcDiff'/>\")\n",
+                encoding="utf-8",
+            )
+
+            attempt_dir, attempt = execute_attempt(
+                attempts_root=root / "attempts",
+                stage="srcdiff",
+                case_id="silent",
+                command_factory=lambda output: [sys.executable, str(script), str(output)],
+                cwd=root,
+                timeout_seconds=2.0,
+                xml_validator=single_file_validator,
+                output_filename="partial.srcdiff.xml",
+            )
+
+            self.assertEqual(attempt["stdout"]["total_bytes"], 0)
+            self.assertIsNone(attempt["stdout"]["path"])
+            self.assertIsNone(attempt["stderr"]["path"])
+            self.assertFalse((attempt_dir / "stdout.bin").exists())
+            self.assertFalse((attempt_dir / "stderr.bin").exists())
+
     def test_abandoned_staging_is_recovered_but_never_admitted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             attempts = Path(temporary_directory) / "attempts"

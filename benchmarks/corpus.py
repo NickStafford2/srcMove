@@ -9,6 +9,7 @@ import shutil
 import time
 import uuid
 from contextlib import contextmanager
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping, Sequence
 
@@ -43,6 +44,44 @@ CORPUS_SCHEMA_VERSION = 4
 RUN_SCHEMA_VERSION = 3
 DEFAULT_EXCLUDED_SUFFIXES = (".py",)
 TimingCallback = Callable[[str, float], None]
+
+
+@dataclass(frozen=True)
+class VerifiedSnapshot:
+    """An input snapshot verified while loading or trusted after creation."""
+
+    directory: Path
+    manifest: dict[str, Any]
+    manifest_sha256: str
+
+    @property
+    def snapshot_id(self) -> str:
+        return self.manifest["input_snapshot_id"]
+
+    def __iter__(self) -> Iterator[Path | dict[str, Any]]:
+        """Preserve tuple unpacking for callers migrating to the typed API."""
+
+        yield self.directory
+        yield self.manifest
+
+
+@dataclass(frozen=True)
+class VerifiedCorpus:
+    """A srcDiff corpus verified while loading or trusted after promotion."""
+
+    directory: Path
+    manifest: dict[str, Any]
+    manifest_sha256: str
+
+    @property
+    def corpus_id(self) -> str:
+        return self.manifest["corpus_id"]
+
+    def __iter__(self) -> Iterator[Path | dict[str, Any]]:
+        """Preserve tuple unpacking for callers migrating to the typed API."""
+
+        yield self.directory
+        yield self.manifest
 
 
 @contextmanager
@@ -201,8 +240,33 @@ def _snapshot_manifest(
     }
 
 
-def _manifest_checksum(path: Path) -> str:
-    return sha256_file(path)
+def _manifest_value_checksum(value: Mapping[str, Any]) -> str:
+    serialized = (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")
+    return hashlib.sha256(serialized).hexdigest()
+
+
+def _verified_snapshot(
+    directory: Path,
+    manifest: dict[str, Any],
+    manifest_sha256: str | None = None,
+) -> VerifiedSnapshot:
+    return VerifiedSnapshot(
+        directory=directory,
+        manifest=manifest,
+        manifest_sha256=manifest_sha256 or _manifest_value_checksum(manifest),
+    )
+
+
+def _verified_corpus(
+    directory: Path,
+    manifest: dict[str, Any],
+    manifest_sha256: str | None = None,
+) -> VerifiedCorpus:
+    return VerifiedCorpus(
+        directory=directory,
+        manifest=manifest,
+        manifest_sha256=manifest_sha256 or _manifest_value_checksum(manifest),
+    )
 
 
 def _observe_json(path: Path) -> dict[str, Any]:
@@ -316,9 +380,25 @@ def _verify_corpus(directory: Path, manifest: Mapping[str, Any]) -> None:
             raise ValueError(f"corpus input checksum mismatch: {case['case_id']}")
 
 
+def load_input_snapshot(
+    data_root: Path, identifier_or_path: str | Path
+) -> VerifiedSnapshot:
+    """Load and checksum-verify one current-schema input snapshot."""
+
+    manifest_path = _resolve_manifest(
+        data_root, "input-snapshots", identifier_or_path
+    )
+    manifest = _load_manifest(
+        manifest_path, INPUT_SNAPSHOT_SCHEMA_VERSION, "input_snapshot_id"
+    )
+    directory = manifest_path.parent
+    _verify_input_snapshot(directory, manifest)
+    return _verified_snapshot(directory, manifest, sha256_file(manifest_path))
+
+
 def load_corpus(
     data_root: Path, identifier_or_path: str | Path
-) -> tuple[Path, dict[str, Any]]:
+) -> VerifiedCorpus:
     """Load and checksum-verify one current-schema corpus."""
 
     manifest_path = _resolve_manifest(data_root, "corpora", identifier_or_path)
@@ -327,7 +407,7 @@ def load_corpus(
     )
     directory = manifest_path.parent
     _verify_corpus(directory, manifest)
-    return directory, manifest
+    return _verified_corpus(directory, manifest, sha256_file(manifest_path))
 
 
 def _create_materialized_input_snapshot(
@@ -338,7 +418,7 @@ def _create_materialized_input_snapshot(
     filter_configuration: Mapping[str, Any] | None,
     excluded_suffixes: Sequence[str],
     status_callback: Callable[[str], None] | None,
-) -> tuple[Path, dict[str, Any]]:
+) -> VerifiedSnapshot:
     snapshots_root = data_root / "input-snapshots"
     staging = snapshots_root / f".staging-{uuid.uuid4()}"
     staging.mkdir(parents=True, exist_ok=False)
@@ -386,14 +466,16 @@ def _create_materialized_input_snapshot(
             _verify_input_snapshot(final_dir, existing)
             if status_callback is not None:
                 status_callback("reused")
-            return final_dir, existing
+            return _verified_snapshot(
+                final_dir, existing, sha256_file(final_dir / "manifest.json")
+            )
 
         write_json_atomic(staging / "manifest.json", manifest)
         snapshots_root.mkdir(parents=True, exist_ok=True)
         os.replace(staging, final_dir)
         if status_callback is not None:
             status_callback("created")
-        return final_dir, manifest
+        return _verified_snapshot(final_dir, manifest)
     except BaseException:
         if staging.exists():
             shutil.rmtree(staging)
@@ -407,7 +489,7 @@ def create_input_snapshot(
     source: Mapping[str, Any],
     filter_configuration: Mapping[str, Any] | None = None,
     status_callback: Callable[[str], None] | None = None,
-) -> tuple[Path, dict[str, Any]]:
+) -> VerifiedSnapshot:
     """Freeze and checksum old/new source pairs for later srcDiff execution."""
 
     excluded_suffixes = _normalized_excluded_suffixes(filter_configuration)
@@ -454,7 +536,9 @@ def create_input_snapshot(
         _verify_input_snapshot(final_dir, manifest)
         if status_callback is not None:
             status_callback("reused")
-        return final_dir, manifest
+        return _verified_snapshot(
+            final_dir, manifest, sha256_file(final_dir / "manifest.json")
+        )
 
     staging = data_root / "input-snapshots" / f".staging-{uuid.uuid4()}"
     staging.mkdir(parents=True, exist_ok=False)
@@ -485,7 +569,7 @@ def create_input_snapshot(
         os.replace(staging, final_dir)
         if status_callback is not None:
             status_callback("created")
-        return final_dir, manifest
+        return _verified_snapshot(final_dir, manifest)
     except BaseException:
         if staging.exists():
             shutil.rmtree(staging)
@@ -495,7 +579,7 @@ def create_input_snapshot(
 def generate_corpus(
     *,
     data_root: Path,
-    input_snapshot: str | Path,
+    input_snapshot: VerifiedSnapshot | str | Path,
     srcdiff: Path,
     timeout_seconds: float,
     use_position: bool = False,
@@ -507,22 +591,25 @@ def generate_corpus(
     semantic_oracle: Mapping[str, Any] | None = None,
     activity_callback: Callable[[str, str], None] | None = None,
     timing_callback: TimingCallback | None = None,
-) -> tuple[Path, dict[str, Any]]:
-    input_snapshot_manifest_path = _resolve_manifest(
-        data_root, "input-snapshots", input_snapshot
-    )
-    input_snapshot_manifest = _load_manifest(
-        input_snapshot_manifest_path,
-        INPUT_SNAPSHOT_SCHEMA_VERSION,
-        "input_snapshot_id",
-    )
-    input_snapshot_dir = input_snapshot_manifest_path.parent
-    with _timed(timing_callback, "srcdiff_input_snapshot_verification_seconds"):
-        _verify_input_snapshot(input_snapshot_dir, input_snapshot_manifest)
+    srcdiff_observation: Mapping[str, Any] | None = None,
+) -> VerifiedCorpus:
+    if isinstance(input_snapshot, VerifiedSnapshot):
+        snapshot = input_snapshot
+        if timing_callback is not None:
+            timing_callback("srcdiff_input_snapshot_verification_seconds", 0.0)
+    else:
+        with _timed(timing_callback, "srcdiff_input_snapshot_verification_seconds"):
+            snapshot = load_input_snapshot(data_root, input_snapshot)
+    input_snapshot_manifest = snapshot.manifest
+    input_snapshot_dir = snapshot.directory
     attempts_root = data_root / "attempts"
     attempts_root.mkdir(parents=True, exist_ok=True)
     with _timed(timing_callback, "srcdiff_executable_observation_seconds"):
-        srcdiff_observation = observe_executable(srcdiff)
+        resolved_srcdiff_observation = (
+            dict(srcdiff_observation)
+            if srcdiff_observation is not None
+            else observe_executable(srcdiff)
+        )
     generation_configuration = {
         "position": use_position,
         "archive": use_archive,
@@ -530,7 +617,7 @@ def generate_corpus(
         "timeout_seconds": timeout_seconds,
         "semantic_oracle": dict(semantic_oracle or {}),
     }
-    artifact = srcdiff_observation.get("artifact", {})
+    artifact = resolved_srcdiff_observation.get("artifact", {})
     batch_identity = {
         "input_snapshot_identity_sha256": input_snapshot_manifest["identity_sha256"],
         "srcdiff_sha256": artifact.get("sha256"),
@@ -553,7 +640,8 @@ def generate_corpus(
         }
         # Establish the generation before execution so a later invocation can
         # distinguish an interrupted batch from a genuinely new one.
-        write_json_atomic(batch_path, batch)
+        with _timed(timing_callback, "srcdiff_generation_checkpoint_seconds"):
+            write_json_atomic(batch_path, batch)
     records_by_id = {record["case_id"]: record for record in batch["cases"]}
     input_snapshot_cases = {
         case["case_id"]: case for case in input_snapshot_manifest["cases"]
@@ -673,33 +761,32 @@ def generate_corpus(
 
         if activity_callback is not None:
             activity_callback("running", case_id)
-        attempt_dir, attempt = execute_attempt(
-            attempts_root=attempts_root,
-            stage="srcdiff",
-            case_id=case_id,
-            command_factory=command,
-            cwd=input_snapshot_dir,
-            timeout_seconds=timeout_seconds,
-            xml_validator=lambda path: validate_srcdiff_xml(
-                path, "archive" if use_archive else "single_file"
-            ),
-            output_filename="partial.srcdiff.xml",
-            parent_attempt_id=previous["attempt_id"] if should_retry else None,
-            retry_ordinal=(
-                previous.get("retry_ordinal", 0) + 1 if should_retry else 0
-            ),
-            context={
-                "generation_id": batch_id,
-                "input_snapshot_id": input_snapshot_manifest["input_snapshot_id"],
-                "input_snapshot_manifest_sha256": _manifest_checksum(
-                    input_snapshot_manifest_path
+        with _timed(timing_callback, "srcdiff_attempt_wall_seconds"):
+            attempt_dir, attempt = execute_attempt(
+                attempts_root=attempts_root,
+                stage="srcdiff",
+                case_id=case_id,
+                command_factory=command,
+                cwd=input_snapshot_dir,
+                timeout_seconds=timeout_seconds,
+                xml_validator=lambda path: validate_srcdiff_xml(
+                    path, "archive" if use_archive else "single_file"
                 ),
-                "original_path": case["original_path"],
-                "modified_path": case["modified_path"],
-                "expected_shape": "archive" if use_archive else "single_file",
-                "srcdiff_sha256": artifact.get("sha256"),
-            },
-        )
+                output_filename="partial.srcdiff.xml",
+                parent_attempt_id=previous["attempt_id"] if should_retry else None,
+                retry_ordinal=(
+                    previous.get("retry_ordinal", 0) + 1 if should_retry else 0
+                ),
+                context={
+                    "generation_id": batch_id,
+                    "input_snapshot_id": snapshot.snapshot_id,
+                    "input_snapshot_manifest_sha256": snapshot.manifest_sha256,
+                    "original_path": case["original_path"],
+                    "modified_path": case["modified_path"],
+                    "expected_shape": "archive" if use_archive else "single_file",
+                    "srcdiff_sha256": artifact.get("sha256"),
+                },
+            )
         semantic = (
             validate_semantics(case_id, attempt_dir / "partial.srcdiff.xml")
             if attempt["admitted"]
@@ -733,7 +820,8 @@ def generate_corpus(
             if item["case_id"] in records_by_id
         ]
         batch["updated_at"] = utc_now()
-        write_json_atomic(batch_path, batch)
+        with _timed(timing_callback, "srcdiff_generation_checkpoint_seconds"):
+            write_json_atomic(batch_path, batch)
 
     case_records = [
         records_by_id[case["case_id"]] for case in input_snapshot_manifest["cases"]
@@ -758,80 +846,91 @@ def generate_corpus(
         )
         with _timed(timing_callback, "srcdiff_corpus_verification_seconds"):
             _verify_corpus(final_dir, manifest)
-        _compact_promoted_srcdiff_outputs(data_root, final_dir, manifest)
-        return final_dir, manifest
+        with _timed(timing_callback, "srcdiff_attempt_compaction_seconds"):
+            _compact_promoted_srcdiff_outputs(data_root, final_dir, manifest)
+        return _verified_corpus(
+            final_dir, manifest, sha256_file(final_dir / "manifest.json")
+        )
 
     staging = data_root / "corpora" / f".staging-{uuid.uuid4()}"
     staging.mkdir(parents=True, exist_ok=False)
     try:
-        promoted_cases = []
-        records_by_id = {record["case_id"]: record for record in case_records}
-        for case in input_snapshot_manifest["cases"]:
-            record = records_by_id[case["case_id"]]
-            promoted = dict(record)
-            if record["generation_status"] == "accepted":
-                source_xml = (
-                    data_root
-                    / record["attempt_path"]
-                    / "partial.srcdiff.xml"
-                )
-                case_dir = staging / "cases" / case["case_id"]
-                case_dir.mkdir(parents=True)
-                shutil.copy2(source_xml, case_dir / "input.srcdiff.xml")
-                promoted["input_path"] = (
-                    Path("cases") / case["case_id"] / "input.srcdiff.xml"
-                ).as_posix()
-                write_json_atomic(case_dir / "case.json", promoted)
-            promoted_cases.append(promoted)
-        manifest = {
-            "schema_version": CORPUS_SCHEMA_VERSION,
-            "corpus_id": corpus_id,
-            "created_at": utc_now(),
-            "input_snapshot_id": input_snapshot_manifest["input_snapshot_id"],
-            "adapter": input_snapshot_manifest["adapter"],
-            "source": input_snapshot_manifest["source"],
-            "filter_configuration": input_snapshot_manifest["filter_configuration"],
-            "input_snapshot_identity_sha256": identity_payload[
-                "input_snapshot_identity_sha256"
-            ],
-            "observed_input_snapshot_manifest_sha256": _manifest_checksum(
-                input_snapshot_manifest_path
-            ),
-            "srcdiff": srcdiff_observation,
-            "generation_configuration": generation_configuration,
-            "generation_id": batch_id,
-            "counts": {
-                "selected": len(promoted_cases),
-                "accepted": sum(
-                    case["generation_status"] == "accepted"
-                    for case in promoted_cases
-                ),
-                "failed": sum(
-                    case["generation_status"] == "failed" for case in promoted_cases
-                ),
-                **(
-                    {
-                        "semantic_eligible": sum(
-                            case["semantic_status"] == SemanticStatus.ELIGIBLE.value
-                            for case in promoted_cases
-                        ),
-                        "semantic_ineligible": sum(
-                            case["semantic_status"]
-                            == SemanticStatus.INELIGIBLE.value
-                            for case in promoted_cases
-                        ),
-                    }
-                    if semantic_validator is not None
-                    else {}
-                ),
-            },
-            "cases": promoted_cases,
-        }
-        write_json_atomic(staging / "manifest.json", manifest)
-        final_dir.parent.mkdir(parents=True, exist_ok=True)
-        os.replace(staging, final_dir)
-        _compact_promoted_srcdiff_outputs(data_root, final_dir, manifest)
-        return final_dir, manifest
+        with _timed(timing_callback, "srcdiff_corpus_promotion_seconds"):
+            promoted_cases = []
+            records_by_id = {record["case_id"]: record for record in case_records}
+            for case in input_snapshot_manifest["cases"]:
+                record = records_by_id[case["case_id"]]
+                promoted = dict(record)
+                if record["generation_status"] == "accepted":
+                    source_xml = (
+                        data_root
+                        / record["attempt_path"]
+                        / "partial.srcdiff.xml"
+                    )
+                    case_dir = staging / "cases" / case["case_id"]
+                    case_dir.mkdir(parents=True)
+                    destination_xml = case_dir / "input.srcdiff.xml"
+                    try:
+                        os.link(source_xml, destination_xml)
+                    except OSError:
+                        shutil.copy2(source_xml, destination_xml)
+                    promoted["input_path"] = (
+                        Path("cases") / case["case_id"] / "input.srcdiff.xml"
+                    ).as_posix()
+                    write_json_atomic(case_dir / "case.json", promoted)
+                promoted_cases.append(promoted)
+            manifest = {
+                "schema_version": CORPUS_SCHEMA_VERSION,
+                "corpus_id": corpus_id,
+                "created_at": utc_now(),
+                "input_snapshot_id": input_snapshot_manifest["input_snapshot_id"],
+                "adapter": input_snapshot_manifest["adapter"],
+                "source": input_snapshot_manifest["source"],
+                "filter_configuration": input_snapshot_manifest[
+                    "filter_configuration"
+                ],
+                "input_snapshot_identity_sha256": identity_payload[
+                    "input_snapshot_identity_sha256"
+                ],
+                "observed_input_snapshot_manifest_sha256": snapshot.manifest_sha256,
+                "srcdiff": resolved_srcdiff_observation,
+                "generation_configuration": generation_configuration,
+                "generation_id": batch_id,
+                "counts": {
+                    "selected": len(promoted_cases),
+                    "accepted": sum(
+                        case["generation_status"] == "accepted"
+                        for case in promoted_cases
+                    ),
+                    "failed": sum(
+                        case["generation_status"] == "failed"
+                        for case in promoted_cases
+                    ),
+                    **(
+                        {
+                            "semantic_eligible": sum(
+                                case["semantic_status"]
+                                == SemanticStatus.ELIGIBLE.value
+                                for case in promoted_cases
+                            ),
+                            "semantic_ineligible": sum(
+                                case["semantic_status"]
+                                == SemanticStatus.INELIGIBLE.value
+                                for case in promoted_cases
+                            ),
+                        }
+                        if semantic_validator is not None
+                        else {}
+                    ),
+                },
+                "cases": promoted_cases,
+            }
+            write_json_atomic(staging / "manifest.json", manifest)
+            final_dir.parent.mkdir(parents=True, exist_ok=True)
+            os.replace(staging, final_dir)
+        with _timed(timing_callback, "srcdiff_attempt_compaction_seconds"):
+            _compact_promoted_srcdiff_outputs(data_root, final_dir, manifest)
+        return _verified_corpus(final_dir, manifest)
     except BaseException:
         if staging.exists():
             shutil.rmtree(staging)
@@ -859,7 +958,7 @@ def _compact_promoted_srcdiff_outputs(
 def run_corpus(
     *,
     data_root: Path,
-    corpus: str | Path,
+    corpus: VerifiedCorpus | str | Path,
     srcmove: Path,
     timeout_seconds: float,
     mode: RunMode = RunMode.DEVELOPMENT,
@@ -869,10 +968,17 @@ def run_corpus(
     require_semantic_eligible: bool = False,
     activity_callback: Callable[[str, str], None] | None = None,
     timing_callback: TimingCallback | None = None,
+    srcmove_observation: Mapping[str, Any] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
-    with _timed(timing_callback, "srcmove_corpus_verification_seconds"):
-        corpus_dir, corpus_manifest = load_corpus(data_root, corpus)
-    corpus_manifest_path = corpus_dir / "manifest.json"
+    if isinstance(corpus, VerifiedCorpus):
+        verified_corpus = corpus
+        if timing_callback is not None:
+            timing_callback("srcmove_corpus_verification_seconds", 0.0)
+    else:
+        with _timed(timing_callback, "srcmove_corpus_verification_seconds"):
+            verified_corpus = load_corpus(data_root, corpus)
+    corpus_dir = verified_corpus.directory
+    corpus_manifest = verified_corpus.manifest
     if require_semantic_eligible:
         unclassified = [
             case["case_id"]
@@ -922,12 +1028,36 @@ def run_corpus(
             or case["semantic_status"] == SemanticStatus.ELIGIBLE.value
         )
     }
+    input_checksums = {
+        case["case_id"]: case["xml"]["sha256"]
+        for case in corpus_manifest["cases"]
+        if case["case_id"] in input_paths
+    }
+    input_observations = {
+        case_id: {
+            "path": str(path.resolve()),
+            "status": "observed",
+            "size_bytes": next(
+                case["xml"]["size_bytes"]
+                for case in corpus_manifest["cases"]
+                if case["case_id"] == case_id
+            ),
+            "sha256": input_checksums[case_id],
+        }
+        for case_id, path in input_paths.items()
+    }
     with _timed(timing_callback, "srcmove_observation_seconds"):
         observation = collect_run_observation(
             mode=mode,
             repositories={},
             executables={"srcMove": srcmove},
             inputs=input_paths,
+            executable_observations=(
+                {"srcMove": srcmove_observation}
+                if srcmove_observation is not None
+                else None
+            ),
+            input_observations=input_observations,
         )
     records_by_id = {record["case_id"]: record for record in case_records}
     selected = set(selected_case_ids) if selected_case_ids else set(input_paths)
@@ -965,7 +1095,7 @@ def run_corpus(
                 "parent_attempt_id": terminal.get("parent_attempt_id"),
                 "retry_ordinal": ordinal,
                 "status": "completed" if completed else "failed",
-                "input_sha256": sha256_file(input_paths[case_id]),
+                "input_sha256": input_checksums[case_id],
                 "xml": terminal.get("xml", {"status": "not_checked"}),
                 "results": results,
             }
@@ -994,43 +1124,52 @@ def run_corpus(
 
             if activity_callback is not None:
                 activity_callback("running", case_id)
-            attempt_dir, attempt = execute_attempt(
-                attempts_root=final_dir / "attempts",
-                stage="srcmove",
-                case_id=case_id,
-                command_factory=command,
-                cwd=corpus_dir,
-                timeout_seconds=timeout_seconds,
-                xml_validator=lambda path: validate_srcdiff_xml(
-                    path,
-                    "archive"
-                    if corpus_manifest["generation_configuration"]["archive"]
-                    else "single_file",
-                ),
-                output_filename="srcmove.xml",
-                parent_attempt_id=previous["attempt_id"] if should_retry else None,
-                retry_ordinal=(
-                    previous.get("retry_ordinal", 0) + 1 if should_retry else 0
-                ),
-                context={
-                    "run_id": run_id,
-                    "corpus_id": corpus_manifest["corpus_id"],
-                    "input_sha256": sha256_file(input_xml),
-                },
-            )
+            with _timed(timing_callback, "srcmove_attempt_wall_seconds"):
+                attempt_dir, attempt = execute_attempt(
+                    attempts_root=final_dir / "attempts",
+                    stage="srcmove",
+                    case_id=case_id,
+                    command_factory=command,
+                    cwd=corpus_dir,
+                    timeout_seconds=timeout_seconds,
+                    xml_validator=lambda path: validate_srcdiff_xml(
+                        path,
+                        "archive"
+                        if corpus_manifest["generation_configuration"]["archive"]
+                        else "single_file",
+                    ),
+                    output_filename="srcmove.xml",
+                    parent_attempt_id=previous["attempt_id"] if should_retry else None,
+                    retry_ordinal=(
+                        previous.get("retry_ordinal", 0) + 1 if should_retry else 0
+                    ),
+                    context={
+                        "run_id": run_id,
+                        "corpus_id": verified_corpus.corpus_id,
+                        "input_sha256": input_checksums[case_id],
+                    },
+                )
             results_path = attempt_dir / "results.json"
-            results = _observe_json(results_path)
-            if results["status"] != "missing":
-                results["path"] = str(results_path.relative_to(final_dir))
-            completed = attempt["admitted"] and results["status"] == "valid"
-            if completed:
-                result_value = json.loads(results_path.read_text(encoding="utf-8"))
+            with _timed(timing_callback, "srcmove_results_observation_seconds"):
+                results = _observe_json(results_path)
+                if results["status"] != "missing":
+                    results["path"] = str(results_path.relative_to(final_dir))
+                completed = attempt["admitted"] and results["status"] == "valid"
+                result_value = (
+                    json.loads(results_path.read_text(encoding="utf-8"))
+                    if completed
+                    else None
+                )
+            if completed and result_value is not None:
                 if result_value.get("move_count") == 0:
-                    attempt = set_attempt_output_retention(
-                        attempt_dir,
-                        "discarded_zero_move_after_validation",
-                        discard=True,
-                    )
+                    with _timed(
+                        timing_callback, "srcmove_output_retention_seconds"
+                    ):
+                        attempt = set_attempt_output_retention(
+                            attempt_dir,
+                            "discarded_zero_move_after_validation",
+                            discard=True,
+                        )
             if activity_callback is not None:
                 activity_callback("completed" if completed else "failed", case_id)
             records_by_id[case_id] = {
@@ -1039,7 +1178,7 @@ def run_corpus(
                 "parent_attempt_id": attempt["parent_attempt_id"],
                 "retry_ordinal": attempt["retry_ordinal"],
                 "status": "completed" if completed else "failed",
-                "input_sha256": sha256_file(input_xml),
+                "input_sha256": input_checksums[case_id],
                 "xml": attempt["xml"],
                 "results": results,
             }
@@ -1048,19 +1187,20 @@ def run_corpus(
                 for selected_id in input_paths
                 if selected_id in records_by_id
             ]
-            write_json_atomic(
-                final_dir / "run.json",
-                {
-                    "schema_version": RUN_SCHEMA_VERSION,
-                    "run_id": run_id,
-                    "created_at": created_at,
-                    "status": "running",
-                    "mode": mode.value,
-                    "corpus_id": corpus_manifest["corpus_id"],
-                    "require_semantic_eligible": require_semantic_eligible,
-                    "cases": case_records,
-                },
-            )
+            with _timed(timing_callback, "srcmove_run_checkpoint_seconds"):
+                write_json_atomic(
+                    final_dir / "run.json",
+                    {
+                        "schema_version": RUN_SCHEMA_VERSION,
+                        "run_id": run_id,
+                        "created_at": created_at,
+                        "status": "running",
+                        "mode": mode.value,
+                        "corpus_id": corpus_manifest["corpus_id"],
+                        "require_semantic_eligible": require_semantic_eligible,
+                        "cases": case_records,
+                    },
+                )
         case_records = [
             records_by_id[selected_id]
             for selected_id in input_paths
@@ -1074,7 +1214,7 @@ def run_corpus(
             "mode": mode.value,
             "corpus_id": corpus_manifest["corpus_id"],
             "require_semantic_eligible": require_semantic_eligible,
-            "corpus_manifest_sha256": _manifest_checksum(corpus_manifest_path),
+            "corpus_manifest_sha256": verified_corpus.manifest_sha256,
             "timeout_seconds": timeout_seconds,
             "observation": observation,
             "counts": {
@@ -1108,7 +1248,8 @@ def run_corpus(
             },
             "cases": case_records,
         }
-        write_json_atomic(final_dir / "run.json", manifest)
+        with _timed(timing_callback, "srcmove_run_checkpoint_seconds"):
+            write_json_atomic(final_dir / "run.json", manifest)
         return final_dir, manifest
     except BaseException:
         write_json_atomic(

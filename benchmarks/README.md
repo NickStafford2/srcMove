@@ -94,7 +94,15 @@ temporary `started.json` checkpoint is removed after a terminal record is
 sealed. Only a normal zero exit with structurally valid, checksummed srcDiff XML
 can be promoted into a corpus. After promotion, the corpus copy is the sole
 owner of successful srcDiff XML; failed output remains with its attempt. Input
-snapshots and corpus XML are checksum-verified again whenever consumed.
+snapshots and corpus XML are checksum-verified when loaded by ID or path.
+
+Coupled workflows pass `VerifiedSnapshot` and `VerifiedCorpus` values between
+stages. These values carry the already-validated directory, manifest, and
+manifest checksum, so the next stage does not reopen and rehash an artifact
+created or verified by the same process. Independent CLI stages still accept
+IDs and paths and establish a fresh verification boundary. Successful srcDiff
+XML is promoted with a same-filesystem hard link when possible, with a copy as
+the portability fallback.
 
 Repository commands are documented in the
 [repository benchmark guide](repositories/README.md). An existing corpus can be

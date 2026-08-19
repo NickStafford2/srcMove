@@ -30,7 +30,7 @@ from benchmarks.contracts import canonical_json
 from benchmarks.corpus import DEFAULT_EXCLUDED_SUFFIXES
 from benchmarks.process import write_json_atomic
 from benchmarks.progress import ProgressDisplay
-from benchmarks.provenance import sha256_file, utc_now
+from benchmarks.provenance import observe_executable, utc_now
 from benchmarks.repositories.adapter import (
     GitRepositorySnapshotAdapter,
     GitSnapshotEntry,
@@ -59,11 +59,21 @@ PROFILE_TIMING_KEYS = (
     "srcdiff_attempt_recovery_seconds",
     "srcdiff_executable_observation_seconds",
     "srcdiff_attempt_reconciliation_seconds",
+    "srcdiff_attempt_wall_seconds",
     "srcdiff_corpus_verification_seconds",
+    "srcdiff_generation_checkpoint_seconds",
+    "srcdiff_corpus_promotion_seconds",
+    "srcdiff_attempt_compaction_seconds",
     "srcmove_corpus_verification_seconds",
     "srcmove_attempt_recovery_seconds",
     "srcmove_observation_seconds",
     "srcmove_attempt_reconciliation_seconds",
+    "srcmove_attempt_wall_seconds",
+    "srcmove_results_observation_seconds",
+    "srcmove_output_retention_seconds",
+    "srcmove_run_checkpoint_seconds",
+    "srcdiff_repository_summary_seconds",
+    "srcmove_repository_summary_seconds",
     "history_artifact_write_seconds",
 )
 
@@ -946,6 +956,8 @@ def _run_history_pair(
     srcmove_timeout: float,
     position: bool,
     source_encoding: str,
+    srcdiff_observation: Mapping[str, Any] | None = None,
+    srcmove_observation: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Execute one pair without touching coordinator-owned history state."""
 
@@ -1036,6 +1048,8 @@ def _run_history_pair(
                 work_dir=pair_work_dir,
                 metadata={"source": source},
             ),
+            srcdiff_observation=srcdiff_observation,
+            srcmove_observation=srcmove_observation,
         )
         benchmark_seconds = time.monotonic() - benchmark_started
         entry_timings = entry.get("timings", {})
@@ -1239,9 +1253,11 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     if pipeline_root != data_root:
         pipeline_root.mkdir(parents=True, exist_ok=False)
     excluded_suffixes = sorted(DEFAULT_EXCLUDED_SUFFIXES)
+    srcdiff_observation = observe_executable(srcdiff)
+    srcmove_observation = observe_executable(srcmove)
     frozen_configuration = {
-        "srcdiff_sha256": sha256_file(srcdiff),
-        "srcmove_sha256": sha256_file(srcmove),
+        "srcdiff_sha256": srcdiff_observation.get("artifact", {}).get("sha256"),
+        "srcmove_sha256": srcmove_observation.get("artifact", {}).get("sha256"),
         "archive": True,
         "position": args.position,
         "source_encoding": args.src_encoding,
@@ -1309,6 +1325,8 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         "srcmove_timeout": args.srcmove_timeout,
         "position": args.position,
         "source_encoding": args.src_encoding,
+        "srcdiff_observation": srcdiff_observation,
+        "srcmove_observation": srcmove_observation,
     }
     try:
         _coordinate_history_pairs(
@@ -1793,6 +1811,24 @@ def print_history_summary(
         f"recovery {timings['srcmove_attempt_recovery_seconds']:.1f}s, "
         f"observation {timings['srcmove_observation_seconds']:.1f}s, "
         f"reconciliation {timings['srcmove_attempt_reconciliation_seconds']:.1f}s",
+        file=stream,
+    )
+    print(
+        "           srcDiff lifecycle: attempt overhead "
+        f"{max(0.0, timings['srcdiff_attempt_wall_seconds'] - srcdiff_execution):.1f}s, "
+        f"checkpoints {timings['srcdiff_generation_checkpoint_seconds']:.1f}s, "
+        f"promotion {timings['srcdiff_corpus_promotion_seconds']:.1f}s, "
+        f"compaction {timings['srcdiff_attempt_compaction_seconds']:.1f}s, "
+        f"summary {timings['srcdiff_repository_summary_seconds']:.1f}s",
+        file=stream,
+    )
+    print(
+        "           srcMove lifecycle: attempt overhead "
+        f"{max(0.0, timings['srcmove_attempt_wall_seconds'] - srcmove_execution):.1f}s, "
+        f"results {timings['srcmove_results_observation_seconds']:.1f}s, "
+        f"retention {timings['srcmove_output_retention_seconds']:.1f}s, "
+        f"checkpoints {timings['srcmove_run_checkpoint_seconds']:.1f}s, "
+        f"summary {timings['srcmove_repository_summary_seconds']:.1f}s",
         file=stream,
     )
     print(

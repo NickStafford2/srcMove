@@ -26,7 +26,14 @@ from benchmarks.bigclonebench.adapter import (
 from benchmarks.bigclonebench.evaluate import write_evaluation
 from benchmarks.bigclonebench.generate import preflight
 from benchmarks.contracts import RunMode
-from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
+from benchmarks.corpus import (
+    VerifiedCorpus,
+    VerifiedSnapshot,
+    create_input_snapshot,
+    generate_corpus,
+    load_corpus,
+    run_corpus,
+)
 from benchmarks.progress import ProgressDisplay
 from support.tooling import find_srcdiff, find_srcmove
 
@@ -117,12 +124,12 @@ def _syntactic_type(clone_type: str) -> int:
 def build_corpus(
     *,
     data_root: Path,
-    input_snapshot: str | Path,
+    input_snapshot: VerifiedSnapshot | str | Path,
     srcdiff: Path,
     timeout_seconds: float,
     retry_failed: bool,
     activity_callback: Callable[[str, str], None] | None = None,
-) -> tuple[Path, dict]:
+) -> VerifiedCorpus:
     return generate_corpus(
         data_root=data_root,
         input_snapshot=input_snapshot,
@@ -143,31 +150,26 @@ def build_corpus(
 def evaluate_corpus(
     *,
     data_root: Path,
-    corpus: str | Path,
+    corpus: VerifiedCorpus | str | Path,
     srcmove: Path,
     timeout_seconds: float,
     mode: RunMode,
     activity_callback: Callable[[str, str], None] | None = None,
 ) -> tuple[Path, dict, dict]:
+    verified_corpus = (
+        corpus if isinstance(corpus, VerifiedCorpus) else load_corpus(data_root, corpus)
+    )
     run_dir, run_manifest = run_corpus(
         data_root=data_root,
-        corpus=corpus,
+        corpus=verified_corpus,
         srcmove=srcmove,
         timeout_seconds=timeout_seconds,
         mode=mode,
         require_semantic_eligible=True,
         activity_callback=activity_callback,
     )
-    corpus_path = Path(corpus)
-    if corpus_path.is_file():
-        corpus_dir = corpus_path.resolve().parent
-    elif corpus_path.is_dir():
-        corpus_dir = corpus_path.resolve()
-    else:
-        corpus_dir = data_root / "corpora" / str(corpus)
-    corpus_manifest = json.loads(
-        (corpus_dir / "manifest.json").read_text(encoding="utf-8")
-    )
+    corpus_dir = verified_corpus.directory
+    corpus_manifest = verified_corpus.manifest
     summary = write_evaluation(
         run_dir=run_dir,
         run_manifest=run_manifest,
@@ -196,7 +198,7 @@ def _case_progress(progress: ProgressDisplay) -> Callable[[str, str], None]:
 
 def _prepare_snapshot(
     *, data_root: Path, adapter: BigCloneBenchAdapter
-) -> tuple[Path, dict]:
+) -> VerifiedSnapshot:
     disposition = "prepared"
 
     def record_disposition(value: str) -> None:
@@ -206,17 +208,18 @@ def _prepare_snapshot(
     with ProgressDisplay(
         "snapshot", detail="hashing generated inputs"
     ) as progress:
-        directory, manifest = create_input_snapshot(
+        snapshot = create_input_snapshot(
             data_root=data_root,
             adapter=adapter,
             source=adapter.source_manifest(),
             status_callback=record_disposition,
         )
+        manifest = snapshot.manifest
         case_detail = f"{manifest['counts']['selected']} cases"
         if disposition == "reused":
             case_detail += " verified"
         progress.finish(case_detail, completion=disposition)
-    return directory, manifest
+    return snapshot
 
 
 _OUTCOME_LABELS = {
@@ -446,20 +449,22 @@ def main() -> int:
             adapter = BigCloneBenchAdapter(
                 args.cases_dir, _syntactic_type(args.clone_type)
             )
-            _, snapshot_manifest = _prepare_snapshot(
+            snapshot = _prepare_snapshot(
                 data_root=data_root, adapter=adapter
             )
+            snapshot_manifest = snapshot.manifest
             with ProgressDisplay(
                 "srcDiff", total=snapshot_manifest["counts"]["selected"]
             ) as progress:
-                corpus_dir, corpus_manifest = build_corpus(
+                corpus = build_corpus(
                     data_root=data_root,
-                    input_snapshot=snapshot_manifest["input_snapshot_id"],
+                    input_snapshot=snapshot,
                     srcdiff=srcdiff,
                     timeout_seconds=args.srcdiff_timeout,
                     retry_failed=args.retry_failed,
                     activity_callback=_case_progress(progress),
                 )
+                corpus_manifest = corpus.manifest
                 progress.finish(
                     f"{corpus_manifest['counts']['accepted']} accepted, "
                     f"{corpus_manifest['counts']['failed']} failed"
@@ -470,7 +475,7 @@ def main() -> int:
             with ProgressDisplay("srcMove", total=eligible) as progress:
                 directory, manifest, summary = evaluate_corpus(
                     data_root=data_root,
-                    corpus=corpus_dir,
+                    corpus=corpus,
                     srcmove=srcmove,
                     timeout_seconds=args.srcmove_timeout,
                     mode=RunMode(args.mode),

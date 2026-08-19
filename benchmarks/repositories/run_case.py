@@ -534,6 +534,8 @@ def run_staged_repository_benchmark(
     show_progress: bool = True,
     index_series: bool = True,
     snapshot_adapter: DatasetAdapter | SnapshotMaterializingAdapter | None = None,
+    srcdiff_observation: Mapping[str, Any] | None = None,
+    srcmove_observation: Mapping[str, Any] | None = None,
 ) -> tuple[dict[str, Any], Path | None]:
     """Run one repository benchmark and optionally add its standalone index."""
 
@@ -594,13 +596,15 @@ def run_staged_repository_benchmark(
             detail="materializing and verifying inputs",
             enabled=show_progress,
         ) as progress:
-            input_snapshot_dir, input_snapshot = create_input_snapshot(
+            verified_snapshot = create_input_snapshot(
                 data_root=data_root,
                 adapter=snapshot_adapter,
                 source=source,
                 filter_configuration={"excluded_suffixes": excluded_suffixes},
                 status_callback=record_snapshot_disposition,
             )
+            input_snapshot_dir = verified_snapshot.directory
+            input_snapshot = verified_snapshot.manifest
             snapshot_completion = (
                 "verified and reused"
                 if snapshot_disposition == "reused"
@@ -647,9 +651,9 @@ def run_staged_repository_benchmark(
                 srcdiff_progress.update(detail=f"verifying prior attempt for {case_id}")
 
         try:
-            corpus_dir, corpus = generate_corpus(
+            verified_corpus = generate_corpus(
                 data_root=data_root,
-                input_snapshot=input_snapshot["input_snapshot_id"],
+                input_snapshot=verified_snapshot,
                 srcdiff=srcdiff,
                 timeout_seconds=srcdiff_timeout_seconds,
                 use_position=use_position,
@@ -657,10 +661,14 @@ def run_staged_repository_benchmark(
                 source_encoding=source_encoding,
                 activity_callback=report_srcdiff_activity,
                 timing_callback=record_timing,
+                srcdiff_observation=srcdiff_observation,
             )
+            corpus_dir = verified_corpus.directory
+            corpus = verified_corpus.manifest
         except BaseException as error:
             srcdiff_progress.finish(str(error), success=False, completion="failed")
             raise
+        srcdiff_summary_started = time.monotonic()
         entry.update(
             {
                 "corpus_id": corpus["corpus_id"],
@@ -690,6 +698,10 @@ def run_staged_repository_benchmark(
                 else "srcdiff_cached_execution_seconds"
             )
             entry["timings"][timing_name] = srcdiff_seconds
+        record_timing(
+            "srcdiff_repository_summary_seconds",
+            time.monotonic() - srcdiff_summary_started,
+        )
         srcdiff_progress.finish(
             f"{corpus['counts']['accepted']} accepted, "
             f"{corpus['counts']['failed']} failed"
@@ -727,7 +739,7 @@ def run_staged_repository_benchmark(
         try:
             run_dir, run_manifest = run_corpus(
                 data_root=data_root,
-                corpus=corpus["corpus_id"],
+                corpus=verified_corpus,
                 srcmove=srcmove,
                 timeout_seconds=srcmove_timeout_seconds,
                 mode=RunMode.DEVELOPMENT,
@@ -735,10 +747,12 @@ def run_staged_repository_benchmark(
                     detail=f"{activity} {case_id}"
                 ),
                 timing_callback=record_timing,
+                srcmove_observation=srcmove_observation,
             )
         except BaseException as error:
             srcmove_progress.finish(str(error), success=False, completion="failed")
             raise
+        srcmove_summary_started = time.monotonic()
         entry.update(
             {
                 "run_id": run_manifest["run_id"],
@@ -778,6 +792,10 @@ def run_staged_repository_benchmark(
                     run_dir / completed_case["results"]["path"], data_root
                 )
             srcmove_seconds = entry["srcmove_attempt"].get("elapsed_seconds")
+        record_timing(
+            "srcmove_repository_summary_seconds",
+            time.monotonic() - srcmove_summary_started,
+        )
         srcmove_progress.finish(
             f"{run_manifest['counts']['completed']} completed, "
             f"{run_manifest['counts']['failed']} failed"
