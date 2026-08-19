@@ -248,9 +248,10 @@ def validate_srcdiff_xml(path: Path, expected_shape: str) -> dict[str, Any]:
 
     namespaces = set()
     try:
-        for _, namespace in ET.iterparse(path, events=("start-ns",)):
+        parsed = ET.iterparse(path, events=("start-ns",))
+        for _, namespace in parsed:
             namespaces.add(namespace[1])
-        tree = ET.parse(path)
+        root = parsed.root
     except (ET.ParseError, OSError) as error:
         return {
             "status": XmlStatus.MALFORMED.value,
@@ -258,7 +259,6 @@ def validate_srcdiff_xml(path: Path, expected_shape: str) -> dict[str, Any]:
             **base,
         }
 
-    root = tree.getroot()
     if root.tag != f"{{{SRCML_NAMESPACE}}}unit":
         return {
             "status": XmlStatus.INVALID_STRUCTURE.value,

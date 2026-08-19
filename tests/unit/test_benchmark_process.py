@@ -87,6 +87,72 @@ class ProcessAttemptTests(unittest.TestCase):
                     self.assertEqual(attempt["termination"]["status"], termination)
                     self.assertEqual(attempt["xml"]["status"], xml)
 
+    def test_xml_admission_preserves_namespace_and_shape_contract(self) -> None:
+        cases = {
+            "valid_single": (
+                "<unit xmlns='http://www.srcML.org/srcML/src' "
+                "xmlns:diff='http://www.srcML.org/srcDiff'/>",
+                "single_file",
+                "valid",
+                None,
+            ),
+            "valid_archive": (
+                "<unit xmlns='http://www.srcML.org/srcML/src' "
+                "xmlns:diff='http://www.srcML.org/srcDiff'>"
+                "<unit filename='a.cpp'/></unit>",
+                "archive",
+                "valid",
+                None,
+            ),
+            "missing_diff_namespace": (
+                "<unit xmlns='http://www.srcML.org/srcML/src'/>",
+                "single_file",
+                "invalid_structure",
+                "srcDiff namespace declaration is missing",
+            ),
+            "wrong_root": (
+                "<archive xmlns='http://www.srcML.org/srcML/src' "
+                "xmlns:diff='http://www.srcML.org/srcDiff'/>",
+                "single_file",
+                "invalid_structure",
+                "root must be a srcML unit element",
+            ),
+            "empty_archive": (
+                "<unit xmlns='http://www.srcML.org/srcML/src' "
+                "xmlns:diff='http://www.srcML.org/srcDiff'/>",
+                "archive",
+                "invalid_structure",
+                "archive output must contain child unit elements",
+            ),
+            "archive_as_single_file": (
+                "<unit xmlns='http://www.srcML.org/srcML/src' "
+                "xmlns:diff='http://www.srcML.org/srcDiff'>"
+                "<unit filename='a.cpp'/></unit>",
+                "single_file",
+                "invalid_structure",
+                "single-file output must not contain child unit elements",
+            ),
+            "malformed": (
+                "<unit",
+                "single_file",
+                "malformed",
+                None,
+            ),
+        }
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            for name, (xml, shape, status, error) in cases.items():
+                with self.subTest(name=name):
+                    path = root / f"{name}.xml"
+                    path.write_text(xml, encoding="utf-8")
+                    result = validate_srcdiff_xml(path, shape)
+                    self.assertEqual(result["status"], status)
+                    self.assertEqual(
+                        result["sha256"], hashlib.sha256(xml.encode()).hexdigest()
+                    )
+                    if error is not None:
+                        self.assertEqual(result["error"], error)
+
     def test_sigkill_is_not_assumed_to_be_out_of_memory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             _, attempt = self.run_attempt(Path(temporary_directory), "sigkill")
