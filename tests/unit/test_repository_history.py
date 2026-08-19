@@ -8,6 +8,7 @@ import time
 import unittest
 from io import StringIO
 from pathlib import Path
+from unittest.mock import patch
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -25,6 +26,7 @@ from benchmarks.repositories.adapter import (
 from benchmarks.repositories.run_history import (
     _aggregate,
     _coordinate_history_pairs,
+    checkpoint_history_pair,
     export_changed_files,
     finalize_history_retention,
     inventory_changed_paths,
@@ -37,6 +39,7 @@ from benchmarks.repositories.run_history import (
     select_first_parent_history,
     write_history_artifacts,
 )
+from benchmarks.process import write_json_atomic
 
 
 def git(repo: Path, *args: str, env: dict[str, str] | None = None) -> str:
@@ -158,6 +161,47 @@ class RepositoryHistoryTests(unittest.TestCase):
             )
             self.assertFalse((history_dir / "summary.csv").exists())
             self.assertFalse((history_dir / "moves").exists())
+
+    def test_pair_checkpoint_writes_one_receipt_without_rewriting_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            history_dir = Path(temporary_directory) / "history"
+            pairs_dir = history_dir / "pairs"
+            pairs_dir.mkdir(parents=True)
+            manifest_path = history_dir / "history.json"
+            manifest_path.write_text('{"status":"running"}\n', encoding="utf-8")
+            pair = {
+                "schema_version": 1,
+                "sequence": 0,
+                "old_commit": "a" * 40,
+                "new_commit": "b" * 40,
+                "status": "completed",
+                "timings": {"pair_seconds": 0.1},
+            }
+            history = {"status": "running", "pairs": [pair]}
+
+            with patch(
+                "benchmarks.repositories.run_history.write_json_atomic",
+                wraps=write_json_atomic,
+            ) as atomic_write:
+                checkpoint_history_pair(history_dir, history, pair)
+
+            self.assertEqual(atomic_write.call_count, 1)
+            self.assertEqual(
+                atomic_write.call_args.args[0], pairs_dir / "000001.json"
+            )
+            self.assertEqual(
+                manifest_path.read_text(encoding="utf-8"),
+                '{"status":"running"}\n',
+            )
+            persisted = json.loads(
+                (pairs_dir / "000001.json").read_text(encoding="utf-8")
+            )
+            self.assertNotIn(
+                "history_artifact_write_seconds", persisted["timings"]
+            )
+            self.assertGreater(
+                pair["timings"]["history_artifact_write_seconds"], 0.0
+            )
 
     def test_results_retention_keeps_results_and_removes_pipeline(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

@@ -900,37 +900,26 @@ def checkpoint_history_pair(
     history: dict[str, Any],
     pair: dict[str, Any],
 ) -> float:
-    """Checkpoint one ordered result without rebuilding derived history views."""
+    """Atomically publish one ordered pair without rewriting history-wide views."""
 
     started = time.monotonic()
-    history["aggregates"] = _aggregate(history["pairs"])
     history["updated_at"] = utc_now()
-    manifest = {key: value for key, value in history.items() if key != "pairs"}
-    manifest["pair_receipts"] = {
-        "directory": "pairs",
-        "filename_pattern": "%06d.json",
-        "count": len(history["pairs"]),
-    }
-    write_json_atomic(history_dir / "history.json", manifest)
     pairs_dir = history_dir / "pairs"
     pairs_dir.mkdir(exist_ok=True)
     write_json_atomic(pairs_dir / f"{pair['sequence'] + 1:06d}.json", pair)
     elapsed = time.monotonic() - started
     pair.setdefault("timings", {})["history_artifact_write_seconds"] = elapsed
-    # The timing belongs to coordinator work and is not known until the first
-    # atomic receipt has landed. Updating only this receipt avoids rebuilding
-    # the history-wide CSV and browse view for every pair.
-    write_json_atomic(pairs_dir / f"{pair['sequence'] + 1:06d}.json", pair)
-    return time.monotonic() - started
+    # The receipt itself is the durable progress cursor. Its write duration is
+    # added in memory and published when finalization rewrites all receipts. If
+    # the process is killed first, the timing is honestly absent rather than
+    # requiring a second self-referential receipt write.
+    return elapsed
 
 
-def _finalize_pair_timings(
-    pair: dict[str, Any], pair_started: float, history_artifact_write_seconds: float
-) -> None:
+def _finalize_pair_timings(pair: dict[str, Any], pair_started: float) -> None:
     timings = pair.setdefault("timings", {})
     pair_seconds = time.monotonic() - pair_started
     timings["pair_seconds"] = pair_seconds
-    timings["history_artifact_write_seconds"] = history_artifact_write_seconds
     timings["other_seconds"] = (
         pair_seconds
         - _seconds(timings.get("srcdiff_execution_seconds"))
@@ -998,7 +987,7 @@ def _run_history_pair(
                     },
                 }
             )
-            _finalize_pair_timings(pair, pair_started, 0.0)
+            _finalize_pair_timings(pair, pair_started)
             return pair
 
         source = {
@@ -1114,7 +1103,7 @@ def _run_history_pair(
                 "type": entry["status"],
                 "message": _entry_failure_detail(entry),
             }
-        _finalize_pair_timings(pair, pair_started, 0.0)
+        _finalize_pair_timings(pair, pair_started)
         return pair
     except Exception as error:
         status = (
@@ -1134,7 +1123,7 @@ def _run_history_pair(
                 },
             }
         )
-        _finalize_pair_timings(pair, pair_started, 0.0)
+        _finalize_pair_timings(pair, pair_started)
         return pair
 
 
