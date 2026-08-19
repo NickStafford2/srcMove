@@ -27,12 +27,16 @@ The standard suite contains only external repositories and spans several scales:
 | `sqlite` | `src/`, pinned releases | source-focused baseline |
 | `opencv` | full tree, `4.8.0` to `4.8.1` | large-repository baseline |
 
-The two srcMove self-benchmarks are shelved in the opt-in `srcmove` suite. List
-the resolved suites without running them, or select that suite explicitly for
-future investigation:
+The Linux scheduler benchmark is isolated in the opt-in `linux` suite because
+its repository checkout is unusually large. It compares `kernel/sched/` from
+`v6.12` to `v6.13`; both the source scope and adjacent mainline release tags are
+declared in [`linux/info.json`](linux/info.json). The two srcMove
+self-benchmarks remain in the opt-in `srcmove` suite. List the resolved suites
+without running them, or select one explicitly:
 
 ```bash
 make benchmark-repos LIST=1
+make benchmark-repos SUITE=linux SERIES=linux-scheduler-v6.12-v6.13
 make benchmark-repos SUITE=srcmove SERIES=srcmove-investigation
 ```
 
@@ -104,21 +108,26 @@ both the requested tags and their resolved commit hashes for exact provenance.
 Avoid moving references such as `HEAD` or branch names; use a full commit hash
 when no suitable release tag exists.
 
-The Linux kernel case is available as a deliberately unpinned heavyweight case,
-but it is not in any suite. Choose and document stable revisions and whether the
-measurement covers the full tree or a repository subdirectory before running or
-adding it to a suite. After that scientific choice, run it explicitly:
+The Linux kernel case uses a full, non-shallow repository cache so later history
+analysis can resolve parent commits. The first `linux` suite run clones that
+cache automatically, then runs the configured scheduler comparison:
 
 ```bash
-make benchmark-repo CASE=linux \
-  OLD_REV=<pinned-old-revision> NEW_REV=<pinned-new-revision> \
-  DIRECTORY=<chosen-scope> SERIES=linux-study
+make benchmark-repos SUITE=linux SERIES=linux-scheduler-v6.12-v6.13
 ```
 
-Omit `DIRECTORY` only when the intended measurement is explicitly the full
-kernel tree. A case with no configured revisions is an error rather than a
-successful skip. The kernel is never cloned by listing or running the standard
-suite.
+The clone is stored at `benchmarks/repositories/linux/work/repo`. Listing suites
+does not clone it, and the standard suite does not include Linux. To prepare the
+checkout without starting a benchmark, run this from the workspace root:
+
+```bash
+git clone https://github.com/torvalds/linux.git \
+  srcMove/benchmarks/repositories/linux/work/repo
+```
+
+Do not use `--depth`: the historical runner rejects shallow repositories. A
+later history study should use commit-to-parent edges rather than treating the
+kernel's merge-heavy first-parent chain as individual patch history.
 
 `wowy_advanced_analytics` is excluded from every suite because it is Python and
 the current snapshot pipeline excludes `.py` files. `zlib` is also excluded:
@@ -128,6 +137,27 @@ be used until the intended comparison is confirmed. `context_export` and
 
 `build_examples.py` turns selected benchmark results into ignored example
 artifacts for documentation or manual inspection.
+
+## Experimental first-parent history runner
+
+The initial historical-analysis runner can freeze and execute a bounded sequence
+of adjacent first-parent commit pairs. For example, this selects the newest
+three SQLite pairs after fetching and processes them oldest-to-newest:
+
+```bash
+python3 benchmarks/repositories/run_history.py start sqlite \
+  --start origin/HEAD --count 3 --fetch
+```
+
+The case's configured directory still applies; SQLite currently measures
+`src/`. A selected commit whose adjacent change has no paths remaining in that
+scope and the mandatory suffix filters is recorded as `no_analyzable_change`,
+not as zero moves. Generated `history.json` and `summary.csv` files are stored
+below `benchmark-data/repository-histories/<history-id>/`.
+
+This is the create-only pilot described in the
+[historical repository analysis plan](../../doc/historical_repository_analysis_plan.md).
+Resume, retry, and crash-window reconciliation remain planned work.
 
 ## Advanced staged workflow
 

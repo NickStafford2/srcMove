@@ -136,12 +136,13 @@ class RepositorySuiteTests(unittest.TestCase):
             1,
         )
 
-    def test_checked_in_standard_suite_is_explicit_and_excludes_unsuitable_cases(self) -> None:
+    def test_checked_in_suites_keep_heavy_and_self_benchmarks_opt_in(self) -> None:
         configuration = load_suite_configuration()
         self.assertEqual(
             configuration.suites["standard"].cases,
             ("notepadpp", "sqlite", "opencv"),
         )
+        self.assertEqual(configuration.suites["linux"].cases, ("linux",))
         self.assertNotIn("srcMove", configuration.suites["standard"].cases)
         self.assertNotIn("wowy_advanced_analytics", configuration.suites["standard"].cases)
         self.assertNotIn("linux", configuration.suites["standard"].cases)

@@ -1,0 +1,520 @@
+#!/usr/bin/env python3
+"""Run repository benchmarks across adjacent first-parent commits."""
+
+from __future__ import annotations
+
+import argparse
+import csv
+import hashlib
+import json
+import re
+import sys
+import uuid
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, Mapping, Sequence
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+REPO_ROOT = SCRIPT_DIR.parents[1]
+TESTS_ROOT = REPO_ROOT / "tests"
+for import_root in (REPO_ROOT, TESTS_ROOT):
+    if str(import_root) not in sys.path:
+        sys.path.insert(0, str(import_root))
+
+from benchmarks.contracts import canonical_json
+from benchmarks.corpus import DEFAULT_EXCLUDED_SUFFIXES
+from benchmarks.process import write_json_atomic
+from benchmarks.provenance import sha256_file, utc_now
+from benchmarks.repositories.run_case import (
+    DEFAULT_DATA_ROOT,
+    ensure_repo,
+    export_commit,
+    load_case_config,
+    normalize_repo_subdir,
+    require_ok,
+    resolve_commit,
+    run_staged_repository_benchmark,
+)
+from support.tooling import find_srcdiff, find_srcmove, run_command as run
+
+
+HISTORY_SCHEMA_VERSION = 1
+TRAVERSAL_MODE = "first_parent"
+SAFE_HISTORY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
+
+
+@dataclass(frozen=True)
+class CommitMetadata:
+    commit: str
+    parents: tuple[str, ...]
+    committer_time_iso8601: str
+    subject: str
+
+    @property
+    def is_merge(self) -> bool:
+        return len(self.parents) > 1
+
+    def as_json(self) -> dict[str, Any]:
+        return {
+            "commit": self.commit,
+            "parents": list(self.parents),
+            "parent_count": len(self.parents),
+            "committer_time_iso8601": self.committer_time_iso8601,
+            "subject": self.subject,
+            "is_merge": self.is_merge,
+        }
+
+
+def select_first_parent_history(
+    repo_dir: Path, start: str, pair_count: int
+) -> tuple[str, list[CommitMetadata]]:
+    """Return up to pair_count+1 commits in oldest-to-newest ancestry order."""
+    if pair_count <= 0:
+        raise ValueError("pair count must be positive")
+    if not start:
+        raise ValueError("start revision must not be empty")
+
+    shallow = run(["git", "rev-parse", "--is-shallow-repository"], cwd=repo_dir)
+    require_ok(shallow, "git shallow-repository check")
+    if shallow.stdout.strip() == "true":
+        raise RuntimeError(
+            "historical repository analysis requires a complete, non-shallow clone"
+        )
+
+    resolved_start = resolve_commit(repo_dir, start)
+    result = run(
+        [
+            "git",
+            "log",
+            "-z",
+            "--first-parent",
+            f"--max-count={pair_count + 1}",
+            "--format=%H%x00%P%x00%cI%x00%s",
+            resolved_start,
+        ],
+        cwd=repo_dir,
+    )
+    require_ok(result, f"git first-parent history from {start}")
+    fields = result.stdout.split("\0")
+    if fields and fields[-1] == "":
+        fields.pop()
+    if len(fields) % 4 != 0:
+        raise RuntimeError("git returned malformed first-parent metadata")
+
+    newest_first = [
+        CommitMetadata(
+            commit=fields[index],
+            parents=tuple(fields[index + 1].split()) if fields[index + 1] else (),
+            committer_time_iso8601=fields[index + 2],
+            subject=fields[index + 3],
+        )
+        for index in range(0, len(fields), 4)
+    ]
+    if len(newest_first) < 2:
+        raise RuntimeError(
+            "the selected history has fewer than two commits; no adjacent pair exists"
+        )
+    return resolved_start, list(reversed(newest_first))
+
+
+def retain_start_commit(repo_dir: Path, history_id: str, commit: str) -> str:
+    if not SAFE_HISTORY_RE.fullmatch(history_id):
+        raise ValueError(f"unsafe history ID: {history_id!r}")
+    ref = f"refs/srcmove/repository-histories/{history_id}/start"
+    result = run(["git", "update-ref", ref, commit], cwd=repo_dir)
+    require_ok(result, f"retain history start as {ref}")
+    return ref
+
+
+def inventory_changed_paths(
+    repo_dir: Path,
+    old_commit: str,
+    new_commit: str,
+    directory: str | None,
+    excluded_suffixes: Sequence[str],
+) -> tuple[list[str], list[str]]:
+    command = [
+        "git",
+        "diff",
+        "--name-only",
+        "--no-renames",
+        old_commit,
+        new_commit,
+        "--",
+    ]
+    if directory:
+        command.append(directory)
+    result = run(command, cwd=repo_dir)
+    require_ok(result, f"inventory changed paths for {old_commit}..{new_commit}")
+    changed = [line for line in result.stdout.splitlines() if line]
+    excluded = {suffix.lower() for suffix in excluded_suffixes}
+    analyzable = [path for path in changed if Path(path).suffix.lower() not in excluded]
+    return changed, analyzable
+
+
+def _history_identifier(case_name: str) -> str:
+    timestamp = utc_now().replace(":", "").replace("+", "-")
+    return f"history-{timestamp}-{case_name}-{uuid.uuid4()}"
+
+
+def _relative(path: Path, data_root: Path) -> str:
+    return path.resolve().relative_to(data_root.resolve()).as_posix()
+
+
+def _configuration_fingerprint(configuration: Mapping[str, Any]) -> str:
+    return hashlib.sha256(canonical_json(dict(configuration))).hexdigest()
+
+
+def _aggregate(pairs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    statuses = [pair["status"] for pair in pairs]
+    completed = [pair for pair in pairs if pair["status"] == "completed"]
+    return {
+        "selected_pairs": len(pairs),
+        "completed": statuses.count("completed"),
+        "no_analyzable_change": statuses.count("no_analyzable_change"),
+        "failed": sum(
+            status
+            in {
+                "export_failed",
+                "srcdiff_failed",
+                "srcmove_failed",
+                "orchestration_failed",
+            }
+            for status in statuses
+        ),
+        "pending": statuses.count("pending") + statuses.count("running"),
+        "move_group_count": sum(
+            pair.get("metrics", {}).get("move_group_count", 0) for pair in completed
+        ),
+        "move_pair_count": sum(
+            pair.get("metrics", {}).get("move_pair_count", 0) for pair in completed
+        ),
+        "annotated_region_count": sum(
+            pair.get("metrics", {}).get("annotated_region_count", 0)
+            for pair in completed
+        ),
+    }
+
+
+SUMMARY_COLUMNS = [
+    "sequence",
+    "old_commit",
+    "new_commit",
+    "new_committer_time_iso8601",
+    "new_commit_subject_display",
+    "is_merge",
+    "status",
+    "changed_paths",
+    "analyzable_changed_paths",
+    "included_files",
+    "excluded_files",
+    "move_group_count",
+    "move_pair_count",
+    "annotated_region_count",
+    "regions_total",
+    "moved_region_share",
+    "match_kind_exact_group_count",
+    "match_kind_type2_group_count",
+    "srcdiff_seconds",
+    "srcmove_seconds",
+    "repository_benchmark_id",
+]
+
+
+def _spreadsheet_safe(value: str) -> str:
+    return f"'{value}" if value.startswith(("=", "+", "-", "@")) else value
+
+
+def write_history_artifacts(
+    history_dir: Path, history: dict[str, Any], data_root: Path
+) -> None:
+    history["aggregates"] = _aggregate(history["pairs"])
+    history["updated_at"] = utc_now()
+    write_json_atomic(history_dir / "history.json", history)
+
+    commits = {commit["commit"]: commit for commit in history["commits"]}
+    summary_path = history_dir / "summary.csv"
+    temporary = summary_path.with_name(f".{summary_path.name}.tmp-{uuid.uuid4().hex}")
+    with temporary.open("w", newline="", encoding="utf-8") as stream:
+        writer = csv.DictWriter(stream, fieldnames=SUMMARY_COLUMNS)
+        writer.writeheader()
+        for pair in history["pairs"]:
+            metrics = pair.get("metrics", {})
+            regions_total = metrics.get("regions_total")
+            annotated = metrics.get("annotated_region_count")
+            share = (
+                annotated / regions_total
+                if isinstance(annotated, int) and isinstance(regions_total, int) and regions_total
+                else None
+            )
+            writer.writerow(
+                {
+                    "sequence": pair["sequence"],
+                    "old_commit": pair["old_commit"],
+                    "new_commit": pair["new_commit"],
+                    "new_committer_time_iso8601": commits[pair["new_commit"]][
+                        "committer_time_iso8601"
+                    ],
+                    "new_commit_subject_display": _spreadsheet_safe(
+                        commits[pair["new_commit"]]["subject"]
+                    ),
+                    "is_merge": commits[pair["new_commit"]]["is_merge"],
+                    "status": pair["status"],
+                    "changed_paths": pair.get("changed_paths"),
+                    "analyzable_changed_paths": pair.get("analyzable_changed_paths"),
+                    "included_files": pair.get("counts", {}).get("included_files"),
+                    "excluded_files": pair.get("counts", {}).get("excluded_files"),
+                    "move_group_count": metrics.get("move_group_count"),
+                    "move_pair_count": metrics.get("move_pair_count"),
+                    "annotated_region_count": annotated,
+                    "regions_total": regions_total,
+                    "moved_region_share": share,
+                    "match_kind_exact_group_count": metrics.get("match_kinds", {}).get(
+                        "exact"
+                    ),
+                    "match_kind_type2_group_count": metrics.get("match_kinds", {}).get(
+                        "type2"
+                    ),
+                    "srcdiff_seconds": pair.get("timings", {}).get("srcdiff_seconds"),
+                    "srcmove_seconds": pair.get("timings", {}).get("srcmove_seconds"),
+                    "repository_benchmark_id": pair.get("repository_benchmark_id"),
+                }
+            )
+    temporary.replace(summary_path)
+
+
+def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
+    benchmark_root = SCRIPT_DIR
+    case_dir = benchmark_root / args.case
+    info_json = case_dir / "info.json"
+    if not info_json.is_file():
+        raise RuntimeError(f"missing repository case configuration: {info_json}")
+
+    config = load_case_config(info_json)
+    selected_dir = (
+        normalize_repo_subdir(args.directory, "--directory")
+        if args.directory is not None
+        else config["directory"]
+    )
+    repo_url = config["github"]
+    work_root = case_dir / "work"
+    clone_dir = work_root / "repo"
+    ensure_repo(repo_url, clone_dir, offline=args.offline, update=args.fetch)
+
+    resolved_start, commits = select_first_parent_history(
+        clone_dir, args.start, args.count
+    )
+    srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
+    srcmove = find_srcmove(REPO_ROOT, args.srcmove)
+    if srcdiff is None:
+        raise RuntimeError("srcdiff not found")
+    if srcmove is None:
+        raise RuntimeError("srcMove binary not found")
+
+    history_id = _history_identifier(args.case)
+    retained_ref = retain_start_commit(clone_dir, history_id, resolved_start)
+    data_root = args.data_root.expanduser().resolve()
+    history_dir = data_root / "repository-histories" / history_id
+    history_dir.mkdir(parents=True, exist_ok=False)
+    excluded_suffixes = sorted(DEFAULT_EXCLUDED_SUFFIXES)
+    frozen_configuration = {
+        "repository": repo_url,
+        "directory": selected_dir,
+        "commits": [commit.commit for commit in commits],
+        "srcdiff_sha256": sha256_file(srcdiff),
+        "srcmove_sha256": sha256_file(srcmove),
+        "archive": True,
+        "position": args.position,
+        "source_encoding": args.src_encoding,
+        "excluded_suffixes": excluded_suffixes,
+        "srcdiff_timeout_seconds": args.srcdiff_timeout,
+        "srcmove_timeout_seconds": args.srcmove_timeout,
+        "traversal_mode": TRAVERSAL_MODE,
+    }
+    pairs = [
+        {
+            "sequence": sequence,
+            "pair_key": f"{history_id}:{sequence}",
+            "old_commit": old.commit,
+            "new_commit": new.commit,
+            "status": "pending",
+        }
+        for sequence, (old, new) in enumerate(zip(commits, commits[1:]))
+    ]
+    history: dict[str, Any] = {
+        "schema_version": HISTORY_SCHEMA_VERSION,
+        "history_id": history_id,
+        "status": "running",
+        "created_at": utc_now(),
+        "updated_at": utc_now(),
+        "label": args.label,
+        "case": args.case,
+        "repository": repo_url,
+        "directory": selected_dir,
+        "requested_start_revision": args.start,
+        "resolved_start_commit": resolved_start,
+        "retained_start_ref": retained_ref,
+        "traversal_mode": TRAVERSAL_MODE,
+        "requested_pair_count": args.count,
+        "available_pair_count": len(pairs),
+        "configuration": frozen_configuration,
+        "configuration_fingerprint_sha256": _configuration_fingerprint(
+            frozen_configuration
+        ),
+        "commits": [commit.as_json() for commit in commits],
+        "pairs": pairs,
+    }
+    write_history_artifacts(history_dir, history, data_root)
+
+    original_dir = work_root / "history-original"
+    modified_dir = work_root / "history-modified"
+    for pair in history["pairs"]:
+        pair["status"] = "running"
+        pair["started_at"] = utc_now()
+        write_history_artifacts(history_dir, history, data_root)
+        try:
+            changed, analyzable = inventory_changed_paths(
+                clone_dir,
+                pair["old_commit"],
+                pair["new_commit"],
+                selected_dir,
+                excluded_suffixes,
+            )
+            pair["changed_paths"] = len(changed)
+            pair["analyzable_changed_paths"] = len(analyzable)
+            if not analyzable:
+                pair.update({"status": "no_analyzable_change", "completed_at": utc_now()})
+                write_history_artifacts(history_dir, history, data_root)
+                continue
+            try:
+                export_commit(clone_dir, pair["old_commit"], original_dir, selected_dir)
+                export_commit(clone_dir, pair["new_commit"], modified_dir, selected_dir)
+            except Exception as error:
+                pair.update(
+                    {
+                        "status": "export_failed",
+                        "completed_at": utc_now(),
+                        "error": {"type": type(error).__name__, "message": str(error)},
+                    }
+                )
+                write_history_artifacts(history_dir, history, data_root)
+                continue
+
+            source = {
+                "case": args.case,
+                "repository": repo_url,
+                "old_commit": pair["old_commit"],
+                "new_commit": pair["new_commit"],
+                "directory": selected_dir,
+                "filtering_scope": {"excluded_suffixes": excluded_suffixes},
+            }
+            entry, entry_path = run_staged_repository_benchmark(
+                data_root=data_root,
+                series=history_id,
+                case_name=args.case,
+                original=original_dir,
+                modified=modified_dir,
+                source=source,
+                srcdiff=srcdiff,
+                srcmove=srcmove,
+                srcdiff_timeout_seconds=args.srcdiff_timeout,
+                srcmove_timeout_seconds=args.srcmove_timeout,
+                use_position=args.position,
+                use_archive=True,
+                source_encoding=args.src_encoding,
+                excluded_suffixes=[],
+            )
+            pair.update(
+                {
+                    "status": entry["status"],
+                    "completed_at": utc_now(),
+                    "repository_benchmark_id": entry["benchmark_id"],
+                    "repository_benchmark_path": _relative(entry_path, data_root),
+                    "input_snapshot_id": entry.get("input_snapshot_id"),
+                    "corpus_id": entry.get("corpus_id"),
+                    "run_id": entry.get("run_id"),
+                    "counts": entry.get("counts", {}),
+                    "metrics": entry.get("results", {}),
+                    "timings": {
+                        "srcdiff_seconds": entry.get("srcdiff_attempt", {}).get(
+                            "elapsed_seconds"
+                        ),
+                        "srcmove_seconds": entry.get("srcmove_attempt", {}).get(
+                            "elapsed_seconds"
+                        ),
+                    },
+                }
+            )
+            write_history_artifacts(history_dir, history, data_root)
+        except Exception as error:
+            pair.update(
+                {
+                    "status": "orchestration_failed",
+                    "completed_at": utc_now(),
+                    "error": {"type": type(error).__name__, "message": str(error)},
+                }
+            )
+            history["status"] = "interrupted"
+            write_history_artifacts(history_dir, history, data_root)
+            return history, history_dir
+
+    history["status"] = (
+        "completed" if _aggregate(history["pairs"])["failed"] == 0 else "completed_with_failures"
+    )
+    history["completed_at"] = utc_now()
+    write_history_artifacts(history_dir, history, data_root)
+    return history, history_dir
+
+
+def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
+    parser = argparse.ArgumentParser(
+        description="Benchmark srcMove across adjacent first-parent commits."
+    )
+    subparsers = parser.add_subparsers(dest="command", required=True)
+    start = subparsers.add_parser("start", help="create and run a frozen history")
+    start.add_argument("case")
+    start.add_argument("--start", required=True)
+    start.add_argument("--count", type=int, required=True, help="number of commit pairs")
+    start.add_argument("--label")
+    start.add_argument("--directory")
+    network = start.add_mutually_exclusive_group()
+    network.add_argument("--fetch", action="store_true")
+    network.add_argument("--offline", action="store_true")
+    start.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    start.add_argument("--srcdiff", type=Path)
+    start.add_argument("--srcmove", type=Path)
+    start.add_argument("--srcdiff-timeout", type=float, default=1800.0)
+    start.add_argument("--srcmove-timeout", type=float, default=300.0)
+    start.add_argument("--src-encoding", default="UTF-8")
+    start.add_argument("--position", action="store_true")
+    args = parser.parse_args(argv)
+    if args.count <= 0:
+        parser.error("--count must be positive")
+    if args.srcdiff_timeout <= 0 or args.srcmove_timeout <= 0:
+        parser.error("timeouts must be positive")
+    return args
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = parse_args(argv)
+    history, history_dir = run_history_start(args)
+    aggregates = history["aggregates"]
+    print()
+    print(f"Historical repository benchmark: {history['status']}")
+    print(f"  History:   {history['history_id']}")
+    print(
+        f"  Pairs:     {aggregates['completed']} completed, "
+        f"{aggregates['no_analyzable_change']} no analyzable change, "
+        f"{aggregates['failed']} failed, {aggregates['pending']} pending"
+    )
+    print(f"  Manifest:  {(history_dir / 'history.json').resolve()}")
+    print(f"  Summary:   {(history_dir / 'summary.csv').resolve()}")
+    return 0 if history["status"] == "completed" else 1
+
+
+if __name__ == "__main__":
+    try:
+        raise SystemExit(main())
+    except Exception as error:
+        print(f"error: {error}", file=sys.stderr)
+        raise SystemExit(1)
