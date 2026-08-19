@@ -25,7 +25,7 @@ The standard suite contains only external repositories and spans several scales:
 | --- | --- | --- |
 | `notepadpp` | full tree, adjacent releases | cross-project baseline |
 | `sqlite` | `src/`, pinned releases | source-focused baseline |
-| `opencv` | full tree, `4.7.0` to `4.8.0` | large-repository baseline |
+| `opencv` | full tree, `4.8.0` to `4.8.1` | large-repository baseline |
 
 The two srcMove self-benchmarks are shelved in the opt-in `srcmove` suite. List
 the resolved suites without running them, or select that suite explicitly for
