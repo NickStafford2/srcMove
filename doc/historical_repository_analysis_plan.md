@@ -1,50 +1,71 @@
-# Historical Repository Analysis Plan
+# Repository-History Analysis Plan
 
 ## Status and purpose
 
-This document is an implementation plan, not a description of current behavior.
-The current two-revision workflow is documented in the
-[repository benchmark guide](../benchmarks/repositories/README.md).
+This document is the implementation plan for a production repository-analysis
+tool in srcMove. It is not a benchmark design and it does not describe the
+current implementation.
 
-The goal is to measure how srcMove's observed move counts change across a
-linear sequence of adjacent repository commits. The program should select a
-bounded commit history, run the existing srcDiff and srcMove benchmark pipeline
-for each adjacent pair, and save a chronological, resumable result suitable for
-later statistical analysis or visualization.
+The tool will run srcDiff and srcMove across adjacent Git commit pairs and
+publish deterministic, resumable results. A separate benchmark will invoke the
+production tool to measure throughput, memory use, and worker scaling.
 
-This is an extension of the repository benchmark, not a new detector and not a
-change to srcMove's C++ pipeline. Existing input snapshots, srcDiff attempts,
-corpora, srcMove runs, validation, provenance, and failure records remain the
-authoritative per-pair artifacts.
+The central rule is:
 
-## Research interpretation
+> Workers compute commit-pair outcomes; the coordinator publishes them.
 
-Historical repository results are observations made by the current srcMove
-algorithm. Without a labeled oracle, they do not establish the true number of
-moves, precision, recall, or historical-move accuracy.
+The existing experimental runner under `benchmarks/repositories/` establishes
+the current schemas, filtering behavior, failure evidence, and result semantics.
+It should be migrated rather than copied into a second permanent implementation.
 
-Report these units separately:
+## Product boundary
 
-- `move_group_count`: logical move groups detected by srcMove; the primary
-  longitudinal count
-- `move_pair_count`: estimated paired regions, calculated as the sum of
-  `min(delete_count, insert_count)` for each reported move group
-- `annotated_region_count`: the sum of the reported move groups'
-  `from_xpaths` and `to_xpaths`
-- `regions_total`: all diff regions parsed from the srcDiff document, before
-  move-candidate filtering
-- moved-region share: `annotated_region_count / regions_total`, reported with
-  both counts and left undefined when the denominator is zero
+Repository analysis belongs in a new production Python package outside
+`benchmarks/`, provisionally:
 
-Keep exact and Type-2 match counts as separate series. Do not label any of
-these fields simply as ground-truth "moves."
+```text
+srcMove/
+  repository_analysis/
+    __init__.py
+    cli.py
+    contracts.py
+    coordinator.py
+    worker.py
+    git.py
+    process.py
+    retention.py
+    reporting.py
 
-## Initial history definition
+  benchmarks/repositories/
+    benchmark_history_scaling.py
+```
 
-The first version should traverse Git's first-parent history. `--start S` is the
-newest endpoint. Given requested pair count `N`, use the equivalent of
-`git rev-list --first-parent --max-count=N+1 S`, then reverse that ancestry
-order and compare each adjacent pair:
+The exact module split may remain smaller while the implementation is young.
+Create a module only when it owns a clear responsibility.
+
+Python is the intended implementation language. Git, srcDiff, and srcMove do
+the expensive work in external processes, so Python's GIL does not constrain
+pair-level concurrency. Explicit `threading.Thread` and bounded `queue.Queue`
+primitives provide sufficient control over long-lived workers, backpressure,
+shutdown, and subprocess limits. Do not add Python worker processes merely to
+coordinate programs that are already separate processes.
+
+The initial public entry point may be:
+
+```bash
+python3 -m repository_analysis ...
+```
+
+Add an installed command such as `srcmove-history` after the interface is
+stable. Do not force repository orchestration into the existing C++ XML CLI.
+The C++ executable remains responsible for move detection; Python owns Git,
+subprocess supervision, retention, resume, and reporting.
+
+## History and pair definition
+
+The initial traversal remains a bounded first-parent history. `--start S` is
+the newest endpoint. For requested pair count `N`, select at most `N+1` commits,
+reverse the ancestry order, and compare adjacent commits:
 
 ```text
 C0 -> C1
@@ -53,382 +74,374 @@ C1 -> C2
 C(N-1) -> CN
 ```
 
-First-parent traversal provides one deterministic mainline through merge
-history. A merge commit is compared with its first parent, so the result
-measures what the merge introduced relative to that parent. Traversing every
-parent edge, following side branches, and comparing arbitrary time windows are
-future extensions because they describe different datasets.
+Ordering is ancestry order, not timestamp order. Record each commit hash, all
+parent hashes, committer time, subject, and merge status. Reject shallow
+repositories rather than treating a shallow boundary as a root commit. Freeze
+the resolved commit list and retain its newest commit with a namespaced Git ref
+so a moving remote reference cannot redefine an existing analysis.
 
-"Chronological" means oldest-to-newest ancestry order, not sorting by commit
-timestamp; Git timestamps need not be monotonic. Record all parent hashes,
-`parent_count`, and ISO-8601 committer time. Derive merge status from
-`parent_count > 1`.
+One commit pair is one independent work item. Its srcDiff input is the sparse
+old/new directory pair containing all relevant content-changing paths:
 
-If the selected history reaches the root commit, run the available pairs and
-record that fewer than `N` pairs existed. Empty histories and histories with
-only one reachable commit should fail before invoking srcDiff. Detect shallow
-repositories and fail clearly rather than misreporting a shallow boundary as a
-root commit.
+- modified files appear on both sides;
+- additions appear only on the new side;
+- deletions appear only on the old side;
+- renames are represented by their old and new paths;
+- unchanged files are omitted;
+- configured directory and suffix filters remain explicit;
+- symbolic links, submodules, unsafe paths, and unsupported modes produce
+  explicit pair outcomes.
 
-## Proposed interface
+The work unit is never an individual file pair. A single srcDiff archive must
+see all changed paths in the commit pair so cross-file moves remain detectable.
 
-Add `benchmarks/repositories/run_history.py` with separate create and resume
-forms shaped like:
+## Execution architecture
 
-```bash
-python3 benchmarks/repositories/run_history.py start CASE \
-  --start REVISION \
-  --count PAIRS \
-  --label OPTIONAL_LABEL
+### Coordinator
 
-python3 benchmarks/repositories/run_history.py resume HISTORY_ID \
-  --retry-failed
-```
+The coordinator owns global mutable state. It:
 
-The initial command should also accept the repository benchmark's relevant
-overrides:
+- prepares or validates the repository once;
+- freezes the ordered commit list and configuration;
+- observes the srcDiff and srcMove executables once;
+- creates a fixed number of long-lived workers;
+- feeds a bounded queue of commit-pair work items;
+- receives immutable outcomes in completion order;
+- publishes pair receipts in commit order;
+- derives history summaries and browse views;
+- applies retention and acknowledges worker cleanup;
+- stops scheduling safely on an integrity or orchestration failure.
 
-- `--directory`
-- `--fetch` and `--offline`, which remain mutually exclusive
-- `--data-root`
-- `--srcdiff` and `--srcmove`
-- srcDiff and srcMove timeouts
-- source encoding
-- `--position`, off by default as in the single-pair runner
+The coordinator does not run srcDiff or srcMove and does not mutate a worker's
+temporary files while that worker owns them.
 
-Require a positive `--count` and an explicit `--start` in the first version. A
-history manifest must store the requested revision and its resolved commit so a
-moving branch name cannot silently change an existing study. History execution
-requires archive-mode srcDiff; the single-pair `--no-srcdiff-archive` option is
-intentionally not supported because multi-file and cross-file moves are part of
-the dataset.
+### Workers
 
-Do not add an excluded-suffix CLI until that option is shared cleanly with the
-single-pair runner. The existing mandatory exclusions still apply. Record the
-position setting and all filtering behavior in the manifest. A later
-position-enabled study can support graph work without increasing every initial
-counting run's corpus identity, runtime, and storage.
-
-## Execution design
-
-### 1. Reuse the repository cache
-
-Use the case's existing `info.json` and `work/repo` cache. Clone or fetch at
-most once per history invocation, then resolve the complete first-parent commit
-list before processing any pair. Store that frozen list in the history
-manifest.
-
-Do not check out commits in the cached repository. Continue using `git archive`
-exports so the developer's checkout and repository cache remain detached from
-benchmark state. Create and record a namespaced local Git ref at the resolved
-start commit so pending ancestors remain reachable if remote references move;
-do not delete that ref automatically. On resume, verify that every frozen
-commit object still exists before running another pair.
-
-### 2. Prepare the staged per-pair interface
-
-`run_staged_repository_benchmark()` is the shared per-pair boundary. History
-execution disables its standalone series index and stores the returned outcome
-in the numbered pair receipt. Future retry and reconciliation work should:
-
-- return structured terminal outcomes for `completed`, `srcdiff_failed`,
-  `srcmove_failed`, and `orchestration_failed` rather than raising without a
-  recoverable receipt
-- checkpoint canonical stage references in the pair receipt before or as each
-  stage starts
-- expose explicit failed-srcDiff retry control to `generate_corpus()`
-- preserves the existing single-pair CLI and append-only attempt evidence
-
-A repeated failed pair must not silently reuse a terminal failed srcDiff
-attempt. `resume --retry-failed` should update the pair receipt to reference a
-new child attempt while the existing generation batch retains the attempt
-lineage. A terminal `srcmove_failed` receipt reuses the immutable corpus but
-creates a fresh srcMove run; it must not mutate the failed run manifest in
-place. Reserve `run_corpus(..., resume_run=...)` for recovering the same
-interrupted invocation using its checkpointed run ID. Successful pairs are
-never rerun during resume.
-
-### 3. Reuse the staged per-pair pipeline
-
-For each pair, export sparse old and new trees containing the changed source
-paths and call
-`run_staged_repository_benchmark()`. That function remains responsible for:
-
-- filtered, checksummed input snapshots
-- isolated srcDiff attempts and XML validation
-- promotion into an immutable srcDiff corpus
-- srcMove execution and JSON results
-- timing, memory, executable provenance, and failure evidence
-- a structured result returned to the history runner
-
-The history runner should orchestrate these calls, not reproduce their storage
-or process-control logic. Any small refactoring needed to expose repository
-preparation or export helpers should preserve the existing single-pair CLI.
-
-Use the union of content-changing paths from both revisions, preserving their
-repository-relative paths. Modified paths appear on both sides, additions only
-on the new side, and deletions only on the old side. Treat renames as a deletion
-plus an addition so cross-file move candidates remain visible. Unchanged files
-cannot contribute insert or delete regions and needlessly dominate srcDiff time
-on large repositories. Record the sparse path selection as part of the pair's
-filtering scope and snapshot identity.
-
-Reject symbolic links, submodules, and other non-regular Git objects as explicit
-pair outcomes before extraction. Treat mode-only changes and pairs containing
-only excluded suffixes as `no_analyzable_change`.
-
-### 4. Keep pair identity independent of history selection
-
-Input snapshot identity currently includes the dataset case ID, `source`,
-filtering configuration, file identities, and adapter metadata. Do not place a
-history ID, sequence number, requested branch name, commit subject, or display
-label in those identity inputs.
-
-Separate the current `source` argument into a canonical snapshot identity and
-non-identity selection metadata if necessary. The canonical repository-pair
-identity should contain only the configured case name, repository URL, resolved
-old and new commit hashes, selected directory, and filtering scope. Store
-history selection metadata in the pair receipt and history manifest.
-This allows the same resolved pair selected by two studies to reuse an input
-snapshot and corpus. Add a test that proves this reuse; if the existing identity
-contract cannot be changed safely, document the accepted non-reuse instead of
-claiming it.
-
-### 5. Add a history-level index
-
-Create a small history index below the generated data root:
+Each worker owns its temporary directory and process state for its lifetime. It
+repeatedly claims the next available commit pair and performs:
 
 ```text
-benchmark-data/
-  repository-histories/
-    <history-id>/
-      history.json
-      pairs/
-        000001.json
-        000002.json
-      summary.csv
+inventory
+  -> materialize old/new Git blobs
+  -> srcDiff
+  -> validate srcDiff XML
+  -> srcMove
+  -> validate srcMove XML and results
+  -> seal immutable PairOutcome
 ```
 
-`history.json` should contain:
+When one srcDiff invocation is unusually slow, other workers continue claiming
+and completing later pairs. A fixed `--jobs N` pool means at most `N` expensive
+tool processes are active: each worker runs at most one srcDiff or srcMove
+process at a time.
 
-- schema version, history ID, status, timestamps, and optional display label
-- repository URL, selected directory, requested start revision, resolved start
-  commit, traversal mode, and requested/available pair counts
-- the complete ordered commit list and per-commit metadata used for reporting
-- a frozen configuration fingerprint covering repository URL and directory,
-  ordered commits, srcDiff and srcMove executable SHA-256 hashes,
-  archive/position/source-encoding settings, normalized exclusions, timeouts,
-  and relevant schema versions
-- a pair-receipt directory and deterministic filename pattern
-- aggregate completed, no-analyzable-change, failed, and pending counts, plus
-  move totals derived only from completed pairs
+A worker should keep one private `git cat-file --batch` process and reuse it
+across its claimed pairs. Blob bytes are hashed while being written; do not
+materialize an intermediate export tree or reopen newly written inputs merely
+to calculate the same checksum.
 
-The history ID is the study identity. A user label is display metadata, not a
-second grouping identity. Each numbered pair receipt owns that pair's status,
-path inventory, compact metrics, timings, and references to canonical stage
-artifacts. History execution must not also create generic `repository-runs`
-entries or a duplicate series summary. `history.json` remains a small study
-manifest, while `summary.csv` is derived from the ordered receipts. Write the
-active receipt and manifest atomically so interruption does not erase completed
+### Bounded scheduling and deterministic publication
+
+Do not submit the complete history as an unbounded list of futures. Use bounded
+work and completion queues. Completed outcomes may arrive out of order, but the
+coordinator publishes only the next contiguous sequence.
+
+Out-of-order outcomes must not accumulate large result payloads in memory. A
+worker seals its outcome and retained artifacts on disk and returns a small
+immutable reference. The coordinator keeps only bounded metadata needed to
+publish available outcomes. Workers may claim more work while an earlier slow
+pair is still running.
+
+The implementation must bound independently of history length:
+
+- active workers;
+- active Git/srcDiff/srcMove processes;
+- queued work items;
+- in-memory outcomes;
+- captured stdout and stderr;
+- retained temporary data after coordinator acknowledgement.
+
+## Core contracts
+
+Use frozen dataclasses or equivalent immutable values for boundaries between
+workers and the coordinator.
+
+### PairWorkItem
+
+Contains only frozen input:
+
+- sequence number;
+- old and new commit hashes;
+- repository and selected directory;
+- filtering configuration;
+- tool configuration and timeouts;
+- pair fingerprint.
+
+### VerifiedArtifact
+
+Represents an artifact that was just created and admitted:
+
+- owned path;
+- size and SHA-256;
+- artifact kind and schema or XML shape;
+- validation status and details;
+- producing command/stage;
+- retention disposition.
+
+Passing a `VerifiedArtifact` to the next stage is the explicit proof that the
+artifact need not be reopened, rehashed, or reparsed by orchestration code. A
+consumer such as srcMove will still read its actual input as part of doing its
 work.
 
-There is still a crash window between sealing a stage artifact and updating its
-pair receipt. A future resume implementation must reconcile the receipt with
-its referenced stage manifests and attempts before executing pending work.
+### ProcessOutcome
 
-`summary.csv` is a convenience view rebuilt from the pair receipts plus commit
-metadata in `history.json`. Its rows must follow commit order, not filename or
-completion-time order. Include at least:
+Preserves the useful behavior of the current generic attempt executor:
 
-```text
-sequence
-old_commit
-new_commit
-new_committer_time_iso8601
-new_commit_subject_display
-is_merge
-status
-changed_paths
-analyzable_changed_paths
-included_files
-excluded_files
-move_group_count
-move_pair_count
-annotated_region_count
-regions_total
-moved_region_share
-match_kind_exact_group_count
-match_kind_type2_group_count
-srcdiff_seconds
-srcmove_seconds
-repository_benchmark_id
-```
+- command and working directory;
+- start and completion times;
+- exit, signal, timeout, spawn, and interruption status;
+- process-group cleanup evidence;
+- bounded stdout and stderr observations;
+- peak RSS and OOM evidence where supported;
+- admitted output artifact or validation failure.
 
-Preserve missing values for failed pairs rather than substituting zero. A zero
-from a successful srcMove run is a valid observation; a missing result is not.
-`included_files` and `excluded_files` count snapshot entries across both old
-and new sides, not changed paths. A reused corpus reports the duration of its
-original srcDiff attempt, not time spent by the current history invocation.
-Keep the raw commit subject in `history.json`; make the CSV display field safe
-for spreadsheet formula interpretation while preserving normal CSV quoting.
-Any history-wide move total must state its coverage as completed pairs over
-selected pairs; failed and no-analyzable-change pairs are not implicit zeros.
+### PairOutcome
 
-### 6. Classify pair outcomes and continue through failures
+The worker's immutable terminal result contains:
 
-Before exporting, inventory changed paths for the pair under the selected
-directory and explicit suffix filters. Record total changed paths and those
-remaining after these filters. If none remain, record
-`no_analyzable_change` without invoking srcDiff; its metrics remain not
-applicable rather than zero. This preflight describes explicit repository
-filters, not a guarantee that srcDiff supports every remaining file.
+- pair identity and changed-path inventory;
+- terminal pair status;
+- normalized srcMove metrics and results when successful;
+- srcDiff and srcMove process outcomes;
+- retained artifact references and checksums;
+- stage timings;
+- a pair fingerprint tying the result to commits, tools, configuration, and
+  contract versions.
 
-Retain the underlying repository status without collapsing it into a generic
-failure. Initial history statuses are `completed`, `no_analyzable_change`,
-`export_failed`, `srcdiff_failed`, `srcmove_failed`, and
-`orchestration_failed`. Define a missing selected directory, an unexportable
-submodule, and rejected symbolic-link input as explicit per-pair data outcomes
-rather than aborting the rest of the history.
+The coordinator publishes this outcome without reconstructing a generic
+snapshot, corpus, run, or repository-benchmark record.
 
-A srcDiff crash, invalid XML document, timeout, or srcMove failure should
-produce a failed pair record and allow later pairs to run. Unexpected
-orchestration errors should checkpoint the current history as interrupted and
-exit nonzero.
+## Correctness and failure semantics
 
-The final command should exit nonzero when any pair fails, while still printing
-the completed/failed totals and artifact paths. This matches the repository
-suite behavior and prevents partial datasets from appearing fully successful.
+Preserve these terminal pair states unless a schema migration deliberately
+replaces them:
 
-### 7. Resume without redefining the dataset
+- `completed`;
+- `no_analyzable_change`;
+- `export_failed` or a more precise materialization failure;
+- `srcdiff_failed`;
+- `srcmove_failed`;
+- `orchestration_failed`.
 
-`resume HISTORY_ID` should load the frozen commit list and configuration from
-`history.json`. It must not resolve the original branch or tag again. Skip
-terminal successful and no-analyzable-change pairs and leave their artifact
-references unchanged. Pending pairs run normally; failed pairs run again only
-with `--retry-failed`.
+A successful zero-move result is different from a skipped, failed, or pending
+pair. Never substitute zero for missing measurements.
 
-Resume derives the case and configuration from its manifest rather than
-accepting create-time overrides. Verify frozen commit availability and the
-configuration fingerprint, including executable hashes, before continuing. A
-changed tool, filter, timeout, or traversal definition requires a fresh history
-ID rather than silently changing the study.
+Expected tool failures are immutable pair outcomes and do not stop unrelated
+pairs. The production command may exit nonzero to alert the caller that the
+analysis completed with pair failures, but the scaling benchmark must not treat
+those deterministic failures as a benchmark infrastructure failure. Benchmark
+failure means the production tool crashed, published incomplete or corrupt
+state, changed configuration, or produced nonequivalent outcomes.
 
-## Implementation sequence
+Unexpected coordinator failure stops new claims, allows controlled child
+cleanup, and leaves sealed outcomes and published receipts recoverable.
 
-### Phase 1: commit selection
+## Artifact retention
 
-- Add a pure helper that returns a chronological first-parent commit list.
-- Collect commit hash, all parent hashes, ISO-8601 committer time, and subject in
-  one bounded Git query.
-- Define merge status from the number of parents.
-- Reject shallow history and retain the resolved start with a namespaced local
-  ref.
-- Unit-test linear history, a merge, non-monotonic timestamps, a
-  short/root-bounded history, shallow history, an invalid start revision, and
-  invalid counts using temporary local repositories.
+Retention should be applied directly when sealing or publishing a pair, not by
+promoting artifacts through several temporary ownership hierarchies.
 
-### Phase 2: staged-runner contract
+The initial implementation must preserve current observable result contracts
+while making failure evidence durable. A reasonable default retains:
 
-- Separate canonical pair identity from invocation and selection metadata.
-- Return structured outcomes for all terminal repository benchmark states.
-- Add stable invocation keys and an early benchmark-ID checkpoint.
-- Checkpoint stage identifiers and propagate invocation keys into attempt/run
-  context for reconciliation.
-- Expose explicit srcDiff failure retry; create a fresh run for a terminal
-  srcMove failure and reserve in-place run resume for interrupted work.
-- Verify that the existing single-pair runner remains unchanged for users.
+- every pair receipt;
+- `results.json` for every successful analyzed pair;
+- compact normalized metrics for reporting;
+- full command, termination, stdout, stderr, and partial-output evidence for
+  failed pairs;
+- srcDiff/srcMove XML for positive pairs only when selected by policy.
 
-### Phase 3: history orchestration
+Temporary source trees and successful zero-move XML may be removed after the
+coordinator acknowledges a sealed outcome. Positive XML, complete intermediates,
+or ephemeral results remain explicit policy choices. Cleanup must never follow
+symbolic links or delete outside the analysis-owned root.
 
-- Add the CLI and prepare the repository cache once.
-- Freeze and save the selected commits before the first expensive tool run.
-- Inventory filtered changed paths and classify pairs with no analyzable change.
-- Export and execute each adjacent pair through the existing staged runner.
-- Keep the configured repository case name and canonical resolved pair metadata
-  stable so equivalent pairs can reuse artifacts across histories.
-- Continue after terminal tool failures and checkpoint after each pair.
+## Resume and cache safety
 
-### Phase 4: reporting and resume
+Pair fingerprints cover at least:
 
-- Generate chronological `summary.csv` rows from canonical per-pair entries.
-- Reconcile the crash window between repository and history checkpoints using
-  the stable invocation key.
-- Implement interruption-safe resume against the frozen manifest.
-- Clearly distinguish zero moves, failed measurement, and pending work.
-- Print a compact final report with totals and artifact paths.
+- repository identity;
+- resolved old and new commits;
+- selected directory and changed-path filtering rules;
+- srcDiff and srcMove executable SHA-256 values;
+- archive, position, encoding, and timeout configuration;
+- relevant result, validator, and receipt schema versions.
 
-### Phase 5: public entry points and documentation
+Resume loads the frozen history, verifies the global configuration, and skips
+only sealed terminal outcomes whose fingerprints and required retained
+artifacts still verify. It must not resolve the original branch again or rerun
+a completed pair because its worker number changed.
 
-- Add a focused Make target only after the Python interface is stable.
-- Document operational commands in
-  `benchmarks/repositories/README.md` and link back to this plan while work is
-  incomplete.
-- Update `benchmarks/README.md` only if the new workflow changes the benchmark
-  taxonomy or public entry points.
+Cache reuse is optional and separate from normal transient worker storage. A
+cache entry is reusable only after an immutable complete outcome is published
+under its pair fingerprint and its required artifacts verify. Do not introduce
+flags such as `skip_verification=True`; represent verification explicitly with
+typed values and sealed outcomes.
+
+Interrupted unsealed worker directories are diagnostic evidence, not cache
+entries. Resume may reconcile them using stable invocation identifiers, but it
+must not silently admit partial output or duplicate a completed tool execution.
+
+## What to reuse from the experimental implementation
+
+Retain or extract, with tests:
+
+- first-parent selection and commit metadata;
+- changed-path inventory and filtering;
+- path and Git-mode safety checks;
+- direct Git blob materialization behavior;
+- process-group timeout and cleanup semantics;
+- bounded log capture and resource observation;
+- structural srcDiff/srcMove XML admission;
+- normalized srcMove result fields;
+- atomic JSON publication;
+- deterministic summary and browse-view behavior;
+- existing pair and history fields required by consumers.
+
+Do not make the production pair executor create these generic benchmark layers
+for every fresh pair:
+
+- content-addressed input-snapshot directories;
+- generation batches;
+- promoted srcDiff corpora;
+- generic srcMove run manifests;
+- per-pair environment and executable observations;
+- recovery scans for unrelated attempts;
+- repeated retention rewrites and artifact copies;
+- a generic repository-benchmark summary before the history receipt.
+
+The shared benchmark pipeline may continue serving datasets that genuinely need
+those abstractions. Repository analysis should use a focused path rather than
+adding bypass flags to the generic path.
+
+## Implementation phases
+
+### Phase 1: package and contracts
+
+- Create the production package and initial module entry point.
+- Define `PairWorkItem`, `VerifiedArtifact`, `ProcessOutcome`, and `PairOutcome`.
+- Move or wrap pure commit-selection and changed-path logic without changing
+  behavior.
+- Freeze a versioned history configuration and pair fingerprint.
+
+### Phase 2: coordinator with fake workers
+
+- Implement fixed long-lived threads and bounded queues.
+- Prove dynamic claiming when one early pair is slow.
+- Collect outcomes in completion order and publish in sequence order.
+- Prove bounded in-flight work and clean cancellation.
+- Use fake workers before introducing Git or real tool processes.
+
+### Phase 3: focused pair execution
+
+- Add worker-owned Git batch materialization.
+- Extract the necessary process supervision into the production package.
+- Run srcDiff and srcMove sequentially inside one worker.
+- Pass verified artifacts directly between stages.
+- Seal successful and failed outcomes with the required evidence.
+
+### Phase 4: retention, reporting, and resume
+
+- Preserve normalized results and chronological summaries.
+- Apply retention without generic corpus/run promotion.
+- Add interruption checkpoints and sealed-outcome verification.
+- Resume without duplicate execution.
+- Add optional cache publication only after non-cache execution is stable.
+
+### Phase 5: public interface and migration
+
+- Stabilize the command-line interface and installable wrapper.
+- Redirect repository-history documentation to the production command.
+- Change the scaling driver to invoke that command.
+- Compare normalized outcomes with the experimental runner.
+- Remove the old history-to-generic-benchmark adapter only after equivalence is
+  demonstrated.
 
 ## Verification strategy
 
-Tests should use temporary local Git repositories and fixture executables; they
-must not require network access or the real srcDiff/srcMove binaries.
+Unit tests should use temporary Git repositories and fixture executables. They
+must not require network access or real srcDiff/srcMove binaries.
 
-Required coverage:
+Required coverage includes:
 
-- exact adjacent-pair selection and chronological ordering
-- first-parent behavior at merge commits
-- ancestry ordering when commit timestamps are not monotonic
-- root-bounded histories with fewer pairs than requested
-- shallow-repository rejection and missing-object detection on resume
-- one cache preparation per invocation
-- successful multi-pair output and count propagation
-- reuse of an identical resolved pair selected through two histories
-- a pair with no changed paths remaining after directory/suffix filtering
-- a selected directory absent from one revision
-- a middle-pair srcDiff or srcMove failure followed by a successful later pair
-- retry of a terminal failed srcDiff attempt only when requested
-- atomic checkpoint state after interruption
-- crash-window reconciliation without a duplicate attempt or srcMove run
-- interruption after srcMove completion but before pair-receipt update
-- resume without rerunning completed pairs
-- rejection of executable-hash or other configuration drift during resume
-- CSV distinction between zero, failed, and pending results
-- correct metric formulas, CSV quoting, and spreadsheet-safe subject display
-- paths and identifiers that remain within the configured data root
+- exact first-parent selection and ancestry ordering;
+- root-bounded and shallow histories;
+- directory, suffix, mode, rename, addition, and deletion filtering;
+- one repository preparation per invocation;
+- worker-private temporary and process state;
+- dynamic claiming around a deliberately slow first pair;
+- completion-order collection with deterministic publication;
+- bounded queue, outcome, worker, and subprocess counts;
+- srcDiff and srcMove success, failure, timeout, signal, malformed XML, and
+  missing-result behavior;
+- bounded and checksum-recorded stdout/stderr;
+- positive, zero-move, skipped, and failed retention;
+- interruption before sealing, after sealing, and before publication;
+- resume without duplicate srcDiff or srcMove execution;
+- rejection of configuration, executable, or artifact drift;
+- identical normalized outcomes at different worker counts;
+- cleanup constrained to the analysis-owned directory.
 
-After unit tests pass, run a small manual pilot of roughly 5–10 commits on a
-compact C/C++ repository in Docker. Inspect at least one preserved srcDiff XML,
-srcMove XML, results JSON, history manifest, and CSV row before attempting a
-larger study.
+After unit tests pass, run a 5-10 pair Docker pilot and inspect one success, one
+zero-move result, and one failure if available. Expand to a representative
+30-pair scaling check before running the fixed 300-pair validation.
 
-## Scalability and limitations
+## Benchmark boundary and success criteria
 
-The initial implementation favors auditable results over maximum throughput.
-Each distinct adjacent pair normally creates a distinct sparse input snapshot
-and corpus, and a change to one very large file may still dominate runtime.
-Large projects or long histories should begin with a repository subdirectory
-and a small pilot.
+`benchmark_history_scaling.py` should benchmark the production command as a
+black-box consumer. It owns trial scheduling, environment observation, resource
+measurement, normalized equivalence comparison, and report promotion. The
+production tool must not contain worker-count study logic.
 
-The existing pipeline excludes Python files because of the documented srcDiff
-limitation. All exclusions must remain visible per pair and in the history
-configuration. Changes involving only excluded or unsupported files must not be
-interpreted as evidence of zero source movement across the whole commit.
+The current fixed SQLite baseline at eight workers is approximately:
 
-Parallel pair execution is out of scope initially. Sequential execution makes
-resource use, progress, failure diagnosis, and checkpointing easier to reason
-about. Add bounded concurrency only if real measurements justify the added
-complexity.
+- 300 selected pairs;
+- 149 `no_analyzable_change`, 135 completed, and 16 srcDiff failures;
+- 50.44 seconds wall time;
+- 1,212 MiB peak RSS;
+- normalized result SHA-256
+  `a75ab5cff7f92a80a241a5ced100ff1491824fa38d8c60569bcac6ac39b5ac5c`.
 
-Tracking the identity of a code fragment across three or more revisions and
-building a graph of where it moved are also out of scope. An explicitly
-position-enabled study can preserve position-annotated XML alongside commit
-hashes, XPaths, raw texts, and move groups for that later research, but a future
-design must define identity across edits rather than assuming equal text means
-the same historical entity.
+Before removing the experimental path, require:
 
-## Completion criteria
+- identical commit selection, pair statuses, normalized results, move counts,
+  and required retained evidence;
+- deterministic output across worker counts and completion orders;
+- three measured repetitions per worker count with medians and MAD;
+- at least 20% lower eight-worker median wall time than the baseline;
+- at least 50% less summed non-tool pair time;
+- peak RSS no higher than the baseline, preferably below 1 GiB at eight
+  workers;
+- no more than `jobs` expensive tool processes concurrently;
+- memory and in-memory pending outcomes bounded independently of history
+  length;
+- interruption and resume without duplicate completed work.
 
-The first version is complete when it can reproducibly select a bounded
-first-parent history, process every adjacent pair through the existing staged
-pipeline, reconcile interruption without duplicate work, retry failures only
-when requested, resume against a frozen configuration, and emit an auditable
-chronological summary that keeps move groups, estimated pairs, and annotated
-regions distinct.
+The 4/6/8/12-worker curve should be rerun after the focused path is correct. A
+multi-stage pipeline is not planned: current measurements show contention at
+higher worker counts, not idle srcDiff capacity. Consider staging only if new
+measurements demonstrate that whole-pair workers leave expensive srcDiff
+capacity materially idle.
+
+## Known uncertainties
+
+- The public command name and eventual relationship to the C++ CLI remain to be
+  finalized after the Python interface is usable.
+- The exact default positive-XML retention policy needs confirmation against
+  downstream inspection workflows.
+- A focused prototype must separate necessary XML admission and monitoring cost
+  from removable generic artifact-lifecycle overhead.
+- Persistent Git batch sessions are expected to reduce process churn, but their
+  benefit should be measured rather than assumed.
+- The current SQLite scaling knee is evidence for the tested Docker allocation,
+  not a universal default worker count.

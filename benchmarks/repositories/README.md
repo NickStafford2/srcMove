@@ -303,8 +303,8 @@ srcDiff writes an initial generation checkpoint before execution. Fresh and
 complete generations avoid global attempt scans; only an existing incomplete
 generation performs recovery and reconciliation.
 
-This is the create-only pilot described in the
-[historical repository analysis plan](../../doc/historical_repository_analysis_plan.md).
+This create-only pilot is the migration baseline for the production
+[repository-history analysis plan](../../doc/historical_repository_analysis_plan.md).
 Resume, retry, and crash-window reconciliation remain planned work.
 
 ### History scaling studies
