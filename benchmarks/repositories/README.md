@@ -304,6 +304,63 @@ This is the create-only pilot described in the
 [historical repository analysis plan](../../doc/historical_repository_analysis_plan.md).
 Resume, retry, and crash-window reconciliation remain planned work.
 
+### History scaling studies
+
+[`benchmark_history_scaling.py`](benchmark_history_scaling.py) measures the
+history runner itself across a fixed set of worker counts. It resolves the
+complete commit range and both tool executables once, runs every trial in an
+isolated data root, rotates job-count order deterministically, and rejects a
+study as successful if normalized results or history configuration differ
+between trials.
+
+From the workspace root, run a three-repeat, 300-pair scaling study in Docker:
+
+```bash
+./bin/srcml-dev-shell make --no-print-directory -C srcMove history-scaling \
+  CASE=sqlite \
+  START=c69f996361cdaace1aa31176262d91b1ec546bea \
+  COUNT=300 \
+  JOBS=1,2,4,6,8,10,12,16 \
+  REPETITIONS=3 \
+  OFFLINE=1 \
+  ENVIRONMENT_LABEL=srcml-dev:ubuntu24.04 \
+  LABEL=sqlite-300-scaling
+```
+
+The default `results` retention preserves enough evidence to compare complete
+normalized `results.json` content. Use `RETENTION=ephemeral` only when compact
+metric equivalence is sufficient and minimizing retained data matters more
+than detailed move-result comparison. `WARMUPS=1` runs one unmeasured trial at
+every worker count; it is deliberately off by default because a complete warmup
+sweep can be expensive.
+
+The study observes Git revisions and dirty source state, exact srcDiff/srcMove
+binary checksums and build-receipt status, runner checksums, CPU model/count,
+memory, cgroup limits, kernel, and Python/Git versions. Docker does not expose
+its image tag inside the container, so use `ENVIRONMENT_LABEL` to record the
+image or Docker Desktop allocation name used for the study.
+
+Generated studies live below:
+
+```text
+benchmark-data/history-scaling/<study-id>/
+  study.json                 frozen workload, schedule, provenance, status
+  trials.csv                 one row per raw warmup or measured trial
+  summary.json               medians, MAD, speedup, efficiency, scaling knee
+  summary.csv                spreadsheet-friendly per-job summary
+  trials/<trial-id>/
+    trial.json               command, timing, CPU, peak RSS, result hash
+    history.log              complete history-runner output
+    data/                    isolated history artifacts for this trial
+```
+
+The reported knee is conservative: it identifies the worker count before two
+consecutive job-count increases both improve median wall time by less than the
+configured threshold (10% by default). Treat it as evidence for the tested
+machine and workload, not as a universal default. Compare program revisions in
+separate studies with the same commit-list hash and environment allocation so
+algorithm changes are not confused with worker scaling.
+
 ## Advanced staged workflow
 
 For advanced use with already-exported revision trees, create an input snapshot:

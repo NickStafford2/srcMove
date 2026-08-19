@@ -6,7 +6,7 @@ SELECTION_ROLE ?= tuning
 CASES_DIR ?= benchmarks/bigclonebench/cases
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 
-.PHONY: help configure build test test-unit test-xml test-source benchmark-repo benchmark-repos history-results bigclonebench-preflight bigclonebench-cases bigclonebench
+.PHONY: help configure build test test-unit test-xml test-source benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-cases bigclonebench
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -17,6 +17,7 @@ help:
 	@printf '  %-28s %s\n' 'make test-source' 'Build and run source-pair regression tests'
 	@printf '  %-28s %s\n' 'make benchmark-repo' 'Run and save CASE repository benchmark'
 	@printf '  %-28s %s\n' 'make benchmark-repos' 'Run the explicit standard repository suite'
+	@printf '  %-28s %s\n' 'make history-scaling' 'Measure history throughput across JOBS'
 	@printf '  %-28s %s\n' 'make history-results' 'Show moves from the latest repository history'
 	@printf '  %-28s %s\n' 'make bigclonebench-preflight' 'Check the local BigCloneBench installation'
 	@printf '  %-28s %s\n' 'make bigclonebench-cases' 'Generate a configurable BigCloneBench case slice'
@@ -57,6 +58,23 @@ benchmark-repos:
 		$(if $(CASE),--case "$(CASE)") \
 		$(if $(EXCLUDE_CASE),--exclude-case "$(EXCLUDE_CASE)") \
 		$(if $(filter 1 yes true,$(LIST)),--list) \
+		$(if $(filter 1 yes true,$(UPDATE)),--fetch) \
+		$(if $(filter 1 yes true,$(OFFLINE)),--offline)
+
+history-scaling:
+	@test -n "$(CASE)" || { echo 'error: CASE is required'; exit 2; }
+	@test -n "$(START)" || { echo 'error: START is required'; exit 2; }
+	@test -n "$(COUNT)" || { echo 'error: COUNT is required'; exit 2; }
+	@test -n "$(JOBS)" || { echo 'error: JOBS is required'; exit 2; }
+	@$(PYTHON) benchmarks/repositories/benchmark_history_scaling.py "$(CASE)" \
+		--start "$(START)" --count "$(COUNT)" --jobs "$(JOBS)" \
+		$(if $(REPETITIONS),--repetitions "$(REPETITIONS)") \
+		$(if $(WARMUPS),--warmups "$(WARMUPS)") \
+		$(if $(SEED),--seed "$(SEED)") \
+		$(if $(LABEL),--label "$(LABEL)") \
+		$(if $(ENVIRONMENT_LABEL),--environment-label "$(ENVIRONMENT_LABEL)") \
+		$(if $(DIRECTORY),--directory "$(DIRECTORY)") \
+		$(if $(RETENTION),--retention "$(RETENTION)") \
 		$(if $(filter 1 yes true,$(UPDATE)),--fetch) \
 		$(if $(filter 1 yes true,$(OFFLINE)),--offline)
 
