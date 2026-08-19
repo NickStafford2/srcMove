@@ -501,6 +501,9 @@ def _positive_pair_artifacts(
         return path
 
     results = artifact_path("results_path", "results.json")
+    retained = {"results.json": results}
+    if not artifacts.get("srcmove_xml") and not artifacts.get("srcmove_attempt"):
+        return retained
     if artifacts.get("srcmove_xml"):
         srcmove = artifact_path("srcmove_xml", "srcmove.xml")
     else:
@@ -513,6 +516,8 @@ def _positive_pair_artifacts(
 
     if artifacts.get("srcdiff_xml"):
         srcdiff = artifact_path("srcdiff_xml", "srcdiff.xml")
+    elif not artifacts.get("corpus_manifest"):
+        return {**retained, "srcmove.xml": srcmove}
     else:
         corpus_manifest_path = artifact_path("corpus_manifest", "corpus manifest")
         corpus = json.loads(corpus_manifest_path.read_text(encoding="utf-8"))
@@ -532,7 +537,7 @@ def _positive_pair_artifacts(
             raise ValueError(f"unsafe srcDiff corpus path: {accepted[0]['input_path']}")
         if not srcdiff.is_file():
             raise FileNotFoundError(f"srcDiff XML not found: {srcdiff}")
-    return {"results.json": results, "srcmove.xml": srcmove, "srcdiff.xml": srcdiff}
+    return {**retained, "srcmove.xml": srcmove, "srcdiff.xml": srcdiff}
 
 
 def refresh_history_browse_view(
@@ -541,13 +546,33 @@ def refresh_history_browse_view(
     """Create a human-facing, zero-copy view of artifacts for positive pairs."""
 
     history_dir = history_dir.resolve()
-    (history_dir / "moves").mkdir(parents=True, exist_ok=True)
+    moves_dir = history_dir / "moves"
+    moves_dir.mkdir(parents=True, exist_ok=True)
+    retained_pair_names: set[str] = set()
     for pair in pairs:
         if _seconds(pair.get("metrics", {}).get("move_count")) <= 0:
             continue
-        browse_dir = history_dir / "moves" / f"{pair['sequence'] + 1:06d}"
-        for name, target in _positive_pair_artifacts(history_dir, pair).items():
+        pair_name = f"{pair['sequence'] + 1:06d}"
+        retained_pair_names.add(pair_name)
+        browse_dir = moves_dir / pair_name
+        artifacts = _positive_pair_artifacts(history_dir, pair)
+        for obsolete_name in {"results.json", "srcmove.xml", "srcdiff.xml"} - set(
+            artifacts
+        ):
+            obsolete = browse_dir / obsolete_name
+            if obsolete.is_symlink() or obsolete.is_file():
+                obsolete.unlink()
+            elif obsolete.exists():
+                raise ValueError(f"unexpected browse artifact directory: {obsolete}")
+        for name, target in artifacts.items():
             _replace_relative_symlink(browse_dir / name, target)
+    for child in moves_dir.iterdir():
+        if child.name in retained_pair_names:
+            continue
+        if child.is_symlink() or child.is_file():
+            child.unlink()
+        else:
+            shutil.rmtree(child)
     _replace_relative_symlink(history_dir.parent / "latest", history_dir)
 
 
@@ -689,7 +714,34 @@ def finalize_history_retention(
             "orchestration_failed",
         }
     ]
-    if policy == "compact":
+    if policy == "results":
+        retained_results = 0
+        for pair in history["pairs"]:
+            if pair["status"] != "completed":
+                pair.pop("artifacts", None)
+                continue
+            artifacts = pair.get("artifacts", {})
+            relative = artifacts.get("results_path")
+            if not isinstance(relative, str):
+                raise ValueError(
+                    f"completed pair {pair['sequence'] + 1} does not reference results.json"
+                )
+            source = (data_root / relative).resolve()
+            if not source.is_relative_to(pipeline_root.resolve()):
+                raise ValueError(f"results artifact escaped isolated pipeline: {source}")
+            if not source.is_file():
+                raise FileNotFoundError(f"srcMove results not found: {source}")
+            destination = (
+                history_dir / "results" / f"{pair['sequence'] + 1:06d}.json"
+            )
+            _copy_canonical_artifact(source, destination)
+            pair["artifacts"] = {
+                "results_path": destination.relative_to(data_root).as_posix()
+            }
+            retained_results += 1
+        _remove_isolated_pipeline(history_dir, pipeline_root)
+    elif policy == "compact":
+        retained_results = len(positive)
         for pair in positive:
             browse_dir = history_dir / "moves" / f"{pair['sequence'] + 1:06d}"
             retained_artifacts = {}
@@ -717,12 +769,14 @@ def finalize_history_retention(
         else:
             _remove_isolated_pipeline(history_dir, pipeline_root)
     elif policy == "ephemeral":
+        retained_results = 0
         for pair in history["pairs"]:
             pair.pop("artifacts", None)
         _remove_isolated_pipeline(history_dir, pipeline_root)
     else:
         raise ValueError(f"unknown retention policy: {policy}")
     history["retention_summary"] = {
+        "result_pairs": retained_results,
         "positive_evidence_pairs": len(positive) if policy == "compact" else 0,
         "failure_evidence_pairs": len(failures) if policy == "compact" else 0,
         "discarded_successful_intermediate_pairs": sum(
@@ -1564,16 +1618,16 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     retention = start.add_mutually_exclusive_group()
     retention.add_argument(
         "--retention",
-        choices=("full", "compact", "ephemeral"),
-        default="full",
-        help="artifact retention policy; default: full",
+        choices=("results", "full", "compact", "ephemeral"),
+        default="results",
+        help="artifact retention policy; default: results",
     )
     retention.add_argument(
         "--no-cache",
         action="store_const",
         dest="retention",
-        const="compact",
-        help="alias for --retention compact",
+        const="results",
+        help="alias for --retention results",
     )
     show = subparsers.add_parser(
         "show", help="show detected moves from a saved history"

@@ -21,6 +21,7 @@ from benchmarks.repositories.run_history import (
     load_history_results,
     print_history_results,
     print_history_summary,
+    refresh_history_browse_view,
     parse_args,
     resolve_history_directory,
     select_first_parent_history,
@@ -71,12 +72,95 @@ class RepositoryHistoryTests(unittest.TestCase):
     def test_history_retention_cli_defaults_and_no_cache_alias(self) -> None:
         base = ["start", "sqlite", "--start", "HEAD", "--count", "1"]
 
-        self.assertEqual(parse_args(base).retention, "full")
-        self.assertEqual(parse_args([*base, "--no-cache"]).retention, "compact")
+        self.assertEqual(parse_args(base).retention, "results")
+        self.assertEqual(parse_args([*base, "--no-cache"]).retention, "results")
         self.assertEqual(
             parse_args([*base, "--retention", "ephemeral"]).retention,
             "ephemeral",
         )
+
+    def test_results_retention_keeps_results_and_removes_pipeline(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            data_root = Path(temporary_directory) / "benchmark-data"
+            history_dir = data_root / "repository-histories" / "history-fixture"
+            pipeline = history_dir / ".pipeline"
+            run_dir = pipeline / "runs" / "run-fixture"
+            run_dir.mkdir(parents=True)
+            positive_results = run_dir / "positive.json"
+            zero_results = run_dir / "zero.json"
+            positive_results.write_text('{"move_count": 1}', encoding="utf-8")
+            zero_results.write_text('{"move_count": 0}', encoding="utf-8")
+            (run_dir / "srcmove.xml").write_text("<unit/>", encoding="utf-8")
+            (pipeline / "large.srcdiff.xml").write_text("<unit/>", encoding="utf-8")
+            history = {
+                "retention": "results",
+                "pairs": [
+                    {
+                        "sequence": 0,
+                        "status": "completed",
+                        "metrics": {"move_count": 1},
+                        "artifacts": {
+                            "results_path": positive_results.relative_to(
+                                data_root
+                            ).as_posix()
+                        },
+                    },
+                    {
+                        "sequence": 1,
+                        "status": "completed",
+                        "metrics": {"move_count": 0},
+                        "artifacts": {
+                            "results_path": zero_results.relative_to(
+                                data_root
+                            ).as_posix()
+                        },
+                    },
+                    {
+                        "sequence": 2,
+                        "status": "srcdiff_failed",
+                        "artifacts": {"srcdiff_attempt": "discarded/attempt.json"},
+                    },
+                ],
+            }
+
+            finalize_history_retention(history_dir, history, data_root, pipeline)
+
+            self.assertFalse(pipeline.exists())
+            self.assertEqual(
+                json.loads((history_dir / "results" / "000001.json").read_text()),
+                {"move_count": 1},
+            )
+            self.assertEqual(
+                json.loads((history_dir / "results" / "000002.json").read_text()),
+                {"move_count": 0},
+            )
+            self.assertEqual(
+                history["pairs"][0]["artifacts"]["results_path"],
+                "repository-histories/history-fixture/results/000001.json",
+            )
+            self.assertNotIn("artifacts", history["pairs"][2])
+            self.assertEqual(history["retention_summary"]["result_pairs"], 2)
+            self.assertEqual(
+                history["retention_summary"]["positive_evidence_pairs"], 0
+            )
+
+            browse_dir = history_dir / "moves" / "000001"
+            browse_dir.mkdir(parents=True)
+            (browse_dir / "srcmove.xml").symlink_to(
+                pipeline / "discarded-srcmove.xml"
+            )
+            (browse_dir / "srcdiff.xml").symlink_to(
+                pipeline / "discarded-srcdiff.xml"
+            )
+            refresh_history_browse_view(history_dir, history["pairs"])
+            self.assertEqual(
+                (browse_dir / "results.json").resolve(),
+                (history_dir / "results" / "000001.json").resolve(),
+            )
+            self.assertFalse((browse_dir / "srcmove.xml").exists())
+            self.assertFalse((browse_dir / "srcmove.xml").is_symlink())
+            self.assertFalse((browse_dir / "srcdiff.xml").exists())
+            self.assertFalse((browse_dir / "srcdiff.xml").is_symlink())
 
     def test_ephemeral_retention_removes_only_isolated_pipeline(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

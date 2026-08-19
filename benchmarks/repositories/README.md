@@ -193,10 +193,9 @@ benchmark-data/repository-histories/<history-id>/
   history.json               study configuration, commits, status, aggregates
   pairs/000001.json          one canonical receipt per adjacent commit pair
   pairs/000002.json
+  results/000001.json        srcMove result for each analyzed pair
   moves/000016/              browseable view of one positive pair
-    results.json             relative link to canonical srcMove results
-    srcmove.xml              relative link to retained annotated XML
-    srcdiff.xml              relative link to canonical srcDiff XML
+    results.json             relative link to the retained srcMove result
   summary.csv                table rebuilt from the pair receipts
 ```
 
@@ -213,19 +212,31 @@ content IDs or attempt UUIDs:
 ls benchmark-data/repository-histories/latest/moves
 python3 -m json.tool \
   benchmark-data/repository-histories/latest/moves/000016/results.json
-less benchmark-data/repository-histories/latest/moves/000016/srcmove.xml
-less benchmark-data/repository-histories/latest/moves/000016/srcdiff.xml
 ```
 
-These are relative symbolic links, not artifact copies. Zero-move observations
-retain their compact `results.json` and provenance for frequency calculations,
-but they do not clutter the positive-move browse view.
+The positive-move result is a relative symbolic link, not an artifact copy.
+Zero-move observations retain their compact `results.json` for frequency
+calculations but do not clutter the positive-move browse view. XML files appear
+there only when an XML-retaining policy was selected.
 
 ### History retention
 
-History runs default to `--retention full`. This uses the shared content-addressed
-snapshot and srcDiff corpus cache, keeps compact zero-move results, retains
-positive srcMove XML, and provides the fastest repeated analysis.
+History runs default to `--retention results`. This keeps the history report and
+every successful `results.json`, including zero-move observations, while
+discarding successful srcDiff/srcMove XML, snapshots, corpora, attempts, and
+other pipeline intermediates. Positive results are linked under `moves/` for
+quick inspection. Failed-pair status remains in its pair receipt; the recorded
+commits and tool configuration can be used to reproduce it.
+
+The default runs in a history-owned isolated directory and removes that
+directory only after the complete history has been finalized. It does not read,
+populate, or delete the shared benchmark cache. `--no-cache` is an alias for
+this default policy.
+
+Use `--retention full` when repeated analysis speed matters more than storage.
+It uses the shared content-addressed snapshot and srcDiff corpus cache, keeps
+compact zero-move results, retains positive srcMove XML, and provides the
+fastest repeated analysis.
 
 For large one-off studies, compact retention runs the pipeline in a directory
 owned only by that history:
@@ -243,8 +254,7 @@ After successful completion, compact retention keeps:
 - complete input, process, and output evidence for failed pairs.
 
 It discards successful zero-move snapshots, corpora, runs, and attempts. The
-shorter `--no-cache` option is an alias for `--retention compact`. Non-full modes
-never populate or delete the shared cache.
+Non-full modes never populate or delete the shared cache.
 
 Ephemeral retention keeps only the history report and compact per-pair metrics:
 
@@ -256,7 +266,7 @@ python3 benchmarks/repositories/run_history.py start sqlite \
 
 It records whether moves were detected but discards detailed move text, XML,
 failure evidence, and all intermediate artifacts after a completed history. If
-a compact or ephemeral run is interrupted, its isolated `.pipeline` directory
+a results, compact, or ephemeral run is interrupted, its isolated `.pipeline` directory
 is intentionally left intact for diagnosis rather than being cleaned blindly.
 
 History pairs use sparse old/new exports containing only content-changing paths.
