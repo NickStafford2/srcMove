@@ -494,6 +494,7 @@ def run_staged_repository_benchmark(
     use_archive: bool,
     source_encoding: str,
     excluded_suffixes: list[str],
+    show_progress: bool = True,
 ) -> tuple[dict[str, Any], Path]:
     """Run and index one append-only repository benchmark without copying results."""
 
@@ -532,7 +533,9 @@ def run_staged_repository_benchmark(
             snapshot_disposition = value
 
         with ProgressDisplay(
-            "4/6 Input snapshot", detail="hashing and verifying exported files"
+            "4/6 Input snapshot",
+            detail="hashing and verifying exported files",
+            enabled=show_progress,
         ) as progress:
             input_snapshot_dir, input_snapshot = create_input_snapshot(
                 data_root=data_root,
@@ -572,7 +575,9 @@ def run_staged_repository_benchmark(
 
         srcdiff_disposition = "executed"
         srcdiff_progress = ProgressDisplay(
-            "5/6 srcDiff corpus", detail=f"preparing {case_name}"
+            "5/6 srcDiff corpus",
+            detail=f"preparing {case_name}",
+            enabled=show_progress,
         )
         srcdiff_progress.start()
 
@@ -633,7 +638,9 @@ def run_staged_repository_benchmark(
             return entry, series_path
 
         srcmove_progress = ProgressDisplay(
-            "6/6 srcMove run", detail=f"executing {case_name}"
+            "6/6 srcMove run",
+            detail=f"executing {case_name}",
+            enabled=show_progress,
         )
         srcmove_progress.start()
         try:

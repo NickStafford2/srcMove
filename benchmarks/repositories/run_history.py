@@ -11,10 +11,11 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping, Sequence
+from typing import Any, Mapping, Sequence, TextIO
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
@@ -26,6 +27,7 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
 from benchmarks.contracts import canonical_json
 from benchmarks.corpus import DEFAULT_EXCLUDED_SUFFIXES
 from benchmarks.process import write_json_atomic
+from benchmarks.progress import ProgressDisplay
 from benchmarks.provenance import sha256_file, utc_now
 from benchmarks.repositories.run_case import (
     DEFAULT_DATA_ROOT,
@@ -301,6 +303,23 @@ def _configuration_fingerprint(configuration: Mapping[str, Any]) -> str:
 def _aggregate(pairs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
     statuses = [pair["status"] for pair in pairs]
     completed = [pair for pair in pairs if pair["status"] == "completed"]
+    timing_keys = (
+        "pair_seconds",
+        "inventory_seconds",
+        "export_seconds",
+        "srcdiff_seconds",
+        "srcmove_seconds",
+        "orchestration_seconds",
+    )
+    timing_totals: dict[str, float] = {}
+    for key in timing_keys:
+        timing_totals[key] = sum(
+            float(value)
+            for pair in pairs
+            if isinstance(
+                (value := pair.get("timings", {}).get(key)), (int, float)
+            )
+        )
     return {
         "selected_pairs": len(pairs),
         "completed": statuses.count("completed"),
@@ -326,7 +345,42 @@ def _aggregate(pairs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
             pair.get("metrics", {}).get("annotated_region_count", 0)
             for pair in completed
         ),
+        "timings": timing_totals,
     }
+
+
+def _seconds(value: Any) -> float:
+    return float(value) if isinstance(value, (int, float)) else 0.0
+
+
+def _duration(seconds: float) -> str:
+    whole = max(0, round(seconds))
+    minutes, seconds = divmod(whole, 60)
+    hours, minutes = divmod(minutes, 60)
+    if hours:
+        return f"{hours:d}:{minutes:02d}:{seconds:02d}"
+    return f"{minutes:02d}:{seconds:02d}"
+
+
+def _pair_identity(
+    pair: Mapping[str, Any], commits: Mapping[str, Mapping[str, Any]]
+) -> str:
+    new_commit = pair["new_commit"]
+    subject = commits[new_commit]["subject"]
+    return f"{pair['old_commit'][:8]} → {new_commit[:8]}  {subject}"
+
+
+def _entry_failure_detail(entry: Mapping[str, Any]) -> str:
+    error = entry.get("error")
+    if isinstance(error, Mapping) and error.get("message"):
+        return str(error["message"])
+    status = str(entry.get("status", "failed"))
+    if status == "srcdiff_failed":
+        xml_status = entry.get("srcdiff_attempt", {}).get("xml", {}).get("status")
+        return f"srcDiff failed{f' ({xml_status})' if xml_status else ''}"
+    if status == "srcmove_failed":
+        return "srcMove failed"
+    return status.replace("_", " ")
 
 
 SUMMARY_COLUMNS = [
@@ -348,8 +402,13 @@ SUMMARY_COLUMNS = [
     "moved_region_share",
     "match_kind_exact_group_count",
     "match_kind_type2_group_count",
+    "pair_seconds",
+    "inventory_seconds",
+    "export_seconds",
+    "benchmark_seconds",
     "srcdiff_seconds",
     "srcmove_seconds",
+    "orchestration_seconds",
     "repository_benchmark_id",
 ]
 
@@ -408,8 +467,19 @@ def write_history_artifacts(
                     "match_kind_type2_group_count": metrics.get("match_kinds", {}).get(
                         "type2"
                     ),
+                    "pair_seconds": pair.get("timings", {}).get("pair_seconds"),
+                    "inventory_seconds": pair.get("timings", {}).get(
+                        "inventory_seconds"
+                    ),
+                    "export_seconds": pair.get("timings", {}).get("export_seconds"),
+                    "benchmark_seconds": pair.get("timings", {}).get(
+                        "benchmark_seconds"
+                    ),
                     "srcdiff_seconds": pair.get("timings", {}).get("srcdiff_seconds"),
                     "srcmove_seconds": pair.get("timings", {}).get("srcmove_seconds"),
+                    "orchestration_seconds": pair.get("timings", {}).get(
+                        "orchestration_seconds"
+                    ),
                     "repository_benchmark_id": pair.get("repository_benchmark_id"),
                 }
             )
@@ -417,6 +487,7 @@ def write_history_artifacts(
 
 
 def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
+    history_started = time.monotonic()
     benchmark_root = SCRIPT_DIR
     case_dir = benchmark_root / args.case
     info_json = case_dir / "info.json"
@@ -502,11 +573,19 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
 
     original_dir = work_root / "history-original"
     modified_dir = work_root / "history-modified"
+    commits_by_id = {commit["commit"]: commit for commit in history["commits"]}
     for pair in history["pairs"]:
+        pair_started = time.monotonic()
+        progress = ProgressDisplay(
+            f"Pair {pair['sequence'] + 1}/{len(history['pairs'])}",
+            detail=_pair_identity(pair, commits_by_id),
+        )
+        progress.start()
         pair["status"] = "running"
         pair["started_at"] = utc_now()
         write_history_artifacts(history_dir, history, data_root)
         try:
+            inventory_started = time.monotonic()
             changed, analyzable = inventory_changed_paths(
                 clone_dir,
                 pair["old_commit"],
@@ -514,15 +593,35 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                 selected_dir,
                 excluded_suffixes,
             )
+            inventory_seconds = time.monotonic() - inventory_started
             pair["changed_paths"] = len(changed)
             pair["analyzable_changed_paths"] = len(analyzable)
             pair["changed_path_records"] = [change.as_json() for change in changed]
             pair["analyzable_paths"] = [change.path for change in analyzable]
             if not analyzable:
-                pair.update({"status": "no_analyzable_change", "completed_at": utc_now()})
+                pair_seconds = time.monotonic() - pair_started
+                pair.update(
+                    {
+                        "status": "no_analyzable_change",
+                        "completed_at": utc_now(),
+                        "timings": {
+                            "pair_seconds": pair_seconds,
+                            "inventory_seconds": inventory_seconds,
+                            "export_seconds": 0.0,
+                            "srcdiff_seconds": 0.0,
+                            "srcmove_seconds": 0.0,
+                            "orchestration_seconds": pair_seconds,
+                        },
+                    }
+                )
                 write_history_artifacts(history_dir, history, data_root)
+                progress.finish(
+                    f"{len(changed)} changed paths; no analyzable source changes",
+                    completion="skipped",
+                )
                 continue
             try:
+                export_started = time.monotonic()
                 export_changed_files(
                     clone_dir,
                     pair["old_commit"],
@@ -531,15 +630,26 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                     original_dir,
                     modified_dir,
                 )
+                export_seconds = time.monotonic() - export_started
             except Exception as error:
+                pair_seconds = time.monotonic() - pair_started
                 pair.update(
                     {
                         "status": "export_failed",
                         "completed_at": utc_now(),
                         "error": {"type": type(error).__name__, "message": str(error)},
+                        "timings": {
+                            "pair_seconds": pair_seconds,
+                            "inventory_seconds": inventory_seconds,
+                            "export_seconds": time.monotonic() - export_started,
+                            "srcdiff_seconds": 0.0,
+                            "srcmove_seconds": 0.0,
+                            "orchestration_seconds": pair_seconds,
+                        },
                     }
                 )
                 write_history_artifacts(history_dir, history, data_root)
+                progress.finish(str(error), success=False, completion="export failed")
                 continue
 
             source = {
@@ -554,6 +664,7 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                     "paths": [change.as_json() for change in analyzable],
                 },
             }
+            benchmark_started = time.monotonic()
             entry, entry_path = run_staged_repository_benchmark(
                 data_root=data_root,
                 series=history_id,
@@ -569,7 +680,16 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                 use_archive=True,
                 source_encoding=args.src_encoding,
                 excluded_suffixes=[],
+                show_progress=False,
             )
+            benchmark_seconds = time.monotonic() - benchmark_started
+            srcdiff_seconds = _seconds(
+                entry.get("srcdiff_attempt", {}).get("elapsed_seconds")
+            )
+            srcmove_seconds = _seconds(
+                entry.get("srcmove_attempt", {}).get("elapsed_seconds")
+            )
+            pair_seconds = time.monotonic() - pair_started
             pair.update(
                 {
                     "status": entry["status"],
@@ -582,31 +702,67 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                     "counts": entry.get("counts", {}),
                     "metrics": entry.get("results", {}),
                     "timings": {
-                        "srcdiff_seconds": entry.get("srcdiff_attempt", {}).get(
-                            "elapsed_seconds"
-                        ),
-                        "srcmove_seconds": entry.get("srcmove_attempt", {}).get(
-                            "elapsed_seconds"
+                        "pair_seconds": pair_seconds,
+                        "inventory_seconds": inventory_seconds,
+                        "export_seconds": export_seconds,
+                        "benchmark_seconds": benchmark_seconds,
+                        "srcdiff_seconds": srcdiff_seconds,
+                        "srcmove_seconds": srcmove_seconds,
+                        "orchestration_seconds": max(
+                            0.0, pair_seconds - srcdiff_seconds - srcmove_seconds
                         ),
                     },
                 }
             )
+            if entry["status"] != "completed":
+                pair["error"] = {
+                    "type": entry["status"],
+                    "message": _entry_failure_detail(entry),
+                }
             write_history_artifacts(history_dir, history, data_root)
+            if entry["status"] == "completed":
+                metrics = pair["metrics"]
+                progress.finish(
+                    f"{pair['counts'].get('included_files', 0)} files; "
+                    f"{metrics.get('move_group_count', 0)} move groups, "
+                    f"{metrics.get('move_pair_count', 0)} move pairs; "
+                    f"srcDiff {srcdiff_seconds:.1f}s, "
+                    f"srcMove {srcmove_seconds:.1f}s, "
+                    f"overhead {pair['timings']['orchestration_seconds']:.1f}s",
+                    completion="analyzed",
+                )
+            else:
+                progress.finish(
+                    _entry_failure_detail(entry),
+                    success=False,
+                    completion=entry["status"].replace("_", " "),
+                )
         except Exception as error:
+            pair_seconds = time.monotonic() - pair_started
             pair.update(
                 {
                     "status": "orchestration_failed",
                     "completed_at": utc_now(),
                     "error": {"type": type(error).__name__, "message": str(error)},
+                    "timings": {
+                        **pair.get("timings", {}),
+                        "pair_seconds": pair_seconds,
+                        "orchestration_seconds": pair_seconds,
+                    },
                 }
             )
             history["status"] = "interrupted"
+            history["elapsed_seconds"] = time.monotonic() - history_started
             write_history_artifacts(history_dir, history, data_root)
+            progress.finish(
+                str(error), success=False, completion="orchestration failed"
+            )
             return history, history_dir
 
     history["status"] = (
         "completed" if _aggregate(history["pairs"])["failed"] == 0 else "completed_with_failures"
     )
+    history["elapsed_seconds"] = time.monotonic() - history_started
     history["completed_at"] = utc_now()
     write_history_artifacts(history_dir, history, data_root)
     return history, history_dir
@@ -641,20 +797,69 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return args
 
 
+def print_history_summary(
+    history: Mapping[str, Any], history_dir: Path, *, stream: TextIO = sys.stdout
+) -> None:
+    aggregates = history["aggregates"]
+    timings = aggregates["timings"]
+    title = history.get("label") or history["case"]
+    status = str(history["status"]).replace("_", " ").capitalize()
+    print(file=stream)
+    print(f"Historical repository analysis: {title}", file=stream)
+    print(f"  Status:  {status}", file=stream)
+    print(f"  History: {history['history_id']}", file=stream)
+    print(
+        f"  Pairs:   {aggregates['completed']} analyzed, "
+        f"{aggregates['no_analyzable_change']} skipped, "
+        f"{aggregates['failed']} failed, {aggregates['pending']} pending",
+        file=stream,
+    )
+    print(
+        f"  Moves:   {aggregates['move_group_count']} groups, "
+        f"{aggregates['move_pair_count']} pairs, "
+        f"{aggregates['annotated_region_count']} annotated regions",
+        file=stream,
+    )
+    print(
+        f"  Time:    {_duration(_seconds(history.get('elapsed_seconds')))} total; "
+        f"srcDiff {timings['srcdiff_seconds']:.1f}s, "
+        f"srcMove {timings['srcmove_seconds']:.1f}s, "
+        f"overhead {timings['orchestration_seconds']:.1f}s",
+        file=stream,
+    )
+
+    failures = [
+        pair
+        for pair in history["pairs"]
+        if pair["status"]
+        in {
+            "export_failed",
+            "srcdiff_failed",
+            "srcmove_failed",
+            "orchestration_failed",
+        }
+    ]
+    if failures:
+        print(file=stream)
+        print("Failures:", file=stream)
+        for pair in failures:
+            message = pair.get("error", {}).get("message", pair["status"])
+            print(
+                f"  {pair['sequence'] + 1}/{len(history['pairs'])} "
+                f"{pair['old_commit'][:8]} → {pair['new_commit'][:8]} — {message}",
+                file=stream,
+            )
+
+    print(file=stream)
+    print("Artifacts:", file=stream)
+    print(f"  Manifest: {(history_dir / 'history.json').resolve()}", file=stream)
+    print(f"  Summary:  {(history_dir / 'summary.csv').resolve()}", file=stream)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     history, history_dir = run_history_start(args)
-    aggregates = history["aggregates"]
-    print()
-    print(f"Historical repository benchmark: {history['status']}")
-    print(f"  History:   {history['history_id']}")
-    print(
-        f"  Pairs:     {aggregates['completed']} completed, "
-        f"{aggregates['no_analyzable_change']} no analyzable change, "
-        f"{aggregates['failed']} failed, {aggregates['pending']} pending"
-    )
-    print(f"  Manifest:  {(history_dir / 'history.json').resolve()}")
-    print(f"  Summary:   {(history_dir / 'summary.csv').resolve()}")
+    print_history_summary(history, history_dir)
     return 0 if history["status"] == "completed" else 1
 
 

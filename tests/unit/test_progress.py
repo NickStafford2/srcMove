@@ -60,6 +60,15 @@ class ProgressDisplayTests(unittest.TestCase):
         self.assertIn("! srcDiff: case-bad failed; continuing", output.getvalue())
         self.assertIn("1 accepted, 1 failed", output.getvalue())
 
+    def test_disabled_display_emits_nothing(self) -> None:
+        output = io.StringIO()
+
+        with ProgressDisplay("quiet", stream=output, enabled=False) as progress:
+            progress.update(detail="still quiet")
+            progress.finish("done")
+
+        self.assertEqual(output.getvalue(), "")
+
 
 if __name__ == "__main__":
     unittest.main()

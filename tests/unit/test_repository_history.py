@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from io import StringIO
 from pathlib import Path
 
 
@@ -12,8 +13,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.repositories.run_history import (
+    _aggregate,
     export_changed_files,
     inventory_changed_paths,
+    print_history_summary,
     select_first_parent_history,
 )
 
@@ -58,6 +61,55 @@ def commit_file(repo: Path, value: str, subject: str, timestamp: str | None = No
 
 
 class RepositoryHistoryTests(unittest.TestCase):
+    def test_summary_reports_moves_timings_label_and_failed_pair(self) -> None:
+        pairs = [
+            {
+                "sequence": 0,
+                "old_commit": "a" * 40,
+                "new_commit": "b" * 40,
+                "status": "completed",
+                "metrics": {
+                    "move_group_count": 3,
+                    "move_pair_count": 4,
+                    "annotated_region_count": 7,
+                },
+                "timings": {
+                    "pair_seconds": 5.9,
+                    "inventory_seconds": 0.1,
+                    "export_seconds": 0.2,
+                    "srcdiff_seconds": 3.3,
+                    "srcmove_seconds": 0.6,
+                    "orchestration_seconds": 2.0,
+                },
+            },
+            {
+                "sequence": 1,
+                "old_commit": "b" * 40,
+                "new_commit": "c" * 40,
+                "status": "srcdiff_failed",
+                "error": {"message": "srcDiff timed out"},
+                "timings": {"pair_seconds": 2.0, "orchestration_seconds": 0.5},
+            },
+        ]
+        history = {
+            "history_id": "history-fixture",
+            "status": "completed_with_failures",
+            "label": "sqlite-50-pair",
+            "case": "sqlite",
+            "elapsed_seconds": 7.9,
+            "pairs": pairs,
+            "aggregates": _aggregate(pairs),
+        }
+        output = StringIO()
+
+        print_history_summary(history, Path("/tmp/history-fixture"), stream=output)
+
+        text = output.getvalue()
+        self.assertIn("Historical repository analysis: sqlite-50-pair", text)
+        self.assertIn("3 groups, 4 pairs, 7 annotated regions", text)
+        self.assertIn("srcDiff 3.3s, srcMove 0.6s, overhead 2.5s", text)
+        self.assertIn("2/2 bbbbbbbb → cccccccc — srcDiff timed out", text)
+
     def test_selects_requested_pairs_in_oldest_to_newest_ancestry_order(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             repo = initialize_repo(Path(temporary_directory))

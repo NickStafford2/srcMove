@@ -31,6 +31,7 @@ class ProgressDisplay:
         total: int | None = None,
         detail: str = "",
         stream: TextIO | None = None,
+        enabled: bool = True,
         refresh_seconds: float = 0.1,
         log_interval_seconds: float = 30.0,
     ) -> None:
@@ -38,6 +39,7 @@ class ProgressDisplay:
         self.total = total
         self.detail = detail
         self.stream = stream or sys.stderr
+        self.enabled = enabled
         self.refresh_seconds = refresh_seconds
         self.log_interval_seconds = log_interval_seconds
         self.completed = 0
@@ -67,6 +69,8 @@ class ProgressDisplay:
         if self._active:
             return
         self._active = True
+        if not self.enabled:
+            return
         if self._live:
             self._render_live()
         else:
@@ -80,6 +84,8 @@ class ProgressDisplay:
                 self.completed = completed
             if detail is not None:
                 self.detail = detail
+            if not self.enabled:
+                return
             should_log = not self._live and self._crossed_log_bucket()
         if self._live:
             self._render_live()
@@ -96,6 +102,8 @@ class ProgressDisplay:
                 self.completed = completed
 
     def event(self, message: str) -> None:
+        if not self.enabled:
+            return
         with self._lock:
             if self._live:
                 self.stream.write("\r\033[2K")
@@ -116,6 +124,10 @@ class ProgressDisplay:
         if detail is not None:
             with self._lock:
                 self.detail = detail
+        if not self.enabled:
+            self._active = False
+            self._finished = True
+            return
         self._stop.set()
         if self._thread is not None:
             self._thread.join(timeout=1.0)
