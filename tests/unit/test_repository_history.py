@@ -4,6 +4,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import json
 from io import StringIO
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from benchmarks.repositories.run_history import (
     inventory_changed_paths,
     print_history_summary,
     select_first_parent_history,
+    write_history_artifacts,
 )
 
 
@@ -132,8 +134,47 @@ class RepositoryHistoryTests(unittest.TestCase):
         )
         self.assertIn("Profile: srcDiff snapshot verify", text)
         self.assertIn("srcMove corpus verify", text)
-        self.assertIn("repository index", text)
+        self.assertNotIn("repository index", text)
+        self.assertIn("history artifacts", text)
         self.assertIn("2/2 bbbbbbbb → cccccccc — srcDiff timed out", text)
+
+    def test_history_manifest_references_separate_pair_receipts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            history_dir = Path(temporary_directory) / "history"
+            history_dir.mkdir()
+            pair = {
+                "schema_version": 1,
+                "sequence": 0,
+                "old_commit": "a" * 40,
+                "new_commit": "b" * 40,
+                "status": "no_analyzable_change",
+            }
+            history = {
+                "schema_version": 4,
+                "history_id": "history-fixture",
+                "status": "completed",
+                "commits": [
+                    {
+                        "commit": "b" * 40,
+                        "committer_time_iso8601": "2026-01-01T00:00:00Z",
+                        "subject": "fixture",
+                        "is_merge": False,
+                    }
+                ],
+                "pairs": [pair],
+            }
+
+            write_history_artifacts(history_dir, history)
+
+            manifest = json.loads(
+                (history_dir / "history.json").read_text(encoding="utf-8")
+            )
+            receipt = json.loads(
+                (history_dir / "pairs" / "000001.json").read_text(encoding="utf-8")
+            )
+            self.assertNotIn("pairs", manifest)
+            self.assertEqual(manifest["pair_receipts"]["count"], 1)
+            self.assertEqual(receipt, pair)
 
     def test_selects_requested_pairs_in_oldest_to_newest_ancestry_order(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

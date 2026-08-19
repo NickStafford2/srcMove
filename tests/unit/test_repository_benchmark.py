@@ -143,7 +143,11 @@ class RepositoryBenchmarkTests(unittest.TestCase):
                 )
 
     def run_benchmark(
-        self, root: Path, *, srcdiff_name: str = "srcdiff-valid-archive"
+        self,
+        root: Path,
+        *,
+        srcdiff_name: str = "srcdiff-valid-archive",
+        index_series: bool = True,
     ):
         original, modified = source_pair(root)
         tools = root / "tools"
@@ -169,7 +173,19 @@ class RepositoryBenchmarkTests(unittest.TestCase):
             use_archive=True,
             source_encoding="UTF-8",
             excluded_suffixes=[],
+            index_series=index_series,
         )
+
+    def test_history_style_run_skips_standalone_repository_index(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+
+            entry, index_path = self.run_benchmark(root, index_series=False)
+
+            self.assertEqual(entry["status"], "completed")
+            self.assertIsNone(index_path)
+            self.assertFalse((root / "benchmark-data" / "repository-runs").exists())
+            self.assertNotIn("repository_index_seconds", entry["timings"])
 
     def test_repeated_benchmarks_reuse_inputs_and_append_runs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

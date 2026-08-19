@@ -87,6 +87,12 @@ The small repository-run index references canonical artifacts; it does not
 duplicate them. Repeating an identical case reuses its input snapshot and corpus
 but always creates a distinct srcMove run and index record.
 
+Successful srcDiff XML lives only in its corpus; the originating attempt records
+the promoted corpus path and discards its temporary copy. A successful srcMove
+run always retains `results.json`. It retains `srcmove.xml` when moves were found
+and discards it after validation when `move_count` is zero. Failed or invalid
+tool output is retained for diagnosis.
+
 If srcDiff crashes, times out, or emits invalid archive XML, the command returns
 nonzero, saves the failure, and prints exact `replay` and `isolate` commands. A
 zero-move srcMove result remains a valid observation; structurally empty archive
@@ -152,8 +158,19 @@ python3 benchmarks/repositories/run_history.py start sqlite \
 The case's configured directory still applies; SQLite currently measures
 `src/`. A selected commit whose adjacent change has no paths remaining in that
 scope and the mandatory suffix filters is recorded as `no_analyzable_change`,
-not as zero moves. Generated `history.json` and `summary.csv` files are stored
-below `benchmark-data/repository-histories/<history-id>/`.
+not as zero moves. History studies use their own compact index:
+
+```text
+benchmark-data/repository-histories/<history-id>/
+  history.json               study configuration, commits, status, aggregates
+  pairs/000001.json          one canonical receipt per adjacent commit pair
+  pairs/000002.json
+  summary.csv                table rebuilt from the pair receipts
+```
+
+History pairs do not also create `repository-runs/<history-id>/` entries or a
+second summary. Pair receipts reference the canonical snapshot, corpus, attempt,
+run, and result artifacts instead of copying them.
 
 History pairs use sparse old/new exports containing only content-changing paths.
 Modified files appear on both sides, additions only on the new side, and
@@ -168,7 +185,7 @@ started by the current history run. Cache reuse time covers current snapshot and
 corpus verification, while `srcdiff_cached_execution_seconds` retains the
 original attempt duration for reference and is excluded from current-run totals.
 Fine-grained profile fields record verification, interrupted-attempt recovery,
-reconciliation, executable observation, indexing, and history-artifact writes.
+reconciliation, executable observation, and history-artifact writes.
 New srcMove runs do not recover unrelated prior runs; an explicit resume recovers
 only the selected run before reconciling its attempts.
 srcDiff writes an initial generation checkpoint before execution. Fresh and

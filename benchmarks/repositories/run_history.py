@@ -41,7 +41,8 @@ from benchmarks.repositories.run_case import (
 from support.tooling import find_srcdiff, find_srcmove, run_command as run
 
 
-HISTORY_SCHEMA_VERSION = 3
+HISTORY_SCHEMA_VERSION = 4
+PAIR_SCHEMA_VERSION = 1
 TRAVERSAL_MODE = "first_parent"
 INPUT_SCOPE = "changed_files"
 SAFE_HISTORY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
@@ -56,7 +57,6 @@ PROFILE_TIMING_KEYS = (
     "srcmove_attempt_recovery_seconds",
     "srcmove_observation_seconds",
     "srcmove_attempt_reconciliation_seconds",
-    "repository_index_seconds",
     "history_artifact_write_seconds",
 )
 
@@ -305,10 +305,6 @@ def _history_identifier(case_name: str) -> str:
     return f"history-{timestamp}-{case_name}-{uuid.uuid4()}"
 
 
-def _relative(path: Path, data_root: Path) -> str:
-    return path.resolve().relative_to(data_root.resolve()).as_posix()
-
-
 def _configuration_fingerprint(configuration: Mapping[str, Any]) -> str:
     return hashlib.sha256(canonical_json(dict(configuration))).hexdigest()
 
@@ -462,7 +458,6 @@ SUMMARY_COLUMNS = [
     "srcmove_execution_seconds",
     "other_seconds",
     *PROFILE_TIMING_KEYS,
-    "repository_benchmark_id",
 ]
 
 
@@ -471,12 +466,27 @@ def _spreadsheet_safe(value: str) -> str:
 
 
 def write_history_artifacts(
-    history_dir: Path, history: dict[str, Any], data_root: Path
+    history_dir: Path,
+    history: dict[str, Any],
+    pair: Mapping[str, Any] | None = None,
 ) -> float:
     started = time.monotonic()
     history["aggregates"] = _aggregate(history["pairs"])
     history["updated_at"] = utc_now()
-    write_json_atomic(history_dir / "history.json", history)
+    pairs_dir = history_dir / "pairs"
+    pairs_dir.mkdir(exist_ok=True)
+    receipts = history["pairs"] if pair is None else [pair]
+    for receipt in receipts:
+        write_json_atomic(
+            pairs_dir / f"{receipt['sequence'] + 1:06d}.json", receipt
+        )
+    manifest = {key: value for key, value in history.items() if key != "pairs"}
+    manifest["pair_receipts"] = {
+        "directory": "pairs",
+        "filename_pattern": "%06d.json",
+        "count": len(history["pairs"]),
+    }
+    write_json_atomic(history_dir / "history.json", manifest)
 
     commits = {commit["commit"]: commit for commit in history["commits"]}
     summary_path = history_dir / "summary.csv"
@@ -506,8 +516,10 @@ def write_history_artifacts(
                     ),
                     "is_merge": commits[pair["new_commit"]]["is_merge"],
                     "status": pair["status"],
-                    "changed_paths": pair.get("changed_paths"),
-                    "analyzable_changed_paths": pair.get("analyzable_changed_paths"),
+                    "changed_paths": pair.get("path_counts", {}).get("changed"),
+                    "analyzable_changed_paths": pair.get("path_counts", {}).get(
+                        "analyzable"
+                    ),
                     "included_files": pair.get("counts", {}).get("included_files"),
                     "excluded_files": pair.get("counts", {}).get("excluded_files"),
                     "move_group_count": metrics.get("move_group_count"),
@@ -555,7 +567,6 @@ def write_history_artifacts(
                         key: pair.get("timings", {}).get(key)
                         for key in PROFILE_TIMING_KEYS
                     },
-                    "repository_benchmark_id": pair.get("repository_benchmark_id"),
                 }
             )
     temporary.replace(summary_path)
@@ -613,9 +624,6 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     history_dir.mkdir(parents=True, exist_ok=False)
     excluded_suffixes = sorted(DEFAULT_EXCLUDED_SUFFIXES)
     frozen_configuration = {
-        "repository": repo_url,
-        "directory": selected_dir,
-        "commits": [commit.commit for commit in commits],
         "srcdiff_sha256": sha256_file(srcdiff),
         "srcmove_sha256": sha256_file(srcmove),
         "archive": True,
@@ -629,8 +637,8 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     }
     pairs = [
         {
+            "schema_version": PAIR_SCHEMA_VERSION,
             "sequence": sequence,
-            "pair_key": f"{history_id}:{sequence}",
             "old_commit": old.commit,
             "new_commit": new.commit,
             "status": "pending",
@@ -655,12 +663,17 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         "available_pair_count": len(pairs),
         "configuration": frozen_configuration,
         "configuration_fingerprint_sha256": _configuration_fingerprint(
-            frozen_configuration
+            {
+                "repository": repo_url,
+                "directory": selected_dir,
+                "commits": [commit.commit for commit in commits],
+                **frozen_configuration,
+            }
         ),
         "commits": [commit.as_json() for commit in commits],
         "pairs": pairs,
     }
-    write_history_artifacts(history_dir, history, data_root)
+    write_history_artifacts(history_dir, history)
 
     original_dir = work_root / "history-original"
     modified_dir = work_root / "history-modified"
@@ -675,7 +688,7 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         pair["status"] = "running"
         pair["started_at"] = utc_now()
         history_artifact_write_seconds = write_history_artifacts(
-            history_dir, history, data_root
+            history_dir, history, pair
         )
         try:
             inventory_started = time.monotonic()
@@ -687,10 +700,11 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                 excluded_suffixes,
             )
             inventory_seconds = time.monotonic() - inventory_started
-            pair["changed_paths"] = len(changed)
-            pair["analyzable_changed_paths"] = len(analyzable)
-            pair["changed_path_records"] = [change.as_json() for change in changed]
-            pair["analyzable_paths"] = [change.path for change in analyzable]
+            pair["path_counts"] = {
+                "changed": len(changed),
+                "analyzable": len(analyzable),
+            }
+            pair["changed_paths"] = [change.as_json() for change in changed]
             if not analyzable:
                 pair_seconds = time.monotonic() - pair_started
                 pair.update(
@@ -713,11 +727,12 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                     }
                 )
                 history_artifact_write_seconds += write_history_artifacts(
-                    history_dir, history, data_root
+                    history_dir, history, pair
                 )
                 _finalize_pair_timings(
                     pair, pair_started, history_artifact_write_seconds
                 )
+                write_history_artifacts(history_dir, history, pair)
                 progress.finish(
                     f"{len(changed)} changed paths; no analyzable source changes",
                     completion="skipped",
@@ -757,11 +772,12 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                     }
                 )
                 history_artifact_write_seconds += write_history_artifacts(
-                    history_dir, history, data_root
+                    history_dir, history, pair
                 )
                 _finalize_pair_timings(
                     pair, pair_started, history_artifact_write_seconds
                 )
+                write_history_artifacts(history_dir, history, pair)
                 progress.finish(str(error), success=False, completion="export failed")
                 continue
 
@@ -778,7 +794,7 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                 },
             }
             benchmark_started = time.monotonic()
-            entry, entry_path = run_staged_repository_benchmark(
+            entry, _ = run_staged_repository_benchmark(
                 data_root=data_root,
                 series=history_id,
                 case_name=args.case,
@@ -794,6 +810,7 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                 source_encoding=args.src_encoding,
                 excluded_suffixes=[],
                 show_progress=False,
+                index_series=False,
             )
             benchmark_seconds = time.monotonic() - benchmark_started
             entry_timings = entry.get("timings", {})
@@ -836,11 +853,24 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                 {
                     "status": entry["status"],
                     "completed_at": utc_now(),
-                    "repository_benchmark_id": entry["benchmark_id"],
-                    "repository_benchmark_path": _relative(entry_path, data_root),
-                    "input_snapshot_id": entry.get("input_snapshot_id"),
-                    "corpus_id": entry.get("corpus_id"),
-                    "run_id": entry.get("run_id"),
+                    "artifacts": {
+                        key: entry[key]
+                        for key in (
+                            "input_snapshot_manifest",
+                            "corpus_manifest",
+                            "run_manifest",
+                            "results_path",
+                        )
+                        if entry.get(key)
+                    }
+                    | {
+                        key: attempt["path"]
+                        for key, attempt in (
+                            ("srcdiff_attempt", entry.get("srcdiff_attempt", {})),
+                            ("srcmove_attempt", entry.get("srcmove_attempt", {})),
+                        )
+                        if attempt.get("path")
+                    },
                     "counts": entry.get("counts", {}),
                     "metrics": entry.get("results", {}),
                     "dispositions": dispositions,
@@ -873,11 +903,12 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                     "message": _entry_failure_detail(entry),
                 }
             history_artifact_write_seconds += write_history_artifacts(
-                history_dir, history, data_root
+                history_dir, history, pair
             )
             _finalize_pair_timings(
                 pair, pair_started, history_artifact_write_seconds
             )
+            write_history_artifacts(history_dir, history, pair)
             if entry["status"] == "completed":
                 metrics = pair["metrics"]
                 progress.finish(
@@ -910,11 +941,12 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
             history["status"] = "interrupted"
             history["elapsed_seconds"] = time.monotonic() - history_started
             history_artifact_write_seconds += write_history_artifacts(
-                history_dir, history, data_root
+                history_dir, history, pair
             )
             _finalize_pair_timings(
                 pair, pair_started, history_artifact_write_seconds
             )
+            write_history_artifacts(history_dir, history, pair)
             progress.finish(
                 str(error), success=False, completion="orchestration failed"
             )
@@ -925,7 +957,7 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     )
     history["elapsed_seconds"] = time.monotonic() - history_started
     history["completed_at"] = utc_now()
-    write_history_artifacts(history_dir, history, data_root)
+    write_history_artifacts(history_dir, history)
     return history, history_dir
 
 
@@ -1018,9 +1050,8 @@ def print_history_summary(
         file=stream,
     )
     print(
-        "           repository index "
-        f"{timings['repository_index_seconds']:.1f}s, "
-        f"history artifacts {timings['history_artifact_write_seconds']:.1f}s",
+        "           history artifacts "
+        f"{timings['history_artifact_write_seconds']:.1f}s",
         file=stream,
     )
 

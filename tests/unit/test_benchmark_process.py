@@ -62,6 +62,7 @@ class ProcessAttemptTests(unittest.TestCase):
             self.assertEqual(attempt["termination"], {"status": "exited", "exit_code": 0})
             self.assertEqual(attempt["xml"]["status"], "valid")
             self.assertTrue((attempt_dir / "attempt.json").is_file())
+            self.assertFalse((attempt_dir / "started.json").exists())
             self.assertEqual(list(attempt_dir.glob(".attempt.json.tmp-*")), [])
             self.assertIn(
                 attempt["resource_usage"]["peak_rss_status"],

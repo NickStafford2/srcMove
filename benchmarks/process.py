@@ -469,6 +469,7 @@ def execute_attempt(
             "admitted": False,
         }
         write_json_atomic(attempt_dir / "attempt.json", record)
+        (attempt_dir / "started.json").unlink(missing_ok=True)
         raise
 
     for thread in threads:
@@ -523,7 +524,38 @@ def execute_attempt(
         "admitted": admitted,
     }
     write_json_atomic(attempt_dir / "attempt.json", record)
+    (attempt_dir / "started.json").unlink(missing_ok=True)
     return attempt_dir, record
+
+
+def set_attempt_output_retention(
+    attempt_dir: Path,
+    retention: str,
+    *,
+    canonical_path: str | None = None,
+    discard: bool = False,
+) -> dict[str, Any]:
+    """Update a sealed attempt after its output receives a durable owner."""
+
+    terminal_path = attempt_dir / "attempt.json"
+    record = json.loads(terminal_path.read_text(encoding="utf-8"))
+    output_name = record.get("output_path")
+    output_exists = isinstance(output_name, str) and (attempt_dir / output_name).exists()
+    if (
+        record.get("output_retention") == retention
+        and record.get("canonical_output_path") == canonical_path
+        and (not discard or not output_exists)
+    ):
+        return record
+    if discard and isinstance(output_name, str):
+        (attempt_dir / output_name).unlink(missing_ok=True)
+    record["output_retention"] = retention
+    if canonical_path is None:
+        record.pop("canonical_output_path", None)
+    else:
+        record["canonical_output_path"] = canonical_path
+    write_json_atomic(terminal_path, record)
+    return record
 
 
 def recover_interrupted_attempts(attempts_root: Path) -> list[str]:
@@ -567,5 +599,6 @@ def recover_interrupted_attempts(attempts_root: Path) -> list[str]:
             "recovered": True,
         }
         write_json_atomic(terminal_path, record)
+        started_path.unlink(missing_ok=True)
         recovered.append(attempt_dir.name)
     return recovered

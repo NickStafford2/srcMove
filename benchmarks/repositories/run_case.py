@@ -528,8 +528,9 @@ def run_staged_repository_benchmark(
     source_encoding: str,
     excluded_suffixes: list[str],
     show_progress: bool = True,
-) -> tuple[dict[str, Any], Path]:
-    """Run and index one append-only repository benchmark without copying results."""
+    index_series: bool = True,
+) -> tuple[dict[str, Any], Path | None]:
+    """Run one repository benchmark and optionally add its standalone index."""
 
     pipeline_started = time.monotonic()
     data_root = data_root.expanduser().resolve()
@@ -695,11 +696,13 @@ def run_staged_repository_benchmark(
             entry["timings"]["pipeline_wall_seconds"] = (
                 time.monotonic() - pipeline_started
             )
-            index_started = time.monotonic()
-            series_path = update_series(data_root, series, entry)
-            entry["timings"]["repository_index_seconds"] = (
-                time.monotonic() - index_started
-            )
+            series_path = None
+            if index_series:
+                index_started = time.monotonic()
+                series_path = update_series(data_root, series, entry)
+                entry["timings"]["repository_index_seconds"] = (
+                    time.monotonic() - index_started
+                )
             return entry, series_path
 
         srcmove_stage_started = time.monotonic()
@@ -778,11 +781,13 @@ def run_staged_repository_benchmark(
         entry["timings"]["pipeline_wall_seconds"] = (
             time.monotonic() - pipeline_started
         )
-        index_started = time.monotonic()
-        series_path = update_series(data_root, series, entry)
-        entry["timings"]["repository_index_seconds"] = (
-            time.monotonic() - index_started
-        )
+        series_path = None
+        if index_series:
+            index_started = time.monotonic()
+            series_path = update_series(data_root, series, entry)
+            entry["timings"]["repository_index_seconds"] = (
+                time.monotonic() - index_started
+            )
         return entry, series_path
     except Exception as error:
         entry["timings"]["pipeline_wall_seconds"] = (
@@ -795,7 +800,8 @@ def run_staged_repository_benchmark(
                 "error": {"type": type(error).__name__, "message": str(error)},
             }
         )
-        update_series(data_root, series, entry)
+        if index_series:
+            update_series(data_root, series, entry)
         raise
 
 

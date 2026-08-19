@@ -127,32 +127,26 @@ commit object still exists before running another pair.
 
 ### 2. Prepare the staged per-pair interface
 
-The current `run_staged_repository_benchmark()` is close to the required
-boundary, but it does not yet fulfill the history runner's retry and
-reconciliation contracts. Refactor it before adding the traversal loop so it:
+`run_staged_repository_benchmark()` is the shared per-pair boundary. History
+execution disables its standalone series index and stores the returned outcome
+in the numbered pair receipt. Future retry and reconciliation work should:
 
-- returns a structured terminal outcome and allocated benchmark entry path for
-  `completed`, `srcdiff_failed`, `srcmove_failed`, and
-  `orchestration_failed` outcomes instead of writing and then raising without a
+- return structured terminal outcomes for `completed`, `srcdiff_failed`,
+  `srcmove_failed`, and `orchestration_failed` rather than raising without a
   recoverable receipt
-- accepts non-identity invocation context, including a stable history pair key
-- checkpoints stage receipts containing at least the benchmark ID, input
-  snapshot ID, generation or corpus ID, and run ID before or as each stage
-  starts
-- propagates the stable pair key into generation, run, and attempt context so
-  partially indexed work can be reconciled
-- exposes explicit failed-srcDiff retry control to `generate_corpus()`
+- checkpoint canonical stage references in the pair receipt before or as each
+  stage starts
+- expose explicit failed-srcDiff retry control to `generate_corpus()`
 - preserves the existing single-pair CLI and append-only attempt evidence
 
 A repeated failed pair must not silently reuse a terminal failed srcDiff
-attempt. `resume --retry-failed` should create a new repository benchmark entry
-linked to the previous entry. A failed srcDiff stage requests a child attempt
-through its existing generation batch. A terminal `srcmove_failed` entry reuses
-the immutable corpus but creates a fresh srcMove run; it must not mutate the
-failed run manifest in place. Reserve `run_corpus(..., resume_run=...)` for
-recovering the same interrupted invocation using its checkpointed run ID. The
-history pair record points to the latest entry while retaining the complete
-entry and attempt chain. Successful pairs are never rerun during resume.
+attempt. `resume --retry-failed` should update the pair receipt to reference a
+new child attempt while the existing generation batch retains the attempt
+lineage. A terminal `srcmove_failed` receipt reuses the immutable corpus but
+creates a fresh srcMove run; it must not mutate the failed run manifest in
+place. Reserve `run_corpus(..., resume_run=...)` for recovering the same
+interrupted invocation using its checkpointed run ID. Successful pairs are
+never rerun during resume.
 
 ### 3. Reuse the staged per-pair pipeline
 
@@ -165,7 +159,7 @@ paths and call
 - promotion into an immutable srcDiff corpus
 - srcMove execution and JSON results
 - timing, memory, executable provenance, and failure evidence
-- append-only repository benchmark entries
+- a structured result returned to the history runner
 
 The history runner should orchestrate these calls, not reproduce their storage
 or process-control logic. Any small refactoring needed to expose repository
@@ -194,7 +188,7 @@ Separate the current `source` argument into a canonical snapshot identity and
 non-identity selection metadata if necessary. The canonical repository-pair
 identity should contain only the configured case name, repository URL, resolved
 old and new commit hashes, selected directory, and filtering scope. Store
-history selection metadata in the repository benchmark entry and history index.
+history selection metadata in the pair receipt and history manifest.
 This allows the same resolved pair selected by two studies to reuse an input
 snapshot and corpus. Add a test that proves this reuse; if the existing identity
 contract cannot be changed safely, document the accepted non-reuse instead of
@@ -209,6 +203,9 @@ benchmark-data/
   repository-histories/
     <history-id>/
       history.json
+      pairs/
+        000001.json
+        000002.json
       summary.csv
 ```
 
@@ -222,27 +219,25 @@ benchmark-data/
   ordered commits, srcDiff and srcMove executable SHA-256 hashes,
   archive/position/source-encoding settings, normalized exclusions, timeouts,
   and relevant schema versions
-- one ordered record per pair with sequence number, old/new hashes, status, and
-  the relative path or identifier of its latest repository benchmark entry
+- a pair-receipt directory and deterministic filename pattern
 - aggregate completed, no-analyzable-change, failed, and pending counts, plus
   move totals derived only from completed pairs
 
-The history ID is the study identity and should also namespace the underlying
-repository series. A user label is display metadata, not a second grouping
-identity. The history index references canonical artifacts and must not copy
-srcDiff XML, srcMove XML, results JSON, or attempt logs. Write it atomically
-after every terminal pair so interruption does not erase completed work.
+The history ID is the study identity. A user label is display metadata, not a
+second grouping identity. Each numbered pair receipt owns that pair's status,
+path inventory, compact metrics, timings, and references to canonical stage
+artifacts. History execution must not also create generic `repository-runs`
+entries or a duplicate series summary. `history.json` remains a small study
+manifest, while `summary.csv` is derived from the ordered receipts. Write the
+active receipt and manifest atomically so interruption does not erase completed
+work.
 
-There is still a crash window between committing a per-pair repository entry
-and updating `history.json`. Store a stable invocation key derived from
-`history_id + sequence` in every repository entry. On startup and resume,
-reconcile repository entries, stage receipts, runs, and attempts with those keys
-before executing pending work. This also covers interruption after srcMove
-finishes but before repository indexing. Allocate the benchmark ID before
-expensive work and checkpoint in-progress stage ownership in `history.json`.
+There is still a crash window between sealing a stage artifact and updating its
+pair receipt. A future resume implementation must reconcile the receipt with
+its referenced stage manifests and attempts before executing pending work.
 
-`summary.csv` is a convenience view rebuilt from `history.json` and referenced
-per-pair benchmark entries. Its rows must follow commit order, not filename or
+`summary.csv` is a convenience view rebuilt from the pair receipts plus commit
+metadata in `history.json`. Its rows must follow commit order, not filename or
 completion-time order. Include at least:
 
 ```text
@@ -391,9 +386,8 @@ Required coverage:
 - a middle-pair srcDiff or srcMove failure followed by a successful later pair
 - retry of a terminal failed srcDiff attempt only when requested
 - atomic checkpoint state after interruption
-- crash-window reconciliation without a duplicate repository entry or srcMove
-  run
-- interruption after srcMove completion but before repository indexing
+- crash-window reconciliation without a duplicate attempt or srcMove run
+- interruption after srcMove completion but before pair-receipt update
 - resume without rerunning completed pairs
 - rejection of executable-hash or other configuration drift during resume
 - CSV distinction between zero, failed, and pending results

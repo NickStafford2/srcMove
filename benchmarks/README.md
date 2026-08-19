@@ -89,10 +89,12 @@ claim that Python is outside srcMove's intended scope.
 
 Every tool invocation owns a unique attempt directory. Its atomic terminal
 record keeps process termination separate from XML validation, retains bounded
-stdout/stderr with full-stream checksums, and records timeout cleanup. Only a
-normal zero exit with structurally valid, checksummed srcDiff XML can be
-promoted into a corpus. Input snapshots and corpus XML are checksum-verified
-again whenever consumed.
+stdout/stderr with full-stream checksums, and records timeout cleanup. The
+temporary `started.json` checkpoint is removed after a terminal record is
+sealed. Only a normal zero exit with structurally valid, checksummed srcDiff XML
+can be promoted into a corpus. After promotion, the corpus copy is the sole
+owner of successful srcDiff XML; failed output remains with its attempt. Input
+snapshots and corpus XML are checksum-verified again whenever consumed.
 
 Repository commands are documented in the
 [repository benchmark guide](repositories/README.md). An existing corpus can be

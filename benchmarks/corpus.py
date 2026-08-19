@@ -24,6 +24,7 @@ from benchmarks.contracts import (
 from benchmarks.process import (
     execute_attempt,
     recover_interrupted_attempts,
+    set_attempt_output_retention,
     validate_srcdiff_xml,
     write_json_atomic,
 )
@@ -645,6 +646,7 @@ def generate_corpus(
         )
         with _timed(timing_callback, "srcdiff_corpus_verification_seconds"):
             _verify_corpus(final_dir, manifest)
+        _compact_promoted_srcdiff_outputs(data_root, final_dir, manifest)
         return final_dir, manifest
 
     staging = data_root / "corpora" / f".staging-{uuid.uuid4()}"
@@ -716,11 +718,30 @@ def generate_corpus(
         write_json_atomic(staging / "manifest.json", manifest)
         final_dir.parent.mkdir(parents=True, exist_ok=True)
         os.replace(staging, final_dir)
+        _compact_promoted_srcdiff_outputs(data_root, final_dir, manifest)
         return final_dir, manifest
     except BaseException:
         if staging.exists():
             shutil.rmtree(staging)
         raise
+
+
+def _compact_promoted_srcdiff_outputs(
+    data_root: Path, corpus_dir: Path, manifest: Mapping[str, Any]
+) -> None:
+    """Make the verified corpus copy the sole owner of successful srcDiff XML."""
+
+    for case in manifest["cases"]:
+        if case["generation_status"] != "accepted":
+            continue
+        attempt_dir = data_root / case["attempt_path"]
+        canonical_path = (corpus_dir / case["input_path"]).relative_to(data_root)
+        set_attempt_output_retention(
+            attempt_dir,
+            "promoted_to_corpus",
+            canonical_path=canonical_path.as_posix(),
+            discard=True,
+        )
 
 
 def run_corpus(
@@ -890,6 +911,14 @@ def run_corpus(
             if results["status"] != "missing":
                 results["path"] = str(results_path.relative_to(final_dir))
             completed = attempt["admitted"] and results["status"] == "valid"
+            if completed:
+                result_value = json.loads(results_path.read_text(encoding="utf-8"))
+                if result_value.get("move_count") == 0:
+                    attempt = set_attempt_output_retention(
+                        attempt_dir,
+                        "discarded_zero_move_after_validation",
+                        discard=True,
+                    )
             if activity_callback is not None:
                 activity_callback("completed" if completed else "failed", case_id)
             records_by_id[case_id] = {

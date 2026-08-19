@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import shutil
 import sys
 import tempfile
@@ -417,6 +418,16 @@ class CorpusPipelineTests(unittest.TestCase):
                 srcdiff=srcdiff,
                 timeout_seconds=2.0,
             )
+            srcdiff_attempt_dir = generated / corpus["cases"][0]["attempt_path"]
+            srcdiff_attempt = json.loads(
+                (srcdiff_attempt_dir / "attempt.json").read_text(encoding="utf-8")
+            )
+            self.assertFalse((srcdiff_attempt_dir / "partial.srcdiff.xml").exists())
+            self.assertEqual(srcdiff_attempt["output_retention"], "promoted_to_corpus")
+            self.assertEqual(
+                generated / srcdiff_attempt["canonical_output_path"],
+                corpus_dir / corpus["cases"][0]["input_path"],
+            )
 
             shutil.rmtree(root / "source")
             shutil.rmtree(generated / "input-snapshots")
@@ -450,6 +461,63 @@ class CorpusPipelineTests(unittest.TestCase):
             self.assertNotEqual(first["run_id"], second["run_id"])
             self.assertTrue((first_dir / "run.json").is_file())
             self.assertTrue((second_dir / "run.json").is_file())
+            for run_dir, run in ((first_dir, first), (second_dir, second)):
+                attempt_dir = run_dir / "attempts" / run["cases"][0]["attempt_id"]
+                attempt = json.loads(
+                    (attempt_dir / "attempt.json").read_text(encoding="utf-8")
+                )
+                self.assertTrue((attempt_dir / "results.json").is_file())
+                self.assertFalse((attempt_dir / "srcmove.xml").exists())
+                self.assertEqual(
+                    attempt["output_retention"],
+                    "discarded_zero_move_after_validation",
+                )
+
+    def test_positive_srcmove_result_retains_annotated_xml(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            generated = root / "generated"
+            original, modified = source_pair(root)
+            srcdiff = executable_copy(root, "srcdiff-valid-archive")
+            _, input_snapshot = create_input_snapshot(
+                data_root=generated,
+                adapter=RepositoryAdapter(
+                    case_id="tiny", original=original, modified=modified
+                ),
+                source={"repository": "fixture"},
+            )
+            corpus_dir, _ = generate_corpus(
+                data_root=generated,
+                input_snapshot=input_snapshot["input_snapshot_id"],
+                srcdiff=srcdiff,
+                timeout_seconds=2.0,
+            )
+            srcmove = root / "srcmove-positive"
+            srcmove.write_text(
+                "#!/usr/bin/env python3\n"
+                "import sys\nfrom pathlib import Path\n"
+                "Path(sys.argv[2]).write_text(\"<unit "
+                "xmlns='http://www.srcML.org/srcML/src' "
+                "xmlns:diff='http://www.srcML.org/srcDiff'><unit/></unit>\")\n"
+                "Path(sys.argv[sys.argv.index('--results')+1]).write_text("
+                "'{\"move_count\": 1}')\n",
+                encoding="utf-8",
+            )
+            srcmove.chmod(0o755)
+
+            run_dir, run = run_corpus(
+                data_root=generated,
+                corpus=corpus_dir,
+                srcmove=srcmove,
+                timeout_seconds=2.0,
+            )
+
+            attempt_dir = run_dir / "attempts" / run["cases"][0]["attempt_id"]
+            attempt = json.loads(
+                (attempt_dir / "attempt.json").read_text(encoding="utf-8")
+            )
+            self.assertTrue((attempt_dir / "srcmove.xml").is_file())
+            self.assertEqual(attempt["output_retention"], "retained")
 
     def test_failed_srcdiff_output_is_never_promoted(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -482,6 +550,8 @@ class CorpusPipelineTests(unittest.TestCase):
             self.assertEqual(list(corpus_dir.rglob("input.srcdiff.xml")), [])
             attempt_records = list((generated / "attempts").glob("*/attempt.json"))
             self.assertEqual(len(attempt_records), 1)
+            failed_attempt_dir = attempt_records[0].parent
+            self.assertTrue((failed_attempt_dir / "partial.srcdiff.xml").is_file())
 
     def test_mutated_input_snapshot_or_corpus_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
