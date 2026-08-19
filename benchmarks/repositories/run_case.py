@@ -10,6 +10,7 @@ import re
 import shutil
 import subprocess
 import sys
+import time
 import uuid
 from pathlib import Path
 from typing import Any, Mapping
@@ -304,12 +305,18 @@ SERIES_COLUMNS = [
     "srcdiff_failed",
     "srcdiff_xml_status",
     "srcdiff_seconds",
+    "srcdiff_stage_wall_seconds",
+    "srcdiff_execution_seconds",
+    "srcdiff_cached_execution_seconds",
     "srcdiff_peak_rss_bytes",
     "srcmove_completed",
     "srcmove_failed",
     "srcmove_xml_status",
     "srcmove_seconds",
+    "srcmove_stage_wall_seconds",
+    "srcmove_execution_seconds",
     "srcmove_peak_rss_bytes",
+    "pipeline_wall_seconds",
     "move_count",
     "move_group_count",
     "move_pair_count",
@@ -341,6 +348,7 @@ def update_series(data_root: Path, series: str, entry: Mapping[str, Any]) -> Pat
             results = benchmark.get("results", {})
             srcdiff_attempt = benchmark.get("srcdiff_attempt", {})
             srcmove_attempt = benchmark.get("srcmove_attempt", {})
+            timings = benchmark.get("timings", {})
             writer.writerow(
                 {
                     "benchmark_id": benchmark.get("benchmark_id"),
@@ -366,6 +374,15 @@ def update_series(data_root: Path, series: str, entry: Mapping[str, Any]) -> Pat
                         "status"
                     ),
                     "srcdiff_seconds": srcdiff_attempt.get("elapsed_seconds"),
+                    "srcdiff_stage_wall_seconds": timings.get(
+                        "srcdiff_stage_wall_seconds"
+                    ),
+                    "srcdiff_execution_seconds": timings.get(
+                        "srcdiff_execution_seconds"
+                    ),
+                    "srcdiff_cached_execution_seconds": timings.get(
+                        "srcdiff_cached_execution_seconds"
+                    ),
                     "srcdiff_peak_rss_bytes": srcdiff_attempt.get(
                         "resource_usage", {}
                     ).get("peak_rss_bytes"),
@@ -375,9 +392,16 @@ def update_series(data_root: Path, series: str, entry: Mapping[str, Any]) -> Pat
                         "status"
                     ),
                     "srcmove_seconds": srcmove_attempt.get("elapsed_seconds"),
+                    "srcmove_stage_wall_seconds": timings.get(
+                        "srcmove_stage_wall_seconds"
+                    ),
+                    "srcmove_execution_seconds": timings.get(
+                        "srcmove_execution_seconds"
+                    ),
                     "srcmove_peak_rss_bytes": srcmove_attempt.get(
                         "resource_usage", {}
                     ).get("peak_rss_bytes"),
+                    "pipeline_wall_seconds": timings.get("pipeline_wall_seconds"),
                     "move_count": results.get("move_count"),
                     "move_group_count": results.get("move_group_count"),
                     "move_pair_count": results.get("move_pair_count"),
@@ -408,6 +432,7 @@ def print_benchmark_summary(
     counts = entry.get("counts", {})
     results = entry.get("results", {})
     dispositions = entry.get("dispositions", {})
+    timings = entry.get("timings", {})
     srcdiff = entry.get("srcdiff_attempt", {})
     srcmove = entry.get("srcmove_attempt", {})
 
@@ -430,12 +455,20 @@ def print_benchmark_summary(
         f"{counts.get('excluded_files', 0)} excluded"
     )
     if srcdiff:
-        print(
-            "  srcDiff:     "
-            f"{_format_duration(srcdiff.get('elapsed_seconds'))}, "
-            f"{_format_memory(srcdiff.get('resource_usage', {}).get('peak_rss_bytes'))} "
-            f"({dispositions.get('srcdiff_corpus', 'unknown')})"
-        )
+        if "reused" in dispositions.get("srcdiff_corpus", ""):
+            print(
+                "  srcDiff:     "
+                f"reused in {_format_duration(timings.get('srcdiff_stage_wall_seconds'))}; "
+                f"cached execution {_format_duration(srcdiff.get('elapsed_seconds'))}, "
+                f"{_format_memory(srcdiff.get('resource_usage', {}).get('peak_rss_bytes'))}"
+            )
+        else:
+            print(
+                "  srcDiff:     "
+                f"execution {_format_duration(timings.get('srcdiff_execution_seconds'))}, "
+                f"stage {_format_duration(timings.get('srcdiff_stage_wall_seconds'))}, "
+                f"{_format_memory(srcdiff.get('resource_usage', {}).get('peak_rss_bytes'))}"
+            )
     if srcmove:
         print(
             "  srcMove:     "
@@ -498,6 +531,7 @@ def run_staged_repository_benchmark(
 ) -> tuple[dict[str, Any], Path]:
     """Run and index one append-only repository benchmark without copying results."""
 
+    pipeline_started = time.monotonic()
     data_root = data_root.expanduser().resolve()
     excluded_suffixes = sorted(
         set(DEFAULT_EXCLUDED_SUFFIXES).union(excluded_suffixes)
@@ -524,6 +558,7 @@ def run_staged_repository_benchmark(
             "srcdiff_timeout_seconds": srcdiff_timeout_seconds,
             "srcmove_timeout_seconds": srcmove_timeout_seconds,
         },
+        "timings": {},
     }
     try:
         snapshot_disposition = "created"
@@ -532,6 +567,7 @@ def run_staged_repository_benchmark(
             nonlocal snapshot_disposition
             snapshot_disposition = value
 
+        snapshot_started = time.monotonic()
         with ProgressDisplay(
             "4/6 Input snapshot",
             detail="hashing and verifying exported files",
@@ -559,6 +595,9 @@ def run_staged_repository_benchmark(
                 f"{input_snapshot['counts']['excluded_files']} excluded",
                 completion=snapshot_completion,
             )
+        entry["timings"]["input_snapshot_wall_seconds"] = (
+            time.monotonic() - snapshot_started
+        )
         entry.update(
             {
                 "input_snapshot_id": input_snapshot["input_snapshot_id"],
@@ -574,6 +613,7 @@ def run_staged_repository_benchmark(
         )
 
         srcdiff_disposition = "executed"
+        srcdiff_stage_started = time.monotonic()
         srcdiff_progress = ProgressDisplay(
             "5/6 srcDiff corpus",
             detail=f"preparing {case_name}",
@@ -624,19 +664,37 @@ def run_staged_repository_benchmark(
         entry["srcdiff_attempt"] = _attempt_summary(srcdiff_attempt_path, data_root)
         entry["dispositions"]["srcdiff_corpus"] = srcdiff_disposition
         srcdiff_seconds = entry["srcdiff_attempt"].get("elapsed_seconds")
+        srcdiff_stage_seconds = time.monotonic() - srcdiff_stage_started
+        entry["timings"]["srcdiff_stage_wall_seconds"] = srcdiff_stage_seconds
+        if isinstance(srcdiff_seconds, (int, float)):
+            timing_name = (
+                "srcdiff_execution_seconds"
+                if srcdiff_disposition == "executed"
+                else "srcdiff_cached_execution_seconds"
+            )
+            entry["timings"][timing_name] = srcdiff_seconds
         srcdiff_progress.finish(
             f"{corpus['counts']['accepted']} accepted, "
             f"{corpus['counts']['failed']} failed"
-            + (f", recorded execution {srcdiff_seconds:.1f}s" if srcdiff_seconds is not None else ""),
+            + (
+                f", {'execution' if srcdiff_disposition == 'executed' else 'cached execution'} "
+                f"{srcdiff_seconds:.1f}s"
+                if srcdiff_seconds is not None
+                else ""
+            ),
             success=corpus["counts"]["failed"] == 0,
             completion=srcdiff_disposition,
         )
 
         if corpus["counts"]["accepted"] == 0:
             entry.update({"status": "srcdiff_failed", "completed_at": utc_now()})
+            entry["timings"]["pipeline_wall_seconds"] = (
+                time.monotonic() - pipeline_started
+            )
             series_path = update_series(data_root, series, entry)
             return entry, series_path
 
+        srcmove_stage_started = time.monotonic()
         srcmove_progress = ProgressDisplay(
             "6/6 srcMove run",
             detail=f"executing {case_name}",
@@ -703,9 +761,20 @@ def run_staged_repository_benchmark(
             success=run_manifest["counts"]["failed"] == 0,
             completion="executed",
         )
+        entry["timings"]["srcmove_stage_wall_seconds"] = (
+            time.monotonic() - srcmove_stage_started
+        )
+        if isinstance(srcmove_seconds, (int, float)):
+            entry["timings"]["srcmove_execution_seconds"] = srcmove_seconds
+        entry["timings"]["pipeline_wall_seconds"] = (
+            time.monotonic() - pipeline_started
+        )
         series_path = update_series(data_root, series, entry)
         return entry, series_path
     except Exception as error:
+        entry["timings"]["pipeline_wall_seconds"] = (
+            time.monotonic() - pipeline_started
+        )
         entry.update(
             {
                 "status": "orchestration_failed",

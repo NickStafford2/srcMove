@@ -162,6 +162,12 @@ paths so cross-file moves remain detectable. Relative repository paths are
 preserved, and the exact sparse selection is recorded in the history and input
 snapshot identity.
 
+History timings distinguish work performed by the current command from cached
+attempt provenance. `srcdiff_execution_seconds` counts only a srcDiff process
+started by the current history run. Cache reuse time covers current snapshot and
+corpus verification, while `srcdiff_cached_execution_seconds` retains the
+original attempt duration for reference and is excluded from current-run totals.
+
 This is the create-only pilot described in the
 [historical repository analysis plan](../../doc/historical_repository_analysis_plan.md).
 Resume, retry, and crash-window reconciliation remain planned work.

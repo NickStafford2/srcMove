@@ -189,6 +189,12 @@ class RepositoryBenchmarkTests(unittest.TestCase):
             self.assertNotEqual(first["run_id"], second["run_id"])
             self.assertNotEqual(first_index, second_index)
             self.assertEqual(first_index.read_bytes(), first_bytes)
+            self.assertIn("srcdiff_execution_seconds", first["timings"])
+            self.assertNotIn("srcdiff_cached_execution_seconds", first["timings"])
+            self.assertIn("srcdiff_cached_execution_seconds", second["timings"])
+            self.assertNotIn("srcdiff_execution_seconds", second["timings"])
+            self.assertGreater(second["timings"]["srcdiff_stage_wall_seconds"], 0)
+            self.assertGreater(second["timings"]["pipeline_wall_seconds"], 0)
 
             data_root = root / "benchmark-data"
             self.assertEqual(len(list((data_root / "input-snapshots").iterdir())), 1)
@@ -215,6 +221,10 @@ class RepositoryBenchmarkTests(unittest.TestCase):
             self.assertEqual({row["status"] for row in rows}, {"completed"})
             self.assertTrue(all(row["srcdiff_seconds"] for row in rows))
             self.assertTrue(all(row["srcmove_seconds"] for row in rows))
+            self.assertTrue(rows[0]["srcdiff_execution_seconds"])
+            self.assertFalse(rows[0]["srcdiff_cached_execution_seconds"])
+            self.assertFalse(rows[1]["srcdiff_execution_seconds"])
+            self.assertTrue(rows[1]["srcdiff_cached_execution_seconds"])
 
     def test_srcdiff_failure_is_saved_without_a_srcmove_run(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

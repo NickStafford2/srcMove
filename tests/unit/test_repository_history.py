@@ -77,9 +77,19 @@ class RepositoryHistoryTests(unittest.TestCase):
                     "pair_seconds": 5.9,
                     "inventory_seconds": 0.1,
                     "export_seconds": 0.2,
-                    "srcdiff_seconds": 3.3,
-                    "srcmove_seconds": 0.6,
-                    "orchestration_seconds": 2.0,
+                    "input_snapshot_seconds": 0.2,
+                    "srcdiff_stage_seconds": 3.3,
+                    "srcdiff_execution_seconds": 0.0,
+                    "srcdiff_cached_execution_seconds": 5.5,
+                    "cache_reuse_seconds": 3.5,
+                    "srcmove_stage_seconds": 0.8,
+                    "srcmove_execution_seconds": 0.6,
+                    "other_seconds": 1.8,
+                },
+                "dispositions": {
+                    "input_snapshot": "verified and reused",
+                    "srcdiff_corpus": "verified and reused",
+                    "srcmove_run": "executed",
                 },
             },
             {
@@ -88,7 +98,11 @@ class RepositoryHistoryTests(unittest.TestCase):
                 "new_commit": "c" * 40,
                 "status": "srcdiff_failed",
                 "error": {"message": "srcDiff timed out"},
-                "timings": {"pair_seconds": 2.0, "orchestration_seconds": 0.5},
+                "timings": {
+                    "pair_seconds": 2.0,
+                    "srcdiff_execution_seconds": 0.5,
+                    "other_seconds": 1.5,
+                },
             },
         ]
         history = {
@@ -107,7 +121,15 @@ class RepositoryHistoryTests(unittest.TestCase):
         text = output.getvalue()
         self.assertIn("Historical repository analysis: sqlite-50-pair", text)
         self.assertIn("3 groups, 4 pairs, 7 annotated regions", text)
-        self.assertIn("srcDiff 3.3s, srcMove 0.6s, overhead 2.5s", text)
+        self.assertIn(
+            "srcDiff execution 0.5s, cache reuse 3.5s, "
+            "srcMove execution 0.6s, other 3.3s",
+            text,
+        )
+        self.assertIn(
+            "srcDiff execution provenance 5.5s (not included in current time)",
+            text,
+        )
         self.assertIn("2/2 bbbbbbbb → cccccccc — srcDiff timed out", text)
 
     def test_selects_requested_pairs_in_oldest_to_newest_ancestry_order(self) -> None:

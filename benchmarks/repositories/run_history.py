@@ -41,7 +41,7 @@ from benchmarks.repositories.run_case import (
 from support.tooling import find_srcdiff, find_srcmove, run_command as run
 
 
-HISTORY_SCHEMA_VERSION = 2
+HISTORY_SCHEMA_VERSION = 3
 TRAVERSAL_MODE = "first_parent"
 INPUT_SCOPE = "changed_files"
 SAFE_HISTORY_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
@@ -307,9 +307,14 @@ def _aggregate(pairs: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
         "pair_seconds",
         "inventory_seconds",
         "export_seconds",
-        "srcdiff_seconds",
-        "srcmove_seconds",
-        "orchestration_seconds",
+        "input_snapshot_seconds",
+        "srcdiff_stage_seconds",
+        "srcdiff_execution_seconds",
+        "srcdiff_cached_execution_seconds",
+        "cache_reuse_seconds",
+        "srcmove_stage_seconds",
+        "srcmove_execution_seconds",
+        "other_seconds",
     )
     timing_totals: dict[str, float] = {}
     for key in timing_keys:
@@ -383,6 +388,35 @@ def _entry_failure_detail(entry: Mapping[str, Any]) -> str:
     return status.replace("_", " ")
 
 
+def _is_reused(value: object) -> bool:
+    return isinstance(value, str) and "reused" in value
+
+
+def _pair_timing_detail(pair: Mapping[str, Any]) -> str:
+    timings = pair.get("timings", {})
+    dispositions = pair.get("dispositions", {})
+    details: list[str] = []
+    srcdiff_execution = _seconds(timings.get("srcdiff_execution_seconds"))
+    cached_execution = _seconds(
+        timings.get("srcdiff_cached_execution_seconds")
+    )
+    cache_reuse = _seconds(timings.get("cache_reuse_seconds"))
+    if _is_reused(dispositions.get("srcdiff_corpus")):
+        details.append(
+            f"cache {cache_reuse:.1f}s "
+            f"(srcDiff reused; cached run {cached_execution:.1f}s)"
+        )
+    else:
+        details.append(f"srcDiff {srcdiff_execution:.1f}s")
+        if cache_reuse:
+            details.append(f"cache {cache_reuse:.1f}s")
+    details.append(
+        f"srcMove {_seconds(timings.get('srcmove_execution_seconds')):.1f}s"
+    )
+    details.append(f"other {_seconds(timings.get('other_seconds')):.1f}s")
+    return ", ".join(details)
+
+
 SUMMARY_COLUMNS = [
     "sequence",
     "old_commit",
@@ -406,9 +440,14 @@ SUMMARY_COLUMNS = [
     "inventory_seconds",
     "export_seconds",
     "benchmark_seconds",
-    "srcdiff_seconds",
-    "srcmove_seconds",
-    "orchestration_seconds",
+    "input_snapshot_seconds",
+    "srcdiff_stage_seconds",
+    "srcdiff_execution_seconds",
+    "srcdiff_cached_execution_seconds",
+    "cache_reuse_seconds",
+    "srcmove_stage_seconds",
+    "srcmove_execution_seconds",
+    "other_seconds",
     "repository_benchmark_id",
 ]
 
@@ -475,11 +514,28 @@ def write_history_artifacts(
                     "benchmark_seconds": pair.get("timings", {}).get(
                         "benchmark_seconds"
                     ),
-                    "srcdiff_seconds": pair.get("timings", {}).get("srcdiff_seconds"),
-                    "srcmove_seconds": pair.get("timings", {}).get("srcmove_seconds"),
-                    "orchestration_seconds": pair.get("timings", {}).get(
-                        "orchestration_seconds"
+                    "input_snapshot_seconds": pair.get("timings", {}).get(
+                        "input_snapshot_seconds"
                     ),
+                    "srcdiff_stage_seconds": pair.get("timings", {}).get(
+                        "srcdiff_stage_seconds"
+                    ),
+                    "srcdiff_execution_seconds": pair.get("timings", {}).get(
+                        "srcdiff_execution_seconds"
+                    ),
+                    "srcdiff_cached_execution_seconds": pair.get("timings", {}).get(
+                        "srcdiff_cached_execution_seconds"
+                    ),
+                    "cache_reuse_seconds": pair.get("timings", {}).get(
+                        "cache_reuse_seconds"
+                    ),
+                    "srcmove_stage_seconds": pair.get("timings", {}).get(
+                        "srcmove_stage_seconds"
+                    ),
+                    "srcmove_execution_seconds": pair.get("timings", {}).get(
+                        "srcmove_execution_seconds"
+                    ),
+                    "other_seconds": pair.get("timings", {}).get("other_seconds"),
                     "repository_benchmark_id": pair.get("repository_benchmark_id"),
                 }
             )
@@ -608,9 +664,14 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                             "pair_seconds": pair_seconds,
                             "inventory_seconds": inventory_seconds,
                             "export_seconds": 0.0,
-                            "srcdiff_seconds": 0.0,
-                            "srcmove_seconds": 0.0,
-                            "orchestration_seconds": pair_seconds,
+                            "input_snapshot_seconds": 0.0,
+                            "srcdiff_stage_seconds": 0.0,
+                            "srcdiff_execution_seconds": 0.0,
+                            "srcdiff_cached_execution_seconds": 0.0,
+                            "cache_reuse_seconds": 0.0,
+                            "srcmove_stage_seconds": 0.0,
+                            "srcmove_execution_seconds": 0.0,
+                            "other_seconds": pair_seconds,
                         },
                     }
                 )
@@ -642,9 +703,14 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                             "pair_seconds": pair_seconds,
                             "inventory_seconds": inventory_seconds,
                             "export_seconds": time.monotonic() - export_started,
-                            "srcdiff_seconds": 0.0,
-                            "srcmove_seconds": 0.0,
-                            "orchestration_seconds": pair_seconds,
+                            "input_snapshot_seconds": 0.0,
+                            "srcdiff_stage_seconds": 0.0,
+                            "srcdiff_execution_seconds": 0.0,
+                            "srcdiff_cached_execution_seconds": 0.0,
+                            "cache_reuse_seconds": 0.0,
+                            "srcmove_stage_seconds": 0.0,
+                            "srcmove_execution_seconds": 0.0,
+                            "other_seconds": pair_seconds,
                         },
                     }
                 )
@@ -683,13 +749,42 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                 show_progress=False,
             )
             benchmark_seconds = time.monotonic() - benchmark_started
-            srcdiff_seconds = _seconds(
-                entry.get("srcdiff_attempt", {}).get("elapsed_seconds")
+            entry_timings = entry.get("timings", {})
+            dispositions = entry.get("dispositions", {})
+            input_snapshot_seconds = _seconds(
+                entry_timings.get("input_snapshot_wall_seconds")
             )
-            srcmove_seconds = _seconds(
-                entry.get("srcmove_attempt", {}).get("elapsed_seconds")
+            srcdiff_stage_seconds = _seconds(
+                entry_timings.get("srcdiff_stage_wall_seconds")
+            )
+            srcdiff_execution_seconds = _seconds(
+                entry_timings.get("srcdiff_execution_seconds")
+            )
+            srcdiff_cached_execution_seconds = _seconds(
+                entry_timings.get("srcdiff_cached_execution_seconds")
+            )
+            srcmove_stage_seconds = _seconds(
+                entry_timings.get("srcmove_stage_wall_seconds")
+            )
+            srcmove_execution_seconds = _seconds(
+                entry_timings.get("srcmove_execution_seconds")
             )
             pair_seconds = time.monotonic() - pair_started
+            cache_reuse_seconds = (
+                input_snapshot_seconds
+                if _is_reused(dispositions.get("input_snapshot"))
+                else 0.0
+            ) + (
+                srcdiff_stage_seconds
+                if _is_reused(dispositions.get("srcdiff_corpus"))
+                else 0.0
+            )
+            other_seconds = (
+                pair_seconds
+                - srcdiff_execution_seconds
+                - cache_reuse_seconds
+                - srcmove_execution_seconds
+            )
             pair.update(
                 {
                     "status": entry["status"],
@@ -701,16 +796,22 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                     "run_id": entry.get("run_id"),
                     "counts": entry.get("counts", {}),
                     "metrics": entry.get("results", {}),
+                    "dispositions": dispositions,
                     "timings": {
                         "pair_seconds": pair_seconds,
                         "inventory_seconds": inventory_seconds,
                         "export_seconds": export_seconds,
                         "benchmark_seconds": benchmark_seconds,
-                        "srcdiff_seconds": srcdiff_seconds,
-                        "srcmove_seconds": srcmove_seconds,
-                        "orchestration_seconds": max(
-                            0.0, pair_seconds - srcdiff_seconds - srcmove_seconds
+                        "input_snapshot_seconds": input_snapshot_seconds,
+                        "srcdiff_stage_seconds": srcdiff_stage_seconds,
+                        "srcdiff_execution_seconds": srcdiff_execution_seconds,
+                        "srcdiff_cached_execution_seconds": (
+                            srcdiff_cached_execution_seconds
                         ),
+                        "cache_reuse_seconds": cache_reuse_seconds,
+                        "srcmove_stage_seconds": srcmove_stage_seconds,
+                        "srcmove_execution_seconds": srcmove_execution_seconds,
+                        "other_seconds": other_seconds,
                     },
                 }
             )
@@ -726,9 +827,7 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                     f"{pair['counts'].get('included_files', 0)} files; "
                     f"{metrics.get('move_group_count', 0)} move groups, "
                     f"{metrics.get('move_pair_count', 0)} move pairs; "
-                    f"srcDiff {srcdiff_seconds:.1f}s, "
-                    f"srcMove {srcmove_seconds:.1f}s, "
-                    f"overhead {pair['timings']['orchestration_seconds']:.1f}s",
+                    f"{_pair_timing_detail(pair)}",
                     completion="analyzed",
                 )
             else:
@@ -747,7 +846,7 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                     "timings": {
                         **pair.get("timings", {}),
                         "pair_seconds": pair_seconds,
-                        "orchestration_seconds": pair_seconds,
+                        "other_seconds": pair_seconds,
                     },
                 }
             )
@@ -820,13 +919,26 @@ def print_history_summary(
         f"{aggregates['annotated_region_count']} annotated regions",
         file=stream,
     )
+    elapsed_seconds = _seconds(history.get("elapsed_seconds"))
+    srcdiff_execution = timings["srcdiff_execution_seconds"]
+    cache_reuse = timings["cache_reuse_seconds"]
+    srcmove_execution = timings["srcmove_execution_seconds"]
+    other = elapsed_seconds - srcdiff_execution - cache_reuse - srcmove_execution
     print(
-        f"  Time:    {_duration(_seconds(history.get('elapsed_seconds')))} total; "
-        f"srcDiff {timings['srcdiff_seconds']:.1f}s, "
-        f"srcMove {timings['srcmove_seconds']:.1f}s, "
-        f"overhead {timings['orchestration_seconds']:.1f}s",
+        f"  Time:    {_duration(elapsed_seconds)} total; "
+        f"srcDiff execution {srcdiff_execution:.1f}s, "
+        f"cache reuse {cache_reuse:.1f}s, "
+        f"srcMove execution {srcmove_execution:.1f}s, "
+        f"other {other:.1f}s",
         file=stream,
     )
+    cached_execution = timings["srcdiff_cached_execution_seconds"]
+    if cached_execution:
+        print(
+            f"  Cached:  srcDiff execution provenance {cached_execution:.1f}s "
+            "(not included in current time)",
+            file=stream,
+        )
 
     failures = [
         pair
