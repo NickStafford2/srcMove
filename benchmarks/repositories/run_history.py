@@ -961,6 +961,304 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     return history, history_dir
 
 
+def _load_json_object(path: Path, description: str) -> dict[str, Any]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"cannot read {description}: {path}: {error}") from error
+    if not isinstance(value, dict):
+        raise ValueError(f"{description} must contain a JSON object: {path}")
+    return value
+
+
+def resolve_history_directory(data_root: Path, selector: str | None) -> Path:
+    """Resolve a history ID, path, label, or the latest history."""
+
+    data_root = data_root.expanduser().resolve()
+    histories_root = data_root / "repository-histories"
+    if selector is not None:
+        supplied = Path(selector).expanduser()
+        direct_candidates = [
+            supplied,
+            supplied.parent if supplied.name == "history.json" else supplied,
+            histories_root / selector,
+        ]
+        for candidate in direct_candidates:
+            resolved = candidate.resolve()
+            if (resolved / "history.json").is_file():
+                return resolved
+
+    candidates = [
+        directory
+        for directory in histories_root.glob("history-*")
+        if (directory / "history.json").is_file()
+    ]
+    if selector is not None:
+        candidates = [
+            directory
+            for directory in candidates
+            if _load_json_object(directory / "history.json", "history manifest").get(
+                "label"
+            )
+            == selector
+        ]
+        if not candidates:
+            raise FileNotFoundError(
+                f"history ID, path, or label not found: {selector}"
+            )
+    if not candidates:
+        raise FileNotFoundError(f"no histories found below {histories_root}")
+    return max(
+        candidates,
+        key=lambda directory: (directory / "history.json").stat().st_mtime_ns,
+    ).resolve()
+
+
+def load_history_results(history_dir: Path) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    manifest = _load_json_object(history_dir / "history.json", "history manifest")
+    if manifest.get("schema_version") != HISTORY_SCHEMA_VERSION:
+        raise ValueError(
+            f"history results require schema {HISTORY_SCHEMA_VERSION}: {history_dir}"
+        )
+    receipt_configuration = manifest.get("pair_receipts", {})
+    expected_count = receipt_configuration.get("count")
+    pairs_dir = history_dir / receipt_configuration.get("directory", "pairs")
+    receipt_paths = sorted(pairs_dir.glob("*.json"))
+    if not isinstance(expected_count, int) or len(receipt_paths) != expected_count:
+        raise ValueError(
+            f"history pair receipt count mismatch: expected {expected_count}, "
+            f"found {len(receipt_paths)}"
+        )
+    pairs = [
+        _load_json_object(path, "history pair receipt") for path in receipt_paths
+    ]
+    if [pair.get("sequence") for pair in pairs] != list(range(len(pairs))):
+        raise ValueError("history pair receipts are not a contiguous ordered sequence")
+    return manifest, pairs
+
+
+def _resolve_artifact(data_root: Path, relative: object, description: str) -> Path:
+    if not isinstance(relative, str):
+        raise ValueError(f"pair receipt does not reference {description}")
+    root = data_root.expanduser().resolve()
+    path = (root / relative).resolve()
+    if not path.is_relative_to(root):
+        raise ValueError(f"unsafe {description} path: {relative}")
+    if not path.is_file():
+        raise FileNotFoundError(f"{description} not found: {path}")
+    return path
+
+
+def _xpath_location(xpath: object) -> str | None:
+    if not isinstance(xpath, str):
+        return None
+    filename = re.search(r"@filename='([^']+)'", xpath)
+    function = re.search(r"src:function\[src:name='([^']+)'\]", xpath)
+    parts = []
+    if filename:
+        parts.append(filename.group(1))
+    if function:
+        parts.append(function.group(1))
+    return " :: ".join(parts) if parts else None
+
+
+def _move_filenames(move: Mapping[str, Any]) -> set[str]:
+    filenames = set()
+    for key in ("from_xpaths", "to_xpaths"):
+        values = move.get(key)
+        if not isinstance(values, list):
+            continue
+        for xpath in values:
+            if isinstance(xpath, str) and (
+                match := re.search(r"@filename='([^']+)'", xpath)
+            ):
+                filenames.add(match.group(1))
+    return filenames
+
+
+def _print_move_side(
+    label: str, xpaths: object, raw_texts: object, *, verbose: bool, stream: TextIO
+) -> None:
+    paths = xpaths if isinstance(xpaths, list) else []
+    texts = raw_texts if isinstance(raw_texts, list) else []
+    item_count = max(len(paths), len(texts))
+    for index in range(item_count):
+        xpath = paths[index] if index < len(paths) else None
+        raw_text = texts[index] if index < len(texts) else ""
+        location = _xpath_location(xpath)
+        suffix = f"  {location}" if location else ""
+        item_label = label if item_count == 1 else f"{label} {index + 1}"
+        print(f"    {item_label}:{suffix}", file=stream)
+        lines = str(raw_text).splitlines() or [""]
+        for line in lines:
+            print(f"      {line}", file=stream)
+        if verbose and isinstance(xpath, str):
+            print(f"      XPath: {xpath}", file=stream)
+
+
+def _print_pair_diff(
+    history: Mapping[str, Any],
+    pair: Mapping[str, Any],
+    paths: Sequence[str] = (),
+    *,
+    stream: TextIO,
+) -> None:
+    case = history.get("case")
+    if not isinstance(case, str):
+        raise ValueError("history manifest does not identify its repository case")
+    repo_dir = SCRIPT_DIR / case / "work" / "repo"
+    if not (repo_dir / ".git").exists():
+        raise FileNotFoundError(f"repository cache not found: {repo_dir}")
+    selected_paths = list(paths) or [
+        record["path"]
+        for record in pair.get("changed_paths", [])
+        if isinstance(record, Mapping) and isinstance(record.get("path"), str)
+    ]
+    command = [
+        "git",
+        "diff",
+        "--no-ext-diff",
+        "--unified=8",
+        pair["old_commit"],
+        pair["new_commit"],
+        "--",
+        *selected_paths,
+    ]
+    result = run(command, cwd=repo_dir)
+    require_ok(result, f"git diff for history pair {pair['sequence'] + 1}")
+    print("\n  Git diff:", file=stream)
+    print(result.stdout.rstrip() or "    (empty)", file=stream)
+
+
+def print_history_results(
+    history: Mapping[str, Any],
+    pairs: Sequence[Mapping[str, Any]],
+    data_root: Path,
+    *,
+    pair_number: int | None = None,
+    show_diff: bool = False,
+    verbose: bool = False,
+    stream: TextIO = sys.stdout,
+) -> None:
+    if pair_number is not None:
+        if pair_number < 1 or pair_number > len(pairs):
+            raise ValueError(f"pair must be between 1 and {len(pairs)}")
+        selected = [pairs[pair_number - 1]]
+    else:
+        selected = [
+            pair
+            for pair in pairs
+            if _seconds(pair.get("metrics", {}).get("move_count")) > 0
+        ]
+
+    title = history.get("label") or history.get("case") or history["history_id"]
+    total_moves = sum(
+        int(_seconds(pair.get("metrics", {}).get("move_count"))) for pair in selected
+    )
+    positive_pairs = sum(
+        _seconds(pair.get("metrics", {}).get("move_count")) > 0 for pair in pairs
+    )
+    print(f"Historical move results: {title}", file=stream)
+    print(f"  History: {history['history_id']}", file=stream)
+    print(
+        f"  Detected: {history.get('aggregates', {}).get('move_group_count', 0)} groups, "
+        f"{history.get('aggregates', {}).get('move_pair_count', 0)} pairs "
+        f"across {positive_pairs}/{len(pairs)} commit pairs",
+        file=stream,
+    )
+    if pair_number is None and not selected:
+        print("\nNo moves were detected.", file=stream)
+        return
+
+    commits = {
+        commit.get("commit"): commit
+        for commit in history.get("commits", [])
+        if isinstance(commit, Mapping)
+    }
+    for pair in selected:
+        number = pair["sequence"] + 1
+        metrics = pair.get("metrics", {})
+        subject = commits.get(pair["new_commit"], {}).get("subject")
+        print(file=stream)
+        print(
+            f"Pair {number}/{len(pairs)}  "
+            f"{pair['old_commit'][:8]} → {pair['new_commit'][:8]}",
+            file=stream,
+        )
+        if subject:
+            print(f"  Commit: {subject}", file=stream)
+        print(f"  Status: {str(pair['status']).replace('_', ' ')}", file=stream)
+        print(
+            f"  Moves:  {metrics.get('move_group_count', 0)} groups, "
+            f"{metrics.get('move_pair_count', 0)} pairs, "
+            f"{metrics.get('annotated_region_count', 0)} annotated regions",
+            file=stream,
+        )
+        if pair.get("error"):
+            print(f"  Failure: {pair['error'].get('message', pair['error'])}", file=stream)
+
+        move_count = int(_seconds(metrics.get("move_count")))
+        moved_paths: set[str] = set()
+        if move_count:
+            results_path = _resolve_artifact(
+                data_root,
+                pair.get("artifacts", {}).get("results_path"),
+                "srcMove results",
+            )
+            results = _load_json_object(results_path, "srcMove results")
+            moves = results.get("moves")
+            if not isinstance(moves, list) or len(moves) != move_count:
+                raise ValueError(
+                    f"move detail count mismatch for pair {number}: "
+                    f"expected {move_count}"
+                )
+            for index, move in enumerate(moves, start=1):
+                if not isinstance(move, Mapping):
+                    raise ValueError(f"invalid move detail for pair {number}")
+                moved_paths.update(_move_filenames(move))
+                print(
+                    f"\n  Move {index}/{len(moves)}  "
+                    f"{move.get('match_kind', 'unknown')}  "
+                    f"id={move.get('move_id', 'unknown')}",
+                    file=stream,
+                )
+                _print_move_side(
+                    "From",
+                    move.get("from_xpaths"),
+                    move.get("from_raw_texts"),
+                    verbose=verbose,
+                    stream=stream,
+                )
+                _print_move_side(
+                    "To",
+                    move.get("to_xpaths"),
+                    move.get("to_raw_texts"),
+                    verbose=verbose,
+                    stream=stream,
+                )
+            if verbose:
+                print(f"\n  Results: {results_path}", file=stream)
+                attempt_path = _resolve_artifact(
+                    data_root,
+                    pair.get("artifacts", {}).get("srcmove_attempt"),
+                    "srcMove attempt",
+                )
+                srcmove_xml = attempt_path.parent / "srcmove.xml"
+                if srcmove_xml.is_file():
+                    print(f"  Annotated XML: {srcmove_xml}", file=stream)
+        elif pair["status"] == "completed":
+            print("  No moves detected in this pair.", file=stream)
+
+        if show_diff:
+            _print_pair_diff(history, pair, sorted(moved_paths), stream=stream)
+
+    if pair_number is None:
+        print(
+            f"\nShown {total_moves} moves from {len(selected)} positive pairs.",
+            file=stream,
+        )
+
+
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Benchmark srcMove across adjacent first-parent commits."
@@ -982,11 +1280,30 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     start.add_argument("--srcmove-timeout", type=float, default=300.0)
     start.add_argument("--src-encoding", default="UTF-8")
     start.add_argument("--position", action="store_true")
+    show = subparsers.add_parser(
+        "show", help="show detected moves from a saved history"
+    )
+    show.add_argument(
+        "history",
+        nargs="?",
+        help="history ID, path, or label; defaults to the latest history",
+    )
+    show.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    show.add_argument("--pair", type=int, help="show one 1-based pair number")
+    show.add_argument("--diff", action="store_true", help="include the Git diff")
+    show.add_argument(
+        "--verbose",
+        action="store_true",
+        help="include XPaths and canonical artifact paths",
+    )
     args = parser.parse_args(argv)
-    if args.count <= 0:
-        parser.error("--count must be positive")
-    if args.srcdiff_timeout <= 0 or args.srcmove_timeout <= 0:
-        parser.error("timeouts must be positive")
+    if args.command == "start":
+        if args.count <= 0:
+            parser.error("--count must be positive")
+        if args.srcdiff_timeout <= 0 or args.srcmove_timeout <= 0:
+            parser.error("timeouts must be positive")
+    elif args.pair is not None and args.pair <= 0:
+        parser.error("--pair must be positive")
     return args
 
 
@@ -1085,6 +1402,18 @@ def print_history_summary(
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
+    if args.command == "show":
+        history_dir = resolve_history_directory(args.data_root, args.history)
+        history, pairs = load_history_results(history_dir)
+        print_history_results(
+            history,
+            pairs,
+            args.data_root,
+            pair_number=args.pair,
+            show_diff=args.diff,
+            verbose=args.verbose,
+        )
+        return 0
     history, history_dir = run_history_start(args)
     print_history_summary(history, history_dir)
     return 0 if history["status"] == "completed" else 1

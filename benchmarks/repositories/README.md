@@ -155,6 +155,34 @@ python3 benchmarks/repositories/run_history.py start sqlite \
   --start origin/HEAD --count 3 --fetch
 ```
 
+Show every detected move from the latest saved history:
+
+```bash
+make history-results
+
+# Equivalent direct command:
+python3 benchmarks/repositories/run_history.py show
+```
+
+The command prints only commit pairs with moves, including match kind, move ID,
+source and destination file/function, and the moved text. Select a history by
+ID, path, or label; repeated labels resolve to their most recently updated run:
+
+```bash
+make history-results HISTORY=sqlite-100-pair
+```
+
+Inspect one 1-based pair and include its source patch:
+
+```bash
+make history-results PAIR=16 DIFF=1
+```
+
+Use `VERBOSE=1` to include source/destination XPath values and canonical
+`results.json` and annotated `srcmove.xml` paths. With the direct Python command,
+the equivalent options are `--pair`, `--diff`, and `--verbose`. The annotated
+XML exists only for successful runs that detected moves.
+
 The case's configured directory still applies; SQLite currently measures
 `src/`. A selected commit whose adjacent change has no paths remaining in that
 scope and the mandatory suffix filters is recorded as `no_analyzable_change`,

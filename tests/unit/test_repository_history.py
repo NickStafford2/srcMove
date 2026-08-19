@@ -1,10 +1,10 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
 import tempfile
 import unittest
-import json
 from io import StringIO
 from pathlib import Path
 
@@ -17,7 +17,10 @@ from benchmarks.repositories.run_history import (
     _aggregate,
     export_changed_files,
     inventory_changed_paths,
+    load_history_results,
+    print_history_results,
     print_history_summary,
+    resolve_history_directory,
     select_first_parent_history,
     write_history_artifacts,
 )
@@ -63,6 +66,95 @@ def commit_file(repo: Path, value: str, subject: str, timestamp: str | None = No
 
 
 class RepositoryHistoryTests(unittest.TestCase):
+    def test_show_resolves_latest_history_and_prints_move_details(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            data_root = Path(temporary_directory) / "benchmark-data"
+            history_dir = data_root / "repository-histories" / "history-fixture"
+            pairs_dir = history_dir / "pairs"
+            results_path = data_root / "runs" / "run-fixture" / "results.json"
+            pairs_dir.mkdir(parents=True)
+            results_path.parent.mkdir(parents=True)
+            results_path.write_text(
+                json.dumps(
+                    {
+                        "move_count": 1,
+                        "moves": [
+                            {
+                                "move_id": "move-1",
+                                "match_kind": "exact",
+                                "from_xpaths": [
+                                    "/src:unit[@filename='src/sample.c']/"
+                                    "src:function[src:name='before']/diff:delete[1]"
+                                ],
+                                "to_xpaths": [
+                                    "/src:unit[@filename='src/sample.c']/"
+                                    "src:function[src:name='after']/diff:insert[1]"
+                                ],
+                                "from_raw_texts": ["int moved = 1;"],
+                                "to_raw_texts": ["int moved = 1;"],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            pair = {
+                "schema_version": 1,
+                "sequence": 0,
+                "old_commit": "a" * 40,
+                "new_commit": "b" * 40,
+                "status": "completed",
+                "metrics": {
+                    "move_count": 1,
+                    "move_group_count": 1,
+                    "move_pair_count": 1,
+                    "annotated_region_count": 2,
+                },
+                "artifacts": {
+                    "results_path": results_path.relative_to(data_root).as_posix()
+                },
+            }
+            (pairs_dir / "000001.json").write_text(
+                json.dumps(pair), encoding="utf-8"
+            )
+            manifest = {
+                "schema_version": 4,
+                "history_id": "history-fixture",
+                "label": "fixture-label",
+                "case": "fixture",
+                "status": "completed",
+                "aggregates": {"move_group_count": 1, "move_pair_count": 1},
+                "commits": [
+                    {
+                        "commit": "b" * 40,
+                        "subject": "move a declaration",
+                    }
+                ],
+                "pair_receipts": {"directory": "pairs", "count": 1},
+            }
+            (history_dir / "history.json").write_text(
+                json.dumps(manifest), encoding="utf-8"
+            )
+
+            resolved = resolve_history_directory(data_root, None)
+            loaded_history, loaded_pairs = load_history_results(resolved)
+            output = StringIO()
+            print_history_results(
+                loaded_history, loaded_pairs, data_root, stream=output
+            )
+
+            self.assertEqual(resolved, history_dir.resolve())
+            self.assertEqual(
+                resolve_history_directory(data_root, "fixture-label"),
+                history_dir.resolve(),
+            )
+            text = output.getvalue()
+            self.assertIn("Pair 1/1  aaaaaaaa → bbbbbbbb", text)
+            self.assertIn("exact  id=move-1", text)
+            self.assertIn("From:  src/sample.c :: before", text)
+            self.assertIn("To:  src/sample.c :: after", text)
+            self.assertEqual(text.count("int moved = 1;"), 2)
+
     def test_summary_reports_moves_timings_label_and_failed_pair(self) -> None:
         pairs = [
             {
