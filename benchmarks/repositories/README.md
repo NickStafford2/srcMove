@@ -193,12 +193,71 @@ benchmark-data/repository-histories/<history-id>/
   history.json               study configuration, commits, status, aggregates
   pairs/000001.json          one canonical receipt per adjacent commit pair
   pairs/000002.json
+  moves/000016/              browseable view of one positive pair
+    results.json             relative link to canonical srcMove results
+    srcmove.xml              relative link to retained annotated XML
+    srcdiff.xml              relative link to canonical srcDiff XML
   summary.csv                table rebuilt from the pair receipts
 ```
 
 History pairs do not also create `repository-runs/<history-id>/` entries or a
 second summary. Pair receipts reference the canonical snapshot, corpus, attempt,
 run, and result artifacts instead of copying them.
+
+`benchmark-data/repository-histories/latest` points to the most recently written
+history. Its `moves/` directory contains only pairs where srcMove detected at
+least one move, so the underlying artifacts can be opened without following
+content IDs or attempt UUIDs:
+
+```bash
+ls benchmark-data/repository-histories/latest/moves
+python3 -m json.tool \
+  benchmark-data/repository-histories/latest/moves/000016/results.json
+less benchmark-data/repository-histories/latest/moves/000016/srcmove.xml
+less benchmark-data/repository-histories/latest/moves/000016/srcdiff.xml
+```
+
+These are relative symbolic links, not artifact copies. Zero-move observations
+retain their compact `results.json` and provenance for frequency calculations,
+but they do not clutter the positive-move browse view.
+
+### History retention
+
+History runs default to `--retention full`. This uses the shared content-addressed
+snapshot and srcDiff corpus cache, keeps compact zero-move results, retains
+positive srcMove XML, and provides the fastest repeated analysis.
+
+For large one-off studies, compact retention runs the pipeline in a directory
+owned only by that history:
+
+```bash
+python3 benchmarks/repositories/run_history.py start sqlite \
+  --start origin/HEAD --count 100 --fetch \
+  --label sqlite-100-pair --retention compact
+```
+
+After successful completion, compact retention keeps:
+
+- the history manifest, pair receipts, and CSV summary;
+- `results.json`, `srcmove.xml`, and `srcdiff.xml` for positive pairs;
+- complete input, process, and output evidence for failed pairs.
+
+It discards successful zero-move snapshots, corpora, runs, and attempts. The
+shorter `--no-cache` option is an alias for `--retention compact`. Non-full modes
+never populate or delete the shared cache.
+
+Ephemeral retention keeps only the history report and compact per-pair metrics:
+
+```bash
+python3 benchmarks/repositories/run_history.py start sqlite \
+  --start origin/HEAD --count 100 --fetch \
+  --label sqlite-100-pair --retention ephemeral
+```
+
+It records whether moves were detected but discards detailed move text, XML,
+failure evidence, and all intermediate artifacts after a completed history. If
+a compact or ephemeral run is interrupted, its isolated `.pipeline` directory
+is intentionally left intact for diagnosis rather than being cleaned blindly.
 
 History pairs use sparse old/new exports containing only content-changing paths.
 Modified files appear on both sides, additions only on the new side, and

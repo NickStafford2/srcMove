@@ -16,10 +16,12 @@ if str(REPO_ROOT) not in sys.path:
 from benchmarks.repositories.run_history import (
     _aggregate,
     export_changed_files,
+    finalize_history_retention,
     inventory_changed_paths,
     load_history_results,
     print_history_results,
     print_history_summary,
+    parse_args,
     resolve_history_directory,
     select_first_parent_history,
     write_history_artifacts,
@@ -66,6 +68,49 @@ def commit_file(repo: Path, value: str, subject: str, timestamp: str | None = No
 
 
 class RepositoryHistoryTests(unittest.TestCase):
+    def test_history_retention_cli_defaults_and_no_cache_alias(self) -> None:
+        base = ["start", "sqlite", "--start", "HEAD", "--count", "1"]
+
+        self.assertEqual(parse_args(base).retention, "full")
+        self.assertEqual(parse_args([*base, "--no-cache"]).retention, "compact")
+        self.assertEqual(
+            parse_args([*base, "--retention", "ephemeral"]).retention,
+            "ephemeral",
+        )
+
+    def test_ephemeral_retention_removes_only_isolated_pipeline(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            data_root = Path(temporary_directory) / "benchmark-data"
+            history_dir = data_root / "repository-histories" / "history-fixture"
+            pipeline = history_dir / ".pipeline"
+            pipeline.mkdir(parents=True)
+            (pipeline / "temporary.bin").write_bytes(b"temporary")
+            shared = data_root / "shared-marker"
+            shared.parent.mkdir(parents=True, exist_ok=True)
+            shared.write_bytes(b"keep")
+            history = {
+                "retention": "ephemeral",
+                "pairs": [
+                    {
+                        "sequence": 0,
+                        "status": "completed",
+                        "metrics": {"move_count": 1},
+                        "artifacts": {"results_path": "discarded/results.json"},
+                    }
+                ],
+            }
+
+            finalize_history_retention(
+                history_dir, history, data_root, pipeline
+            )
+
+            self.assertFalse(pipeline.exists())
+            self.assertEqual(shared.read_bytes(), b"keep")
+            self.assertNotIn("artifacts", history["pairs"][0])
+            self.assertEqual(
+                history["retention_summary"]["positive_evidence_pairs"], 0
+            )
+
     def test_show_resolves_latest_history_and_prints_move_details(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             data_root = Path(temporary_directory) / "benchmark-data"
@@ -267,6 +312,85 @@ class RepositoryHistoryTests(unittest.TestCase):
             self.assertNotIn("pairs", manifest)
             self.assertEqual(manifest["pair_receipts"]["count"], 1)
             self.assertEqual(receipt, pair)
+
+    def test_positive_pair_creates_zero_copy_browse_view_and_latest_link(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            data_root = Path(temporary_directory) / "benchmark-data"
+            history_dir = (
+                data_root / "repository-histories" / "history-positive-fixture"
+            )
+            history_dir.mkdir(parents=True)
+            attempt_dir = data_root / "runs" / "run-fixture" / "attempts" / "one"
+            attempt_dir.mkdir(parents=True)
+            results = attempt_dir / "results.json"
+            srcmove = attempt_dir / "srcmove.xml"
+            attempt = attempt_dir / "attempt.json"
+            results.write_text('{"move_count": 1}', encoding="utf-8")
+            srcmove.write_text("<unit/>", encoding="utf-8")
+            attempt.write_text("{}", encoding="utf-8")
+            corpus_dir = data_root / "corpora" / "corpus-fixture"
+            srcdiff = corpus_dir / "cases" / "fixture" / "input.srcdiff.xml"
+            srcdiff.parent.mkdir(parents=True)
+            srcdiff.write_text("<unit/>", encoding="utf-8")
+            corpus_manifest = corpus_dir / "manifest.json"
+            corpus_manifest.write_text(
+                json.dumps(
+                    {
+                        "cases": [
+                            {
+                                "generation_status": "accepted",
+                                "input_path": "cases/fixture/input.srcdiff.xml",
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            pair = {
+                "schema_version": 1,
+                "sequence": 0,
+                "old_commit": "a" * 40,
+                "new_commit": "b" * 40,
+                "status": "completed",
+                "metrics": {"move_count": 1},
+                "artifacts": {
+                    "results_path": results.relative_to(data_root).as_posix(),
+                    "srcmove_attempt": attempt.relative_to(data_root).as_posix(),
+                    "corpus_manifest": corpus_manifest.relative_to(
+                        data_root
+                    ).as_posix(),
+                },
+            }
+            history = {
+                "schema_version": 4,
+                "history_id": history_dir.name,
+                "status": "completed",
+                "commits": [
+                    {
+                        "commit": "b" * 40,
+                        "committer_time_iso8601": "2026-01-01T00:00:00Z",
+                        "subject": "fixture",
+                        "is_merge": False,
+                    }
+                ],
+                "pairs": [pair],
+            }
+
+            write_history_artifacts(history_dir, history)
+
+            browse_dir = history_dir / "moves" / "000001"
+            expected = {
+                "results.json": results,
+                "srcmove.xml": srcmove,
+                "srcdiff.xml": srcdiff,
+            }
+            for name, target in expected.items():
+                link = browse_dir / name
+                self.assertTrue(link.is_symlink())
+                self.assertEqual(link.resolve(), target.resolve())
+            latest = data_root / "repository-histories" / "latest"
+            self.assertTrue(latest.is_symlink())
+            self.assertEqual(latest.resolve(), history_dir.resolve())
 
     def test_selects_requested_pairs_in_oldest_to_newest_ancestry_order(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

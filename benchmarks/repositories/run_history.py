@@ -7,6 +7,7 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 import re
 import shutil
 import subprocess
@@ -465,6 +466,272 @@ def _spreadsheet_safe(value: str) -> str:
     return f"'{value}" if value.startswith(("=", "+", "-", "@")) else value
 
 
+def _replace_relative_symlink(link: Path, target: Path) -> None:
+    target = target.resolve(strict=True)
+    link.parent.mkdir(parents=True, exist_ok=True)
+    if link.exists() and link.resolve() == target:
+        return
+    if link.exists() and link.is_dir() and not link.is_symlink():
+        raise ValueError(f"refusing to replace directory with browse link: {link}")
+    temporary = link.with_name(f".{link.name}.tmp-{uuid.uuid4().hex}")
+    try:
+        temporary.symlink_to(os.path.relpath(target, start=link.parent))
+        os.replace(temporary, link)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _positive_pair_artifacts(
+    history_dir: Path, pair: Mapping[str, Any]
+) -> dict[str, Path]:
+    data_root = history_dir.parent.parent.resolve()
+    artifacts = pair.get("artifacts", {})
+
+    def artifact_path(key: str, description: str) -> Path:
+        relative = artifacts.get(key)
+        if not isinstance(relative, str):
+            raise ValueError(
+                f"positive pair {pair['sequence'] + 1} does not reference {description}"
+            )
+        path = (data_root / relative).resolve()
+        if not path.is_relative_to(data_root):
+            raise ValueError(f"unsafe {description} path: {relative}")
+        if not path.is_file():
+            raise FileNotFoundError(f"{description} not found: {path}")
+        return path
+
+    results = artifact_path("results_path", "results.json")
+    if artifacts.get("srcmove_xml"):
+        srcmove = artifact_path("srcmove_xml", "srcmove.xml")
+    else:
+        srcmove_attempt = artifact_path("srcmove_attempt", "srcMove attempt")
+        srcmove = srcmove_attempt.parent / "srcmove.xml"
+        if not srcmove.is_file():
+            raise FileNotFoundError(
+                f"positive pair {pair['sequence'] + 1} is missing srcmove.xml: {srcmove}"
+            )
+
+    if artifacts.get("srcdiff_xml"):
+        srcdiff = artifact_path("srcdiff_xml", "srcdiff.xml")
+    else:
+        corpus_manifest_path = artifact_path("corpus_manifest", "corpus manifest")
+        corpus = json.loads(corpus_manifest_path.read_text(encoding="utf-8"))
+        accepted = [
+            case
+            for case in corpus.get("cases", [])
+            if isinstance(case, Mapping)
+            and case.get("generation_status") == "accepted"
+            and isinstance(case.get("input_path"), str)
+        ]
+        if len(accepted) != 1:
+            raise ValueError(
+                f"positive pair {pair['sequence'] + 1} must reference one accepted srcDiff XML"
+            )
+        srcdiff = (corpus_manifest_path.parent / accepted[0]["input_path"]).resolve()
+        if not srcdiff.is_relative_to(corpus_manifest_path.parent.resolve()):
+            raise ValueError(f"unsafe srcDiff corpus path: {accepted[0]['input_path']}")
+        if not srcdiff.is_file():
+            raise FileNotFoundError(f"srcDiff XML not found: {srcdiff}")
+    return {"results.json": results, "srcmove.xml": srcmove, "srcdiff.xml": srcdiff}
+
+
+def refresh_history_browse_view(
+    history_dir: Path, pairs: Sequence[Mapping[str, Any]]
+) -> None:
+    """Create a human-facing, zero-copy view of artifacts for positive pairs."""
+
+    history_dir = history_dir.resolve()
+    (history_dir / "moves").mkdir(parents=True, exist_ok=True)
+    for pair in pairs:
+        if _seconds(pair.get("metrics", {}).get("move_count")) <= 0:
+            continue
+        browse_dir = history_dir / "moves" / f"{pair['sequence'] + 1:06d}"
+        for name, target in _positive_pair_artifacts(history_dir, pair).items():
+            _replace_relative_symlink(browse_dir / name, target)
+    _replace_relative_symlink(history_dir.parent / "latest", history_dir)
+
+
+def _history_entry_artifacts(
+    entry: Mapping[str, Any], execution_root: Path, data_root: Path
+) -> dict[str, str]:
+    artifacts: dict[str, str] = {}
+    for key in (
+        "input_snapshot_manifest",
+        "corpus_manifest",
+        "run_manifest",
+        "results_path",
+    ):
+        value = entry.get(key)
+        if isinstance(value, str):
+            artifacts[key] = (execution_root / value).resolve().relative_to(
+                data_root
+            ).as_posix()
+    for key, attempt in (
+        ("srcdiff_attempt", entry.get("srcdiff_attempt", {})),
+        ("srcmove_attempt", entry.get("srcmove_attempt", {})),
+    ):
+        value = attempt.get("path") if isinstance(attempt, Mapping) else None
+        if isinstance(value, str):
+            artifacts[key] = (execution_root / value).resolve().relative_to(
+                data_root
+            ).as_posix()
+    return artifacts
+
+
+def _copy_canonical_artifact(source: Path, destination: Path) -> None:
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    temporary = destination.with_name(f".{destination.name}.tmp-{uuid.uuid4().hex}")
+    try:
+        shutil.copy2(source, temporary)
+        os.replace(temporary, destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def _remove_isolated_pipeline(history_dir: Path, pipeline_root: Path) -> None:
+    history_dir = history_dir.resolve()
+    pipeline_root = pipeline_root.resolve()
+    if (
+        pipeline_root.name != ".pipeline"
+        or pipeline_root.parent != history_dir
+        or pipeline_root.is_symlink()
+    ):
+        raise ValueError(f"unsafe isolated pipeline path: {pipeline_root}")
+    if pipeline_root.is_dir():
+        shutil.rmtree(pipeline_root)
+
+
+def _failure_artifact_roots(
+    pair: Mapping[str, Any], data_root: Path, pipeline_root: Path
+) -> set[Path]:
+    roots: set[Path] = set()
+    artifacts = pair.get("artifacts", {})
+    for key in (
+        "input_snapshot_manifest",
+        "corpus_manifest",
+        "run_manifest",
+        "results_path",
+        "srcdiff_attempt",
+        "srcmove_attempt",
+    ):
+        relative = artifacts.get(key)
+        if not isinstance(relative, str):
+            continue
+        path = (data_root / relative).resolve()
+        if not path.is_relative_to(pipeline_root):
+            raise ValueError(f"compact failure artifact escaped pipeline: {path}")
+        owner = path.parent
+        if key in {"results_path", "srcmove_attempt"}:
+            run_ancestor = next(
+                (parent for parent in path.parents if parent.parent.name == "runs"),
+                None,
+            )
+            if run_ancestor is not None:
+                owner = run_ancestor
+        roots.add(owner)
+        if key == "corpus_manifest" and path.is_file():
+            corpus = json.loads(path.read_text(encoding="utf-8"))
+            generation_id = corpus.get("generation_id")
+            if isinstance(generation_id, str):
+                batch = pipeline_root / "generation-batches" / generation_id
+                if batch.is_dir():
+                    roots.add(batch.resolve())
+    return roots
+
+
+def _prune_isolated_pipeline(pipeline_root: Path, retained: set[Path]) -> None:
+    for category in (
+        "input-snapshots",
+        "attempts",
+        "generation-batches",
+        "corpora",
+        "runs",
+        "repository-runs",
+    ):
+        category_dir = pipeline_root / category
+        if not category_dir.is_dir():
+            continue
+        for child in category_dir.iterdir():
+            resolved = child.resolve()
+            keep = any(root == resolved or root.is_relative_to(resolved) for root in retained)
+            if keep:
+                continue
+            if child.is_symlink() or child.is_file():
+                child.unlink()
+            else:
+                shutil.rmtree(child)
+        if not any(category_dir.iterdir()):
+            category_dir.rmdir()
+
+
+def finalize_history_retention(
+    history_dir: Path,
+    history: dict[str, Any],
+    data_root: Path,
+    pipeline_root: Path,
+) -> None:
+    policy = history["retention"]
+    if policy == "full":
+        return
+    positive = [
+        pair
+        for pair in history["pairs"]
+        if _seconds(pair.get("metrics", {}).get("move_count")) > 0
+    ]
+    failures = [
+        pair
+        for pair in history["pairs"]
+        if pair["status"]
+        in {
+            "export_failed",
+            "srcdiff_failed",
+            "srcmove_failed",
+            "orchestration_failed",
+        }
+    ]
+    if policy == "compact":
+        for pair in positive:
+            browse_dir = history_dir / "moves" / f"{pair['sequence'] + 1:06d}"
+            retained_artifacts = {}
+            for name, source in _positive_pair_artifacts(history_dir, pair).items():
+                destination = browse_dir / name
+                _copy_canonical_artifact(source, destination)
+                retained_artifacts[
+                    {
+                        "results.json": "results_path",
+                        "srcmove.xml": "srcmove_xml",
+                        "srcdiff.xml": "srcdiff_xml",
+                    }[name]
+                ] = destination.relative_to(data_root).as_posix()
+            pair["artifacts"] = retained_artifacts
+        retained_roots: set[Path] = set()
+        for pair in failures:
+            retained_roots.update(
+                _failure_artifact_roots(pair, data_root, pipeline_root)
+            )
+        for pair in history["pairs"]:
+            if pair not in positive and pair not in failures:
+                pair.pop("artifacts", None)
+        if retained_roots:
+            _prune_isolated_pipeline(pipeline_root, retained_roots)
+        else:
+            _remove_isolated_pipeline(history_dir, pipeline_root)
+    elif policy == "ephemeral":
+        for pair in history["pairs"]:
+            pair.pop("artifacts", None)
+        _remove_isolated_pipeline(history_dir, pipeline_root)
+    else:
+        raise ValueError(f"unknown retention policy: {policy}")
+    history["retention_summary"] = {
+        "positive_evidence_pairs": len(positive) if policy == "compact" else 0,
+        "failure_evidence_pairs": len(failures) if policy == "compact" else 0,
+        "discarded_successful_intermediate_pairs": sum(
+            pair["status"] == "completed" for pair in history["pairs"]
+        ),
+    }
+    history["retention_finalized_at"] = utc_now()
+
+
 def write_history_artifacts(
     history_dir: Path,
     history: dict[str, Any],
@@ -570,6 +837,9 @@ def write_history_artifacts(
                 }
             )
     temporary.replace(summary_path)
+    refresh_history_browse_view(
+        history_dir, [] if history.get("retention") == "ephemeral" else receipts
+    )
     return time.monotonic() - started
 
 
@@ -622,6 +892,11 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     data_root = args.data_root.expanduser().resolve()
     history_dir = data_root / "repository-histories" / history_id
     history_dir.mkdir(parents=True, exist_ok=False)
+    pipeline_root = (
+        data_root if args.retention == "full" else history_dir / ".pipeline"
+    )
+    if pipeline_root != data_root:
+        pipeline_root.mkdir(parents=True, exist_ok=False)
     excluded_suffixes = sorted(DEFAULT_EXCLUDED_SUFFIXES)
     frozen_configuration = {
         "srcdiff_sha256": sha256_file(srcdiff),
@@ -658,6 +933,8 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
         "requested_start_revision": args.start,
         "resolved_start_commit": resolved_start,
         "retained_start_ref": retained_ref,
+        "retention": args.retention,
+        "cache_reuse_enabled": args.retention == "full",
         "traversal_mode": TRAVERSAL_MODE,
         "requested_pair_count": args.count,
         "available_pair_count": len(pairs),
@@ -795,7 +1072,7 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
             }
             benchmark_started = time.monotonic()
             entry, _ = run_staged_repository_benchmark(
-                data_root=data_root,
+                data_root=pipeline_root,
                 series=history_id,
                 case_name=args.case,
                 original=original_dir,
@@ -853,24 +1130,9 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
                 {
                     "status": entry["status"],
                     "completed_at": utc_now(),
-                    "artifacts": {
-                        key: entry[key]
-                        for key in (
-                            "input_snapshot_manifest",
-                            "corpus_manifest",
-                            "run_manifest",
-                            "results_path",
-                        )
-                        if entry.get(key)
-                    }
-                    | {
-                        key: attempt["path"]
-                        for key, attempt in (
-                            ("srcdiff_attempt", entry.get("srcdiff_attempt", {})),
-                            ("srcmove_attempt", entry.get("srcmove_attempt", {})),
-                        )
-                        if attempt.get("path")
-                    },
+                    "artifacts": _history_entry_artifacts(
+                        entry, pipeline_root, data_root
+                    ),
                     "counts": entry.get("counts", {}),
                     "metrics": entry.get("results", {}),
                     "dispositions": dispositions,
@@ -957,6 +1219,9 @@ def run_history_start(args: argparse.Namespace) -> tuple[dict[str, Any], Path]:
     )
     history["elapsed_seconds"] = time.monotonic() - history_started
     history["completed_at"] = utc_now()
+    finalize_history_retention(
+        history_dir, history, data_root, pipeline_root
+    )
     write_history_artifacts(history_dir, history)
     return history, history_dir
 
@@ -1200,9 +1465,19 @@ def print_history_results(
         move_count = int(_seconds(metrics.get("move_count")))
         moved_paths: set[str] = set()
         if move_count:
+            results_reference = pair.get("artifacts", {}).get("results_path")
+            if not isinstance(results_reference, str):
+                print(
+                    "  Move details were not retained by this history's "
+                    "retention policy.",
+                    file=stream,
+                )
+                if show_diff:
+                    _print_pair_diff(history, pair, stream=stream)
+                continue
             results_path = _resolve_artifact(
                 data_root,
-                pair.get("artifacts", {}).get("results_path"),
+                results_reference,
                 "srcMove results",
             )
             results = _load_json_object(results_path, "srcMove results")
@@ -1238,12 +1513,18 @@ def print_history_results(
                 )
             if verbose:
                 print(f"\n  Results: {results_path}", file=stream)
-                attempt_path = _resolve_artifact(
-                    data_root,
-                    pair.get("artifacts", {}).get("srcmove_attempt"),
-                    "srcMove attempt",
-                )
-                srcmove_xml = attempt_path.parent / "srcmove.xml"
+                srcmove_reference = pair.get("artifacts", {}).get("srcmove_xml")
+                if isinstance(srcmove_reference, str):
+                    srcmove_xml = _resolve_artifact(
+                        data_root, srcmove_reference, "srcMove XML"
+                    )
+                else:
+                    attempt_path = _resolve_artifact(
+                        data_root,
+                        pair.get("artifacts", {}).get("srcmove_attempt"),
+                        "srcMove attempt",
+                    )
+                    srcmove_xml = attempt_path.parent / "srcmove.xml"
                 if srcmove_xml.is_file():
                     print(f"  Annotated XML: {srcmove_xml}", file=stream)
         elif pair["status"] == "completed":
@@ -1280,6 +1561,20 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     start.add_argument("--srcmove-timeout", type=float, default=300.0)
     start.add_argument("--src-encoding", default="UTF-8")
     start.add_argument("--position", action="store_true")
+    retention = start.add_mutually_exclusive_group()
+    retention.add_argument(
+        "--retention",
+        choices=("full", "compact", "ephemeral"),
+        default="full",
+        help="artifact retention policy; default: full",
+    )
+    retention.add_argument(
+        "--no-cache",
+        action="store_const",
+        dest="retention",
+        const="compact",
+        help="alias for --retention compact",
+    )
     show = subparsers.add_parser(
         "show", help="show detected moves from a saved history"
     )
@@ -1318,6 +1613,12 @@ def print_history_summary(
     print(f"Historical repository analysis: {title}", file=stream)
     print(f"  Status:  {status}", file=stream)
     print(f"  History: {history['history_id']}", file=stream)
+    retention = history.get("retention", "full")
+    print(
+        f"  Storage: {str(retention).capitalize()} retention"
+        + ("; reusable cache enabled" if retention == "full" else "; isolated run"),
+        file=stream,
+    )
     print(
         f"  Pairs:   {aggregates['completed']} analyzed, "
         f"{aggregates['no_analyzable_change']} skipped, "
