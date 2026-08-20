@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable
 
@@ -11,10 +12,105 @@ from .contracts import ChangedPath, VerifiedArtifact
 
 
 REGULAR_GIT_MODES = {"100644", "100755"}
+RETAINED_REF_PREFIX = "refs/srcmove/repository-analyses"
 
 
 class GitMaterializationError(RuntimeError):
     """Git could not produce a complete safe sparse input tree."""
+
+
+@dataclass(frozen=True, slots=True)
+class FirstParentHistory:
+    """One resolved bounded history in oldest-to-newest ancestry order."""
+
+    resolved_start: str
+    commits: tuple[str, ...]
+
+
+def select_first_parent_history(
+    repository: Path, start: str, pair_count: int
+) -> FirstParentHistory:
+    """Resolve a complete bounded first-parent history exactly once."""
+
+    if (
+        isinstance(pair_count, bool)
+        or not isinstance(pair_count, int)
+        or pair_count <= 0
+    ):
+        raise ValueError("pair count must be positive")
+    if not isinstance(start, str) or not start or "\0" in start:
+        raise ValueError("start revision must be a non-empty string")
+    root = repository.expanduser().resolve(strict=True)
+    shallow = _git(root, "rev-parse", "--is-shallow-repository")
+    if shallow == "true":
+        raise RuntimeError(
+            "historical repository analysis requires a complete, non-shallow repository"
+        )
+    resolved = _git(root, "rev-parse", "--verify", f"{start}^{{commit}}")
+    newest_first = tuple(
+        line
+        for line in _git(
+            root,
+            "rev-list",
+            "--first-parent",
+            f"--max-count={pair_count + 1}",
+            resolved,
+        ).splitlines()
+        if line
+    )
+    if len(newest_first) < 2:
+        raise RuntimeError(
+            "the selected history has fewer than two commits; no adjacent pair exists"
+        )
+    return FirstParentHistory(resolved, tuple(reversed(newest_first)))
+
+
+def retained_history_ref(manifest_bytes: bytes) -> str:
+    """Return the deterministic namespaced ref for one exact frozen invocation."""
+
+    identity = hashlib.sha256(manifest_bytes).hexdigest()
+    return f"{RETAINED_REF_PREFIX}/{identity}/start"
+
+
+def retain_history(repository: Path, ref: str, newest_commit: str) -> None:
+    """Retain the frozen newest commit without permitting unsafe ref names."""
+
+    if not ref.startswith(f"{RETAINED_REF_PREFIX}/") or not ref.endswith("/start"):
+        raise ValueError(f"unsafe repository-analysis ref: {ref!r}")
+    _git(repository, "update-ref", ref, newest_commit)
+
+
+def verify_frozen_commits(
+    repository: Path, commits: Iterable[str], *, retained_ref: str
+) -> None:
+    """Verify the retention ref and every native object ID in the manifest."""
+
+    frozen = tuple(commits)
+    if not frozen:
+        raise ValueError("frozen commit sequence must not be empty")
+    retained = _git(repository, "rev-parse", "--verify", f"{retained_ref}^{{commit}}")
+    if retained != frozen[-1]:
+        raise ValueError("retained history ref drift from frozen newest commit")
+    for commit in frozen:
+        _git(repository, "cat-file", "-e", f"{commit}^{{commit}}")
+
+
+def _git(repository: Path, *arguments: str) -> str:
+    result = subprocess.run(
+        ["git", *arguments],
+        cwd=repository,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        detail = result.stderr.strip()
+        raise RuntimeError(
+            f"git {' '.join(arguments)} failed"
+            + (f": {detail}" if detail else "")
+        )
+    return result.stdout.strip()
 
 
 def inventory_changed_paths(

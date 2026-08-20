@@ -15,9 +15,12 @@ from repository_analysis.inputs import (
     build_pair_work_items,
     canonical_json_bytes,
     freeze_analysis_inputs,
+    load_frozen_manifest,
     observe_executable,
     pair_fingerprint,
     pair_fingerprint_bytes,
+    persist_frozen_manifest,
+    verify_resume_inputs,
 )
 
 
@@ -191,6 +194,119 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
             self.assertIn("configuration", record)
             self.assertIn("executables", record)
             self.assertIn("fingerprint_schema_versions", record)
+
+    def test_manifest_persistence_is_canonical_atomic_and_exclusive(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifest = self._manifest(root / "repository")
+            analysis = root / "analysis"
+
+            path = persist_frozen_manifest(analysis, manifest)
+
+            self.assertEqual(path.read_bytes(), manifest.canonical_bytes() + b"\n")
+            self.assertEqual(load_frozen_manifest(analysis), manifest)
+            with self.assertRaises(FileExistsError):
+                persist_frozen_manifest(analysis, manifest)
+            self.assertEqual(
+                [item.name for item in analysis.iterdir()], ["manifest.json"]
+            )
+
+    def test_manifest_loader_rejects_schema_and_json_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifest = self._manifest(root / "repository")
+            baseline = manifest.record()
+            mutations = {
+                "unknown": lambda value: value.update({"unknown": 1}),
+                "missing": lambda value: value.pop("commits"),
+                "wrong type": lambda value: value.update({"commits": "abc"}),
+                "schema": lambda value: value.update({"schema_version": 999}),
+                "duplicate commits": lambda value: value.update(
+                    {"commits": ["a", "b", "a"]}
+                ),
+                "nested unknown": lambda value: value["configuration"].update(
+                    {"unknown": True}
+                ),
+                "noncanonical suffixes": lambda value: value["configuration"].update(
+                    {"excluded_suffixes": [".txt", ".txt"]}
+                ),
+            }
+            for name, mutate in mutations.items():
+                with self.subTest(name=name):
+                    analysis = root / name.replace(" ", "-")
+                    analysis.mkdir()
+                    value = json.loads(json.dumps(baseline))
+                    mutate(value)
+                    (analysis / "manifest.json").write_text(json.dumps(value))
+                    with self.assertRaises(ValueError):
+                        load_frozen_manifest(analysis)
+
+            malformed = root / "malformed"
+            malformed.mkdir()
+            (malformed / "manifest.json").write_text("{")
+            with self.assertRaisesRegex(ValueError, "unreadable"):
+                load_frozen_manifest(malformed)
+
+            duplicate_field = root / "duplicate-field"
+            duplicate_field.mkdir()
+            (duplicate_field / "manifest.json").write_text(
+                '{"schema_version":1,"schema_version":1}'
+            )
+            with self.assertRaisesRegex(ValueError, "duplicate JSON field"):
+                load_frozen_manifest(duplicate_field)
+
+    def test_resume_verification_rejects_input_drift(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            manifest = self._manifest(root / "frozen", tool_content=b"same")
+            current_diff = observe_executable(
+                executable(root / "current-diff", b"same")
+            )
+            current_move = observe_executable(
+                executable(root / "current-move", b"same")
+            )
+
+            rebound = verify_resume_inputs(
+                manifest,
+                repository_identity=manifest.repository_identity,
+                configuration=manifest.configuration,
+                srcdiff=current_diff,
+                srcmove=current_move,
+            )
+            self.assertEqual(
+                build_pair_work_items(rebound)[0].srcdiff,
+                current_diff.resolved_path,
+            )
+
+            cases = (
+                {
+                    "repository_identity": RepositoryIdentity("other"),
+                    "configuration": manifest.configuration,
+                    "srcdiff": current_diff,
+                    "srcmove": current_move,
+                },
+                {
+                    "repository_identity": manifest.repository_identity,
+                    "configuration": replace(
+                        manifest.configuration, use_position=True
+                    ),
+                    "srcdiff": current_diff,
+                    "srcmove": current_move,
+                },
+                {
+                    "repository_identity": manifest.repository_identity,
+                    "configuration": manifest.configuration,
+                    "srcdiff": observe_executable(
+                        executable(root / "drifted-diff", b"changed")
+                    ),
+                    "srcmove": current_move,
+                },
+            )
+            for arguments in cases:
+                with self.subTest(arguments=arguments), self.assertRaisesRegex(
+                    ValueError, "drift"
+                ):
+                    verify_resume_inputs(manifest, **arguments)
 
     def _manifest(
         self,

@@ -21,9 +21,12 @@ from .inputs import (
     RepositoryIdentity,
     build_pair_work_items,
     freeze_analysis_inputs,
+    load_frozen_manifest,
     observe_executable,
     pair_fingerprint,
     pair_fingerprint_bytes,
+    persist_frozen_manifest,
+    verify_resume_inputs,
 )
 from .reporting import (
     PairReceiptPublisher,
@@ -63,9 +66,12 @@ __all__ = [
     "publish_history_reports",
     "prepare_verified_resume",
     "freeze_analysis_inputs",
+    "load_frozen_manifest",
     "observe_executable",
     "pair_fingerprint",
     "pair_fingerprint_bytes",
+    "persist_frozen_manifest",
     "resume_pairs",
     "run_pairs",
+    "verify_resume_inputs",
 ]

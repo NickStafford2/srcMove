@@ -7,9 +7,10 @@ import json
 import math
 import os
 import stat
+import uuid
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
-from typing import Any, Iterable
+from typing import Any, Iterable, Mapping
 
 from .contracts import PAIR_OUTCOME_SCHEMA_VERSION, PairWorkItem
 from .process import (
@@ -23,6 +24,7 @@ ANALYSIS_CONFIGURATION_SCHEMA_VERSION = 1
 EXECUTABLE_OBSERVATION_SCHEMA_VERSION = 1
 FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 1
 PAIR_FINGERPRINT_SCHEMA_VERSION = 1
+FROZEN_ANALYSIS_MANIFEST_NAME = "manifest.json"
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -232,10 +234,15 @@ class FrozenAnalysisManifest:
     schema_versions: FingerprintSchemaVersions = FingerprintSchemaVersions()
 
     def __post_init__(self) -> None:
+        if not isinstance(self.repository, Path) or not self.repository.is_absolute():
+            raise ValueError("frozen repository path must be absolute")
         object.__setattr__(self, "commits", tuple(self.commits))
         if len(self.commits) < 2:
             raise ValueError("frozen history must contain at least two commits")
-        if any(not isinstance(commit, str) or not commit for commit in self.commits):
+        if any(
+            not isinstance(commit, str) or not commit or "\0" in commit
+            for commit in self.commits
+        ):
             raise ValueError("frozen commits must be non-empty native Git object IDs")
         if len(set(self.commits)) != len(self.commits):
             raise ValueError("frozen first-parent history contains duplicate commits")
@@ -256,6 +263,278 @@ class FrozenAnalysisManifest:
 
     def canonical_bytes(self) -> bytes:
         return canonical_json_bytes(self.record())
+
+
+def persist_frozen_manifest(
+    analysis_root: Path, manifest: FrozenAnalysisManifest
+) -> Path:
+    """Atomically create the canonical manifest without replacing prior state."""
+
+    requested_root = analysis_root.expanduser().absolute()
+    if requested_root.is_symlink():
+        raise ValueError(f"analysis root must not be a symbolic link: {requested_root}")
+    root = requested_root.resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError(f"analysis root is not an owned directory: {root}")
+    destination = root / FROZEN_ANALYSIS_MANIFEST_NAME
+    temporary = root / f".{destination.name}.tmp-{uuid.uuid4().hex}"
+    try:
+        with temporary.open("xb") as stream:
+            stream.write(manifest.canonical_bytes())
+            stream.write(b"\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.link(temporary, destination)
+        _fsync_directory(root)
+    finally:
+        temporary.unlink(missing_ok=True)
+    return destination
+
+
+def load_frozen_manifest(analysis_root: Path) -> FrozenAnalysisManifest:
+    """Strictly load one persisted manifest and reject schema ambiguity."""
+
+    requested_root = analysis_root.expanduser().absolute()
+    if requested_root.is_symlink():
+        raise ValueError(f"analysis root must not be a symbolic link: {requested_root}")
+    path = requested_root.resolve() / FROZEN_ANALYSIS_MANIFEST_NAME
+    if path.is_symlink() or not path.is_file():
+        raise ValueError(f"frozen analysis manifest is not a regular file: {path}")
+    try:
+        raw = path.read_text(encoding="utf-8")
+        value = json.loads(raw, object_pairs_hook=_strict_json_object)
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"frozen analysis manifest is unreadable: {path}") from error
+    record = _object(value, "manifest")
+    _fields(
+        record,
+        {
+            "schema_version",
+            "repository_identity",
+            "repository_path",
+            "commits",
+            "configuration",
+            "executables",
+            "fingerprint_schema_versions",
+        },
+        "manifest",
+    )
+    _schema(record, "schema_version", FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION)
+    identity_record = _object(record["repository_identity"], "repository_identity")
+    _fields(identity_record, {"value"}, "repository_identity")
+    identity = RepositoryIdentity(_string(identity_record, "value"))
+
+    repository_value = _string(record, "repository_path")
+    repository = Path(repository_value)
+    if not repository.is_absolute():
+        raise ValueError("manifest repository_path must be absolute")
+
+    commits_value = record["commits"]
+    if not isinstance(commits_value, list):
+        raise ValueError("manifest commits must be an array")
+    commits = tuple(
+        _plain_string(commit, f"commits[{index}]")
+        for index, commit in enumerate(commits_value)
+    )
+    configuration = _load_configuration(record["configuration"])
+    executables = _object(record["executables"], "executables")
+    _fields(executables, {"srcdiff", "srcmove"}, "executables")
+    schema_versions = _load_fingerprint_schema_versions(
+        record["fingerprint_schema_versions"]
+    )
+    manifest = FrozenAnalysisManifest(
+        repository=repository,
+        repository_identity=identity,
+        commits=commits,
+        configuration=configuration,
+        srcdiff=_load_executable(executables["srcdiff"], "executables.srcdiff"),
+        srcmove=_load_executable(executables["srcmove"], "executables.srcmove"),
+        schema_versions=schema_versions,
+    )
+    if raw.encode("utf-8") != manifest.canonical_bytes() + b"\n":
+        raise ValueError("frozen analysis manifest is not canonically encoded")
+    return manifest
+
+
+def verify_resume_inputs(
+    manifest: FrozenAnalysisManifest,
+    *,
+    repository_identity: RepositoryIdentity,
+    configuration: AnalysisConfiguration,
+    srcdiff: ExecutableObservation,
+    srcmove: ExecutableObservation,
+) -> FrozenAnalysisManifest:
+    """Verify caller inputs and bind work items to freshly observed tools."""
+
+    if repository_identity != manifest.repository_identity:
+        raise ValueError("repository identity drift from frozen manifest")
+    if configuration != manifest.configuration:
+        raise ValueError("analysis configuration drift from frozen manifest")
+    for name, current, frozen in (
+        ("srcDiff", srcdiff, manifest.srcdiff),
+        ("srcMove", srcmove, manifest.srcmove),
+    ):
+        if (current.size_bytes, current.sha256) != (
+            frozen.size_bytes,
+            frozen.sha256,
+        ):
+            raise ValueError(f"{name} executable drift from frozen manifest")
+    return FrozenAnalysisManifest(
+        repository=manifest.repository,
+        repository_identity=manifest.repository_identity,
+        commits=manifest.commits,
+        configuration=manifest.configuration,
+        srcdiff=srcdiff,
+        srcmove=srcmove,
+        schema_versions=manifest.schema_versions,
+    )
+
+
+def _strict_json_object(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
+    value: dict[str, Any] = {}
+    for key, item in pairs:
+        if key in value:
+            raise ValueError(f"duplicate JSON field: {key}")
+        value[key] = item
+    return value
+
+
+def _object(value: Any, context: str) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        raise ValueError(f"{context} must be an object")
+    return value
+
+
+def _fields(record: Mapping[str, Any], expected: set[str], context: str) -> None:
+    actual = set(record)
+    if actual != expected:
+        missing = sorted(expected - actual)
+        unknown = sorted(actual - expected)
+        raise ValueError(
+            f"{context} fields do not match schema; missing={missing}, unknown={unknown}"
+        )
+
+
+def _schema(record: Mapping[str, Any], name: str, expected: int) -> None:
+    value = record[name]
+    if isinstance(value, bool) or not isinstance(value, int) or value != expected:
+        raise ValueError(f"unsupported {name}: {value!r}")
+
+
+def _plain_string(value: Any, context: str) -> str:
+    if not isinstance(value, str):
+        raise ValueError(f"{context} must be a string")
+    return value
+
+
+def _string(record: Mapping[str, Any], name: str) -> str:
+    return _plain_string(record[name], name)
+
+
+def _boolean(record: Mapping[str, Any], name: str) -> bool:
+    value = record[name]
+    if not isinstance(value, bool):
+        raise ValueError(f"{name} must be a boolean")
+    return value
+
+
+def _number(record: Mapping[str, Any], name: str) -> float:
+    value = record[name]
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(f"{name} must be a number")
+    return float(value)
+
+
+def _integer(record: Mapping[str, Any], name: str) -> int:
+    value = record[name]
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(f"{name} must be an integer")
+    return value
+
+
+def _load_configuration(value: Any) -> AnalysisConfiguration:
+    record = _object(value, "configuration")
+    names = {
+        "schema_version",
+        "selected_directory",
+        "excluded_suffixes",
+        "use_archive",
+        "use_position",
+        "source_encoding",
+        "srcdiff_timeout_seconds",
+        "srcmove_timeout_seconds",
+    }
+    _fields(record, names, "configuration")
+    _schema(record, "schema_version", ANALYSIS_CONFIGURATION_SCHEMA_VERSION)
+    directory = record["selected_directory"]
+    if directory is not None and not isinstance(directory, str):
+        raise ValueError("selected_directory must be a string or null")
+    suffixes = record["excluded_suffixes"]
+    if not isinstance(suffixes, list):
+        raise ValueError("excluded_suffixes must be an array")
+    parsed_suffixes = tuple(
+        _plain_string(suffix, f"excluded_suffixes[{index}]")
+        for index, suffix in enumerate(suffixes)
+    )
+    configuration = AnalysisConfiguration(
+        selected_directory=directory,
+        excluded_suffixes=parsed_suffixes,
+        use_archive=_boolean(record, "use_archive"),
+        use_position=_boolean(record, "use_position"),
+        source_encoding=_string(record, "source_encoding"),
+        srcdiff_timeout_seconds=_number(record, "srcdiff_timeout_seconds"),
+        srcmove_timeout_seconds=_number(record, "srcmove_timeout_seconds"),
+    )
+    if configuration.record() != record:
+        raise ValueError("configuration is not in canonical frozen form")
+    return configuration
+
+
+def _load_executable(value: Any, context: str) -> ExecutableObservation:
+    record = _object(value, context)
+    _fields(
+        record,
+        {
+            "schema_version",
+            "requested_path",
+            "resolved_path",
+            "size_bytes",
+            "sha256",
+        },
+        context,
+    )
+    _schema(record, "schema_version", EXECUTABLE_OBSERVATION_SCHEMA_VERSION)
+    requested = Path(_string(record, "requested_path"))
+    resolved = Path(_string(record, "resolved_path"))
+    if not requested.is_absolute():
+        raise ValueError(f"{context}.requested_path must be absolute")
+    observation = ExecutableObservation(
+        requested_path=requested,
+        resolved_path=resolved,
+        size_bytes=_integer(record, "size_bytes"),
+        sha256=_string(record, "sha256"),
+    )
+    if observation.record() != record:
+        raise ValueError(f"{context} is not in canonical frozen form")
+    return observation
+
+
+def _load_fingerprint_schema_versions(value: Any) -> FingerprintSchemaVersions:
+    record = _object(value, "fingerprint_schema_versions")
+    expected = FingerprintSchemaVersions().record()
+    _fields(record, set(expected), "fingerprint_schema_versions")
+    for name, version in expected.items():
+        _schema(record, name, version)
+    return FingerprintSchemaVersions(**record)
+
+
+def _fsync_directory(directory: Path) -> None:
+    descriptor = os.open(directory, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def freeze_analysis_inputs(
