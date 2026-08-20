@@ -1,4 +1,4 @@
-"""Production repository-history analysis primitives."""
+"""Supported application interface for repository-history analysis."""
 
 from .analysis import (
     AnalysisTarget,
@@ -8,83 +8,17 @@ from .analysis import (
     analyze_repository,
 )
 
-from .contracts import (
-    CaptureObservation,
-    ChangedPath,
-    PairOutcome,
-    PairStatus,
-    PairWorkItem,
-    ProcessOutcome,
-    VerifiedArtifact,
-)
-from .coordinator import (
-    CoordinatorStats,
-    WorkerExecutionError,
-    run_pairs,
-)
 from .inputs import (
     AnalysisConfiguration,
-    ExecutableObservation,
-    FrozenAnalysisManifest,
     RepositoryIdentity,
-    build_pair_work_items,
-    freeze_analysis_inputs,
-    load_frozen_manifest,
-    observe_executable,
-    pair_fingerprint,
-    pair_fingerprint_bytes,
-    persist_frozen_manifest,
-    verify_resume_inputs,
 )
-from .reporting import (
-    PairReceiptPublisher,
-    derive_history_summary,
-    pair_receipt,
-    publish_history_reports,
-)
-from .retention import RetentionPolicy
-from .resume import (
-    ResumeStats,
-    prepare_verified_resume,
-    resume_pairs,
-)
-from .worker import PairExecutor
 
 __all__ = [
     "AnalysisTarget",
     "AnalyzeResult",
-    "CoordinatorStats",
-    "CaptureObservation",
-    "ChangedPath",
     "AnalysisConfiguration",
-    "ExecutableObservation",
-    "FrozenAnalysisManifest",
-    "PairOutcome",
-    "PairExecutor",
-    "PairReceiptPublisher",
-    "PairStatus",
-    "PairWorkItem",
-    "ProcessOutcome",
-    "RetentionPolicy",
-    "ResumeStats",
     "RepositoryIdentity",
-    "VerifiedArtifact",
-    "WorkerExecutionError",
     "analysis_pair_details",
     "analysis_status",
     "analyze_repository",
-    "build_pair_work_items",
-    "derive_history_summary",
-    "pair_receipt",
-    "publish_history_reports",
-    "prepare_verified_resume",
-    "freeze_analysis_inputs",
-    "load_frozen_manifest",
-    "observe_executable",
-    "pair_fingerprint",
-    "pair_fingerprint_bytes",
-    "persist_frozen_manifest",
-    "resume_pairs",
-    "run_pairs",
-    "verify_resume_inputs",
 ]

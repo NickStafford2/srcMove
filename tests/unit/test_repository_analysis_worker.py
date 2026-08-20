@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import hashlib
-import json
 import os
 import signal
 import shutil
@@ -13,19 +12,14 @@ from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
-from repository_analysis import (
-    PairExecutor,
-    PairReceiptPublisher,
-    PairStatus,
-    PairWorkItem,
-    run_pairs,
-)
+from repository_analysis.contracts import PairStatus, PairWorkItem
+from repository_analysis.coordinator import run_pairs
 from repository_analysis.git import GitBatch, GitMaterializationError
 from repository_analysis.process import (
     run_process,
     validate_xml_artifact,
 )
-from repository_analysis.worker import _remove_tree_within
+from repository_analysis.worker import PairExecutor, _remove_tree_within
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -112,7 +106,7 @@ class PairExecutorTests(unittest.TestCase):
                 _remove_tree_within(outside, analysis)
             self.assertTrue(outside.exists())
 
-    def test_sealed_publication_acknowledges_worker_cleanup(self) -> None:
+    def test_publication_acknowledgement_removes_worker_scratch(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = create_history(root)
@@ -122,25 +116,27 @@ class PairExecutorTests(unittest.TestCase):
             srcmove = executable_copy(tools, "srcmove-valid-archive")
             analysis = root / "analysis"
             executor = PairExecutor(analysis)
-            publisher = PairReceiptPublisher(analysis)
+            published_results: list[Path] = []
+
+            def publish(outcome) -> None:
+                results = next(
+                    artifact.path
+                    for artifact in outcome.artifacts
+                    if artifact.kind == "json_results"
+                )
+                self.assertTrue(results.is_file())
+                published_results.append(results)
 
             run_pairs(
                 [item(0, commits[0], commits[1], repository, srcdiff, srcmove)],
                 executor,
-                publisher,
+                publish,
                 worker_count=1,
                 acknowledge_pair=executor.acknowledge,
             )
 
-            receipt = json.loads(
-                (analysis / "pairs" / "000000.json").read_text(encoding="utf-8")
-            )
-            results_record = next(
-                artifact
-                for artifact in receipt["artifacts"]
-                if artifact["kind"] == "json_results"
-            )
-            self.assertTrue((analysis / results_record["path"]).is_file())
+            self.assertEqual(len(published_results), 1)
+            self.assertFalse(published_results[0].exists())
             self.assertEqual(
                 list(analysis.glob("repository-analysis-worker-*")), []
             )

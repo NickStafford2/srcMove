@@ -24,6 +24,21 @@ def executable(path: Path, content: bytes = b"#!/bin/sh\nexit 0\n") -> Path:
 
 
 class AnalysisDatabaseTests(unittest.TestCase):
+    def test_only_truthful_compact_retention_is_supported(self) -> None:
+        self.assertEqual(
+            RetentionPolicy().record(),
+            {
+                "schema_version": 1,
+                "mode": "compact",
+                "successful_pairs": "metrics_xpaths_and_text_digests",
+                "failed_pairs": "bounded_process_evidence",
+                "tool_outputs": "discard_after_compaction",
+                "materialized_inputs": "ephemeral",
+            },
+        )
+        with self.assertRaisesRegex(ValueError, "unsupported"):
+            RetentionPolicy(mode="full")
+
     def test_batches_extend_without_renumbering_completed_pairs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -95,7 +110,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "no committed pair"):
                     database.pair_details(2)
 
-    def test_receipts_are_exclusive_and_completion_requires_full_prefix(self) -> None:
+    def test_pair_outcomes_are_exclusive_and_completion_requires_full_prefix(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = root / "repository"

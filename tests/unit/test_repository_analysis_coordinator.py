@@ -5,11 +5,9 @@ import time
 import unittest
 from collections import Counter
 
-from repository_analysis import (
+from repository_analysis.contracts import PairOutcome, PairStatus, PairWorkItem
+from repository_analysis.coordinator import (
     CoordinatorStats,
-    PairOutcome,
-    PairStatus,
-    PairWorkItem,
     WorkerExecutionError,
     run_pairs,
 )

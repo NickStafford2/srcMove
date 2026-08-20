@@ -5,11 +5,12 @@
 
 ## Context
 
-srcMove currently has multiple generations of repository-history analysis:
-the production `repository_analysis` package, an experimental benchmark history
-runner, and older receipt-based resume and reporting APIs retained inside the
-package. They overlap in execution, persistence, and presentation, leaving more
-than one apparent way to run the same analysis.
+srcMove has two remaining generations of repository-history analysis: the
+production `repository_analysis` package and an experimental benchmark history
+runner. An older receipt-based package architecture was removed during the
+initial consolidation. The remaining implementations still overlap in
+execution and presentation, leaving more than one apparent way to run the same
+analysis.
 
 ## Decision
 
@@ -91,8 +92,9 @@ Refactoring will preserve these established contracts:
 Features unique to the experimental runner, such as readable move browsing and
 scaling studies, will be rebuilt as queries, exports, or benchmark adapters over
 the production analyzer. Once equivalent behavior exists, the experimental
-runner and superseded receipt-based package APIs will be removed rather than
-maintained as compatibility architectures.
+runner will become a small adapter or be removed rather than maintained as a
+compatibility architecture. Superseded receipt-based package APIs have already
+been removed.
 
 ## Consequences
 

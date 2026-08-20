@@ -14,12 +14,12 @@ from repository_analysis.inputs import (
     RepositoryIdentity,
     build_pair_work_items,
     canonical_json_bytes,
+    canonical_pretty_json_bytes,
     freeze_analysis_inputs,
-    load_frozen_manifest,
+    load_frozen_manifest_bytes,
     observe_executable,
     pair_fingerprint,
     pair_fingerprint_bytes,
-    persist_frozen_manifest,
     verify_resume_inputs,
 )
 
@@ -195,27 +195,6 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
             self.assertIn("executables", record)
             self.assertIn("fingerprint_schema_versions", record)
 
-    def test_manifest_persistence_is_canonical_atomic_and_exclusive(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            manifest = self._manifest(root / "repository")
-            analysis = root / "analysis"
-
-            path = persist_frozen_manifest(analysis, manifest)
-
-            self.assertEqual(path.read_bytes(), manifest.canonical_bytes())
-            lines = path.read_text(encoding="utf-8").splitlines()
-            self.assertEqual(lines[0], "{")
-            self.assertEqual(lines[1], '  "commits": [')
-            self.assertEqual(lines[-1], "}")
-            self.assertTrue(path.read_bytes().endswith(b"}\n"))
-            self.assertEqual(load_frozen_manifest(analysis), manifest)
-            with self.assertRaises(FileExistsError):
-                persist_frozen_manifest(analysis, manifest)
-            self.assertEqual(
-                [item.name for item in analysis.iterdir()], ["manifest.json"]
-            )
-
     def test_manifest_loader_rejects_schema_and_json_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -238,27 +217,21 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
             }
             for name, mutate in mutations.items():
                 with self.subTest(name=name):
-                    analysis = root / name.replace(" ", "-")
-                    analysis.mkdir()
                     value = json.loads(json.dumps(baseline))
                     mutate(value)
-                    (analysis / "manifest.json").write_text(json.dumps(value))
                     with self.assertRaises(ValueError):
-                        load_frozen_manifest(analysis)
+                        load_frozen_manifest_bytes(
+                            canonical_pretty_json_bytes(value), context=name
+                        )
 
-            malformed = root / "malformed"
-            malformed.mkdir()
-            (malformed / "manifest.json").write_text("{")
             with self.assertRaisesRegex(ValueError, "unreadable"):
-                load_frozen_manifest(malformed)
+                load_frozen_manifest_bytes(b"{", context="malformed")
 
-            duplicate_field = root / "duplicate-field"
-            duplicate_field.mkdir()
-            (duplicate_field / "manifest.json").write_text(
-                '{"schema_version":1,"schema_version":1}'
-            )
             with self.assertRaisesRegex(ValueError, "duplicate JSON field"):
-                load_frozen_manifest(duplicate_field)
+                load_frozen_manifest_bytes(
+                    b'{"schema_version":1,"schema_version":1}',
+                    context="duplicate-field",
+                )
 
     def test_resume_verification_rejects_input_drift(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

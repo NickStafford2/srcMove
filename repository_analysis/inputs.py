@@ -7,7 +7,6 @@ import json
 import math
 import os
 import stat
-import uuid
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping
@@ -25,7 +24,6 @@ ANALYSIS_CONFIGURATION_SCHEMA_VERSION = 1
 EXECUTABLE_OBSERVATION_SCHEMA_VERSION = 1
 FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 4
 PAIR_FINGERPRINT_SCHEMA_VERSION = 1
-FROZEN_ANALYSIS_MANIFEST_NAME = "manifest.json"
 
 
 def canonical_json_bytes(value: Any) -> bytes:
@@ -283,48 +281,6 @@ class FrozenAnalysisManifest:
         return canonical_pretty_json_bytes(self.record())
 
 
-def persist_frozen_manifest(
-    analysis_root: Path, manifest: FrozenAnalysisManifest
-) -> Path:
-    """Atomically create the canonical manifest without replacing prior state."""
-
-    requested_root = analysis_root.expanduser().absolute()
-    if requested_root.is_symlink():
-        raise ValueError(f"analysis root must not be a symbolic link: {requested_root}")
-    root = requested_root.resolve()
-    root.mkdir(parents=True, exist_ok=True)
-    if root.is_symlink() or not root.is_dir():
-        raise ValueError(f"analysis root is not an owned directory: {root}")
-    destination = root / FROZEN_ANALYSIS_MANIFEST_NAME
-    temporary = root / f".{destination.name}.tmp-{uuid.uuid4().hex}"
-    try:
-        with temporary.open("xb") as stream:
-            stream.write(manifest.canonical_bytes())
-            stream.flush()
-            os.fsync(stream.fileno())
-        os.link(temporary, destination)
-        _fsync_directory(root)
-    finally:
-        temporary.unlink(missing_ok=True)
-    return destination
-
-
-def load_frozen_manifest(analysis_root: Path) -> FrozenAnalysisManifest:
-    """Strictly load one persisted manifest and reject schema ambiguity."""
-
-    requested_root = analysis_root.expanduser().absolute()
-    if requested_root.is_symlink():
-        raise ValueError(f"analysis root must not be a symbolic link: {requested_root}")
-    path = requested_root.resolve() / FROZEN_ANALYSIS_MANIFEST_NAME
-    if path.is_symlink() or not path.is_file():
-        raise ValueError(f"frozen analysis manifest is not a regular file: {path}")
-    try:
-        content = path.read_bytes()
-    except OSError as error:
-        raise ValueError(f"frozen analysis manifest is unreadable: {path}") from error
-    return load_frozen_manifest_bytes(content, context=str(path))
-
-
 def load_frozen_manifest_bytes(
     content: bytes, *, context: str = "manifest"
 ) -> FrozenAnalysisManifest:
@@ -556,14 +512,6 @@ def _load_fingerprint_schema_versions(value: Any) -> FingerprintSchemaVersions:
     for name, version in expected.items():
         _schema(record, name, version)
     return FingerprintSchemaVersions(**record)
-
-
-def _fsync_directory(directory: Path) -> None:
-    descriptor = os.open(directory, os.O_RDONLY)
-    try:
-        os.fsync(descriptor)
-    finally:
-        os.close(descriptor)
 
 
 def freeze_analysis_inputs(
