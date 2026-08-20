@@ -87,6 +87,7 @@ class Coordinator:
         result_queue: queue.Queue[_WorkerResult] = queue.Queue(
             maxsize=self._outcome_capacity
         )
+        orchestration_errors: queue.Queue[BaseException] = queue.Queue()
         outcome_slots = threading.Semaphore(self._outcome_capacity)
         stop_event = threading.Event()
 
@@ -97,6 +98,7 @@ class Coordinator:
                 args=(
                     work_queue,
                     result_queue,
+                    orchestration_errors,
                     outcome_slots,
                     stop_event,
                     execute_pair,
@@ -123,6 +125,13 @@ class Coordinator:
 
         try:
             while True:
+                try:
+                    orchestration_error = orchestration_errors.get_nowait()
+                except queue.Empty:
+                    pass
+                else:
+                    raise orchestration_error
+
                 while not input_exhausted and not stop_event.is_set():
                     if next_item is None:
                         try:
@@ -133,7 +142,8 @@ class Coordinator:
                         if next_item.sequence != expected_submission:
                             raise ValueError(
                                 "pair sequences must be contiguous and start at zero; "
-                                f"expected {expected_submission}, got {next_item.sequence}"
+                                f"expected {expected_submission}, "
+                                f"got {next_item.sequence}"
                             )
 
                     try:
@@ -187,6 +197,11 @@ class Coordinator:
                 outcome_slots.release()
             pending.clear()
             self._drain_and_join(workers, result_queue, outcome_slots)
+            if failure is None:
+                try:
+                    failure = orchestration_errors.get_nowait()
+                except queue.Empty:
+                    pass
 
         if failure is not None:
             raise failure
@@ -202,6 +217,38 @@ class Coordinator:
 
     @staticmethod
     def _worker_loop(
+        work_queue: queue.Queue[PairWorkItem],
+        result_queue: queue.Queue[_WorkerResult],
+        orchestration_errors: queue.Queue[BaseException],
+        outcome_slots: threading.Semaphore,
+        stop_event: threading.Event,
+        execute_pair: PairExecutor,
+    ) -> None:
+        try:
+            open_worker = getattr(execute_pair, "open_worker", None)
+            if open_worker is not None:
+                with open_worker() as worker_execute_pair:
+                    Coordinator._execute_worker_items(
+                        work_queue,
+                        result_queue,
+                        outcome_slots,
+                        stop_event,
+                        worker_execute_pair,
+                    )
+                return
+            Coordinator._execute_worker_items(
+                work_queue,
+                result_queue,
+                outcome_slots,
+                stop_event,
+                execute_pair,
+            )
+        except BaseException as error:
+            stop_event.set()
+            orchestration_errors.put(error)
+
+    @staticmethod
+    def _execute_worker_items(
         work_queue: queue.Queue[PairWorkItem],
         result_queue: queue.Queue[_WorkerResult],
         outcome_slots: threading.Semaphore,
