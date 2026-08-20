@@ -10,6 +10,52 @@ constraint.
 The runtime and storage model remain target-driven and resumable. This plan
 changes how that model is presented to people and scripts.
 
+## Implementation snapshot
+
+As of 2026-08-20, the backend foundation is substantially further along than
+the user interface. Do not infer CLI completion from an implemented query or
+storage contract.
+
+| Area | State | What exists | What remains |
+| --- | --- | --- | --- |
+| Target-driven runtime | Implemented | Create, resume, extend, no-op verification, bounded batches, parallel workers, and failure exit status | Rename `analyze` to `run` and present the lifecycle clearly |
+| Durable state | Implemented | SQLite schema v3, immutable analysis definition, admitted executable bytes, invocation records, terminal outcomes, and pending-batch recovery | No CLI-specific work required |
+| Status data | Partial | One snapshot aggregates committed and checkpointed coverage, outcomes, moves, timings, pending work, and latest invocation | Include analysis identity/configuration and determine live writer state from the lock |
+| Pair exploration | Backend implemented | Bounded, filtered, keyset-paginated list queries and lazy one-pair detail queries | Expose `list` and `show`; add human renderers and optional Git diff |
+| Command surface | Not implemented | Development entry point with `analyze`, `status`, and `inspect` | Installed executable, positional analysis path, final command names, presets, and help text |
+| Human output | Not implemented | The retiring benchmark runner contains useful summary and move renderers | New renderers over production query models; do not import the old renderer |
+| Live progress | Not implemented | Coordinator already publishes durable outcomes in order | Observer events, TTY display, redirected updates, ETA, and interruption rendering |
+| Export | Not implemented | Normalized evidence is queryable in SQLite | Stable CSV/JSONL research exports |
+| Benchmark retirement | Not started | Both implementations still exist | Move remaining studies/adapters to the production service, then remove the old runner |
+
+In phase terms, the data/query prerequisites are mostly complete, while the
+four user-facing phases remain. The best next increment is a vertical slice of
+`run` and `status` with human and JSON renderers; progress and result browsing
+can then reuse the same presentation models.
+
+## Design assessment
+
+Keep the current plan's strongest decisions:
+
+- one `run` lifecycle instead of separate create/resume/continue commands;
+- a positional analysis path;
+- human output by default and explicitly requested structured output;
+- durable progress as the primary progress number;
+- final summaries that distinguish wall time from summed parallel work;
+- no dependency from production code on the retiring benchmark runner.
+
+The redesign should also address three workflow gaps:
+
+1. **Creation is too verbose.** Tool discovery, sensible defaults, and an
+   optional creation preset should make the common command short without
+   hiding the frozen study definition.
+2. **Status lacks a product-level state.** Raw counters are insufficient. The
+   CLI must say whether the analysis is running, interrupted, idle, complete,
+   or complete with pair failures, then show the evidence behind that state.
+3. **Analysis is not the final research workflow.** Users need stable exports
+   of pairs and moves without querying implementation tables or preserving a
+   second results authority.
+
 ## Goals
 
 The CLI should make five facts immediately clear:
@@ -58,11 +104,15 @@ srcmove-history run ANALYSIS [OPTIONS]
 srcmove-history status ANALYSIS [OPTIONS]
 srcmove-history list ANALYSIS [OPTIONS]
 srcmove-history show ANALYSIS PAIR [OPTIONS]
+srcmove-history export ANALYSIS [OPTIONS]
 ```
 
 There are no compatibility aliases. The Python module entry point may remain
 available for development, but documentation and normal usage should use the
-installed executable.
+executable. The first delivery may be a repository-owned `bin/srcmove-history`
+wrapper made available on the development image's `PATH`; do not introduce a
+Python packaging system solely to rename this command. A package entry point
+can replace the wrapper later without changing the interface.
 
 `ANALYSIS` is a positional path in every command. A positional path is shorter
 and easier to scan than repeating `--analysis-root`.
@@ -90,8 +140,9 @@ srcmove-history run results/sqlite \
   --pairs 100 \
   --repository benchmarks/repositories/sqlite/work/repo \
   --name sqlite \
+  --start version-3.50.0 \
   --directory src \
-  --srcdiff /workspace/srcDiff-install/bin/srcdiff \
+  --srcdiff /workspace/srcDiff/build/bin/srcdiff \
   --srcmove /workspace/srcMove/build/srcMove \
   --jobs 6
 ```
@@ -102,11 +153,33 @@ Extension example:
 srcmove-history run results/sqlite --pairs 500 --jobs 6
 ```
 
-Creation requires `--repository` and `--name`. `--srcdiff` and `--srcmove`
+Creation requires `--repository`. `--name` defaults to a clearly displayed
+name derived from the repository or analysis directory. `--start` defaults to
+`HEAD`; the resolved full commit ID is frozen. `--srcdiff` and `--srcmove`
 default to the corresponding executables on `PATH`; explicit paths override
-discovery. Before creating the analysis, the CLI prints the resolved repository,
-revision, scope, tools, and target. These values are then frozen in the
-authoritative database.
+discovery. If discovery fails, the error names the missing executable and the
+option that supplies it.
+
+Before doing work, the CLI prints a preflight containing the resolved
+repository, revision, scope, executable paths and digests, target, and worker
+count. These values are then frozen in the authoritative database. `--dry-run`
+performs the complete preflight without creating the analysis or opening
+workers.
+
+An optional TOML creation preset removes repeated setup from study workflows:
+
+```bash
+srcmove-history run results/sqlite-300 \
+  --config studies/sqlite.toml \
+  --pairs 300 \
+  --jobs 8
+```
+
+The preset is an input, not saved authority. CLI options override preset
+values, the resolved definition and preset digest are recorded at creation,
+and later runs read the definition from SQLite rather than rereading the file.
+Do not add a global mutable profile registry or an implicit "latest" analysis;
+explicit analysis paths are easier to reproduce in thesis automation.
 
 Configuration options such as `--directory`, encodings, exclusions, and tool
 timeouts are creation-only. Passing one while resuming an existing analysis is
@@ -134,6 +207,21 @@ It reports:
 - newest commit and current history frontier;
 - elapsed wall time and last durable update.
 
+The first line is a derived product state, not an invocation result copied from
+the database:
+
+- `running`: the writer lock is held;
+- `target reached`: durable coverage satisfies the most recent target with no
+  failed pairs;
+- `target reached with failures`: coverage satisfies the target but includes
+  failed pairs;
+- `history exhausted`: the repository root was reached before a numeric target
+  could be satisfied (for example, 300 available pairs of 500 requested);
+- `interrupted`: no writer owns the lock and the latest invocation did not
+  finish;
+- `idle`: the analysis is valid but has not reached the latest target;
+- `failed`: the most recent command failed at orchestration or storage level.
+
 Writer activity must be determined by probing the operation lock. The activity
 file supplies descriptive metadata but is not evidence that a process still
 owns the analysis.
@@ -141,6 +229,31 @@ owns the analysis.
 `status` includes the terminal prefix of a pending batch. A user should see the
 same durable progress whether observing the active `run` command or invoking
 `status` from another shell.
+
+`status --watch` is a line-oriented view of repeated snapshots. It redraws on a
+TTY and emits sparse updates when redirected. This is valuable when `run` is in
+another Docker shell and does not require a full-screen terminal UI.
+
+For the example analysis in this plan's motivating workflow, normal status
+should resemble:
+
+```text
+SQLite — target reached with failures
+
+Coverage   300/300 pairs (100%)
+Results     70 analyzed · 211 skipped · 19 failed
+Failures    19 srcDiff
+Moves       59 groups · 67 move pairs · 156 annotated regions
+Time         2m 07s wall · 187.0s srcDiff work · 43.0s srcMove work
+Frontier     3f523613 → 0a4af54a
+Analysis     /workspace/srcMove/benchmark-data/repository-analysis/sqlite-300
+
+Inspect: srcmove-history list .../sqlite-300 --failed
+```
+
+Human status calls the durable total `coverage`; it does not label the 70
+successful outcomes `completed`. Committed/checkpointed detail is shown only
+while useful (an active or interrupted pending batch) or under `--verbose`.
 
 ### `list`
 
@@ -190,9 +303,25 @@ structured status and error rather than emitting partial text. Without
 `--verbose` adds XPaths, digests, executable observations, and other diagnostic
 evidence.
 
+### `export`
+
+`export` produces stable research tables from the authoritative database:
+
+```bash
+srcmove-history export results/sqlite --table pairs --format csv > pairs.csv
+srcmove-history export results/sqlite --table moves --format jsonl > moves.jsonl
+```
+
+The initial tables are `pairs` and `moves`. Each row includes the analysis
+identity and full commit IDs so concatenating exports from several analyses is
+safe. CSV and JSONL schemas are explicitly versioned in documentation and are
+independent of physical SQLite tables. Export writes data to stdout and a short
+summary to stderr; it never writes a hidden derived authority inside the
+analysis root.
+
 ## Output contract
 
-Every command accepts exactly one structured-output option:
+`run`, `status`, `list`, and `show` accept one presentation option:
 
 ```text
 --format human|json
@@ -204,6 +333,8 @@ because it was redirected.
 
 Final results go to stdout. Progress and warnings go to stderr. JSON mode emits
 one complete JSON document to stdout and never mixes it with progress output.
+`export` instead uses `--format csv|jsonl` because its stdout is a research
+table rather than a command result.
 
 `run` additionally accepts:
 
@@ -214,6 +345,9 @@ one complete JSON document to stdout and never mixes it with progress output.
 The default is `auto`: live progress on a TTY, periodic plain-text updates on a
 non-TTY stderr stream, and no progress in JSON mode. `always` may be used to
 request periodic progress while JSON is written to stdout.
+
+All commands also accept `--quiet` to suppress nonessential stderr output.
+`--quiet` does not change stdout's selected format and never suppresses errors.
 
 Human output may evolve for clarity. JSON documents are versioned and should
 use nested concepts rather than exposing a flat copy of database columns:
@@ -256,6 +390,11 @@ For a finite target:
 Workers can finish out of order while publication waits for an earlier pair.
 If useful, a secondary `finished` count may expose this distinction, but the
 primary number is always durable, contiguous progress.
+
+ETA is omitted until enough current-invocation samples exist and is based on
+recent durable throughput rather than lifetime average pair work. A misleading
+ETA is worse than no ETA. The progress detail may show `finished` separately
+when publication is waiting on an earlier slow pair.
 
 For `--all`, the final size is unknown. Do not display a percentage or invented
 ETA:
@@ -308,8 +447,8 @@ present their sum as invocation wall time.
 Use a small, documented exit-status contract:
 
 ```text
-0   requested target reached with no failed pairs
-1   requested target reached, but one or more pairs failed
+0   run completed with no failed pairs, including clean history exhaustion
+1   run completed, but one or more covered pairs failed
 2   usage, configuration, storage, or execution error
 130 interrupted by the user
 ```
@@ -345,6 +484,11 @@ The observer receives immutable presentation values, not database or worker
 objects. It must not be able to affect scheduling, publication, recovery, or
 exit status.
 
+Human and JSON renderers likewise consume immutable command result models.
+They do not receive database rows. Keep naming conversion in one presentation
+layer: stored `completed` becomes human `analyzed`, and
+`no_analyzable_change` becomes human `skipped`.
+
 The status query needs one database snapshot that aggregates completed batches
 and the terminal prefix of the pending batch. It should not ask callers to add
 `completed_pair_count` and `pending.completed_prefix` themselves.
@@ -357,9 +501,10 @@ The first redesign does not include:
 - compatibility with old command lines or JSON documents;
 - migration of existing analysis roots;
 - an interactive full-screen terminal interface;
-- `status --watch`;
 - shell completion;
 - in-place reruns with different executable bytes;
+- an implicit global catalog or "latest analysis" lookup;
+- cross-analysis comparison;
 - importing CLI code from the retiring benchmark implementation.
 
 Executable immutability remains important. A future workflow for comparing a
@@ -368,62 +513,72 @@ rewriting outcomes in an existing analysis.
 
 ## Implementation sequence
 
-### 1. Data and query prerequisites
+Update the implementation snapshot above whenever a phase lands. A checked-off
+backend item is not evidence that its CLI is complete.
 
-- settle the conceptual entities in [the data model](data_model.md) before
-  changing presentation code;
-- add explicit database schema versioning and the required migration boundary;
-- persist invocation target, worker count, timestamps, wall duration, result,
-  and last durable update, including verified no-op invocations;
-- link each pair's single canonical terminal outcome to the invocation that
-  published it;
-- freeze admitted commit metadata needed by `list` and `show`;
-- implement snapshot-level `status`, bounded `list`, and lazy `show` query
-  contracts without terminal formatting;
-- add indexes only from demonstrated query needs.
+### 1. Close presentation-model gaps
 
-### 2. Command and rendering foundation
+- add analysis identity, frozen repository/configuration, and admitted-tool
+  summaries to the read model;
+- freeze commit subject, timestamp, parents, and merge status needed by list
+  and show, or explicitly defer each field from the first renderer;
+- add a read-only writer-lock probe and combine it with activity metadata;
+- define versioned result models for human/JSON status and exports;
+- retain the existing snapshot-level status, bounded list, and lazy show query
+  contracts rather than adding presentation SQL.
 
-- add the `srcmove-history` executable entry point;
-- replace the current parser with `run`, `status`, `list`, and `show`;
-- make the analysis path positional;
-- add human and JSON renderers;
-- record invocation wall time separately from summed pair timings;
-- update CLI unit tests around user-visible behavior.
+### 2. Ship a `run`/`status` vertical slice
 
-### 3. Durable progress
+- add the installed `srcmove-history` executable;
+- replace `analyze` with `run` and make the analysis path positional;
+- add human and JSON renderers with the terminology in this plan;
+- implement executable discovery, preflight, `--dry-run`, and creation presets;
+- render the lock-aware product state and actionable failure command;
+- update CLI tests around stdout/stderr separation and user-visible behavior.
+
+This phase is the first useful release of the redesigned CLI. Do not wait for
+every browsing feature before making normal runs understandable.
+
+### 3. Add durable progress and watching
 
 - add the observer interface and null implementation;
 - emit publication and batch events from the analysis service;
 - implement terminal-aware live and redirected progress;
 - verify that rendering failures cannot corrupt analysis state;
 - test ordered publication, resumed pending prefixes, and interruption output.
+- implement `status --watch` over the same status snapshots, not a second
+  monitoring protocol.
 
-### 4. Operational status
-
-- add a read-only writer-lock probe;
-- combine activity metadata with authoritative lock state;
-- aggregate committed and checkpointed outcomes in one database snapshot;
-- render finite, through-commit, and all-history targets correctly.
-
-### 5. Result exploration
+### 4. Expose result exploration
 
 - add indexed pair listing and filters;
 - add one-pair human rendering;
 - add optional Git diff presentation;
 - keep verbose evidence lazy so large analyses remain inexpensive to inspect.
 
+### 5. Export and retire the old runner
+
+- implement versioned `pairs` and `moves` CSV/JSONL exports;
+- port benchmark adapters and scaling studies to the production service;
+- verify that production browsing covers the useful old `show` workflow;
+- remove `benchmarks/repositories/run_history.py` only after its remaining
+  consumers have migrated.
+
 ## Acceptance criteria
 
 The redesign is complete when:
 
 - a new user can understand the creation command from `run --help`;
+- `run --dry-run` shows the exact frozen definition without changing state;
 - an active run always communicates durable progress within 30 seconds;
 - another shell can report the same durable progress with `status`;
+- `status --watch` never reports stale activity as a live writer;
 - final output distinguishes coverage, successful analysis, skips, and
   failures;
 - parallel timing output distinguishes wall time from summed work;
 - every failure summary points to a command that reveals the affected pairs;
 - JSON stdout is valid, complete, versioned, and uncontaminated by progress;
 - an interrupted run resumes without the UI overstating completed work;
+- pair and move exports have documented, versioned schemas independent of the
+  SQLite layout;
 - no production module imports the retiring benchmark CLI or progress code.
