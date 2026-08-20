@@ -7,13 +7,13 @@
 #include "move_candidate.hpp"
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/content_groups.hpp"
+#include "move_registry/group_selection.hpp"
 #include "profile.hpp"
 
 #include <algorithm>
 #include <cassert>
 #include <string_view>
 #include <unordered_map>
-#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -81,231 +81,6 @@ std::string exact_group_key(const move_candidate &candidate) {
   return key;
 }
 
-struct pending_group {
-  std::uint64_t             content_hash = 0;
-  match_kind                match        = match_kind::unmatched;
-  std::vector<candidate_id> del_ids;
-  std::vector<candidate_id> ins_ids;
-};
-
-struct covered_span {
-  move_candidate::Kind kind = move_candidate::Kind::del;
-  std::string_view     filename;
-  std::size_t          start_idx = 0;
-  std::size_t          end_idx   = 0;
-};
-
-bool has_both_sides(const pending_group &group) {
-  return !group.del_ids.empty() && !group.ins_ids.empty();
-}
-
-bool is_one_to_one(const pending_group &group) {
-  return group.del_ids.size() == 1 && group.ins_ids.size() == 1;
-}
-
-class group_selection {
-public:
-  explicit group_selection(std::size_t candidate_count) {
-    used_ids.reserve(candidate_count);
-    covered.reserve(candidate_count);
-  }
-
-  bool candidate_is_suppressed(const move_candidate &candidate) const {
-    for (const covered_span &span : covered) {
-      if (span_contains_candidate(span, candidate)) {
-        return true;
-      }
-
-      if (candidate.role != move_candidate::Role::structural_child &&
-          candidate_contains_span(candidate, span)) {
-        return true;
-      }
-    }
-
-    return false;
-  }
-
-  bool group_is_fully_suppressed(const pending_group      &group,
-                                 const candidate_registry &registry) const {
-    if (!has_both_sides(group)) {
-      return false;
-    }
-
-    for (candidate_id id : group.del_ids) {
-      if (!candidate_is_suppressed(registry.candidate(id))) {
-        return false;
-      }
-    }
-
-    for (candidate_id id : group.ins_ids) {
-      if (!candidate_is_suppressed(registry.candidate(id))) {
-        return false;
-      }
-    }
-
-    return true;
-  }
-
-  bool id_is_used(candidate_id id) const {
-    return used_ids.find(id) != used_ids.end();
-  }
-
-  void select_group(content_groups           &out,
-                    const pending_group      &group,
-                    const candidate_registry &registry) {
-    add_group(out, group.content_hash, group.del_ids, group.ins_ids,
-              group.match);
-    if (!has_both_sides(group)) {
-      return;
-    }
-
-    used_ids.insert(group.del_ids.begin(), group.del_ids.end());
-    used_ids.insert(group.ins_ids.begin(), group.ins_ids.end());
-    mark_group_covered(group, registry);
-  }
-
-private:
-  static bool span_contains_candidate(const covered_span   &span,
-                                      const move_candidate &candidate) {
-    return span.kind == candidate.kind && span.filename == candidate.filename &&
-           span.start_idx <= candidate.start_idx &&
-           candidate.end_idx <= span.end_idx;
-  }
-
-  static bool candidate_contains_span(const move_candidate &candidate,
-                                      const covered_span   &span) {
-    return span.kind == candidate.kind && span.filename == candidate.filename &&
-           candidate.start_idx <= span.start_idx &&
-           span.end_idx <= candidate.end_idx;
-  }
-
-  void mark_group_covered(const pending_group      &group,
-                          const candidate_registry &registry) {
-    for (candidate_id id : group.del_ids) {
-      const move_candidate &candidate = registry.candidate(id);
-      covered.push_back(covered_span{candidate.kind, candidate.filename,
-                                     candidate.start_idx, candidate.end_idx});
-    }
-
-    for (candidate_id id : group.ins_ids) {
-      const move_candidate &candidate = registry.candidate(id);
-      covered.push_back(covered_span{candidate.kind, candidate.filename,
-                                     candidate.start_idx, candidate.end_idx});
-    }
-  }
-
-  std::unordered_set<candidate_id> used_ids;
-  std::vector<covered_span>        covered;
-};
-
-std::size_t candidate_span_size(const move_candidate &candidate) {
-  if (candidate.end_idx < candidate.start_idx) {
-    return 0;
-  }
-  return candidate.end_idx - candidate.start_idx + 1;
-}
-
-std::size_t group_span_size(const pending_group      &group,
-                            const candidate_registry &registry) {
-  std::size_t size = 0;
-
-  for (candidate_id id : group.del_ids) {
-    size += candidate_span_size(registry.candidate(id));
-  }
-
-  for (candidate_id id : group.ins_ids) {
-    size += candidate_span_size(registry.candidate(id));
-  }
-
-  return size;
-}
-
-candidate_id min_group_id(const pending_group &group) {
-  candidate_id min_id = static_cast<candidate_id>(-1);
-
-  for (candidate_id id : group.del_ids) {
-    min_id = std::min(min_id, id);
-  }
-
-  for (candidate_id id : group.ins_ids) {
-    min_id = std::min(min_id, id);
-  }
-
-  return min_id;
-}
-
-bool any_single_child_wrapper(const pending_group      &group,
-                              const candidate_registry &registry) {
-  for (candidate_id id : group.del_ids) {
-    const move_candidate &candidate = registry.candidate(id);
-    if (candidate.role == move_candidate::Role::single_child_wrapper) {
-      return true;
-    }
-  }
-
-  for (candidate_id id : group.ins_ids) {
-    const move_candidate &candidate = registry.candidate(id);
-    if (candidate.role == move_candidate::Role::single_child_wrapper) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
-enum class selection_tier : int {
-  primary                = 1,
-  single_child_fallback  = 2,
-};
-
-selection_tier group_selection_tier(const pending_group      &group,
-                                    const candidate_registry &registry) {
-  if (any_single_child_wrapper(group, registry)) {
-    return selection_tier::single_child_fallback;
-  }
-  return selection_tier::primary;
-}
-
-bool group_selection_order_less(const pending_group      &lhs,
-                                const pending_group      &rhs,
-                                const candidate_registry &registry) {
-  const selection_tier lhs_tier = group_selection_tier(lhs, registry);
-  const selection_tier rhs_tier = group_selection_tier(rhs, registry);
-  if (lhs_tier != rhs_tier) {
-    return lhs_tier < rhs_tier;
-  }
-
-  const std::size_t lhs_size = group_span_size(lhs, registry);
-  const std::size_t rhs_size = group_span_size(rhs, registry);
-  if (lhs_size != rhs_size) {
-    return lhs_size > rhs_size;
-  }
-
-  return min_group_id(lhs) < min_group_id(rhs);
-}
-
-std::vector<candidate_id>
-filter_unselected_ids(const std::vector<candidate_id> &ids,
-                      const candidate_registry        &registry,
-                      const group_selection           &selection) {
-  std::vector<candidate_id> out;
-  out.reserve(ids.size());
-
-  for (candidate_id id : ids) {
-    const move_candidate &candidate = registry.candidate(id);
-    if (candidate.role == move_candidate::Role::single_child_wrapper ||
-        candidate.role == move_candidate::Role::multi_child_wrapper) {
-      continue;
-    }
-    if (!selection.id_is_used(id) &&
-        !selection.candidate_is_suppressed(candidate)) {
-      out.push_back(id);
-    }
-  }
-
-  return out;
-}
-
 void add_hash_bucket_groups(content_groups           &out,
                             const candidate_registry &registry) {
   for (const std::pair<const std::uint64_t, bucket_ids> &kv :
@@ -316,6 +91,14 @@ void add_hash_bucket_groups(content_groups           &out,
             : match_kind::unmatched;
     add_group(out, kv.first, kv.second.del_ids, kv.second.ins_ids, match);
   }
+}
+
+void add_selected_group(content_groups           &out,
+                        const candidate_registry &registry,
+                        const pending_group      &group,
+                        group_selection          &selection) {
+  add_group(out, group.content_hash, group.del_ids, group.ins_ids, group.match);
+  selection.mark_selected(group, registry);
 }
 
 std::vector<pending_group>
@@ -412,7 +195,7 @@ void add_selected_exact_groups(content_groups             &out,
       continue;
     }
 
-    selection.select_group(out, group, registry);
+    add_selected_group(out, registry, group, selection);
   }
 }
 
@@ -482,7 +265,7 @@ void add_selected_type2_groups(content_groups           &out,
       continue;
     }
 
-    selection.select_group(out, group, registry);
+    add_selected_group(out, registry, group, selection);
   }
 }
 
