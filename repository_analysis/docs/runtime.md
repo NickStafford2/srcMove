@@ -55,6 +55,8 @@ The database stores:
 
 - one immutable analysis definition: repository identity and path,
   configuration, tool digests, schema versions, and retention policy;
+- every invocation target, worker count, timing, terminal result, and last
+  durable update, including verified no-op invocations;
 - bounded frozen work batches;
 - stable pair identities and terminal outcomes;
 - compact, queryable move evidence.
@@ -65,6 +67,23 @@ larger values are older. Extending history never renumbers existing rows.
 Old JSON chain roots are deliberately rejected. Mixing the old chain format
 with SQLite would recreate multiple authorities and ambiguous recovery. Start a
 new analysis root instead.
+
+Database schema version 2 is a deliberate clean break. Version 1 roots are
+rejected with an instruction to start a fresh analysis root; no production
+version 1 databases were present when version 2 was introduced.
+
+## Invocation lifecycle
+
+After acquiring the writer lock and opening or creating the database, `analyze`
+records one running invocation. A successful target records
+`target_reached` or `target_reached_with_failures`; an orchestration exception
+records `failed`, and `KeyboardInterrupt` records `interrupted`. Wall time is
+stored separately from summed worker timings.
+
+Beginning the next locked invocation reconciles any older `running` row to
+`interrupted`. The activity file remains useful for process diagnostics, but
+durable invocation history lives in SQLite. Failures before the initial
+database can be created are necessarily represented only by the activity file.
 
 ## Concurrency and recovery
 

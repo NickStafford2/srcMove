@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -38,6 +39,104 @@ class AnalysisDatabaseTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "unsupported"):
             RetentionPolicy(mode="full")
+
+    def test_invocations_are_append_only_and_reconcile_interrupted_writer(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = root / "repository"
+            repository.mkdir()
+            manifest = self._manifest(
+                repository,
+                observe_executable(executable(root / "srcdiff")),
+                observe_executable(executable(root / "srcmove")),
+                commits=("a", "b"),
+            )
+            with AnalysisDatabase.create(
+                root / "analysis",
+                manifest,
+                batch_id="a" * 32,
+                target_kind="total_pairs",
+                target_value="1",
+                reaches_root=True,
+                retention_policy=RetentionPolicy(),
+            ) as database:
+                first = database.begin_invocation(
+                    "1" * 32,
+                    target_kind="total_pairs",
+                    target_value="1",
+                    jobs=2,
+                    started_at="2026-01-01T00:00:00+00:00",
+                )
+                self.assertEqual(first.result, "running")
+
+                second = database.begin_invocation(
+                    "2" * 32,
+                    target_kind="all",
+                    target_value=None,
+                    jobs=4,
+                    started_at="2026-01-02T00:00:00+00:00",
+                )
+
+                self.assertEqual(database.invocation("1" * 32).result, "interrupted")
+                self.assertEqual(second.created_order, 1)
+                batch = database.pending_batch()
+                assert batch is not None
+                database.record_outcome(
+                    batch,
+                    PairOutcome(
+                        build_pair_work_items(manifest)[0],
+                        PairStatus.NO_ANALYZABLE_CHANGE,
+                    ),
+                    invocation_id="2" * 32,
+                )
+                self.assertNotEqual(
+                    database.invocation("2" * 32).last_durable_at,
+                    second.last_durable_at,
+                )
+                finished = database.finish_invocation(
+                    "2" * 32,
+                    result="target_reached",
+                    ended_at="2026-01-02T00:00:03+00:00",
+                    wall_seconds=3.0,
+                )
+                self.assertEqual(finished.result, "target_reached")
+                self.assertEqual(finished.wall_seconds, 3.0)
+                self.assertEqual(database.latest_invocation(), finished)
+                with self.assertRaisesRegex(ValueError, "already finalized"):
+                    database.finish_invocation(
+                        "2" * 32,
+                        result="failed",
+                        ended_at="2026-01-02T00:00:04+00:00",
+                        wall_seconds=4.0,
+                    )
+
+    def test_schema_v1_root_is_rejected_with_fresh_start_instruction(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = root / "repository"
+            repository.mkdir()
+            manifest = self._manifest(
+                repository,
+                observe_executable(executable(root / "srcdiff")),
+                observe_executable(executable(root / "srcmove")),
+                commits=("a", "b"),
+            )
+            analysis = root / "analysis"
+            database = AnalysisDatabase.create(
+                analysis,
+                manifest,
+                batch_id="b" * 32,
+                target_kind="total_pairs",
+                target_value="1",
+                reaches_root=True,
+                retention_policy=RetentionPolicy(),
+            )
+            database.close()
+            with sqlite3.connect(analysis / "analysis.sqlite3") as connection:
+                connection.execute("PRAGMA user_version = 1")
+
+            with self.assertRaisesRegex(ValueError, "start a fresh analysis root"):
+                AnalysisDatabase.open(analysis)
 
     def test_batches_extend_without_renumbering_completed_pairs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

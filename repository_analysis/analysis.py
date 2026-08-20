@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import time
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -64,11 +66,16 @@ class AnalyzeResult:
 
 class _DatabasePublisher:
     def __init__(
-        self, database: AnalysisDatabase, batch: StoredBatch, first_sequence: int
+        self,
+        database: AnalysisDatabase,
+        batch: StoredBatch,
+        first_sequence: int,
+        invocation_id: str,
     ) -> None:
         self.database = database
         self.batch = batch
         self.next_sequence = first_sequence
+        self.invocation_id = invocation_id
 
     def __call__(self, outcome) -> None:
         if outcome.work_item.sequence != self.next_sequence:
@@ -76,7 +83,9 @@ class _DatabasePublisher:
                 "database outcomes must be published in sequence; "
                 f"expected {self.next_sequence}, got {outcome.work_item.sequence}"
             )
-        self.database.record_outcome(self.batch, outcome)
+        self.database.record_outcome(
+            self.batch, outcome, invocation_id=self.invocation_id
+        )
         self.next_sequence += 1
 
 
@@ -99,6 +108,7 @@ def analyze_repository(
     _validate_target(target)
     root = analysis_root.expanduser().absolute()
     with AnalysisOperationLock(root, command="analyze") as operation:
+        invocation_started = time.monotonic()
         remove_ephemeral_tree(root / "scratch", root)
         if analysis_database_exists(root):
             database = AnalysisDatabase.open(root)
@@ -114,71 +124,130 @@ def analyze_repository(
                 srcmove_path=srcmove_path,
             )
         with database:
-            verified = 0
-            aggregate_execution = _zero_stats(jobs)
-            while True:
-                state = database.analysis()
-                template = database.latest_manifest()
-                _verify_supplied_definition(
-                    template,
-                    newest_commit=state.newest_commit,
-                    start=start,
+            assert operation.started_at is not None
+            database.begin_invocation(
+                operation.invocation_id,
+                target_kind=target.kind,
+                target_value=target.database_value(),
+                jobs=jobs,
+                started_at=operation.started_at,
+            )
+            try:
+                result = _advance_analysis(
+                    database,
+                    root=root,
+                    invocation_id=operation.invocation_id,
+                    target=target,
+                    jobs=jobs,
                     repository=repository,
+                    start=start,
                     repository_identity=repository_identity,
                     configuration=configuration,
                     srcdiff_path=srcdiff_path,
                     srcmove_path=srcmove_path,
                 )
-                desired_total = _desired_total_pairs(database, template, target)
-                pending = database.pending_batch()
-                if pending is not None:
-                    pending_total = state.completed_pair_count + pending.pair_count
-                    if desired_total is not None and desired_total < pending_total:
-                        raise ValueError(
-                            "requested target is smaller than frozen pending work; "
-                            f"resume at least {pending_total} total pairs"
-                        )
-                    prefix, execution = _execute_pending_batch(
-                        database,
-                        pending,
-                        jobs=jobs,
-                        scratch_root=root / "scratch" / operation.invocation_id,
-                        srcdiff_path=srcdiff_path,
-                        srcmove_path=srcmove_path,
-                    )
-                    verified += prefix
-                    aggregate_execution = _combine_stats(
-                        aggregate_execution, execution
-                    )
-                    database.commit_pending_batch(pending)
-                    continue
-                if state.history_exhausted:
-                    break
-                if (
-                    desired_total is not None
-                    and state.completed_pair_count >= desired_total
-                ):
-                    break
-                manifest, reaches_root = _plan_next_batch(
-                    database, template, state, target, desired_total
+            except BaseException as error:
+                database.finish_invocation(
+                    operation.invocation_id,
+                    result=(
+                        "interrupted"
+                        if isinstance(error, KeyboardInterrupt)
+                        else "failed"
+                    ),
+                    ended_at=_utc_now(),
+                    wall_seconds=time.monotonic() - invocation_started,
+                    error=str(error) or type(error).__name__,
                 )
-                if len(manifest.commits) < 2:
-                    raise RuntimeError(
-                        "repository has no older adjacent pair at the analysis frontier"
-                    )
-                database.add_pending_batch(
-                    manifest,
-                    batch_id=uuid.uuid4().hex,
-                    target_kind=target.kind,
-                    target_value=target.database_value(),
-                    reaches_root=reaches_root,
-                    retention_policy=RetentionPolicy(),
-                )
-            return AnalyzeResult(
-                verified_pair_count=verified,
-                execution=aggregate_execution,
-                summary=database.summary(),
+                raise
+            invocation = database.finish_invocation(
+                operation.invocation_id,
+                result=(
+                    "target_reached_with_failures"
+                    if result.summary["failed"]
+                    else "target_reached"
+                ),
+                ended_at=_utc_now(),
+                wall_seconds=time.monotonic() - invocation_started,
             )
+            result.summary["invocation"] = invocation.record()
+            return result
+
+
+def _advance_analysis(
+    database: AnalysisDatabase,
+    *,
+    root: Path,
+    invocation_id: str,
+    target: AnalysisTarget,
+    jobs: int,
+    repository: Path | None,
+    start: str | None,
+    repository_identity: RepositoryIdentity | None,
+    configuration: AnalysisConfiguration | None,
+    srcdiff_path: Path | None,
+    srcmove_path: Path | None,
+) -> AnalyzeResult:
+    verified = 0
+    aggregate_execution = _zero_stats(jobs)
+    while True:
+        state = database.analysis()
+        template = database.latest_manifest()
+        _verify_supplied_definition(
+            template,
+            newest_commit=state.newest_commit,
+            start=start,
+            repository=repository,
+            repository_identity=repository_identity,
+            configuration=configuration,
+            srcdiff_path=srcdiff_path,
+            srcmove_path=srcmove_path,
+        )
+        desired_total = _desired_total_pairs(database, template, target)
+        pending = database.pending_batch()
+        if pending is not None:
+            pending_total = state.completed_pair_count + pending.pair_count
+            if desired_total is not None and desired_total < pending_total:
+                raise ValueError(
+                    "requested target is smaller than frozen pending work; "
+                    f"resume at least {pending_total} total pairs"
+                )
+            prefix, execution = _execute_pending_batch(
+                database,
+                pending,
+                jobs=jobs,
+                scratch_root=root / "scratch" / invocation_id,
+                srcdiff_path=srcdiff_path,
+                srcmove_path=srcmove_path,
+                invocation_id=invocation_id,
+            )
+            verified += prefix
+            aggregate_execution = _combine_stats(aggregate_execution, execution)
+            database.commit_pending_batch(pending)
+            continue
+        if state.history_exhausted:
+            break
+        if desired_total is not None and state.completed_pair_count >= desired_total:
+            break
+        manifest, reaches_root = _plan_next_batch(
+            database, template, state, target, desired_total
+        )
+        if len(manifest.commits) < 2:
+            raise RuntimeError(
+                "repository has no older adjacent pair at the analysis frontier"
+            )
+        database.add_pending_batch(
+            manifest,
+            batch_id=uuid.uuid4().hex,
+            target_kind=target.kind,
+            target_value=target.database_value(),
+            reaches_root=reaches_root,
+            retention_policy=RetentionPolicy(),
+        )
+    return AnalyzeResult(
+        verified_pair_count=verified,
+        execution=aggregate_execution,
+        summary=database.summary(),
+    )
 
 
 def analysis_status(analysis_root: Path) -> dict[str, Any]:
@@ -198,6 +267,10 @@ def analysis_status(analysis_root: Path) -> dict[str, Any]:
                     "target_kind": pending.target_kind,
                     "target_value": pending.target_value,
                 }
+            )
+            invocation = database.latest_invocation()
+            summary["invocation"] = (
+                None if invocation is None else invocation.record()
             )
             return summary
 
@@ -352,6 +425,7 @@ def _execute_pending_batch(
     scratch_root: Path,
     srcdiff_path: Path | None,
     srcmove_path: Path | None,
+    invocation_id: str,
 ) -> tuple[int, CoordinatorStats]:
     frozen = database.pending_manifest(batch)
     srcdiff = observe_executable(frozen.srcdiff.requested_path)
@@ -373,7 +447,7 @@ def _execute_pending_batch(
     work = build_pair_work_items(manifest)
     prefix = database.completed_prefix(batch)
     executor = PairExecutor(scratch_root)
-    publisher = _DatabasePublisher(database, batch, prefix)
+    publisher = _DatabasePublisher(database, batch, prefix, invocation_id)
     execution = run_pairs_from_sequence(
         iter(work[prefix:]),
         executor,
@@ -466,3 +540,7 @@ def _combine_stats(left: CoordinatorStats, right: CoordinatorStats) -> Coordinat
             left.max_unpublished_outcomes, right.max_unpublished_outcomes
         ),
     )
+
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()

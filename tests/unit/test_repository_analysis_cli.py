@@ -75,6 +75,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             report = json.loads(output)
             self.assertEqual(report["completed_pair_count"], 2)
             self.assertIsNone(report["pending"])
+            self.assertEqual(report["invocation"]["target_kind"], "total_pairs")
+            self.assertEqual(report["invocation"]["target_value"], "2")
+            self.assertEqual(report["invocation"]["result"], "target_reached")
 
             status, output, error = self._main(
                 [

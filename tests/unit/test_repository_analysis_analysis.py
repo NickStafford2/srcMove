@@ -59,7 +59,19 @@ class AnalyzeRepositoryTests(unittest.TestCase):
                 )
             self.assertEqual(repeated.execution.submitted_count, 0)
             self.assertEqual(repeated.summary["completed_pair_count"], 2)
+            self.assertEqual(
+                repeated.summary["invocation"]["result"], "target_reached"
+            )
             self.assertFalse(stale.exists())
+
+            with AnalysisDatabase.open(analysis, read_only=True) as database:
+                invocations = database.connection.execute(
+                    "SELECT result FROM invocations ORDER BY created_order"
+                ).fetchall()
+            self.assertEqual(
+                [row[0] for row in invocations],
+                ["target_reached", "target_reached"],
+            )
 
             extended = analyze_repository(
                 analysis_root=analysis,
@@ -317,6 +329,35 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertEqual(
                 (analysis / "analysis.sqlite3").read_bytes(), database_bytes
             )
+
+    def test_keyboard_interrupt_is_recorded_as_interrupted_invocation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository, _ = self._history(root, 3)
+            analysis = root / "analysis"
+            self._analyze(
+                analysis,
+                repository,
+                executable(root / "srcdiff"),
+                executable(root / "srcmove"),
+                total_pairs=1,
+            )
+
+            with patch(
+                "repository_analysis.analysis._advance_analysis",
+                side_effect=KeyboardInterrupt,
+            ), self.assertRaises(KeyboardInterrupt):
+                analyze_repository(
+                    analysis_root=analysis,
+                    target=AnalysisTarget("total_pairs", 1),
+                    jobs=1,
+                )
+
+            with AnalysisDatabase.open(analysis, read_only=True) as database:
+                invocation = database.latest_invocation()
+            assert invocation is not None
+            self.assertEqual(invocation.result, "interrupted")
+            self.assertEqual(invocation.error, "KeyboardInterrupt")
 
     def _analyze(
         self,

@@ -12,6 +12,7 @@ import uuid
 from collections import Counter
 from contextlib import contextmanager
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +28,7 @@ from .retention import RetentionPolicy
 
 
 DATABASE_NAME = "analysis.sqlite3"
-DATABASE_SCHEMA_VERSION = 1
+DATABASE_SCHEMA_VERSION = 2
 DATABASE_APPLICATION_ID = 0x53524D41  # "SRMA"
 TARGET_KINDS = {"total_pairs", "through", "all"}
 TERMINAL_PAIR_STATUSES = {
@@ -37,6 +38,13 @@ TERMINAL_PAIR_STATUSES = {
     "srcdiff_failed",
     "srcmove_failed",
     "orchestration_failed",
+}
+INVOCATION_RESULTS = {
+    "running",
+    "target_reached",
+    "target_reached_with_failures",
+    "failed",
+    "interrupted",
 }
 
 
@@ -62,6 +70,35 @@ class StoredBatch:
     pair_count: int
     reaches_root: bool
     status: str
+
+
+@dataclass(frozen=True, slots=True)
+class StoredInvocation:
+    invocation_id: str
+    created_order: int
+    target_kind: str
+    target_value: str | None
+    jobs: int
+    started_at: str
+    last_durable_at: str
+    ended_at: str | None
+    result: str
+    wall_seconds: float | None
+    error: str | None
+
+    def record(self) -> dict[str, Any]:
+        return {
+            "invocation_id": self.invocation_id,
+            "target_kind": self.target_kind,
+            "target_value": self.target_value,
+            "jobs": self.jobs,
+            "started_at": self.started_at,
+            "last_durable_at": self.last_durable_at,
+            "ended_at": self.ended_at,
+            "result": self.result,
+            "wall_seconds": self.wall_seconds,
+            "error": self.error,
+        }
 
 
 class AnalysisDatabase:
@@ -181,6 +218,118 @@ class AnalysisDatabase:
             yield
         finally:
             self.connection.execute("ROLLBACK")
+
+    def begin_invocation(
+        self,
+        invocation_id: str,
+        *,
+        target_kind: str,
+        target_value: str | None,
+        jobs: int,
+        started_at: str,
+    ) -> StoredInvocation:
+        """Record one run and reconcile a writer that never finalized."""
+
+        _validate_invocation_id(invocation_id)
+        _validate_target(target_kind, target_value)
+        if isinstance(jobs, bool) or not isinstance(jobs, int) or jobs <= 0:
+            raise ValueError("invocation jobs must be a positive integer")
+        started = _text(started_at, "invocation start time")
+        with self._transaction():
+            self.connection.execute(
+                """
+                UPDATE invocations
+                SET ended_at = ?, result = 'interrupted',
+                    error = COALESCE(error, 'writer ended before invocation finalized')
+                WHERE result = 'running'
+                """,
+                (started,),
+            )
+            created_order = int(
+                self.connection.execute(
+                    "SELECT COALESCE(MAX(created_order), -1) + 1 FROM invocations"
+                ).fetchone()[0]
+            )
+            self.connection.execute(
+                """
+                INSERT INTO invocations(
+                    invocation_id, created_order, target_kind, target_value,
+                    jobs, started_at, last_durable_at, ended_at, result,
+                    wall_seconds, error
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, NULL, 'running', NULL, NULL)
+                """,
+                (
+                    invocation_id,
+                    created_order,
+                    target_kind,
+                    target_value,
+                    jobs,
+                    started,
+                    started,
+                ),
+            )
+        return self.invocation(invocation_id)
+
+    def finish_invocation(
+        self,
+        invocation_id: str,
+        *,
+        result: str,
+        ended_at: str,
+        wall_seconds: float,
+        error: str | None = None,
+    ) -> StoredInvocation:
+        """Finalize exactly one running invocation."""
+
+        _validate_invocation_id(invocation_id)
+        if result not in INVOCATION_RESULTS - {"running"}:
+            raise ValueError(f"invalid terminal invocation result: {result!r}")
+        ended = _text(ended_at, "invocation end time")
+        if (
+            isinstance(wall_seconds, bool)
+            or not isinstance(wall_seconds, (int, float))
+            or not math.isfinite(wall_seconds)
+            or wall_seconds < 0
+        ):
+            raise ValueError("invocation wall time must be finite and nonnegative")
+        if error is not None:
+            error = _text(error, "invocation error")
+        with self._transaction():
+            changed = self.connection.execute(
+                """
+                UPDATE invocations
+                SET ended_at = ?, last_durable_at = ?, result = ?,
+                    wall_seconds = ?, error = ?
+                WHERE invocation_id = ? AND result = 'running'
+                """,
+                (
+                    ended,
+                    ended,
+                    result,
+                    float(wall_seconds),
+                    error,
+                    invocation_id,
+                ),
+            ).rowcount
+            if changed != 1:
+                raise ValueError("invocation is missing or already finalized")
+        return self.invocation(invocation_id)
+
+    def invocation(self, invocation_id: str) -> StoredInvocation:
+        _validate_invocation_id(invocation_id)
+        row = self.connection.execute(
+            "SELECT * FROM invocations WHERE invocation_id = ?",
+            (invocation_id,),
+        ).fetchone()
+        if row is None:
+            raise ValueError(f"unknown analysis invocation: {invocation_id}")
+        return _stored_invocation(row)
+
+    def latest_invocation(self) -> StoredInvocation | None:
+        row = self.connection.execute(
+            "SELECT * FROM invocations ORDER BY created_order DESC LIMIT 1"
+        ).fetchone()
+        return None if row is None else _stored_invocation(row)
 
     def analysis(self) -> StoredAnalysis:
         row = self.connection.execute(
@@ -389,7 +538,13 @@ class AnalysisDatabase:
         if changed != 1:
             raise ValueError("analysis state revision changed during batch planning")
 
-    def record_outcome(self, batch: StoredBatch, outcome: PairOutcome) -> None:
+    def record_outcome(
+        self,
+        batch: StoredBatch,
+        outcome: PairOutcome,
+        *,
+        invocation_id: str | None = None,
+    ) -> None:
         item = outcome.work_item
         compact = compact_pair_outcome(outcome)
         if compact.status not in TERMINAL_PAIR_STATUSES:
@@ -452,6 +607,17 @@ class AnalysisDatabase:
                         move.to_text_digests_json,
                     ),
                 )
+            if invocation_id is not None:
+                _validate_invocation_id(invocation_id)
+                changed = self.connection.execute(
+                    """
+                    UPDATE invocations SET last_durable_at = ?
+                    WHERE invocation_id = ? AND result = 'running'
+                    """,
+                    (_utc_now(), invocation_id),
+                ).rowcount
+                if changed != 1:
+                    raise ValueError("pair outcome has no running invocation")
 
     def completed_prefix(self, batch: StoredBatch) -> int:
         rows = self.connection.execute(
@@ -740,7 +906,10 @@ class AnalysisDatabase:
         if application_id != DATABASE_APPLICATION_ID:
             raise ValueError("file is not a repository-analysis database")
         if version != DATABASE_SCHEMA_VERSION:
-            raise ValueError(f"unsupported analysis database schema: {version}")
+            raise ValueError(
+                f"unsupported analysis database schema: {version}; "
+                "start a fresh analysis root"
+            )
 
 
 def analysis_database_exists(analysis_root: Path) -> bool:
@@ -792,6 +961,52 @@ def _stored_batch(row: sqlite3.Row) -> StoredBatch:
         pair_count=_positive_integer(row["pair_count"], "batch pair count"),
         reaches_root=_boolean(row["reaches_root"], "reaches root"),
         status=status,
+    )
+
+
+def _stored_invocation(row: sqlite3.Row) -> StoredInvocation:
+    result = _text(row["result"], "invocation result")
+    if result not in INVOCATION_RESULTS:
+        raise ValueError(f"unknown invocation result: {result!r}")
+    target_kind = _text(row["target_kind"], "invocation target kind")
+    target_value = row["target_value"]
+    if target_value is not None:
+        target_value = _text(target_value, "invocation target value")
+    _validate_target(target_kind, target_value)
+    wall_seconds = row["wall_seconds"]
+    if wall_seconds is not None:
+        if (
+            isinstance(wall_seconds, bool)
+            or not isinstance(wall_seconds, (int, float))
+            or not math.isfinite(wall_seconds)
+            or wall_seconds < 0
+        ):
+            raise ValueError("stored invocation wall time is malformed")
+        wall_seconds = float(wall_seconds)
+    return StoredInvocation(
+        invocation_id=_text(row["invocation_id"], "invocation ID"),
+        created_order=_nonnegative_integer(
+            row["created_order"], "invocation order"
+        ),
+        target_kind=target_kind,
+        target_value=target_value,
+        jobs=_positive_integer(row["jobs"], "invocation jobs"),
+        started_at=_text(row["started_at"], "invocation start time"),
+        last_durable_at=_text(
+            row["last_durable_at"], "invocation last durable time"
+        ),
+        ended_at=(
+            None
+            if row["ended_at"] is None
+            else _text(row["ended_at"], "invocation end time")
+        ),
+        result=result,
+        wall_seconds=wall_seconds,
+        error=(
+            None
+            if row["error"] is None
+            else _text(row["error"], "invocation error")
+        ),
     )
 
 
@@ -860,6 +1075,17 @@ def _validate_batch_id(value: str) -> None:
         or any(character not in "0123456789abcdef" for character in value)
     ):
         raise ValueError("analysis batch ID must be 32 lowercase hexadecimal digits")
+
+
+def _validate_invocation_id(value: str) -> None:
+    if (
+        not isinstance(value, str)
+        or len(value) != 32
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise ValueError(
+            "analysis invocation ID must be 32 lowercase hexadecimal digits"
+        )
 
 
 def _validate_target(kind: str, value: str | None) -> None:
@@ -949,6 +1175,10 @@ def _fsync_file(path: Path) -> None:
         os.close(descriptor)
 
 
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 _SCHEMA = """
 CREATE TABLE analysis (
     singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
@@ -978,6 +1208,32 @@ CREATE TABLE batches (
 
 CREATE UNIQUE INDEX one_pending_batch
 ON batches(status) WHERE status = 'pending';
+
+CREATE TABLE invocations (
+    invocation_id TEXT PRIMARY KEY,
+    created_order INTEGER NOT NULL UNIQUE CHECK (created_order >= 0),
+    target_kind TEXT NOT NULL CHECK (target_kind IN ('total_pairs', 'through', 'all')),
+    target_value TEXT,
+    jobs INTEGER NOT NULL CHECK (jobs > 0),
+    started_at TEXT NOT NULL,
+    last_durable_at TEXT NOT NULL,
+    ended_at TEXT,
+    result TEXT NOT NULL CHECK (
+        result IN (
+            'running', 'target_reached', 'target_reached_with_failures',
+            'failed', 'interrupted'
+        )
+    ),
+    wall_seconds REAL CHECK (wall_seconds >= 0),
+    error TEXT,
+    CHECK (
+        (result = 'running' AND ended_at IS NULL AND wall_seconds IS NULL) OR
+        (result <> 'running' AND ended_at IS NOT NULL)
+    )
+) STRICT;
+
+CREATE UNIQUE INDEX one_running_invocation
+ON invocations(result) WHERE result = 'running';
 
 CREATE TABLE pairs (
     batch_id TEXT NOT NULL REFERENCES batches(batch_id),
