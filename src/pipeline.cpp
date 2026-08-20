@@ -113,6 +113,7 @@ std::size_t count_grouped_candidate_ids(const content_groups &groups) {
 
 summary run_pipeline(const std::string &srcdiff_in_filename,
                      const std::string &srcdiff_out_filename,
+                     const pipeline_options &options,
                      profile_report    *profile) {
   scoped_profile_timer total_timer(profile, "pipeline.total");
 
@@ -148,7 +149,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
                                   profile);
   }
 
-  {
+  if (options.verbose) {
     scoped_profile_timer timer(profile, "pipeline.debug_match_print");
     print_greedy_matches(registry, groups, std::cout);
   }

@@ -24,7 +24,7 @@ std::string build_help(const std::string &progname) {
   out << "Options:\n";
   out << "  --results <file>       Write summary JSON to <file>\n";
   out << "  --profile              Write coarse timing data to stderr\n";
-  out << "  -v, --verbose          Accepted for compatibility; currently no effect\n";
+  out << "  -v, --verbose          Print move-match debug output to stdout\n";
   out << "  -h, --help             Show this help message and exit\n";
   out << "  --version              Show version information and exit\n";
 
