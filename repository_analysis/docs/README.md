@@ -8,7 +8,7 @@ runtime behavior, research motivation, and study results.
 
 - [Architecture decision](architecture.md): product boundary, target runtime,
   authoritative state, and migration direction
-- [Data model](data_model.md): target entity ownership, accepted outcomes, and
+- [Data model](data_model.md): entity ownership, canonical outcomes, and
   query contracts
 - [CLI plan](cli_plan.md): intended commands, output contract, progress, and
   implementation sequence

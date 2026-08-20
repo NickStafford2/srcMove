@@ -14,9 +14,7 @@ Analysis
  ├─ Commit
  └─ Batch
      └─ Pair
-         ├─ Attempt
-         │   └─ Move Evidence
-         └─ Accepted Outcome
+         └─ Move Evidence
 ```
 
 ## Entities and ownership
@@ -54,39 +52,46 @@ committing the complete batch advances the analysis frontier atomically.
 
 A pair is one stable old/new commit edge and contains every relevant changed
 path for that edge. Its `distance_from_newest` identity does not change when
-older history is appended. A pair is covered when it has an accepted durable
-outcome, including an analyzed, skipped, or failed outcome.
+older history is appended. It begins pending and may acquire exactly one
+canonical terminal outcome: analyzed, skipped, or failed. The outcome owns its
+process observations, timings, errors, and retained artifacts, and identifies
+the invocation that published it. Once published, it is immutable within the
+analysis and makes the pair covered.
 
-### Attempt and accepted outcome
-
-An attempt is one execution of a frozen pair with the analysis's frozen tools
-and configuration. It owns process observations, timings, errors, and retained
-artifacts. Attempts are append-only.
-
-A pair points to one accepted outcome used by coverage summaries and queries.
-Initially this is its first terminal attempt. A future explicit retry policy may
-accept a later attempt made with the same frozen pair definition while retaining
-earlier failures as provenance. Retrying with different executable bytes
-requires a different analysis.
+Pair publication is transactional. A crash before publication creates no
+durable outcome, leaving the pair pending for a later invocation to process.
+There is no attempt record or accepted-outcome selection step in the current
+target model.
 
 ### Move evidence
 
-Move evidence belongs to the attempt that produced it. Normalized evidence is
-queryable from SQLite; larger retained artifacts follow the analysis retention
-policy. Summaries use only evidence from each pair's accepted outcome.
+Move evidence belongs directly to the pair's canonical outcome. Normalized
+evidence is queryable from SQLite; larger retained artifacts follow the
+analysis retention policy.
+
+## Deferred retries
+
+Attempt history and in-place retries are intentionally excluded until there is
+a concrete requirement for them. Reprocessing unpublished work after a crash
+does not require attempt storage. Comparing different tools or configuration
+requires a separate analysis because those values are part of the immutable
+study definition. If a later requirement demands retries within one analysis,
+the attempt and selection semantics must be designed explicitly rather than
+inferred from overwritten pair state.
 
 ## Query contracts
 
 - `status` reads one consistent database snapshot containing the latest
   invocation, committed coverage, the terminal prefix of any pending batch,
   outcome totals, move totals, and last durable update.
-- `list` queries stable pair identities and accepted outcomes with indexed
+- `list` queries stable pair identities and canonical outcomes with indexed
   ordering, filtering, and bounded pagination.
-- `show` loads one pair and its accepted evidence lazily. Stored evidence does
+- `show` loads one pair and its canonical evidence lazily. Stored evidence does
   not require the original repository; optional Git reconstruction reports its
   own availability.
 - Query results are immutable presentation values. They do not expose writable
   database, coordinator, or worker objects.
 
-These contracts should be implemented before the CLI renderer so presentation
-requirements do not become ad hoc SQL or orchestration dependencies.
+These contracts are implemented independently of the future CLI renderer so
+presentation requirements do not become ad hoc SQL or orchestration
+dependencies.

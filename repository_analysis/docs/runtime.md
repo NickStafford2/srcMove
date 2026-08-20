@@ -68,9 +68,9 @@ Old JSON chain roots are deliberately rejected. Mixing the old chain format
 with SQLite would recreate multiple authorities and ambiguous recovery. Start a
 new analysis root instead.
 
-Database schema version 2 is a deliberate clean break. Version 1 roots are
-rejected with an instruction to start a fresh analysis root; no production
-version 1 databases were present when version 2 was introduced.
+Database schema version 3 is a deliberate clean break. Version 1 and 2 roots
+are rejected with an instruction to start a fresh analysis root; no production
+analysis databases were present when these breaks were introduced.
 
 ## Invocation lifecycle
 
@@ -104,7 +104,7 @@ SQLite transactions define the durable boundaries:
 3. After every pair is terminal, commit the batch and advance coverage in one
    transaction.
 
-On retry, a pending batch is resumed exactly. Its terminal prefix is not
+On resume, a pending batch is continued exactly. Its terminal prefix is not
 recomputed. A request smaller than already-frozen pending coverage is rejected;
 an equal or larger request completes the pending batch first. A crash after the
 final coverage transaction but before output is safe because the same absolute
@@ -113,6 +113,16 @@ target is then a no-op.
 Scratch trees are disposable. After acquiring the writer lock, the next
 invocation removes stale scratch from an interrupted process. Durable results
 are already in SQLite before a worker's scratch is acknowledged for deletion.
+
+Each published terminal outcome is immutable and records the invocation that
+produced it. A crash before that transaction leaves the pair pending; there is
+no durable attempt record and no in-place retry policy.
+
+Read-only status, list, and show services return immutable snapshot values.
+Status includes both committed coverage and the terminal checkpointed prefix of
+the pending batch. List uses stable one-based pair numbers and bounded keyset
+pagination. Show reads compact evidence for either committed or checkpointed
+terminal outcomes.
 
 ## Scale and storage
 

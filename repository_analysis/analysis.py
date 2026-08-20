@@ -33,6 +33,7 @@ from .inputs import (
     verify_resume_inputs,
 )
 from .locking import AnalysisOperationLock
+from .queries import AnalysisReader
 from .retention import RetentionPolicy
 from .tools import admit_executable
 from .worker import PairExecutor, remove_ephemeral_tree
@@ -251,38 +252,39 @@ def _advance_analysis(
 
 
 def analysis_status(analysis_root: Path) -> dict[str, Any]:
-    """Return committed coverage without taking the writer lock."""
+    """Return durable coverage without taking the writer lock."""
 
-    with AnalysisDatabase.open(analysis_root, read_only=True) as database:
-        with database.read_snapshot():
-            summary = database.summary()
-            pending = database.pending_batch()
-            summary["pending"] = (
-                None
-                if pending is None
-                else {
-                    "batch_id": pending.batch_id,
-                    "pair_count": pending.pair_count,
-                    "completed_prefix": database.completed_prefix(pending),
-                    "target_kind": pending.target_kind,
-                    "target_value": pending.target_value,
-                }
-            )
-            invocation = database.latest_invocation()
-            summary["invocation"] = (
-                None if invocation is None else invocation.record()
-            )
-            return summary
+    return AnalysisReader(analysis_root).status().record()
+
+
+def analysis_list_pairs(
+    analysis_root: Path,
+    *,
+    status: str | None = None,
+    failed: bool = False,
+    with_moves: bool = False,
+    limit: int = 50,
+    after_distance: int | None = None,
+    oldest_first: bool = False,
+) -> dict[str, Any]:
+    """Return one stable, keyset-paginated page of durable pair outcomes."""
+
+    return AnalysisReader(analysis_root).list_pairs(
+        status=status,
+        failed=failed,
+        with_moves=with_moves,
+        limit=limit,
+        after_distance=after_distance,
+        oldest_first=oldest_first,
+    ).record()
 
 
 def analysis_pair_details(
     analysis_root: Path, distance_from_newest: int
 ) -> dict[str, Any]:
-    """Return compact evidence for one previously committed pair."""
+    """Return compact evidence for one durable pair by zero-based distance."""
 
-    with AnalysisDatabase.open(analysis_root, read_only=True) as database:
-        with database.read_snapshot():
-            return database.pair_details(distance_from_newest)
+    return AnalysisReader(analysis_root).show(distance_from_newest + 1).record()
 
 
 def _create_database(

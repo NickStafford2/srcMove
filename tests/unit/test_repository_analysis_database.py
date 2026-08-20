@@ -4,6 +4,7 @@ import os
 import sqlite3
 import tempfile
 import unittest
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 from repository_analysis.database import AnalysisDatabase
@@ -16,6 +17,7 @@ from repository_analysis.inputs import (
     build_pair_work_items,
 )
 from repository_analysis.retention import RetentionPolicy
+from repository_analysis.queries import AnalysisReader, _freeze_json, _thaw_json
 
 
 def executable(path: Path, content: bytes = b"#!/bin/sh\nexit 0\n") -> Path:
@@ -24,7 +26,24 @@ def executable(path: Path, content: bytes = b"#!/bin/sh\nexit 0\n") -> Path:
     return path
 
 
+def begin_invocation(database: AnalysisDatabase, invocation_id: str = "9" * 32) -> str:
+    database.begin_invocation(
+        invocation_id,
+        target_kind="all",
+        target_value=None,
+        jobs=1,
+        started_at="2026-01-01T00:00:00+00:00",
+    )
+    return invocation_id
+
+
 class AnalysisDatabaseTests(unittest.TestCase):
+    def test_frozen_query_json_preserves_container_types(self) -> None:
+        values = ({}, [], {"nested": []}, [["key", 1]])
+        for value in values:
+            with self.subTest(value=value):
+                self.assertEqual(_thaw_json(_freeze_json(value)), value)
+
     def test_only_truthful_compact_retention_is_supported(self) -> None:
         self.assertEqual(
             RetentionPolicy().record(),
@@ -110,7 +129,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                         wall_seconds=4.0,
                     )
 
-    def test_schema_v1_root_is_rejected_with_fresh_start_instruction(self) -> None:
+    def test_older_schema_root_is_rejected_with_fresh_start_instruction(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = root / "repository"
@@ -132,11 +151,16 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 retention_policy=RetentionPolicy(),
             )
             database.close()
-            with sqlite3.connect(analysis / "analysis.sqlite3") as connection:
-                connection.execute("PRAGMA user_version = 1")
-
-            with self.assertRaisesRegex(ValueError, "start a fresh analysis root"):
-                AnalysisDatabase.open(analysis)
+            for version in (1, 2):
+                connection = sqlite3.connect(analysis / "analysis.sqlite3")
+                try:
+                    connection.execute(f"PRAGMA user_version = {version}")
+                finally:
+                    connection.close()
+                with self.assertRaisesRegex(
+                    ValueError, "start a fresh analysis root"
+                ):
+                    AnalysisDatabase.open(analysis)
 
     def test_batches_extend_without_renumbering_completed_pairs(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -169,12 +193,28 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 self.assertEqual(database.completed_prefix(batch), 0)
 
                 work = build_pair_work_items(initial)
+                invocation_id = begin_invocation(database)
                 database.record_outcome(
-                    batch, PairOutcome(work[0], PairStatus.NO_ANALYZABLE_CHANGE)
+                    batch,
+                    PairOutcome(work[0], PairStatus.NO_ANALYZABLE_CHANGE),
+                    invocation_id=invocation_id,
                 )
                 self.assertEqual(database.completed_prefix(batch), 1)
+                reader = AnalysisReader(analysis_root)
+                checkpoint = reader.status()
+                self.assertEqual(checkpoint.coverage.committed, 0)
+                self.assertEqual(checkpoint.coverage.checkpointed, 1)
+                self.assertEqual(checkpoint.coverage.durable, 1)
+                with self.assertRaises(FrozenInstanceError):
+                    checkpoint.coverage.committed = 1  # type: ignore[misc]
+                self.assertEqual(reader.show(2).invocation_id, invocation_id)
+                second_invocation_id = begin_invocation(database, "7" * 32)
                 database.record_outcome(
-                    batch, PairOutcome(work[1], PairStatus.NO_ANALYZABLE_CHANGE)
+                    batch,
+                    PairOutcome(
+                        work[1], PairStatus.EXPORT_FAILED, error="export failed"
+                    ),
+                    invocation_id=second_invocation_id,
                 )
                 committed = database.commit_pending_batch(batch)
                 self.assertEqual(committed.revision, 2)
@@ -182,11 +222,42 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 self.assertEqual(committed.oldest_completed_commit, "d")
                 summary = database.summary()
                 self.assertEqual(summary["completed_pair_count"], 2)
-                self.assertEqual(summary["no_analyzable_change"], 2)
+                self.assertEqual(summary["no_analyzable_change"], 1)
+                self.assertEqual(summary["failed"], 1)
                 details = database.pair_details(1)
                 self.assertEqual(details["old_commit"], "d")
                 self.assertEqual(details["new_commit"], "e")
                 self.assertEqual(details["moves"], [])
+                self.assertEqual(details["invocation_id"], invocation_id)
+                first_page = reader.list_pairs(limit=1)
+                self.assertEqual([item.number for item in first_page.items], [1])
+                self.assertEqual(first_page.next_cursor, 0)
+                second_page = reader.list_pairs(
+                    limit=1, after_distance=first_page.next_cursor
+                )
+                self.assertEqual([item.number for item in second_page.items], [2])
+                self.assertIsNone(second_page.next_cursor)
+                self.assertEqual(
+                    len(reader.list_pairs(status="no_analyzable_change").items), 1
+                )
+                self.assertEqual(
+                    [item.number for item in reader.list_pairs(failed=True).items],
+                    [1],
+                )
+                self.assertEqual(len(reader.list_pairs(with_moves=True).items), 0)
+                self.assertEqual(
+                    [item.number for item in reader.list_pairs(oldest_first=True).items],
+                    [2, 1],
+                )
+                for arguments in (
+                    {"status": "completed", "failed": True},
+                    {"status": "completed", "with_moves": True},
+                    {"failed": True, "with_moves": True},
+                ):
+                    with self.assertRaisesRegex(ValueError, "filters are exclusive"):
+                        reader.list_pairs(**arguments)
+                with self.assertRaisesRegex(ValueError, "must be a Boolean"):
+                    reader.list_pairs(failed=1)  # type: ignore[arg-type]
 
                 older = self._manifest(
                     repository, srcdiff, srcmove, commits=("b", "c", "d")
@@ -206,7 +277,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 self.assertEqual(older_batch.base_revision, 2)
                 self.assertEqual(database.analysis().revision, 3)
 
-                with self.assertRaisesRegex(ValueError, "no committed pair"):
+                with self.assertRaisesRegex(ValueError, "no durable pair"):
                     database.pair_details(2)
 
     def test_pair_outcomes_are_exclusive_and_completion_requires_full_prefix(self) -> None:
@@ -236,9 +307,24 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 build_pair_work_items(manifest)[0],
                 PairStatus.NO_ANALYZABLE_CHANGE,
             )
-            database.record_outcome(batch, outcome)
+            with self.assertRaisesRegex(ValueError, "no running invocation"):
+                database.record_outcome(
+                    batch, outcome, invocation_id="8" * 32
+                )
+            stored = database.connection.execute(
+                "SELECT status, outcome_invocation_id FROM pairs "
+                "WHERE batch_id = ? AND batch_sequence = 0",
+                (batch.batch_id,),
+            ).fetchone()
+            self.assertEqual(tuple(stored), (None, None))
+            invocation_id = begin_invocation(database)
+            database.record_outcome(
+                batch, outcome, invocation_id=invocation_id
+            )
             with self.assertRaisesRegex(ValueError, "already sealed"):
-                database.record_outcome(batch, outcome)
+                database.record_outcome(
+                    batch, outcome, invocation_id=invocation_id
+                )
             with self.assertRaisesRegex(ValueError, "not complete"):
                 database.commit_pending_batch(batch)
 

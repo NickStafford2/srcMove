@@ -68,9 +68,12 @@ Program responsibilities will be separated as follows:
   not implement a separate history-analysis pipeline or persistence format.
 
 The durable model will distinguish an immutable analysis, a command invocation,
-a frozen commit pair, an execution attempt, and normalized move evidence. A
-failed attempt must remain observable without forcing every failure to be the
-permanent scientific result for that pair. Traversal and retention are frozen
+a frozen commit pair, its one canonical terminal outcome, and normalized move
+evidence. Each terminal outcome identifies the invocation that produced it. A
+crash before transactional publication leaves no durable outcome, so a later
+invocation may process the still-pending pair. Once published, the outcome is
+immutable within that analysis. Comparing different executable bytes or
+configuration requires a separate analysis. Traversal and retention are frozen
 analysis policies; first-parent traversal and compact evidence remain the
 initial defaults.
 
@@ -87,6 +90,8 @@ Refactoring will preserve these established contracts:
 - bounded batches, queues, and worker scratch;
 - one work item per commit pair containing every relevant changed path;
 - transactional pair publication and recoverable pending work;
+- exactly one immutable terminal outcome per covered pair, linked to its
+  producing invocation;
 - stable pair ordering when older history is appended.
 
 Features unique to the experimental runner, such as readable move browsing and
@@ -95,6 +100,10 @@ the production analyzer. Once equivalent behavior exists, the experimental
 runner will become a small adapter or be removed rather than maintained as a
 compatibility architecture. Superseded receipt-based package APIs have already
 been removed.
+
+Attempt history and in-place retry policy are deliberately deferred. They will
+be added only if a concrete requirement cannot be met by rerunning unpublished
+work or creating a separate analysis.
 
 ## Consequences
 

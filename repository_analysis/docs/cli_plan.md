@@ -375,7 +375,8 @@ rewriting outcomes in an existing analysis.
 - add explicit database schema versioning and the required migration boundary;
 - persist invocation target, worker count, timestamps, wall duration, result,
   and last durable update, including verified no-op invocations;
-- represent pair attempts separately from each pair's accepted outcome;
+- link each pair's single canonical terminal outcome to the invocation that
+  published it;
 - freeze admitted commit metadata needed by `list` and `show`;
 - implement snapshot-level `status`, bounded `list`, and lazy `show` query
   contracts without terminal formatting;

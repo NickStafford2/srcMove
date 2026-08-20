@@ -3,6 +3,7 @@
 from .analysis import (
     AnalysisTarget,
     AnalyzeResult,
+    analysis_list_pairs,
     analysis_pair_details,
     analysis_status,
     analyze_repository,
@@ -19,6 +20,7 @@ __all__ = [
     "AnalysisConfiguration",
     "RepositoryIdentity",
     "analysis_pair_details",
+    "analysis_list_pairs",
     "analysis_status",
     "analyze_repository",
 ]

@@ -28,7 +28,7 @@ from .retention import RetentionPolicy
 
 
 DATABASE_NAME = "analysis.sqlite3"
-DATABASE_SCHEMA_VERSION = 2
+DATABASE_SCHEMA_VERSION = 3
 DATABASE_APPLICATION_ID = 0x53524D41  # "SRMA"
 TARGET_KINDS = {"total_pairs", "through", "all"}
 TERMINAL_PAIR_STATUSES = {
@@ -543,12 +543,19 @@ class AnalysisDatabase:
         batch: StoredBatch,
         outcome: PairOutcome,
         *,
-        invocation_id: str | None = None,
+        invocation_id: str,
     ) -> None:
+        _validate_invocation_id(invocation_id)
         item = outcome.work_item
         compact = compact_pair_outcome(outcome)
         if compact.status not in TERMINAL_PAIR_STATUSES:
             raise ValueError(f"pair outcome has non-terminal status: {compact.status!r}")
+        invocation = self.connection.execute(
+            "SELECT result FROM invocations WHERE invocation_id = ?",
+            (invocation_id,),
+        ).fetchone()
+        if invocation is None or invocation["result"] != "running":
+            raise ValueError("pair outcome has no running invocation")
         row = self.connection.execute(
             """
             SELECT old_commit, new_commit, pair_fingerprint, status
@@ -566,12 +573,14 @@ class AnalysisDatabase:
             changed = self.connection.execute(
                 """
                 UPDATE pairs
-                SET status = ?, changed_path_count = ?, analyzable_path_count = ?,
+                SET outcome_invocation_id = ?, status = ?,
+                    changed_path_count = ?, analyzable_path_count = ?,
                     metrics_json = ?, timings_json = ?, error = ?,
                     evidence_json = ?, results_size_bytes = ?, results_sha256 = ?
                 WHERE batch_id = ? AND batch_sequence = ? AND status IS NULL
                 """,
                 (
+                    invocation_id,
                     compact.status,
                     compact.changed_path_count,
                     compact.analyzable_path_count,
@@ -607,17 +616,15 @@ class AnalysisDatabase:
                         move.to_text_digests_json,
                     ),
                 )
-            if invocation_id is not None:
-                _validate_invocation_id(invocation_id)
-                changed = self.connection.execute(
-                    """
-                    UPDATE invocations SET last_durable_at = ?
-                    WHERE invocation_id = ? AND result = 'running'
-                    """,
-                    (_utc_now(), invocation_id),
-                ).rowcount
-                if changed != 1:
-                    raise ValueError("pair outcome has no running invocation")
+            changed = self.connection.execute(
+                """
+                UPDATE invocations SET last_durable_at = ?
+                WHERE invocation_id = ? AND result = 'running'
+                """,
+                (_utc_now(), invocation_id),
+            ).rowcount
+            if changed != 1:
+                raise ValueError("pair outcome has no running invocation")
 
     def completed_prefix(self, batch: StoredBatch) -> int:
         rows = self.connection.execute(
@@ -748,7 +755,7 @@ class AnalysisDatabase:
         }
 
     def pair_details(self, distance_from_newest: int) -> dict[str, Any]:
-        """Load compact evidence for one committed pair without regenerating it."""
+        """Load one durable canonical outcome without regenerating it."""
 
         distance = _nonnegative_integer(
             distance_from_newest, "distance from newest"
@@ -756,19 +763,20 @@ class AnalysisDatabase:
         row = self.connection.execute(
             """
             SELECT p.batch_id, p.batch_sequence, p.old_commit, p.new_commit,
+                   p.outcome_invocation_id,
                    p.pair_fingerprint, p.status, p.changed_path_count,
                    p.analyzable_path_count, p.metrics_json, p.timings_json,
                    p.error, p.evidence_json, p.results_size_bytes,
                    p.results_sha256
             FROM pairs AS p
             JOIN batches AS b ON b.batch_id = p.batch_id
-            WHERE p.distance_from_newest = ? AND b.status = 'completed'
+            WHERE p.distance_from_newest = ? AND p.status IS NOT NULL
             """,
             (distance,),
         ).fetchone()
         if row is None:
             raise ValueError(
-                f"no committed pair exists at distance {distance} from newest"
+                f"no durable pair exists at distance {distance} from newest"
             )
         metrics = _json_object(bytes(row["metrics_json"]), "pair metrics")
         moves = []
@@ -815,6 +823,9 @@ class AnalysisDatabase:
                 row["pair_fingerprint"], "pair fingerprint"
             ),
             "status": _text(row["status"], "pair status"),
+            "invocation_id": _text(
+                row["outcome_invocation_id"], "outcome invocation ID"
+            ),
             "changed_path_count": _nonnegative_integer(
                 row["changed_path_count"], "changed path count"
             ),
@@ -1242,6 +1253,7 @@ CREATE TABLE pairs (
     old_commit TEXT NOT NULL,
     new_commit TEXT NOT NULL,
     pair_fingerprint TEXT NOT NULL UNIQUE,
+    outcome_invocation_id TEXT REFERENCES invocations(invocation_id),
     status TEXT CHECK (
         status IS NULL OR status IN (
             'completed', 'no_analyzable_change', 'export_failed',
@@ -1259,17 +1271,22 @@ CREATE TABLE pairs (
     PRIMARY KEY (batch_id, batch_sequence),
     CHECK (
         (
-            status IS NULL AND changed_path_count IS NULL AND
+            status IS NULL AND outcome_invocation_id IS NULL AND
+            changed_path_count IS NULL AND
             analyzable_path_count IS NULL AND metrics_json IS NULL AND
             timings_json IS NULL AND error IS NULL AND evidence_json IS NULL AND
             results_size_bytes IS NULL AND results_sha256 IS NULL
         ) OR (
-            status IS NOT NULL AND changed_path_count IS NOT NULL AND
+            status IS NOT NULL AND outcome_invocation_id IS NOT NULL AND
+            changed_path_count IS NOT NULL AND
             analyzable_path_count IS NOT NULL AND metrics_json IS NOT NULL AND
             timings_json IS NOT NULL
         )
     )
 ) STRICT;
+
+CREATE INDEX pairs_by_status_and_distance
+ON pairs(status, distance_from_newest);
 
 CREATE TABLE moves (
     batch_id TEXT NOT NULL,

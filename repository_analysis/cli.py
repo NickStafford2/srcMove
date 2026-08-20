@@ -46,11 +46,11 @@ def build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--srcmove-timeout", type=float)
     analyze.add_argument("--jobs", type=int, default=1)
 
-    status = commands.add_parser("status", help="show committed coverage and progress")
+    status = commands.add_parser("status", help="show durable coverage and progress")
     status.add_argument("--analysis-root", type=Path, required=True)
 
     inspect = commands.add_parser(
-        "inspect", help="show compact evidence for one committed pair"
+        "inspect", help="show compact evidence for one durable pair"
     )
     inspect.add_argument("--analysis-root", type=Path, required=True)
     inspect.add_argument("--distance-from-newest", type=int, required=True)
