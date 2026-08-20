@@ -8,7 +8,7 @@ from repository_analysis.presentation import render_run, render_status
 class RepositoryAnalysisPresentationTests(unittest.TestCase):
     def setUp(self) -> None:
         self.summary = {
-            "analysis": {"name": "SQLite", "root": "/results/sqlite-300"},
+            "analysis": {"name": "SQLite", "root": "/results/sqlite-300/.srcmove"},
             "completed_pair_count": 300,
             "checkpointed_pair_count": 0,
             "durable_pair_count": 300,
@@ -54,7 +54,7 @@ class RepositoryAnalysisPresentationTests(unittest.TestCase):
         self.assertIn("Frontier   3f523613 → 0a4af54a", rendered)
         self.assertTrue(
             rendered.endswith(
-                "Inspect: srcmove-history list /results/sqlite-300 --failed"
+                "Inspect: srcmove-history -C /results/sqlite-300 list --failed"
             )
         )
 

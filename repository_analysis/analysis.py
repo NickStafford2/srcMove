@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 import uuid
 from dataclasses import dataclass
@@ -155,6 +156,7 @@ def analyze_repository(
     active_observer = _SafeAnalysisObserver(observer or NullAnalysisObserver())
     root = analysis_root.expanduser().absolute()
     with AnalysisOperationLock(root, command="run") as operation:
+        _ensure_state_gitignore(root)
         invocation_started = time.monotonic()
         remove_ephemeral_tree(root / "scratch", root)
         if analysis_database_exists(root):
@@ -262,6 +264,7 @@ def _advance_analysis(
 ) -> AnalyzeResult:
     verified = 0
     aggregate_execution = _zero_stats(jobs)
+    _verify_admitted_executables(database.latest_manifest())
     while True:
         state = database.analysis()
         template = database.latest_manifest()
@@ -408,6 +411,7 @@ def _create_database(
     srcdiff = admit_executable(srcdiff_path, root, role="srcdiff")
     srcmove = admit_executable(srcmove_path, root, role="srcmove")
     manifest = freeze_analysis_inputs(
+        analysis_root=root,
         repository=repository,
         repository_identity=repository_identity,
         commits=history.commits,
@@ -488,6 +492,7 @@ def _plan_next_batch(database, template, state, target, desired_total):
             template.repository, boundary, pair_count=remaining
         )
     manifest = freeze_analysis_inputs(
+        analysis_root=database.root,
         repository=template.repository,
         repository_identity=template.repository_identity,
         commits=history.commits,
@@ -633,6 +638,46 @@ def _verify_supplied_definition(
             frozen.sha256,
         ):
             raise ValueError(f"{name} executable drift from existing analysis")
+
+
+def _verify_admitted_executables(manifest) -> None:
+    """Verify the exact analysis-owned tool bytes even for a satisfied target."""
+
+    for name, frozen in (
+        ("srcDiff", manifest.srcdiff),
+        ("srcMove", manifest.srcmove),
+    ):
+        current = observe_executable(frozen.resolved_path)
+        if (current.size_bytes, current.sha256) != (
+            frozen.size_bytes,
+            frozen.sha256,
+        ):
+            raise ValueError(f"analysis-owned {name} executable drift")
+
+
+def _ensure_state_gitignore(root: Path) -> None:
+    """Keep the complete local state tree ignored, even after it is renamed."""
+
+    path = root / ".gitignore"
+    if path.is_symlink():
+        raise ValueError(f"analysis ignore file must not be a symbolic link: {path}")
+    if path.exists():
+        if not path.is_file():
+            raise ValueError(f"analysis ignore file is not a regular file: {path}")
+        if path.read_bytes() != b"*\n":
+            raise ValueError(
+                f"analysis ignore file must contain exactly '*\\n': {path}"
+            )
+        return
+    temporary = root / f"..gitignore.tmp-{uuid.uuid4().hex}"
+    try:
+        with temporary.open("xb") as stream:
+            stream.write(b"*\n")
+            stream.flush()
+            os.fsync(stream.fileno())
+        os.replace(temporary, path)
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 def _validate_target(target: AnalysisTarget) -> None:

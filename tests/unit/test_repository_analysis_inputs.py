@@ -188,7 +188,7 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
             manifest = self._manifest(Path(temporary_directory))
             record = json.loads(manifest.canonical_bytes())
 
-            self.assertEqual(record["schema_version"], 4)
+            self.assertEqual(record["schema_version"], 5)
             self.assertEqual(record["commits"], ["a", "b", "c"])
             self.assertEqual(record["repository_identity"], {"value": "repo-id"})
             self.assertIn("configuration", record)
@@ -221,15 +221,20 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
                     mutate(value)
                     with self.assertRaises(ValueError):
                         load_frozen_manifest_bytes(
-                            canonical_pretty_json_bytes(value), context=name
+                            canonical_pretty_json_bytes(value),
+                            analysis_root=root / "repository",
+                            context=name,
                         )
 
             with self.assertRaisesRegex(ValueError, "unreadable"):
-                load_frozen_manifest_bytes(b"{", context="malformed")
+                load_frozen_manifest_bytes(
+                    b"{", analysis_root=root / "repository", context="malformed"
+                )
 
             with self.assertRaisesRegex(ValueError, "duplicate JSON field"):
                 load_frozen_manifest_bytes(
                     b'{"schema_version":1,"schema_version":1}',
+                    analysis_root=root / "repository",
                     context="duplicate-field",
                 )
 
@@ -297,6 +302,7 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
         srcdiff = observe_executable(executable(root / "srcdiff", tool_content))
         srcmove = observe_executable(executable(root / "srcmove", tool_content))
         return freeze_analysis_inputs(
+            analysis_root=root,
             repository=root,
             repository_identity=RepositoryIdentity("repo-id"),
             commits=commits,

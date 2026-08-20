@@ -35,9 +35,8 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 5)
-            analysis = root / "analysis"
+            analysis = repository / ".srcmove"
             common = [
-                str(analysis),
                 "--pairs",
                 "2",
                 "--format",
@@ -45,8 +44,6 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             ]
             creation = [
                 *common,
-                "--repository",
-                str(repository),
                 "--name",
                 "fixture-repository",
                 "--srcdiff",
@@ -57,7 +54,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 ".txt",
             ]
 
-            status, output, error = self._main(["run", *creation])
+            status, output, error = self._main(["-C", str(repository), "run", *creation])
             self.assertEqual((status, error), (0, ""))
             self.assertEqual(json.loads(output)["coverage"]["durable"], 2)
 
@@ -66,12 +63,14 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 "open_worker",
                 side_effect=AssertionError("idempotent CLI retry opened a worker"),
             ):
-                repeated, output, error = self._main(["run", *common])
+                repeated, output, error = self._main(
+                    ["-C", str(repository), "run", *common]
+                )
             self.assertEqual((repeated, error), (0, ""))
             self.assertEqual(json.loads(output)["coverage"]["durable"], 2)
 
             status, output, error = self._main(
-                ["status", str(analysis), "--format", "json"]
+                ["-C", str(repository), "status", "--format", "json"]
             )
             self.assertEqual((status, error), (0, ""))
             report = json.loads(output)
@@ -84,8 +83,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             status, output, error = self._main(
                 [
+                    "-C",
+                    str(repository),
                     "show",
-                    str(analysis),
                     "1",
                     "--format",
                     "json",
@@ -97,19 +97,19 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             self.assertEqual(details["status"], "no_analyzable_change")
 
             status, output, error = self._main(
-                ["list", str(analysis), "--format", "json"]
+                ["-C", str(repository), "list", "--format", "json"]
             )
             self.assertEqual((status, error), (0, ""))
             self.assertEqual(len(json.loads(output)["pairs"]["items"]), 2)
 
-            status, output, error = self._main(["status", str(analysis)])
+            status, output, error = self._main(["-C", str(repository), "status"])
             self.assertEqual((status, error), (0, ""))
             self.assertIn("2/2 pairs (100%)", output)
             self.assertIn("2 skipped", output)
 
             with AnalysisOperationLock(analysis, command="background-run"):
                 status, output, error = self._main(
-                    ["status", str(analysis), "--format", "json"]
+                    ["-C", str(repository), "status", "--format", "json"]
                 )
                 self.assertEqual((status, error), (0, ""))
                 self.assertEqual(json.loads(output)["state"], "running")
@@ -117,8 +117,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             for ordering in ([], ["--oldest-first"]):
                 status, output, error = self._main(
                     [
+                        "-C",
+                        str(repository),
                         "list",
-                        str(analysis),
                         "--limit",
                         "1",
                         "--format",
@@ -134,8 +135,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
                 status, output, error = self._main(
                     [
+                        "-C",
+                        str(repository),
                         "list",
-                        str(analysis),
                         "--limit",
                         "1",
                         "--after",
@@ -180,12 +182,11 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
         parser = build_parser()
         with contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):
-                parser.parse_args(["run", "analysis"])
+                parser.parse_args(["run"])
             with self.assertRaises(SystemExit):
                 parser.parse_args(
                     [
                         "run",
-                        "analysis",
                         "--pairs",
                         "2",
                         "--all",
@@ -194,33 +195,33 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
     def test_missing_creation_inputs_do_not_create_partial_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            analysis = Path(temporary_directory) / "analysis"
+            root = Path(temporary_directory)
 
             status, _, error = self._main(
                 [
+                    "-C",
+                    str(root),
                     "run",
-                    str(analysis),
                     "--pairs",
                     "2",
                 ]
             )
 
             self.assertEqual(status, 2)
-            self.assertIn("new analysis requires", error)
-            self.assertFalse((analysis / "analysis.sqlite3").exists())
+            self.assertIn("not inside a Git worktree", error)
+            self.assertFalse((root / ".srcmove" / "analysis.sqlite3").exists())
 
     def test_frozen_configuration_cannot_be_overridden(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
-            analysis = root / "analysis"
+            analysis = repository / ".srcmove"
             arguments = [
+                "-C",
+                str(repository),
                 "run",
-                str(analysis),
                 "--pairs",
                 "1",
-                "--repository",
-                str(repository),
                 "--name",
                 "fixture-repository",
                 "--srcdiff",
@@ -234,8 +235,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             status, _, error = self._main(
                 [
+                    "-C",
+                    str(repository),
                     "run",
-                    str(analysis),
                     "--pairs",
                     "2",
                     "--directory",
@@ -243,21 +245,28 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 ]
             )
             self.assertEqual(status, 2)
-            self.assertIn("configuration drift", error)
+            self.assertIn("frozen definition", error)
+            self.assertIn("rename or remove .srcmove", error)
 
     def test_legacy_state_is_rejected_instead_of_mixed_with_sqlite(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            analysis = root / "analysis"
+            repository = self._history(root, 2)
+            analysis = repository / ".srcmove"
             analysis.mkdir()
             (analysis / "current.json").write_text("{}", encoding="utf-8")
 
             status, _, error = self._main(
                 [
+                    "-C",
+                    str(repository),
                     "run",
-                    str(analysis),
                     "--pairs",
                     "1",
+                    "--srcdiff",
+                    str(executable(root / "srcdiff")),
+                    "--srcmove",
+                    str(executable(root / "srcmove")),
                 ]
             )
 
@@ -267,15 +276,151 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
     def test_status_typo_does_not_create_an_analysis_directory(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            missing = Path(temporary_directory) / "missing"
+            repository = self._history(Path(temporary_directory), 2)
 
             status, _, error = self._main(
-                ["status", str(missing)]
+                ["-C", str(repository), "status"]
             )
 
             self.assertEqual(status, 2)
             self.assertIn("not an owned directory", error)
-            self.assertFalse(missing.exists())
+            self.assertFalse((repository / ".srcmove").exists())
+
+    def test_nested_directory_discovers_repository_local_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 3)
+            nested = repository / "src" / "nested"
+            nested.mkdir(parents=True)
+
+            status, output, error = self._main(
+                [
+                    "-C",
+                    str(nested),
+                    "run",
+                    "--pairs",
+                    "1",
+                    "--format",
+                    "json",
+                    "--srcdiff",
+                    str(executable(root / "srcdiff")),
+                    "--srcmove",
+                    str(executable(root / "srcmove")),
+                    "--exclude-suffix",
+                    ".txt",
+                ]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            self.assertEqual(json.loads(output)["analysis"]["name"], "repository")
+            self.assertTrue((repository / ".srcmove" / "analysis.sqlite3").is_file())
+
+    def test_renamed_state_is_inert_but_explicitly_queryable_and_ignored(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 3)
+            creation = [
+                "-C",
+                str(repository),
+                "run",
+                "--pairs",
+                "1",
+                "--srcdiff",
+                str(executable(root / "srcdiff")),
+                "--srcmove",
+                str(executable(root / "srcmove")),
+                "--exclude-suffix",
+                ".txt",
+            ]
+            self.assertEqual(self._main(creation)[0], 0)
+            active = repository / ".srcmove"
+            self.assertEqual((active / ".gitignore").read_text(), "*\n")
+            self.assertEqual(git(repository, "status", "--short", "--untracked-files=all"), "")
+
+            archived = repository / ".srcmoveOld"
+            active.rename(archived)
+            self.assertEqual(git(repository, "status", "--short", "--untracked-files=all"), "")
+            self.assertEqual(self._main(["-C", str(repository), "status"])[0], 2)
+            status, output, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "--state-dir",
+                    ".srcmoveOld",
+                    "status",
+                    "--format",
+                    "json",
+                ]
+            )
+            self.assertEqual((status, error), (0, ""))
+            self.assertEqual(json.loads(output)["coverage"]["durable"], 1)
+
+    def test_analysis_extends_after_repository_is_moved(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 4)
+            creation = [
+                "-C",
+                str(repository),
+                "run",
+                "--pairs",
+                "1",
+                "--format",
+                "json",
+                "--srcdiff",
+                str(executable(root / "srcdiff")),
+                "--srcmove",
+                str(executable(root / "srcmove")),
+                "--exclude-suffix",
+                ".txt",
+            ]
+            self.assertEqual(self._main(creation)[0], 0)
+
+            moved = root / "moved-repository"
+            repository.rename(moved)
+            status, output, error = self._main(
+                [
+                    "-C",
+                    str(moved),
+                    "run",
+                    "--pairs",
+                    "2",
+                    "--format",
+                    "json",
+                ]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            self.assertEqual(json.loads(output)["coverage"]["durable"], 2)
+
+    def test_no_op_run_verifies_frozen_executable_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 3)
+            creation = [
+                "-C",
+                str(repository),
+                "run",
+                "--pairs",
+                "1",
+                "--srcdiff",
+                str(executable(root / "srcdiff")),
+                "--srcmove",
+                str(executable(root / "srcmove")),
+                "--exclude-suffix",
+                ".txt",
+            ]
+            self.assertEqual(self._main(creation)[0], 0)
+            admitted = next((repository / ".srcmove" / "tools").glob("*/srcmove"))
+            admitted.chmod(0o700)
+            admitted.write_bytes(b"changed")
+
+            status, _, error = self._main(
+                ["-C", str(repository), "run", "--pairs", "1"]
+            )
+
+            self.assertEqual(status, 2)
+            self.assertIn("analysis-owned srcMove executable drift", error)
 
     def _history(self, root: Path, count: int) -> Path:
         repository = root / "repository"

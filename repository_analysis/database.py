@@ -28,7 +28,7 @@ from .retention import RetentionPolicy
 
 
 DATABASE_NAME = "analysis.sqlite3"
-DATABASE_SCHEMA_VERSION = 3
+DATABASE_SCHEMA_VERSION = 4
 DATABASE_APPLICATION_ID = 0x53524D41  # "SRMA"
 TARGET_KINDS = {"total_pairs", "through", "all"}
 TERMINAL_PAIR_STATUSES = {
@@ -860,7 +860,9 @@ class AnalysisDatabase:
         if hashlib.sha256(content).hexdigest() != batch.manifest_sha256:
             raise ValueError("analysis batch manifest checksum drift")
         manifest = load_frozen_manifest_bytes(
-            content, context=f"analysis batch {batch.batch_id}"
+            content,
+            analysis_root=self.root,
+            context=f"analysis batch {batch.batch_id}",
         )
         if (
             manifest.commits[0] != batch.oldest_commit
@@ -933,7 +935,7 @@ def _definition_bytes(
 ) -> bytes:
     return canonical_json_bytes(
         {
-            "repository_path": str(manifest.repository),
+            "repository_locator_kind": "analysis-relative",
             "repository_identity": manifest.repository_identity.record(),
             "configuration": manifest.configuration.record(),
             "executables": {

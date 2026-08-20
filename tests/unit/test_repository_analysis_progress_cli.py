@@ -35,7 +35,7 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
             root = Path(temporary_directory)
             arguments = self._creation_arguments(root, pairs=4)
 
-            status, output, error = self._main(["run", *arguments])
+            status, output, error = self._main(arguments)
 
             self.assertEqual(status, 0)
             self.assertIn("4/4 pairs", output)
@@ -52,7 +52,7 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
             arguments = self._creation_arguments(root, pairs=2)
 
             status, output, error = self._main(
-                ["run", *arguments, "--format", "json"]
+                [*arguments, "--format", "json"]
             )
 
             self.assertEqual(status, 0)
@@ -67,7 +67,6 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
 
             status, output, error = self._main(
                 [
-                    "run",
                     *arguments,
                     "--format",
                     "json",
@@ -88,7 +87,7 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
             arguments = self._creation_arguments(root, pairs=2)
 
             status, output, error = self._main(
-                ["run", *arguments, "--progress", "never"]
+                [*arguments, "--progress", "never"]
             )
 
             self.assertEqual(status, 0)
@@ -100,9 +99,8 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
             root = Path(temporary_directory)
             creation = self._creation_arguments(root, pairs=2)
             self.assertEqual(
-                self._main(["run", *creation, "--progress", "never"])[0], 0
+                self._main([*creation, "--progress", "never"])[0], 0
             )
-            analysis = root / "analysis"
 
             with patch.object(
                 PairExecutor,
@@ -111,8 +109,9 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
             ):
                 status, output, error = self._main(
                     [
+                        "-C",
+                        str(root / "repository"),
                         "run",
-                        str(analysis),
                         "--pairs",
                         "2",
                         "--progress",
@@ -134,7 +133,7 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
                 "repository_analysis.cli.analyze_repository",
                 side_effect=KeyboardInterrupt,
             ):
-                status, output, error = self._main(["run", *arguments])
+                status, output, error = self._main(arguments)
 
         self.assertEqual(status, 130)
         self.assertEqual(output, "")
@@ -144,11 +143,11 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
     def _creation_arguments(self, root: Path, *, pairs: int) -> list[str]:
         repository = self._history(root, pairs + 1)
         return [
-            str(root / "analysis"),
+            "-C",
+            str(repository),
+            "run",
             "--pairs",
             str(pairs),
-            "--repository",
-            str(repository),
             "--name",
             "progress-fixture",
             "--srcdiff",

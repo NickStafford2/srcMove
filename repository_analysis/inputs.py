@@ -21,8 +21,8 @@ from .process import (
     SRCMOVE_RESULTS_VALIDATOR_SCHEMA_VERSION,
 )
 ANALYSIS_CONFIGURATION_SCHEMA_VERSION = 1
-EXECUTABLE_OBSERVATION_SCHEMA_VERSION = 1
-FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 4
+EXECUTABLE_OBSERVATION_SCHEMA_VERSION = 2
+FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 5
 PAIR_FINGERPRINT_SCHEMA_VERSION = 1
 
 
@@ -245,11 +245,20 @@ class FrozenAnalysisManifest:
     configuration: AnalysisConfiguration
     srcdiff: ExecutableObservation
     srcmove: ExecutableObservation
+    repository_locator: str
+    srcdiff_locator: str
+    srcmove_locator: str
     schema_versions: FingerprintSchemaVersions = FingerprintSchemaVersions()
 
     def __post_init__(self) -> None:
         if not isinstance(self.repository, Path) or not self.repository.is_absolute():
             raise ValueError("frozen repository path must be absolute")
+        for name, locator in (
+            ("repository", self.repository_locator),
+            ("srcdiff", self.srcdiff_locator),
+            ("srcmove", self.srcmove_locator),
+        ):
+            _validate_locator(locator, name)
         object.__setattr__(self, "commits", tuple(self.commits))
         if len(self.commits) < 2:
             raise ValueError("frozen history must contain at least two commits")
@@ -265,12 +274,16 @@ class FrozenAnalysisManifest:
         return {
             "schema_version": FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION,
             "repository_identity": self.repository_identity.record(),
-            "repository_path": str(self.repository),
+            "repository_locator": self.repository_locator,
             "commits": list(self.commits),
             "configuration": self.configuration.record(),
             "executables": {
-                "srcdiff": self.srcdiff.record(),
-                "srcmove": self.srcmove.record(),
+                "srcdiff": _frozen_executable_record(
+                    self.srcdiff, self.srcdiff_locator
+                ),
+                "srcmove": _frozen_executable_record(
+                    self.srcmove, self.srcmove_locator
+                ),
             },
             "fingerprint_schema_versions": self.schema_versions.record(),
         }
@@ -282,7 +295,7 @@ class FrozenAnalysisManifest:
 
 
 def load_frozen_manifest_bytes(
-    content: bytes, *, context: str = "manifest"
+    content: bytes, *, analysis_root: Path, context: str = "manifest"
 ) -> FrozenAnalysisManifest:
     """Strictly load canonical manifest bytes from an authoritative store."""
 
@@ -297,7 +310,7 @@ def load_frozen_manifest_bytes(
         {
             "schema_version",
             "repository_identity",
-            "repository_path",
+            "repository_locator",
             "commits",
             "configuration",
             "executables",
@@ -310,10 +323,9 @@ def load_frozen_manifest_bytes(
     _fields(identity_record, {"value"}, "repository_identity")
     identity = RepositoryIdentity(_string(identity_record, "value"))
 
-    repository_value = _string(record, "repository_path")
-    repository = Path(repository_value)
-    if not repository.is_absolute():
-        raise ValueError("manifest repository_path must be absolute")
+    root = analysis_root.expanduser().resolve(strict=True)
+    repository_locator = _string(record, "repository_locator")
+    repository = _resolve_locator(root, repository_locator, "repository")
 
     commits_value = record["commits"]
     if not isinstance(commits_value, list):
@@ -333,8 +345,19 @@ def load_frozen_manifest_bytes(
         repository_identity=identity,
         commits=commits,
         configuration=configuration,
-        srcdiff=_load_executable(executables["srcdiff"], "executables.srcdiff"),
-        srcmove=_load_executable(executables["srcmove"], "executables.srcmove"),
+        srcdiff=_load_frozen_executable(
+            executables["srcdiff"], root, "executables.srcdiff"
+        ),
+        srcmove=_load_frozen_executable(
+            executables["srcmove"], root, "executables.srcmove"
+        ),
+        repository_locator=repository_locator,
+        srcdiff_locator=_string(
+            _object(executables["srcdiff"], "executables.srcdiff"), "locator"
+        ),
+        srcmove_locator=_string(
+            _object(executables["srcmove"], "executables.srcmove"), "locator"
+        ),
         schema_versions=schema_versions,
     )
     if content != manifest.canonical_bytes():
@@ -372,6 +395,9 @@ def verify_resume_inputs(
         configuration=manifest.configuration,
         srcdiff=srcdiff,
         srcmove=srcmove,
+        repository_locator=manifest.repository_locator,
+        srcdiff_locator=manifest.srcdiff_locator,
+        srcmove_locator=manifest.srcmove_locator,
         schema_versions=manifest.schema_versions,
     )
 
@@ -476,33 +502,56 @@ def _load_configuration(value: Any) -> AnalysisConfiguration:
     return configuration
 
 
-def _load_executable(value: Any, context: str) -> ExecutableObservation:
+def _load_frozen_executable(
+    value: Any, analysis_root: Path, context: str
+) -> ExecutableObservation:
     record = _object(value, context)
     _fields(
         record,
         {
             "schema_version",
-            "requested_path",
-            "resolved_path",
+            "locator",
             "size_bytes",
             "sha256",
         },
         context,
     )
     _schema(record, "schema_version", EXECUTABLE_OBSERVATION_SCHEMA_VERSION)
-    requested = Path(_string(record, "requested_path"))
-    resolved = Path(_string(record, "resolved_path"))
-    if not requested.is_absolute():
-        raise ValueError(f"{context}.requested_path must be absolute")
+    locator = _string(record, "locator")
+    resolved = _resolve_locator(analysis_root, locator, context)
     observation = ExecutableObservation(
-        requested_path=requested,
+        requested_path=resolved,
         resolved_path=resolved,
         size_bytes=_integer(record, "size_bytes"),
         sha256=_string(record, "sha256"),
     )
-    if observation.record() != record:
+    if _frozen_executable_record(observation, locator) != record:
         raise ValueError(f"{context} is not in canonical frozen form")
     return observation
+
+
+def _frozen_executable_record(
+    observation: ExecutableObservation, locator: str
+) -> dict[str, Any]:
+    _validate_locator(locator, "executable")
+    return {
+        "schema_version": EXECUTABLE_OBSERVATION_SCHEMA_VERSION,
+        "locator": locator,
+        "size_bytes": observation.size_bytes,
+        "sha256": observation.sha256,
+    }
+
+
+def _validate_locator(locator: str, context: str) -> None:
+    if not isinstance(locator, str) or not locator or "\0" in locator:
+        raise ValueError(f"{context} locator must be a non-empty relative path")
+    if PurePosixPath(locator).is_absolute():
+        raise ValueError(f"{context} locator must be relative to the analysis root")
+
+
+def _resolve_locator(root: Path, locator: str, context: str) -> Path:
+    _validate_locator(locator, context)
+    return (root / Path(locator)).resolve()
 
 
 def _load_fingerprint_schema_versions(value: Any) -> FingerprintSchemaVersions:
@@ -516,6 +565,7 @@ def _load_fingerprint_schema_versions(value: Any) -> FingerprintSchemaVersions:
 
 def freeze_analysis_inputs(
     *,
+    analysis_root: Path,
     repository: Path,
     repository_identity: RepositoryIdentity,
     commits: Iterable[str],
@@ -526,6 +576,7 @@ def freeze_analysis_inputs(
     """Freeze an already-resolved first-parent sequence without querying Git."""
 
     resolved_repository = repository.expanduser().resolve(strict=True)
+    resolved_analysis = analysis_root.expanduser().resolve(strict=False)
     if not resolved_repository.is_dir():
         raise ValueError(f"repository is not a directory: {resolved_repository}")
     return FrozenAnalysisManifest(
@@ -535,6 +586,15 @@ def freeze_analysis_inputs(
         configuration=configuration,
         srcdiff=srcdiff,
         srcmove=srcmove,
+        repository_locator=Path(
+            os.path.relpath(resolved_repository, resolved_analysis)
+        ).as_posix(),
+        srcdiff_locator=Path(
+            os.path.relpath(srcdiff.resolved_path, resolved_analysis)
+        ).as_posix(),
+        srcmove_locator=Path(
+            os.path.relpath(srcmove.resolved_path, resolved_analysis)
+        ).as_posix(),
     )
 
 

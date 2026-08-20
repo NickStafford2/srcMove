@@ -19,10 +19,10 @@ storage contract.
 | Area | State | What exists | What remains |
 | --- | --- | --- | --- |
 | Target-driven runtime | Implemented | `run` presents create, resume, extend, no-op verification, bounded batches, parallel workers, and failure exit status | Live progress is tracked separately below |
-| Durable state | Implemented | SQLite schema v3, immutable analysis definition, admitted executable bytes, invocation records, terminal outcomes, and pending-batch recovery | No CLI-specific work required |
+| Durable state | Implemented | SQLite schema v4, relocatable analysis definition, admitted executable bytes, invocation records, terminal outcomes, and pending-batch recovery | No CLI-specific work required |
 | Status data | First slice implemented | Snapshot aggregation, analysis identity, real writer-lock state, derived product state, and human/JSON output | Add verbose frozen configuration/tool detail and `status --watch` |
 | Pair exploration | First slice implemented | `list` filtering/pagination and `show` evidence are exposed with human/JSON output | Add optional Git diff and refine verbose move evidence |
-| Command surface | Partial | Repository-local `srcmove-history` with positional `run`, `status`, `list`, and `show`; PATH tool discovery | Add preflight, `--dry-run`, creation presets, and eventual installed-image PATH setup |
+| Command surface | Partial | Repository-local `srcmove-history` with `run`, `status`, `list`, and `show`, Git-root discovery, `-C`, explicit archived-state selection, and PATH tool discovery | Add preflight, `--dry-run`, creation presets, and eventual installed-image PATH setup |
 | Human output | First slice implemented | Run/status summaries and compact list/show views use analyzed/skipped/covered terminology | Add live progress and continue usability refinement from real studies |
 | Live progress | First slice implemented | Immediate preparation, durable publication events, TTY spinner/bar/ETA, sparse redirected updates, resume baselines, and `auto`/`always`/`never` modes | Refine from long real-world runs and add `status --watch` |
 | Export | Not implemented | Normalized evidence is queryable in SQLite | Stable CSV/JSONL research exports |
@@ -38,7 +38,7 @@ Git diff inspection, export, and `status --watch`.
 Keep the current plan's strongest decisions:
 
 - one `run` lifecycle instead of separate create/resume/continue commands;
-- a positional analysis path;
+- repository-local discovery with one active `.srcmove` analysis;
 - human output by default and explicitly requested structured output;
 - durable progress as the primary progress number;
 - final summaries that distinguish wall time from summed parallel work;
@@ -100,11 +100,11 @@ For example, a target with 41 successful pairs, 56 skips, and 3 failures is:
 Install one executable named `srcmove-history`.
 
 ```text
-srcmove-history run ANALYSIS [OPTIONS]
-srcmove-history status ANALYSIS [OPTIONS]
-srcmove-history list ANALYSIS [OPTIONS]
-srcmove-history show ANALYSIS PAIR [OPTIONS]
-srcmove-history export ANALYSIS [OPTIONS]
+srcmove-history [-C PATH] [--state-dir NAME] run [OPTIONS]
+srcmove-history [-C PATH] [--state-dir NAME] status [OPTIONS]
+srcmove-history [-C PATH] [--state-dir NAME] list [OPTIONS]
+srcmove-history [-C PATH] [--state-dir NAME] show PAIR [OPTIONS]
+srcmove-history [-C PATH] [--state-dir NAME] export [OPTIONS]
 ```
 
 There are no compatibility aliases. The Python module entry point may remain
@@ -114,8 +114,10 @@ wrapper made available on the development image's `PATH`; do not introduce a
 Python packaging system solely to rename this command. A package entry point
 can replace the wrapper later without changing the interface.
 
-`ANALYSIS` is a positional path in every command. A positional path is shorter
-and easier to scan than repeating `--analysis-root`.
+The enclosing Git worktree supplies the repository and its `.srcmove` state
+directory. `-C` changes the discovery starting point. `--state-dir` selects a
+different repository-local directory explicitly, allowing a renamed analysis
+to remain inspectable without introducing named analyses inside `.srcmove`.
 
 ### `run`
 
@@ -136,9 +138,8 @@ the analysis and exits without opening workers.
 Creation example:
 
 ```bash
-srcmove-history run results/sqlite \
+srcmove-history -C benchmarks/repositories/sqlite/work/repo run \
   --pairs 100 \
-  --repository benchmarks/repositories/sqlite/work/repo \
   --name sqlite \
   --start version-3.50.0 \
   --directory src \
@@ -150,11 +151,11 @@ srcmove-history run results/sqlite \
 Extension example:
 
 ```bash
-srcmove-history run results/sqlite --pairs 500 --jobs 6
+srcmove-history -C benchmarks/repositories/sqlite/work/repo run --pairs 500 --jobs 6
 ```
 
-Creation requires `--repository`. `--name` defaults to a clearly displayed
-name derived from the repository or analysis directory. `--start` defaults to
+Creation discovers the repository. `--name` defaults to a clearly displayed
+name derived from the repository root. `--start` defaults to
 `HEAD`; the resolved full commit ID is frozen. `--srcdiff` and `--srcmove`
 default to the corresponding executables on `PATH`; explicit paths override
 discovery. If discovery fails, the error names the missing executable and the
@@ -169,7 +170,7 @@ workers.
 An optional TOML creation preset removes repeated setup from study workflows:
 
 ```bash
-srcmove-history run results/sqlite-300 \
+srcmove-history -C benchmarks/repositories/sqlite/work/repo run \
   --config studies/sqlite.toml \
   --pairs 300 \
   --jobs 8
@@ -179,7 +180,8 @@ The preset is an input, not saved authority. CLI options override preset
 values, the resolved definition and preset digest are recorded at creation,
 and later runs read the definition from SQLite rather than rereading the file.
 Do not add a global mutable profile registry or an implicit "latest" analysis;
-explicit analysis paths are easier to reproduce in thesis automation.
+repository-local state and explicit `-C` paths are reproducible in thesis
+automation.
 
 Configuration options such as `--directory`, encodings, exclusions, and tool
 timeouts are creation-only. Passing one while resuming an existing analysis is
@@ -193,7 +195,7 @@ one clear purpose and avoids an apparent ability to modify frozen state.
 `status` reports a read-only snapshot of an analysis:
 
 ```bash
-srcmove-history status results/sqlite
+srcmove-history status
 ```
 
 It reports:
@@ -246,9 +248,9 @@ Failures    19 srcDiff
 Moves       59 groups · 67 move pairs · 156 annotated regions
 Time         2m 07s wall · 187.0s srcDiff work · 43.0s srcMove work
 Frontier     3f523613 → 0a4af54a
-Analysis     /workspace/srcMove/benchmark-data/repository-analysis/sqlite-300
+Analysis     /workspace/sqlite/.srcmove
 
-Inspect: srcmove-history list .../sqlite-300 --failed
+Inspect: srcmove-history -C /workspace/sqlite list --failed
 ```
 
 Human status calls the durable total `coverage`; it does not label the 70
@@ -261,10 +263,10 @@ while useful (an active or interrupted pending batch) or under `--verbose`.
 questions without dumping the database representation.
 
 ```bash
-srcmove-history list results/sqlite
-srcmove-history list results/sqlite --failed
-srcmove-history list results/sqlite --moves
-srcmove-history list results/sqlite --status srcdiff-failed
+srcmove-history list
+srcmove-history list --failed
+srcmove-history list --moves
+srcmove-history list --status srcdiff-failed
 ```
 
 `--failed`, `--moves`, and `--status` are mutually exclusive filters. Pagination
@@ -282,9 +284,9 @@ output.
 `show` presents the evidence for one pair:
 
 ```bash
-srcmove-history show results/sqlite 42
-srcmove-history show results/sqlite 42 --diff
-srcmove-history show results/sqlite 42 --verbose
+srcmove-history show 42
+srcmove-history show 42 --diff
+srcmove-history show 42 --verbose
 ```
 
 Displayed pair numbers are one-based and newest-first. Output also identifies
@@ -308,8 +310,8 @@ evidence.
 `export` produces stable research tables from the authoritative database:
 
 ```bash
-srcmove-history export results/sqlite --table pairs --format csv > pairs.csv
-srcmove-history export results/sqlite --table moves --format jsonl > moves.jsonl
+srcmove-history export --table pairs --format csv > pairs.csv
+srcmove-history export --table moves --format jsonl > moves.jsonl
 ```
 
 The initial tables are `pairs` and `moves`. Each row includes the analysis
@@ -357,7 +359,7 @@ use nested concepts rather than exposing a flat copy of database columns:
   "schema_version": 1,
   "analysis": {
     "name": "sqlite",
-    "root": "/workspace/repository_analysis/results/sqlite"
+    "root": "/workspace/sqlite/.srcmove"
   },
   "state": "target_reached_with_failures",
   "target": {"kind": "pairs", "value": 100},
@@ -419,7 +421,7 @@ Results     44 analyzed · 56 skipped · 0 failed
 Moves        1 group · 1 move pair · 2 annotated regions
 Time         1m 59s wall · 87.3s srcDiff work · 23.0s srcMove work
 History      9e5727e5 → 7d3a41d1
-Analysis     /workspace/repository_analysis/results/sqlite
+Analysis     /workspace/sqlite/.srcmove
 ```
 
 A run containing terminal failures is explicit and actionable:
@@ -433,9 +435,9 @@ Failures     3 srcDiff
 Moves        1 group · 1 move pair · 2 annotated regions
 Time         1m 59s wall · 87.3s srcDiff work · 23.0s srcMove work
 History      9e5727e5 → 7d3a41d1
-Analysis     /workspace/repository_analysis/results/sqlite
+Analysis     /workspace/sqlite/.srcmove
 
-Inspect: srcmove-history list /workspace/repository_analysis/results/sqlite --failed
+Inspect: srcmove-history -C /workspace/sqlite list --failed
 ```
 
 Wall time and summed worker time are different measurements when jobs run in
@@ -530,7 +532,7 @@ backend item is not evidence that its CLI is complete.
 ### 2. Ship a `run`/`status` vertical slice
 
 - add the installed `srcmove-history` executable;
-- replace `analyze` with `run` and make the analysis path positional;
+- replace `analyze` with `run` and discover repository-local `.srcmove` state;
 - add human and JSON renderers with the terminology in this plan;
 - implement executable discovery, preflight, `--dry-run`, and creation presets;
 - render the lock-aware product state and actionable failure command;

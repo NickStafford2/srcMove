@@ -189,7 +189,10 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 batch = database.pending_batch()
                 self.assertIsNotNone(batch)
                 assert batch is not None
-                self.assertEqual(database.pending_manifest(batch), initial)
+                self.assertEqual(
+                    database.pending_manifest(batch).canonical_bytes(),
+                    initial.canonical_bytes(),
+                )
                 self.assertEqual(database.completed_prefix(batch), 0)
 
                 work = build_pair_work_items(initial)
@@ -353,7 +356,10 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 batch = reopened.pending_batch()
                 self.assertIsNotNone(batch)
                 assert batch is not None
-                self.assertEqual(reopened.pending_manifest(batch), manifest)
+                self.assertEqual(
+                    reopened.pending_manifest(batch).canonical_bytes(),
+                    manifest.canonical_bytes(),
+                )
 
     def test_read_only_status_can_observe_last_committed_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -421,7 +427,10 @@ class AnalysisDatabaseTests(unittest.TestCase):
             self.assertFalse(interrupted.exists())
 
     def _manifest(self, repository, srcdiff, srcmove, *, commits):
+        analysis_root = repository.parent / "analysis"
+        analysis_root.mkdir(exist_ok=True)
         return freeze_analysis_inputs(
+            analysis_root=analysis_root,
             repository=repository,
             repository_identity=RepositoryIdentity("fixture-repository"),
             commits=commits,

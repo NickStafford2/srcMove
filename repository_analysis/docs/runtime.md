@@ -13,18 +13,18 @@ do not own its state format or execution semantics.
 The public lifecycle is target-driven:
 
 ```bash
-bin/srcmove-history run ANALYSIS \
+cd REPOSITORY
+
+bin/srcmove-history run \
   --pairs 100 \
-  --repository REPOSITORY \
-  --name NAME \
   --srcdiff PATH \
   --srcmove PATH
 
-bin/srcmove-history run ANALYSIS --pairs 500
+bin/srcmove-history run --pairs 500
 
-bin/srcmove-history status ANALYSIS
-bin/srcmove-history list ANALYSIS --failed
-bin/srcmove-history show ANALYSIS 1
+bin/srcmove-history status
+bin/srcmove-history list --failed
+bin/srcmove-history show 1
 ```
 
 `run` creates, resumes, or extends the same analysis. There are no public
@@ -39,6 +39,25 @@ Exactly one target is required:
 
 Repeating a satisfied target is a verified no-op. A branch moving after the
 first invocation does not move the analysis's frozen newest anchor.
+
+The CLI discovers the enclosing Git worktree from the current directory and
+uses `<repository>/.srcmove/` as its one active analysis. `-C PATH` changes the
+working directory before discovery. `--state-dir NAME` explicitly selects a
+different direct child of the repository root, primarily to inspect a renamed
+archive such as `.srcmoveOld`; only `.srcmove` is selected implicitly.
+
+The state directory contains a `.gitignore` whose exact contents are `*`, so
+the database, admitted tools, locks, and scratch remain ignored even when the
+directory is renamed. The CLI never edits the repository's top-level
+`.gitignore` or `.git/info/exclude`.
+
+One state directory contains one immutable analysis definition. History
+coverage may be extended, and stored results may be queried in different ways,
+but changing source scope, excluded suffixes, tool bytes, or other creation
+configuration requires a new state directory. Renaming `.srcmove` archives the
+old analysis; the next `run` creates a new active one. Creation-only options are
+rejected when an analysis already exists rather than being interpreted as an
+in-place update.
 
 Human-readable output is the default. `--format json` emits one versioned JSON
 document to stdout. Status derives live writer state by probing the operation
@@ -65,14 +84,14 @@ prefix rather than returning to zero.
 
 ## Authoritative state
 
-`ANALYSIS/analysis.sqlite3` is the only authoritative saved state. Python's
+`.srcmove/analysis.sqlite3` is the only authoritative saved state. Python's
 standard-library `sqlite3` module supplies transactions and indexing without an
 external dependency. JSON or CSV output is a derived view, never a second
 authority.
 
 The database stores:
 
-- one immutable analysis definition: repository identity and path,
+- one immutable analysis definition: repository identity and relative locator,
   configuration, tool digests, schema versions, and retention policy;
 - every invocation target, worker count, timing, terminal result, and last
   durable update, including verified no-op invocations;
@@ -87,9 +106,11 @@ Old JSON chain roots are deliberately rejected. Mixing the old chain format
 with SQLite would recreate multiple authorities and ambiguous recovery. Start a
 new analysis root instead.
 
-Database schema version 3 is a deliberate clean break. Version 1 and 2 roots
-are rejected with an instruction to start a fresh analysis root; no production
-analysis databases were present when these breaks were introduced.
+Database schema version 4 is a deliberate clean break. Older roots are rejected
+with an instruction to start a fresh state directory. Version 4 replaces frozen
+absolute repository and admitted-tool paths with locators relative to the state
+directory. Moving a repository together with `.srcmove` therefore preserves
+its executable-byte identity and allows later history extension.
 
 ## Invocation lifecycle
 
@@ -107,7 +128,7 @@ database can be created are necessarily represented only by the activity file.
 ## Concurrency and recovery
 
 Every mutating operation holds one nonblocking `flock` on
-`ANALYSIS/.operation.lock` for its entire lifetime, including worker execution.
+`.srcmove/.operation.lock` for its entire lifetime, including worker execution.
 This intentionally favors simple behavior over optimistic concurrent work: a
 second writer fails immediately before loading state or opening workers.
 
@@ -153,7 +174,9 @@ bounded by worker count.
 At analysis creation, exact srcDiff and srcMove bytes are copied into an
 analysis-owned content-addressed tool store. Workers execute those admitted
 copies, so replacement of the original executable cannot change a pending or
-later batch.
+later batch. Each admitted file is identified and revalidated by its SHA-256
+digest and size at the start of every `run`, including a satisfied no-op target;
+executable paths are runtime locators, not analysis identity.
 
 Successful results retain compact evidence rather than complete XML or raw
 moved source bodies:

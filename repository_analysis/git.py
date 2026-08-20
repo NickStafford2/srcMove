@@ -19,6 +19,34 @@ class GitMaterializationError(RuntimeError):
     """Git could not produce a complete safe sparse input tree."""
 
 
+def find_repository_root(path: Path) -> Path:
+    """Return the containing non-bare Git worktree root."""
+
+    requested = path.expanduser().resolve(strict=True)
+    if not requested.is_dir():
+        raise ValueError(
+            f"repository working directory is not a directory: {requested}"
+        )
+    process = subprocess.run(
+        ["git", "rev-parse", "--show-toplevel"],
+        cwd=requested,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if process.returncode != 0:
+        detail = process.stderr.strip()
+        raise ValueError(
+            f"not inside a Git worktree: {requested}"
+            + (f" ({detail})" if detail else "")
+        )
+    root = Path(process.stdout.strip()).resolve(strict=True)
+    if not root.is_dir():
+        raise RuntimeError(f"Git returned an invalid worktree root: {root}")
+    return root
+
+
 @dataclass(frozen=True, slots=True)
 class FirstParentHistory:
     """One resolved bounded history in oldest-to-newest ancestry order."""

@@ -19,6 +19,7 @@ from .analysis import (
     analyze_repository,
 )
 from .database import analysis_database_exists
+from .git import find_repository_root
 from .inputs import AnalysisConfiguration, RepositoryIdentity
 from .locking import is_analysis_writer_locked
 from .presentation import render_run, render_status
@@ -30,17 +31,30 @@ def build_parser() -> argparse.ArgumentParser:
         prog="srcmove-history",
         description="Analyze moves across adjacent commits in a Git repository.",
     )
+    parser.add_argument(
+        "-C",
+        type=Path,
+        dest="working_directory",
+        metavar="PATH",
+        help="run as if started in PATH",
+    )
+    parser.add_argument(
+        "--state-dir",
+        type=Path,
+        metavar="PATH",
+        help="use a repository-local state directory other than .srcmove",
+    )
     commands = parser.add_subparsers(dest="command", required=True)
 
     run = commands.add_parser(
         "run",
         help="create, resume, or extend one repository analysis",
         description=(
-            "Create, resume, or extend ANALYSIS toward one absolute history "
-            "coverage target. Existing analyses reuse their frozen definition."
+            "Create, resume, or extend the repository's .srcmove analysis "
+            "toward one absolute history coverage target. Existing analyses "
+            "reuse their frozen definition."
         ),
     )
-    run.add_argument("analysis", type=Path, metavar="ANALYSIS")
     target = run.add_mutually_exclusive_group(required=True)
     target.add_argument(
         "--pairs", type=int, metavar="N", help="cover the newest N pairs in total"
@@ -51,9 +65,8 @@ def build_parser() -> argparse.ArgumentParser:
     target.add_argument(
         "--all", action="store_true", dest="all_history", help="cover all history"
     )
-    run.add_argument("--repository", type=Path, help="Git checkout; creation only")
     run.add_argument("--start", help="newest revision; creation only (default: HEAD)")
-    run.add_argument("--name", help="stable repository name; defaults to ANALYSIS name")
+    run.add_argument("--name", help="stable repository name; defaults to checkout name")
     run.add_argument("--srcdiff", type=Path, help="srcdiff executable (default: PATH)")
     run.add_argument("--srcmove", type=Path, help="srcMove executable (default: PATH)")
     run.add_argument("--directory", help="repository-relative source scope")
@@ -92,11 +105,9 @@ def build_parser() -> argparse.ArgumentParser:
     _add_format(run)
 
     status = commands.add_parser("status", help="show durable coverage and state")
-    status.add_argument("analysis", type=Path, metavar="ANALYSIS")
     _add_format(status)
 
     list_command = commands.add_parser("list", help="list durable pair outcomes")
-    list_command.add_argument("analysis", type=Path, metavar="ANALYSIS")
     filters = list_command.add_mutually_exclusive_group()
     filters.add_argument("--failed", action="store_true")
     filters.add_argument("--moves", action="store_true")
@@ -123,7 +134,6 @@ def build_parser() -> argparse.ArgumentParser:
     _add_format(list_command)
 
     show = commands.add_parser("show", help="show evidence for one durable pair")
-    show.add_argument("analysis", type=Path, metavar="ANALYSIS")
     show.add_argument("pair", type=int, metavar="PAIR")
     _add_format(show)
     return parser
@@ -189,23 +199,63 @@ def _discover_tool(path: Path | None, name: str) -> Path:
     return Path(discovered)
 
 
-def _run(arguments: argparse.Namespace) -> Mapping[str, Any]:
-    creating = not analysis_database_exists(arguments.analysis)
+def _repository_and_analysis(arguments: argparse.Namespace) -> tuple[Path, Path]:
+    working = (
+        Path.cwd()
+        if arguments.working_directory is None
+        else arguments.working_directory
+    )
+    repository = find_repository_root(working)
+    if arguments.state_dir is None:
+        analysis = repository / ".srcmove"
+    else:
+        requested = arguments.state_dir.expanduser()
+        analysis = requested if requested.is_absolute() else repository / requested
+        analysis = analysis.absolute()
+        if analysis.parent.resolve() != repository:
+            raise ValueError(
+                "state directory must be a direct child of the repository root"
+            )
+    return repository, analysis
+
+
+def _run(
+    arguments: argparse.Namespace, *, repository: Path, analysis: Path
+) -> Mapping[str, Any]:
+    creating = not analysis_database_exists(analysis)
+    if not creating:
+        supplied = []
+        for option, value in (
+            ("--start", arguments.start),
+            ("--name", arguments.name),
+            ("--srcdiff", arguments.srcdiff),
+            ("--srcmove", arguments.srcmove),
+        ):
+            if value is not None:
+                supplied.append(option)
+        if _configuration_arguments_present(arguments):
+            supplied.append("analysis configuration options")
+        if supplied:
+            raise ValueError(
+                "existing analysis has a frozen definition; creation-only "
+                f"options were supplied: {', '.join(supplied)}; rename or "
+                f"remove {analysis.name} to create a different analysis"
+            )
     repository_identity = (
         RepositoryIdentity(arguments.name)
         if arguments.name is not None
-        else RepositoryIdentity(arguments.analysis.name)
+        else RepositoryIdentity(repository.name)
         if creating
         else None
     )
     srcdiff = (
         _discover_tool(arguments.srcdiff, "srcdiff")
-        if creating and arguments.repository is not None
+        if creating
         else arguments.srcdiff
     )
     srcmove = (
         _discover_tool(arguments.srcmove, "srcmove")
-        if creating and arguments.repository is not None
+        if creating
         else arguments.srcmove
     )
     progress_enabled = _progress_enabled(arguments)
@@ -215,10 +265,10 @@ def _run(arguments: argparse.Namespace) -> Mapping[str, Any]:
     )
     with observer:
         result = analyze_repository(
-            analysis_root=arguments.analysis,
+            analysis_root=analysis,
             target=_target(arguments),
             jobs=arguments.jobs,
-            repository=arguments.repository,
+            repository=repository,
             start=arguments.start,
             repository_identity=repository_identity,
             configuration=(
@@ -399,8 +449,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     arguments = parser.parse_args(argv)
     try:
+        repository, analysis = _repository_and_analysis(arguments)
         if arguments.command == "run":
-            summary = _run(arguments)
+            summary = _run(arguments, repository=repository, analysis=analysis)
             output = (
                 render_run(summary)
                 if arguments.output_format == "human"
@@ -408,7 +459,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             exit_status = 1 if summary["failed"] else 0
         elif arguments.command == "status":
-            summary = _status(arguments.analysis)
+            summary = _status(analysis)
             output = (
                 render_status(summary)
                 if arguments.output_format == "human"
@@ -418,7 +469,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         elif arguments.command == "list":
             after_distance = None if arguments.after is None else arguments.after - 1
             page = analysis_list_pairs(
-                arguments.analysis,
+                analysis,
                 status=(
                     None
                     if arguments.status is None
@@ -430,7 +481,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 after_distance=after_distance,
                 oldest_first=arguments.oldest_first,
             )
-            identity = analysis_identity(arguments.analysis)
+            identity = analysis_identity(analysis)
             output = (
                 _render_pair_list(page)
                 if arguments.output_format == "human"
@@ -438,8 +489,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             exit_status = 0
         else:
-            detail = analysis_pair_details(arguments.analysis, arguments.pair - 1)
-            identity = analysis_identity(arguments.analysis)
+            detail = analysis_pair_details(analysis, arguments.pair - 1)
+            identity = analysis_identity(analysis)
             output = (
                 _render_pair(detail)
                 if arguments.output_format == "human"

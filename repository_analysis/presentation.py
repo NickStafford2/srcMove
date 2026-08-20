@@ -81,9 +81,11 @@ def _summary_lines(
 def _append_failure_hint(lines: list[str], view: "_SummaryView") -> None:
     if not view.failed or not view.root:
         return
-    lines.extend(
-        ("", f"Inspect: srcmove-history list {shlex.quote(view.root)} --failed")
-    )
+    state = Path(view.root)
+    command = f"srcmove-history -C {shlex.quote(str(state.parent))}"
+    if state.name != ".srcmove":
+        command += f" --state-dir {shlex.quote(state.name)}"
+    lines.extend(("", f"Inspect: {command} list --failed"))
 
 
 def _field(label: str, value: str) -> str:
