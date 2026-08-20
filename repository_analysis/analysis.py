@@ -33,6 +33,12 @@ from .inputs import (
     verify_resume_inputs,
 )
 from .locking import AnalysisOperationLock
+from .progress import (
+    AnalysisObserver,
+    AnalysisProgressStart,
+    NullAnalysisObserver,
+    PairPublished,
+)
 from .queries import AnalysisReader
 from .retention import RetentionPolicy
 from .tools import admit_executable
@@ -65,6 +71,33 @@ class AnalyzeResult:
     summary: dict[str, Any]
 
 
+class _SafeAnalysisObserver:
+    """Disable a broken presentation observer without changing analysis state."""
+
+    def __init__(self, observer: AnalysisObserver) -> None:
+        self.observer = observer
+        self.disabled = False
+
+    def _call(self, method: str, *arguments, **keywords) -> None:
+        if self.disabled:
+            return
+        try:
+            getattr(self.observer, method)(*arguments, **keywords)
+        except Exception:
+            self.disabled = True
+
+    def analysis_started(self, event: AnalysisProgressStart) -> None:
+        self._call("analysis_started", event)
+
+    def pair_published(self, event: PairPublished) -> None:
+        self._call("pair_published", event)
+
+    def analysis_finished(
+        self, *, result: str = "complete", detail: str | None = None
+    ) -> None:
+        self._call("analysis_finished", result=result, detail=detail)
+
+
 class _DatabasePublisher:
     def __init__(
         self,
@@ -72,11 +105,15 @@ class _DatabasePublisher:
         batch: StoredBatch,
         first_sequence: int,
         invocation_id: str,
+        committed_before: int,
+        observer: AnalysisObserver,
     ) -> None:
         self.database = database
         self.batch = batch
         self.next_sequence = first_sequence
         self.invocation_id = invocation_id
+        self.committed_before = committed_before
+        self.observer = observer
 
     def __call__(self, outcome) -> None:
         if outcome.work_item.sequence != self.next_sequence:
@@ -88,6 +125,13 @@ class _DatabasePublisher:
             self.batch, outcome, invocation_id=self.invocation_id
         )
         self.next_sequence += 1
+        self.observer.pair_published(
+            PairPublished(
+                covered=self.committed_before + outcome.work_item.sequence + 1,
+                status=outcome.status,
+                move_count=_published_move_count(outcome),
+            )
+        )
 
 
 def analyze_repository(
@@ -101,12 +145,14 @@ def analyze_repository(
     configuration: AnalysisConfiguration | None = None,
     srcdiff_path: Path | None = None,
     srcmove_path: Path | None = None,
+    observer: AnalysisObserver | None = None,
 ) -> AnalyzeResult:
     """Create, resume, or extend one analysis toward an absolute target."""
 
     if jobs <= 0:
         raise ValueError("jobs must be positive")
     _validate_target(target)
+    active_observer = _SafeAnalysisObserver(observer or NullAnalysisObserver())
     root = analysis_root.expanduser().absolute()
     with AnalysisOperationLock(root, command="run") as operation:
         invocation_started = time.monotonic()
@@ -134,6 +180,9 @@ def analyze_repository(
                 started_at=operation.started_at,
             )
             try:
+                active_observer.analysis_started(
+                    _progress_start(database, root, target, jobs)
+                )
                 result = _advance_analysis(
                     database,
                     root=root,
@@ -146,6 +195,7 @@ def analyze_repository(
                     configuration=configuration,
                     srcdiff_path=srcdiff_path,
                     srcmove_path=srcmove_path,
+                    observer=active_observer,
                 )
             except BaseException as error:
                 database.finish_invocation(
@@ -158,6 +208,14 @@ def analyze_repository(
                     ended_at=_utc_now(),
                     wall_seconds=time.monotonic() - invocation_started,
                     error=str(error) or type(error).__name__,
+                )
+                active_observer.analysis_finished(
+                    result=(
+                        "interrupted"
+                        if isinstance(error, KeyboardInterrupt)
+                        else "failed"
+                    ),
+                    detail=str(error) or type(error).__name__,
                 )
                 raise
             invocation = database.finish_invocation(
@@ -181,6 +239,9 @@ def analyze_repository(
             result.summary["durable_pair_count"] = result.summary[
                 "completed_pair_count"
             ]
+            active_observer.analysis_finished(
+                result=_progress_finish_result(result.summary, target)
+            )
             return result
 
 
@@ -197,6 +258,7 @@ def _advance_analysis(
     configuration: AnalysisConfiguration | None,
     srcdiff_path: Path | None,
     srcmove_path: Path | None,
+    observer: AnalysisObserver,
 ) -> AnalyzeResult:
     verified = 0
     aggregate_execution = _zero_stats(jobs)
@@ -230,6 +292,7 @@ def _advance_analysis(
                 srcdiff_path=srcdiff_path,
                 srcmove_path=srcmove_path,
                 invocation_id=invocation_id,
+                observer=observer,
             )
             verified += prefix
             aggregate_execution = _combine_stats(aggregate_execution, execution)
@@ -444,6 +507,7 @@ def _execute_pending_batch(
     srcdiff_path: Path | None,
     srcmove_path: Path | None,
     invocation_id: str,
+    observer: AnalysisObserver,
 ) -> tuple[int, CoordinatorStats]:
     frozen = database.pending_manifest(batch)
     srcdiff = observe_executable(frozen.srcdiff.requested_path)
@@ -465,7 +529,14 @@ def _execute_pending_batch(
     work = build_pair_work_items(manifest)
     prefix = database.completed_prefix(batch)
     executor = PairExecutor(scratch_root)
-    publisher = _DatabasePublisher(database, batch, prefix, invocation_id)
+    publisher = _DatabasePublisher(
+        database,
+        batch,
+        prefix,
+        invocation_id,
+        committed_before=database.analysis().completed_pair_count,
+        observer=observer,
+    )
     execution = run_pairs_from_sequence(
         iter(work[prefix:]),
         executor,
@@ -475,6 +546,54 @@ def _execute_pending_batch(
         acknowledge_pair=executor.acknowledge,
     )
     return prefix, execution
+
+
+def _progress_start(
+    database: AnalysisDatabase,
+    root: Path,
+    target: AnalysisTarget,
+    jobs: int,
+) -> AnalysisProgressStart:
+    snapshot = AnalysisReader(root).status()
+    statuses = {item.name: item.count for item in snapshot.statuses}
+    target_total = (
+        target.value
+        if target.kind == "total_pairs"
+        else _desired_total_pairs(database, database.latest_manifest(), target)
+        if target.kind == "through"
+        else None
+    )
+    assert target_total is None or isinstance(target_total, int)
+    return AnalysisProgressStart(
+        name=snapshot.analysis.name,
+        target_total=target_total,
+        covered=snapshot.coverage.durable,
+        analyzed=statuses.get("completed", 0),
+        skipped=statuses.get("no_analyzable_change", 0),
+        failed=sum(
+            count for name, count in statuses.items() if name.endswith("_failed")
+        ),
+        moves=snapshot.moves.moves,
+        jobs=jobs,
+    )
+
+
+def _published_move_count(outcome) -> int:
+    value = dict(outcome.metrics).get("move_count", 0)
+    return value if isinstance(value, int) and not isinstance(value, bool) else 0
+
+
+def _progress_finish_result(summary: dict[str, Any], target: AnalysisTarget) -> str:
+    failed = bool(summary.get("failed"))
+    exhausted_short = (
+        target.kind == "total_pairs"
+        and isinstance(target.value, int)
+        and bool(summary.get("history_exhausted"))
+        and int(summary.get("completed_pair_count", 0)) < target.value
+    )
+    if exhausted_short:
+        return "history_exhausted_with_failures" if failed else "history_exhausted"
+    return "complete_with_failures" if failed else "complete"
 
 
 def _verify_supplied_definition(

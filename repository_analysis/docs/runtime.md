@@ -46,6 +46,23 @@ lock; `activity.json` alone is never treated as proof that a run is active.
 Human output calls successful outcomes `analyzed`, no-change outcomes `skipped`,
 and all durable terminal outcomes `covered`.
 
+`run` reports progress to stderr immediately. On a terminal it renders a live
+spinner, durable coverage bar, outcome counters, elapsed time, and an ETA after
+enough current-run samples exist. Redirected stderr receives a starting line,
+sparse milestones or an update at least every 30 seconds, and a finish line.
+The displayed coverage advances only after the pair outcome transaction commits.
+
+Progress is controlled independently of stdout:
+
+- `--progress auto` is the default: enabled for human output and disabled for
+  JSON output;
+- `--progress always` writes progress to stderr even with JSON stdout;
+- `--progress never` disables progress.
+
+For `--all`, the final history size is unknown, so progress does not invent a
+percentage or ETA. A resumed pending batch starts from its durable checkpointed
+prefix rather than returning to zero.
+
 ## Authoritative state
 
 `ANALYSIS/analysis.sqlite3` is the only authoritative saved state. Python's
@@ -191,4 +208,6 @@ Run focused tests in the intended Docker environment:
 The tests cover target convergence, root exhaustion, bounded all-history
 planning, exact pending recovery, terminal-failure idempotency, lock contention,
 stale scratch cleanup, frozen executable admission, compact storage, and
-read-only status, list, and show queries.
+read-only status, list, and show queries. Progress tests cover transactional
+publication, resumed prefixes, no-op runs, renderer isolation, TTY output, and
+stdout/stderr separation.

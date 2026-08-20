@@ -22,6 +22,7 @@ from .database import analysis_database_exists
 from .inputs import AnalysisConfiguration, RepositoryIdentity
 from .locking import is_analysis_writer_locked
 from .presentation import render_run, render_status
+from .progress import TerminalAnalysisObserver
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -82,6 +83,12 @@ def build_parser() -> argparse.ArgumentParser:
         "--srcmove-timeout", type=float, help="srcMove timeout seconds; creation only"
     )
     run.add_argument("--jobs", type=int, default=1, help="parallel pair workers")
+    run.add_argument(
+        "--progress",
+        choices=("auto", "always", "never"),
+        default="auto",
+        help="stderr progress display (default: auto)",
+    )
     _add_format(run)
 
     status = commands.add_parser("status", help="show durable coverage and state")
@@ -201,25 +208,38 @@ def _run(arguments: argparse.Namespace) -> Mapping[str, Any]:
         if creating and arguments.repository is not None
         else arguments.srcmove
     )
-    result = analyze_repository(
-        analysis_root=arguments.analysis,
-        target=_target(arguments),
-        jobs=arguments.jobs,
-        repository=arguments.repository,
-        start=arguments.start,
-        repository_identity=repository_identity,
-        configuration=(
-            _new_configuration(arguments)
-            if _configuration_arguments_present(arguments)
-            else None
-        ),
-        srcdiff_path=srcdiff,
-        srcmove_path=srcmove,
+    progress_enabled = _progress_enabled(arguments)
+    observer = TerminalAnalysisObserver(
+        stream=sys.stderr,
+        enabled=progress_enabled,
     )
+    with observer:
+        result = analyze_repository(
+            analysis_root=arguments.analysis,
+            target=_target(arguments),
+            jobs=arguments.jobs,
+            repository=arguments.repository,
+            start=arguments.start,
+            repository_identity=repository_identity,
+            configuration=(
+                _new_configuration(arguments)
+                if _configuration_arguments_present(arguments)
+                else None
+            ),
+            srcdiff_path=srcdiff,
+            srcmove_path=srcmove,
+            observer=observer,
+        )
     summary = result.summary
     summary["writer_active"] = False
     summary["state"] = _state(summary)
     return summary
+
+
+def _progress_enabled(arguments: argparse.Namespace) -> bool:
+    return arguments.progress == "always" or (
+        arguments.progress == "auto" and arguments.output_format == "human"
+    )
 
 
 def _status(analysis: Path) -> dict[str, Any]:
@@ -433,7 +453,8 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             exit_status = 0
     except KeyboardInterrupt:
-        print("interrupted", file=sys.stderr)
+        if arguments.command != "run" or not _progress_enabled(arguments):
+            print("interrupted", file=sys.stderr)
         return 130
     except (OSError, RuntimeError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)

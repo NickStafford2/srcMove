@@ -24,14 +24,14 @@ storage contract.
 | Pair exploration | First slice implemented | `list` filtering/pagination and `show` evidence are exposed with human/JSON output | Add optional Git diff and refine verbose move evidence |
 | Command surface | Partial | Repository-local `srcmove-history` with positional `run`, `status`, `list`, and `show`; PATH tool discovery | Add preflight, `--dry-run`, creation presets, and eventual installed-image PATH setup |
 | Human output | First slice implemented | Run/status summaries and compact list/show views use analyzed/skipped/covered terminology | Add live progress and continue usability refinement from real studies |
-| Live progress | Not implemented | Coordinator already publishes durable outcomes in order | Observer events, TTY display, redirected updates, ETA, and interruption rendering |
+| Live progress | First slice implemented | Immediate preparation, durable publication events, TTY spinner/bar/ETA, sparse redirected updates, resume baselines, and `auto`/`always`/`never` modes | Refine from long real-world runs and add `status --watch` |
 | Export | Not implemented | Normalized evidence is queryable in SQLite | Stable CSV/JSONL research exports |
 | Benchmark retirement | Not started | Both implementations still exist | Move remaining studies/adapters to the production service, then remove the old runner |
 
-In phase terms, the data/query prerequisites and first command/rendering slice
-are complete. Result browsing has its first usable slice. Durable live progress
-is now the highest-value next increment, followed by preflight/presets, Git diff
-inspection, and export.
+In phase terms, the data/query prerequisites, first command/rendering slice, and
+durable live progress slice are complete. Result browsing has its first usable
+slice. Preflight/presets are now the highest-value next increment, followed by
+Git diff inspection, export, and `status --watch`.
 
 ## Design assessment
 
