@@ -1,147 +1,173 @@
-# srcMove Handoff: Repository Analysis Phase 4
+# srcMove Handoff: Repository Analysis Phase 4 Resume
 
 ## Objective
 
-Continue Phase 4 of the production repository-history analyzer after its focused
-Phase 3 execution path passed unit and real-binary verification.
+Implement only the verified-resume subphase of the production
+repository-history analyzer. Retention, sealing, coordinator cleanup
+acknowledgement, and receipt-derived reporting are complete and committed.
 
-The canonical design and phase definitions remain in
+The canonical architecture remains in
 [the repository-history analysis plan](../historical_repository_analysis_plan.md).
-Do not restate or redesign that architecture without evidence.
+Do not redesign it or begin Phase 5 CLI/benchmark migration in this slice.
 
 ## Start here
 
-Work in `srcMove/` and read:
+Work in `srcMove/` and read, in order:
 
 - `AGENTS.md`
-- `doc/historical_repository_analysis_plan.md`
+- `doc/historical_repository_analysis_plan.md`, especially “Resume and cache
+  safety” and the Phase 4 verification requirements
 - `repository_analysis/contracts.py`
 - `repository_analysis/coordinator.py`
 - `repository_analysis/worker.py`
+- `repository_analysis/retention.py`
 - `repository_analysis/reporting.py`
 - `tests/unit/test_repository_analysis_*.py`
 
-Check `git status` before editing. The user owns staging and commits; do not
-stage, commit, revert, or overwrite the current changes.
+Check `git status` before editing. The user owns staging, commits, and review;
+do not stage, commit, revert, or overwrite their changes.
 
-## Current state
+## Committed state
 
-The Phase 3 verification and initial Phase 4 reporting slice are committed at:
+The relevant commits are:
 
 ```text
+b133edf Historical Repo Analysis: Derive reports from sealed receipts
+c51422f Historical Repo Analysis: Seal retained artifacts and acknowledge cleanup
 4bdc1fd Historical Repo Analysis: Phase 3 validation succeeded. phase 4 started.
 ```
 
-Only this handoff file was uncommitted when written. Commit `4bdc1fd` does the
-following:
+Commit `c51422f` adds:
 
-- add focused terminal-status tests for export and orchestration failures;
-- cover srcDiff and srcMove nonzero exit, signal, timeout, spawn failure,
-  malformed output, and missing results;
-- make process termination evidence take precedence over the secondary
-  missing-output validation error in human-readable failure messages;
-- begin Phase 4 with deterministic, versioned pair-receipt serialization;
-- atomically create ordered receipt files without replacing an existing file;
-- derive constant-size status, move, and timing aggregates as the coordinator
-  publishes outcomes.
+- an explicit policy retaining successful `results.json`, optional positive
+  XML, and failed command/log/partial-output evidence;
+- checksum-verified admission into analysis-owned pair directories;
+- schema-v2 sealed pair receipts with analysis-root-relative artifact paths;
+- create-without-replacement receipt publication with file and directory
+  `fsync`;
+- coordinator acknowledgement only after successful publication;
+- worker cleanup that does not follow symlinks or cross the analysis root.
 
-`run_pairs(...)`, the frozen boundary dataclasses, queue and pending-outcome
-bounds, and worker-owned Git/process resources were not changed.
+Commit `b133edf` adds:
 
-## Phase 3 verification evidence
+- constant-memory aggregate derivation from sealed receipts rather than
+  in-memory publisher state;
+- replaceable `summary.json` and chronological `summary.csv` views;
+- contiguous filename/sequence, schema, seal, status, metrics, and timing
+  validation while loading receipts;
+- CSV-first and JSON-last atomic replacement, with the CSV checksum recorded in
+  `summary.json` so a two-file crash mismatch is detectable;
+- completed-outcome invariants requiring exactly one retained valid
+  `results.json` and all four normalized move-count metrics;
+- retry safety when a malformed completed outcome is rejected before durable
+  pair storage is allocated.
 
-The full Docker unit suite passed after these changes:
+`summary.csv` is currently the initial human browse view. Receipts do not yet
+contain frozen commit timestamp, subject, or merge metadata, so the CSV honestly
+uses ancestry sequence order and does not query mutable Git state.
 
-```text
-126 tests passed
-```
+## Verification evidence
 
-The focused repository-analysis suite passed separately with 19 tests.
-
-A five-pair pilot used the existing SQLite checkout at
-`benchmarks/repositories/sqlite/work/repo`, selected directory `src`, excluded
-`.py`, three workers, and the real binaries:
-
-```text
-/workspace/srcDiff/build/bin/srcdiff
-/workspace/srcMove/build/srcmove
-```
-
-The window was chosen from the existing 300-pair SQLite baseline because it
-contains all evidence classes in only five adjacent pairs:
+After `b133edf`:
 
 ```text
-76ad3be617e8abc232ce2b6dcd2f35ac4da99beb
-124f449319fdc311a6c3e46ca9b6e16c7a915820
-865a8f30720d10bf74d33721c796cabaffab4555
-2429af2e0ce2e4c643786f8d2533f79d974e3270
-2ca10782d217708c10924cd21683eba414f32e9c
-2884421c0545b02e8f051aed83328b964340520f
+32 focused repository-analysis tests passed
+139 full unit tests passed
+git diff --check passed
 ```
 
-Observed statuses were three `completed`, one `no_analyzable_change`, and one
-`srcdiff_failed`. Completed results included two zero-move pairs and one
-positive pair with `move_count=1`. The failed pair retained a checksum-verified
-458-byte srcDiff artifact with `invalid_structure`; srcDiff exited zero, the
-validator reported an empty archive, and srcMove was not started. All other
-retained artifact checksums reverified. Five outcomes were published in order;
-maximum queued work and unpublished outcomes were both three.
+The focused run promoted `ResourceWarning` to an error. Tests cover sealed
+result requirements, missing-measurement rejection, deterministic report
+rebuilds, formula-safe CSV fields, receipt gaps, unsealed receipts, derived-file
+publication failures, crash mismatch detection, and retry after rejected seal
+input.
 
-This matches the statuses and normalized move counts recorded for baseline
-pairs 33 through 37. No pilot driver or pilot artifacts were left in the
-workspace.
+The earlier five-pair SQLite real-binary pilot remains documented in Git history
+and in the previous version of this handoff. Do not run a large history by
+default. A new five-pair pilot is appropriate only if resume needs manual
+artifact inspection after unit verification.
 
-## Phase 4 status
+## Checksum decision: SHA-256, not SHA-1
 
-`repository_analysis/reporting.py` is only the first Phase 4 slice. It currently
-provides:
+Use SHA-256 for every content-integrity or cache-identity decision owned by this
+tool:
 
-- `pair_receipt(outcome)` for deterministic receipt values;
-- `PairReceiptPublisher` as an ordered `run_pairs(...)` publication callback;
-- atomic create-without-replacement publication under `pairs/`;
-- constant-size in-memory aggregate state.
+- retained artifact verification;
+- executable observations;
+- canonical configuration and pair fingerprints when their producer is added;
+- report or receipt-set digests;
+- any future cache entry identity.
 
-It is not yet a complete durable analysis store. In particular:
+Do not add SHA-1 as a second checksum and do not downgrade existing SHA-256
+fields. SHA-1 provides no compatibility benefit for analysis-owned artifacts
+and is weaker for collision resistance.
 
-- worker-owned artifact paths are serialized but artifacts are not yet retained
-  into a durable pair-owned location;
-- there is no coordinator acknowledgement that permits worker cleanup;
-- the aggregate summary is not yet published;
-- there is no chronological CSV/browse view;
-- interruption checkpoints, receipt verification, and resume are not
-  implemented;
-- the publisher is not yet wired into a production command.
+Git commit and blob object IDs are different: preserve the repository’s native
+Git object IDs exactly as returned by Git. Existing repositories commonly use
+40-hex SHA-1 object IDs, while Git can also use SHA-256 object format. Do not
+rehash commit IDs, label a Git object ID as an artifact checksum, or assume all
+future object IDs are 40 characters. A pair fingerprint should include the
+native old/new commit ID strings but itself be a versioned SHA-256 digest of the
+canonical frozen inputs.
 
-Do not treat an absolute path in a receipt as durable retention. Do not delete a
-worker directory until every artifact required by policy has been admitted into
-the analysis-owned store and the coordinator has acknowledged the sealed
-outcome.
+## Next subphase: verified resume
 
-## Recommended next slice
+Design the resume boundary before editing. A read-only child-agent review is
+recommended because this is the highest-risk Phase 4 slice.
 
-Implement retention and sealing before resume:
+Resume must:
 
-1. Define one explicit retention policy covering positive, zero-move, skipped,
-   and failed outcomes, consistent with the canonical plan.
-2. Admit required artifacts into a pair-owned durable directory without
-   following symlinks or escaping the analysis root.
-3. Publish a sealed receipt only after every required retained artifact has a
-   verified size and SHA-256.
-4. Add an explicit coordinator acknowledgement after publication so the owning
-   worker may clean ephemeral inputs safely.
-5. Prove with focused tests that failures retain command/termination/log/partial
-   output evidence, zero-move results retain `results.json`, and cleanup cannot
-   cross the analysis root.
-6. Persist the aggregate and chronological summary by deriving them from sealed
-   receipts, keeping receipts as the source of truth.
+1. Load only the contiguous sealed receipt prefix in sequence order.
+2. Match each receipt’s sequence, old/new commits, and pair fingerprint against
+   the frozen requested work item.
+3. Reverify every policy-required retained artifact using its analysis-root-
+   relative path, expected size, and SHA-256.
+4. Reject absolute paths, `..` traversal, symlinks, missing files, unexpected
+   file types, size drift, checksum drift, schema drift, and fingerprint drift.
+5. Treat a successful zero-move result as a verified completed measurement, not
+   as missing data or a skip.
+6. Skip execution only for fully verified terminal receipts.
+7. Continue at the first unverified sequence without rerunning the verified
+   prefix or replacing any existing receipt.
+8. Leave unsealed worker directories as diagnostic evidence; never admit them
+   as cache entries.
+9. Rebuild aggregate JSON and chronological CSV from the final sealed receipts.
+10. Provide no bypass such as `skip_verification=True`.
 
-Only after sealing and verification are stable should resume skip completed
-pairs. Resume must verify the frozen fingerprint and required artifacts; it
-must not introduce a bypass such as `skip_verification=True`.
+Expected interruption coverage includes:
 
-Before extending the current atomic writer, review whether crash durability
-requires directory `fsync` and whether hard-link publication is the desired
-portable primitive. Existing receipt files must never be silently replaced.
+- interruption before sealing;
+- interruption after sealing but before derived-report publication;
+- receipt present with a missing or modified retained artifact;
+- fingerprint/configuration/executable drift;
+- resume with zero, some, and all pairs already verified;
+- proof that verified pairs do not invoke srcDiff or srcMove again;
+- identical normalized outcomes across worker counts and resumed/non-resumed
+  execution.
+
+## Coordinator and publisher design constraints
+
+- Preserve `run_pairs(...)` as the public coordinator function.
+- Preserve the frozen worker/coordinator boundary dataclasses unless evidence
+  requires a deliberate schema migration.
+- Current `run_pairs(...)` assumes sequences start at zero, and
+  `PairReceiptPublisher` initializes its next sequence to zero. Resume needs an
+  explicit, verified starting boundary rather than renumbering work items or
+  weakening the contiguous-order checks.
+- Do not let an existing filename alone cause a skip. The receipt, fingerprint,
+  and every required artifact must verify first.
+- Keep work queues, unpublished outcomes, logs, workers, and expensive tool
+  processes bounded independently of history length.
+- Workers compute outcomes; the coordinator publishes them.
+- Existing receipts are immutable and must never be silently replaced.
+- Derived `summary.json` and `summary.csv` are replaceable views and remain
+  rebuildable from receipts.
+- Resume is not optional cache publication. Do not introduce cache hierarchy or
+  generic benchmark corpus/run layers.
+
+Prefer a small explicit resume plan such as a verifier that returns a typed
+verified prefix plus a coordinator/publisher starting sequence. Do not make
+`PairReceiptPublisher` trust or infer an offset merely because files exist.
 
 ## Verification commands
 
@@ -149,29 +175,14 @@ From the workspace root:
 
 ```bash
 ./bin/srcml-dev-shell bash -lc \
-  'cd /workspace/srcMove && python3 -m unittest discover \
-  -s tests/unit -p "test_repository_analysis_*.py"'
+  'cd /workspace/srcMove && python3 -W error::ResourceWarning \
+  -m unittest discover -s tests/unit -p "test_repository_analysis_*.py"'
 
-./bin/srcml-dev-shell bash -lc \
-  'cd /workspace/srcMove && make test-unit'
+./bin/srcml-dev-shell make --no-print-directory -C srcMove test-unit
+
+git -C srcMove diff --check
 ```
 
-Also run `git diff --check`. Unit tests must remain offline and use fixture
-executables or temporary Git repositories. Reuse the five-pair SQLite window
-for another real-binary check only when the next slice needs manual artifact
-inspection; do not run a large history by default.
-
-## Non-negotiable constraints
-
-- Preserve `run_pairs(...)` as the public coordinator function.
-- Preserve immutable worker/coordinator boundary contracts.
-- Keep work queues, unpublished outcomes, logs, workers, and expensive tool
-  processes bounded independently of history length.
-- Keep one worker-private `git cat-file --batch` session and at most one
-  srcDiff or srcMove process per worker.
-- Workers compute outcomes; the coordinator publishes them.
-- Expected pair failures do not stop unrelated work.
-- Zero moves are a successful measurement, never a substitute for missing data.
-- Do not copy the generic benchmark corpus/run hierarchy into the production
-  path.
-- Do not stage or commit; the user handles Git publication.
+Unit tests must remain offline and use fixture executables or temporary Git
+repositories. Stop after verified resume is implemented and tested. The user
+will review and commit before Phase 5 begins.
