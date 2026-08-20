@@ -541,6 +541,11 @@ class PairReceiptTests(unittest.TestCase):
             self.assertEqual(
                 json.loads(summary_path.read_text(encoding="utf-8")), published
             )
+            summary_lines = summary_path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(summary_lines[0], "{")
+            self.assertTrue(summary_lines[1].startswith('  "'))
+            self.assertEqual(summary_lines[-1], "}")
+            self.assertTrue(summary_path.read_bytes().endswith(b"}\n"))
             self.assertEqual(published["selected_pairs"], 3)
             self.assertEqual(published["move_count"], 2)
             self.assertEqual(published["summary_csv"]["rows"], 3)

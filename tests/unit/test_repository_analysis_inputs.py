@@ -188,7 +188,7 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
             manifest = self._manifest(Path(temporary_directory))
             record = json.loads(manifest.canonical_bytes())
 
-            self.assertEqual(record["schema_version"], 1)
+            self.assertEqual(record["schema_version"], 2)
             self.assertEqual(record["commits"], ["a", "b", "c"])
             self.assertEqual(record["repository_identity"], {"value": "repo-id"})
             self.assertIn("configuration", record)
@@ -203,7 +203,12 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
 
             path = persist_frozen_manifest(analysis, manifest)
 
-            self.assertEqual(path.read_bytes(), manifest.canonical_bytes() + b"\n")
+            self.assertEqual(path.read_bytes(), manifest.canonical_bytes())
+            lines = path.read_text(encoding="utf-8").splitlines()
+            self.assertEqual(lines[0], "{")
+            self.assertEqual(lines[1], '  "commits": [')
+            self.assertEqual(lines[-1], "}")
+            self.assertTrue(path.read_bytes().endswith(b"}\n"))
             self.assertEqual(load_frozen_manifest(analysis), manifest)
             with self.assertRaises(FileExistsError):
                 persist_frozen_manifest(analysis, manifest)

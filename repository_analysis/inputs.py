@@ -22,7 +22,7 @@ from .reporting import PAIR_RECEIPT_SCHEMA_VERSION
 
 ANALYSIS_CONFIGURATION_SCHEMA_VERSION = 1
 EXECUTABLE_OBSERVATION_SCHEMA_VERSION = 1
-FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 1
+FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 2
 PAIR_FINGERPRINT_SCHEMA_VERSION = 1
 FROZEN_ANALYSIS_MANIFEST_NAME = "manifest.json"
 
@@ -36,6 +36,21 @@ def canonical_json_bytes(value: Any) -> bytes:
         allow_nan=False,
         sort_keys=True,
         separators=(",", ":"),
+    ).encode("utf-8")
+
+
+def canonical_pretty_json_bytes(value: Any) -> bytes:
+    """Encode readable JSON with deterministic formatting and one final newline."""
+
+    return (
+        json.dumps(
+            value,
+            ensure_ascii=False,
+            allow_nan=False,
+            sort_keys=True,
+            indent=2,
+        )
+        + "\n"
     ).encode("utf-8")
 
 
@@ -262,7 +277,9 @@ class FrozenAnalysisManifest:
         }
 
     def canonical_bytes(self) -> bytes:
-        return canonical_json_bytes(self.record())
+        """Return the deterministic human-readable manifest representation."""
+
+        return canonical_pretty_json_bytes(self.record())
 
 
 def persist_frozen_manifest(
@@ -282,7 +299,6 @@ def persist_frozen_manifest(
     try:
         with temporary.open("xb") as stream:
             stream.write(manifest.canonical_bytes())
-            stream.write(b"\n")
             stream.flush()
             os.fsync(stream.fileno())
         os.link(temporary, destination)
@@ -352,7 +368,7 @@ def load_frozen_manifest(analysis_root: Path) -> FrozenAnalysisManifest:
         srcmove=_load_executable(executables["srcmove"], "executables.srcmove"),
         schema_versions=schema_versions,
     )
-    if raw.encode("utf-8") != manifest.canonical_bytes() + b"\n":
+    if raw.encode("utf-8") != manifest.canonical_bytes():
         raise ValueError("frozen analysis manifest is not canonically encoded")
     return manifest
 

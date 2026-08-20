@@ -163,6 +163,10 @@ def _canonical_json(value: Mapping[str, Any]) -> bytes:
     )
 
 
+def _pretty_json(value: Mapping[str, Any]) -> bytes:
+    return (json.dumps(value, sort_keys=True, indent=2) + "\n").encode("utf-8")
+
+
 def _publish_new_file(path: Path, content: bytes) -> None:
     """Atomically create ``path`` without replacing an existing receipt."""
 
@@ -434,7 +438,7 @@ def publish_history_reports(analysis_root: Path) -> dict[str, Any]:
             },
         }
         json_temporary = _write_temporary(
-            json_destination, _canonical_json(published_summary)
+            json_destination, _pretty_json(published_summary)
         )
     except BaseException:
         csv_temporary.unlink(missing_ok=True)
