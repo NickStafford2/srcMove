@@ -125,12 +125,13 @@ Old JSON chain roots are deliberately rejected. Mixing the old chain format
 with SQLite would recreate multiple authorities and ambiguous recovery. Start a
 new analysis root instead.
 
-Database schema version 5 is a deliberate clean break. Older roots are rejected
-with an instruction to start a fresh state directory. Version 5 retains the
+Database schema version 6 is a deliberate clean break. Older roots are rejected
+with an instruction to start a fresh state directory. Version 6 retains the
 analysis-relative repository and admitted-tool locators introduced in version 4
-and makes srcDiff archive output an execution invariant instead of a frozen
-configuration choice. Moving a repository together with `.srcmove` therefore
-preserves its executable-byte identity and allows later history extension.
+and srcDiff archive invariant from version 5. It also records unsupported Git
+modes as compact path-exclusion counts instead of failing an otherwise valid
+pair. Moving a repository together with `.srcmove` therefore preserves its
+executable-byte identity and allows later history extension.
 
 ## Invocation lifecycle
 
@@ -219,6 +220,12 @@ One work item is one adjacent commit pair containing all relevant changed paths,
 not one file. This preserves cross-file move detection. Modified files appear
 on both sides, additions only on the new side, deletions only on the old side,
 and renames use their old/new paths.
+
+Symlinks and submodules remain visible in the changed-path count but are never
+materialized or followed. Compact pair metrics record them under
+`path_exclusion_counts` as `unsupported_git_mode: symlink` or
+`unsupported_git_mode: submodule`. Other unsupported Git modes use their raw
+mode value in the same reason format.
 
 Workers own private scratch and reusable Git object readers. Each worker runs at
 most one srcDiff or srcMove process at a time. Outcomes may finish out of order,

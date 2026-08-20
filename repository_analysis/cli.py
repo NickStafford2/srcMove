@@ -382,6 +382,18 @@ def _render_pair(detail: Mapping[str, Any]) -> str:
     timings = detail.get("timings")
     if isinstance(timings, Mapping) and "pair_seconds" in timings:
         lines.append(f"Time       {float(timings['pair_seconds']):.1f}s pair work")
+    metrics = detail.get("metrics")
+    exclusion_counts = (
+        metrics.get("path_exclusion_counts")
+        if isinstance(metrics, Mapping)
+        else None
+    )
+    if isinstance(exclusion_counts, Mapping) and exclusion_counts:
+        exclusions = " · ".join(
+            f"{int(count)} {reason}"
+            for reason, count in sorted(exclusion_counts.items())
+        )
+        lines.append(f"Excluded   {exclusions}")
     if detail.get("error"):
         lines.extend(("", f"Failure: {detail['error']}"))
     moves = detail.get("moves")

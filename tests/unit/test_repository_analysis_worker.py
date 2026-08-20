@@ -225,6 +225,76 @@ class PairExecutorTests(unittest.TestCase):
                 )
             self.assertFalse(any(_process_exists(pid) for pid in starts))
 
+    def test_special_git_modes_do_not_fail_an_otherwise_analyzable_pair(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository, commits = create_history(root)
+            (repository / "source.cpp").write_text(
+                "int value = 4;\n", encoding="utf-8"
+            )
+            (repository / "linked.cpp").symlink_to("source.cpp")
+            run_git(repository, "add", "source.cpp", "linked.cpp")
+            run_git(
+                repository,
+                "update-index",
+                "--add",
+                "--cacheinfo",
+                f"160000,{commits[-1]},vendor/module",
+            )
+            run_git(repository, "commit", "--quiet", "-m", "special paths")
+            newest = run_git(repository, "rev-parse", "HEAD")
+            tools = root / "tools"
+            tools.mkdir()
+            srcdiff = executable_copy(tools, "srcdiff-valid-archive")
+            srcmove = executable_copy(tools, "srcmove-valid-archive")
+            outcomes = []
+
+            run_pairs(
+                [
+                    item(
+                        0,
+                        commits[-1],
+                        newest,
+                        repository,
+                        srcdiff,
+                        srcmove,
+                    )
+                ],
+                PairExecutor(root / "analysis"),
+                outcomes.append,
+                worker_count=1,
+            )
+
+            self.assertEqual(outcomes[0].status, PairStatus.COMPLETED)
+            self.assertEqual(
+                [path.path for path in outcomes[0].analyzable_paths],
+                ["source.cpp"],
+            )
+            reasons = {
+                path.path: path.exclusion_reasons
+                for path in outcomes[0].changed_paths
+                if path.exclusion_reasons
+            }
+            self.assertEqual(
+                reasons,
+                {
+                    "linked.cpp": ("unsupported_git_mode: symlink",),
+                    "vendor/module": ("unsupported_git_mode: submodule",),
+                },
+            )
+            materialized = [
+                artifact.path.as_posix()
+                for artifact in outcomes[0].artifacts
+                if artifact.kind == "git_blob"
+            ]
+            self.assertTrue(materialized)
+            self.assertFalse(
+                any(
+                    path.endswith("/linked.cpp") or "/vendor/module" in path
+                    for path in materialized
+                )
+            )
+
     def test_materialization_failure_has_export_failed_status(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

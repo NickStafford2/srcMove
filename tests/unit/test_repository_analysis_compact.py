@@ -12,6 +12,7 @@ from repository_analysis.compact import (
 )
 from repository_analysis.contracts import (
     CaptureObservation,
+    ChangedPath,
     PairOutcome,
     PairStatus,
     PairWorkItem,
@@ -29,6 +30,43 @@ def item() -> PairWorkItem:
 
 
 class CompactPairTests(unittest.TestCase):
+    def test_path_exclusion_reasons_are_retained_as_compact_counts(self) -> None:
+        paths = (
+            ChangedPath(
+                "A",
+                "linked.cpp",
+                "000000",
+                "120000",
+                "0" * 40,
+                "1" * 40,
+                ("unsupported_git_mode: symlink",),
+            ),
+            ChangedPath(
+                "A",
+                "vendor/module",
+                "000000",
+                "160000",
+                "0" * 40,
+                "2" * 40,
+                ("unsupported_git_mode: submodule",),
+            ),
+        )
+        outcome = PairOutcome(
+            item(),
+            PairStatus.NO_ANALYZABLE_CHANGE,
+            changed_paths=paths,
+        )
+
+        compact = compact_pair_outcome(outcome)
+
+        self.assertEqual(
+            json.loads(compact.metrics_json)["path_exclusion_counts"],
+            {
+                "unsupported_git_mode: submodule": 1,
+                "unsupported_git_mode: symlink": 1,
+            },
+        )
+
     def test_success_keeps_locations_and_text_digests_without_raw_text(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

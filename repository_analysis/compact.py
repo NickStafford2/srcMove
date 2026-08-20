@@ -8,6 +8,7 @@ import json
 import math
 import os
 import stat
+from collections import Counter
 from dataclasses import dataclass
 from typing import Any
 
@@ -53,6 +54,13 @@ def compact_pair_outcome(outcome: PairOutcome) -> CompactPair:
 
     status = outcome.status.value
     metrics = _metrics(outcome)
+    exclusion_counts = Counter(
+        reason
+        for path in outcome.changed_paths
+        for reason in path.exclusion_reasons
+    )
+    if exclusion_counts:
+        metrics["path_exclusion_counts"] = dict(sorted(exclusion_counts.items()))
     timings = _timings(outcome)
     moves: tuple[CompactMove, ...] = ()
     results_size: int | None = None

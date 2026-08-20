@@ -9,8 +9,8 @@ from typing import Any
 
 
 # Bump when the normalized terminal pair-result contract changes.
-PAIR_OUTCOME_SCHEMA_VERSION = 1
-COMPACT_PAIR_SCHEMA_VERSION = 1
+PAIR_OUTCOME_SCHEMA_VERSION = 2
+COMPACT_PAIR_SCHEMA_VERSION = 2
 
 
 class PairStatus(str, Enum):
@@ -34,6 +34,16 @@ class ChangedPath:
     new_mode: str
     old_blob: str
     new_blob: str
+    exclusion_reasons: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        reasons = self.exclusion_reasons
+        if isinstance(reasons, str) or any(
+            not isinstance(reason, str) or not reason or "\0" in reason
+            for reason in reasons
+        ):
+            raise ValueError("path exclusion reasons must be non-empty strings")
+        object.__setattr__(self, "exclusion_reasons", tuple(sorted(set(reasons))))
 
     @property
     def exists_in_old(self) -> bool:

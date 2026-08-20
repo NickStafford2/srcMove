@@ -7,6 +7,7 @@ from pathlib import Path
 
 from repository_analysis.git import (
     first_parent_distance,
+    inventory_changed_paths,
     retain_history,
     retained_history_ref,
     select_first_parent_history,
@@ -41,6 +42,41 @@ def commit(repository: Path, name: str, content: str) -> str:
 
 
 class RepositoryAnalysisGitTests(unittest.TestCase):
+    def test_inventory_excludes_symlinks_and_submodules_with_reasons(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repository = Path(temporary_directory) / "repository"
+            initialize(repository)
+            old_commit = commit(repository, "source.cpp", "old\n")
+            (repository / "source.cpp").write_text("new\n", encoding="utf-8")
+            (repository / "linked.cpp").symlink_to("source.cpp")
+            git(repository, "add", "source.cpp", "linked.cpp")
+            git(
+                repository,
+                "update-index",
+                "--add",
+                "--cacheinfo",
+                f"160000,{old_commit},vendor/module",
+            )
+            git(repository, "commit", "-m", "mixed regular and special paths")
+            new_commit = git(repository, "rev-parse", "HEAD")
+
+            changed, analyzable = inventory_changed_paths(
+                repository, old_commit, new_commit, None, ()
+            )
+
+            by_path = {change.path: change for change in changed}
+            self.assertEqual(
+                by_path["linked.cpp"].exclusion_reasons,
+                ("unsupported_git_mode: symlink",),
+            )
+            self.assertEqual(
+                by_path["vendor/module"].exclusion_reasons,
+                ("unsupported_git_mode: submodule",),
+            )
+            self.assertEqual(
+                [change.path for change in analyzable], ["source.cpp"]
+            )
+
     def test_first_parent_selection_is_exact_root_bounded_and_merge_aware(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = Path(temporary_directory) / "repository"

@@ -190,7 +190,7 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
             manifest = self._manifest(Path(temporary_directory))
             record = json.loads(manifest.canonical_bytes())
 
-            self.assertEqual(record["schema_version"], 6)
+            self.assertEqual(record["schema_version"], 7)
             self.assertEqual(record["commits"], ["a", "b", "c"])
             self.assertEqual(record["repository_identity"], {"value": "repo-id"})
             self.assertIn("configuration", record)

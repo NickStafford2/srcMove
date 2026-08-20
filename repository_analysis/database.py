@@ -28,7 +28,7 @@ from .retention import RetentionPolicy
 
 
 DATABASE_NAME = "analysis.sqlite3"
-DATABASE_SCHEMA_VERSION = 5
+DATABASE_SCHEMA_VERSION = 6
 DATABASE_APPLICATION_ID = 0x53524D41  # "SRMA"
 TARGET_KINDS = {"total_pairs", "through", "all"}
 TERMINAL_PAIR_STATUSES = {

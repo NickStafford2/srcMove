@@ -12,6 +12,7 @@ from .contracts import ChangedPath, VerifiedArtifact
 
 
 REGULAR_GIT_MODES = {"100644", "100755"}
+GIT_MODE_NAMES = {"120000": "symlink", "160000": "submodule"}
 RETAINED_REF_PREFIX = "refs/srcmove/repository-analyses"
 
 
@@ -314,6 +315,9 @@ def inventory_changed_paths(
                 new_mode=new_mode,
                 old_blob=old_blob,
                 new_blob=new_blob,
+                exclusion_reasons=_unsupported_git_mode_reasons(
+                    old_mode, new_mode
+                ),
             )
         )
 
@@ -321,9 +325,22 @@ def inventory_changed_paths(
     analyzable = tuple(
         change
         for change in changed
-        if change.content_changed and Path(change.path).suffix.lower() not in excluded
+        if not change.exclusion_reasons
+        and change.content_changed
+        and Path(change.path).suffix.lower() not in excluded
     )
     return tuple(changed), analyzable
+
+
+def _unsupported_git_mode_reasons(
+    old_mode: str, new_mode: str
+) -> tuple[str, ...]:
+    reasons = {
+        f"unsupported_git_mode: {GIT_MODE_NAMES.get(mode, mode)}"
+        for mode in (old_mode, new_mode)
+        if mode != "000000" and mode not in REGULAR_GIT_MODES
+    }
+    return tuple(sorted(reasons))
 
 
 def _validate_change(change: ChangedPath) -> None:

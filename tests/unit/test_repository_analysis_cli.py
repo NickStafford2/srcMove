@@ -170,6 +170,11 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 "analyzable_path_count": 1,
                 "changed_path_count": 1,
                 "timings": {"pair_seconds": 1.25},
+                "metrics": {
+                    "path_exclusion_counts": {
+                        "unsupported_git_mode: symlink": 1
+                    }
+                },
                 "moves": [
                     {
                         "match_kind": "exact",
@@ -182,6 +187,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
         )
 
         self.assertIn("1. exact · 1 source region → 1 destination region", output)
+        self.assertIn("1 unsupported_git_mode: symlink", output)
         self.assertNotIn("/secret", output)
         self.assertNotIn("sha256", output)
 
