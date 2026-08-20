@@ -18,20 +18,20 @@ storage contract.
 
 | Area | State | What exists | What remains |
 | --- | --- | --- | --- |
-| Target-driven runtime | Implemented | Create, resume, extend, no-op verification, bounded batches, parallel workers, and failure exit status | Rename `analyze` to `run` and present the lifecycle clearly |
+| Target-driven runtime | Implemented | `run` presents create, resume, extend, no-op verification, bounded batches, parallel workers, and failure exit status | Live progress is tracked separately below |
 | Durable state | Implemented | SQLite schema v3, immutable analysis definition, admitted executable bytes, invocation records, terminal outcomes, and pending-batch recovery | No CLI-specific work required |
-| Status data | Partial | One snapshot aggregates committed and checkpointed coverage, outcomes, moves, timings, pending work, and latest invocation | Include analysis identity/configuration and determine live writer state from the lock |
-| Pair exploration | Backend implemented | Bounded, filtered, keyset-paginated list queries and lazy one-pair detail queries | Expose `list` and `show`; add human renderers and optional Git diff |
-| Command surface | Not implemented | Development entry point with `analyze`, `status`, and `inspect` | Installed executable, positional analysis path, final command names, presets, and help text |
-| Human output | Not implemented | The retiring benchmark runner contains useful summary and move renderers | New renderers over production query models; do not import the old renderer |
+| Status data | First slice implemented | Snapshot aggregation, analysis identity, real writer-lock state, derived product state, and human/JSON output | Add verbose frozen configuration/tool detail and `status --watch` |
+| Pair exploration | First slice implemented | `list` filtering/pagination and `show` evidence are exposed with human/JSON output | Add optional Git diff and refine verbose move evidence |
+| Command surface | Partial | Repository-local `srcmove-history` with positional `run`, `status`, `list`, and `show`; PATH tool discovery | Add preflight, `--dry-run`, creation presets, and eventual installed-image PATH setup |
+| Human output | First slice implemented | Run/status summaries and compact list/show views use analyzed/skipped/covered terminology | Add live progress and continue usability refinement from real studies |
 | Live progress | Not implemented | Coordinator already publishes durable outcomes in order | Observer events, TTY display, redirected updates, ETA, and interruption rendering |
 | Export | Not implemented | Normalized evidence is queryable in SQLite | Stable CSV/JSONL research exports |
 | Benchmark retirement | Not started | Both implementations still exist | Move remaining studies/adapters to the production service, then remove the old runner |
 
-In phase terms, the data/query prerequisites are mostly complete, while the
-four user-facing phases remain. The best next increment is a vertical slice of
-`run` and `status` with human and JSON renderers; progress and result browsing
-can then reuse the same presentation models.
+In phase terms, the data/query prerequisites and first command/rendering slice
+are complete. Result browsing has its first usable slice. Durable live progress
+is now the highest-value next increment, followed by preflight/presets, Git diff
+inspection, and export.
 
 ## Design assessment
 

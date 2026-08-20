@@ -134,6 +134,59 @@ def load_analysis_activity(analysis_root: Path) -> dict[str, Any] | None:
     return _load_activity(analysis_root.expanduser().resolve())
 
 
+def is_analysis_writer_locked(analysis_root: Path) -> bool:
+    """Return whether a writer currently owns an existing analysis lock.
+
+    This probe is intentionally non-creating: a missing analysis root or lock
+    file means that no writer owns the lock.  Activity metadata is not an
+    ownership authority and is neither read nor changed here.
+    """
+
+    requested_root = analysis_root.expanduser().absolute()
+    if requested_root.is_symlink():
+        raise ValueError(
+            f"analysis root must not be a symbolic link: {requested_root}"
+        )
+    if not requested_root.exists():
+        return False
+    root = requested_root.resolve()
+    if root.is_symlink() or not root.is_dir():
+        raise ValueError(f"analysis root is not an owned directory: {root}")
+
+    lock_path = root / LOCK_FILE_NAME
+    flags = os.O_RDONLY | os.O_NONBLOCK
+    if hasattr(os, "O_CLOEXEC"):
+        flags |= os.O_CLOEXEC
+    if hasattr(os, "O_NOFOLLOW"):
+        flags |= os.O_NOFOLLOW
+    try:
+        descriptor = os.open(lock_path, flags)
+    except FileNotFoundError:
+        return False
+    except OSError as error:
+        if lock_path.is_symlink():
+            raise ValueError(
+                f"analysis operation lock must not be a symbolic link: {lock_path}"
+            ) from error
+        raise
+
+    try:
+        metadata = os.fstat(descriptor)
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+            raise ValueError(
+                "analysis operation lock must be one owned regular file: "
+                f"{lock_path}"
+            )
+        try:
+            fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            return True
+        fcntl.flock(descriptor, fcntl.LOCK_UN)
+        return False
+    finally:
+        os.close(descriptor)
+
+
 def _previous_activity(value: dict[str, Any] | None) -> dict[str, Any] | None:
     if value is None:
         return None

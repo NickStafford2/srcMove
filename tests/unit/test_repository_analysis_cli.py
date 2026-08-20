@@ -9,7 +9,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from repository_analysis.cli import build_parser, main
+from repository_analysis.cli import _render_pair, build_parser, main
+from repository_analysis.locking import AnalysisOperationLock
 from repository_analysis.worker import PairExecutor
 
 
@@ -30,22 +31,23 @@ def executable(path: Path) -> Path:
 
 
 class RepositoryAnalysisCliTests(unittest.TestCase):
-    def test_analyze_and_status_use_one_idempotent_public_interface(self) -> None:
+    def test_run_status_list_and_show_use_one_idempotent_interface(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 5)
             analysis = root / "analysis"
             common = [
-                "--analysis-root",
                 str(analysis),
-                "--total-pairs",
+                "--pairs",
                 "2",
+                "--format",
+                "json",
             ]
             creation = [
                 *common,
                 "--repository",
                 str(repository),
-                "--repository-id",
+                "--name",
                 "fixture-repository",
                 "--srcdiff",
                 str(executable(root / "srcdiff")),
@@ -55,71 +57,150 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 ".txt",
             ]
 
-            status, output, error = self._main(["analyze", *creation])
+            status, output, error = self._main(["run", *creation])
             self.assertEqual((status, error), (0, ""))
-            self.assertEqual(json.loads(output)["completed_pair_count"], 2)
+            self.assertEqual(json.loads(output)["coverage"]["durable"], 2)
 
             with patch.object(
                 PairExecutor,
                 "open_worker",
                 side_effect=AssertionError("idempotent CLI retry opened a worker"),
             ):
-                repeated, output, error = self._main(["analyze", *common])
+                repeated, output, error = self._main(["run", *common])
             self.assertEqual((repeated, error), (0, ""))
-            self.assertEqual(json.loads(output)["completed_pair_count"], 2)
+            self.assertEqual(json.loads(output)["coverage"]["durable"], 2)
 
             status, output, error = self._main(
-                ["status", "--analysis-root", str(analysis)]
+                ["status", str(analysis), "--format", "json"]
             )
             self.assertEqual((status, error), (0, ""))
             report = json.loads(output)
-            self.assertEqual(report["completed_pair_count"], 2)
+            self.assertEqual(report["coverage"]["committed"], 2)
             self.assertIsNone(report["pending"])
-            self.assertEqual(report["invocation"]["target_kind"], "total_pairs")
-            self.assertEqual(report["invocation"]["target_value"], "2")
+            self.assertEqual(report["invocation"]["target_kind"], "pairs")
+            self.assertEqual(report["invocation"]["target_value"], 2)
             self.assertEqual(report["invocation"]["result"], "target_reached")
+            self.assertEqual(report["state"], "target_reached")
 
             status, output, error = self._main(
                 [
-                    "inspect",
-                    "--analysis-root",
+                    "show",
                     str(analysis),
-                    "--distance-from-newest",
-                    "0",
+                    "1",
+                    "--format",
+                    "json",
                 ]
             )
             self.assertEqual((status, error), (0, ""))
-            details = json.loads(output)
+            details = json.loads(output)["pair"]
             self.assertEqual(details["distance_from_newest"], 0)
             self.assertEqual(details["status"], "no_analyzable_change")
+
+            status, output, error = self._main(
+                ["list", str(analysis), "--format", "json"]
+            )
+            self.assertEqual((status, error), (0, ""))
+            self.assertEqual(len(json.loads(output)["pairs"]["items"]), 2)
+
+            status, output, error = self._main(["status", str(analysis)])
+            self.assertEqual((status, error), (0, ""))
+            self.assertIn("2/2 pairs (100%)", output)
+            self.assertIn("2 skipped", output)
+
+            with AnalysisOperationLock(analysis, command="background-run"):
+                status, output, error = self._main(
+                    ["status", str(analysis), "--format", "json"]
+                )
+                self.assertEqual((status, error), (0, ""))
+                self.assertEqual(json.loads(output)["state"], "running")
+
+            for ordering in ([], ["--oldest-first"]):
+                status, output, error = self._main(
+                    [
+                        "list",
+                        str(analysis),
+                        "--limit",
+                        "1",
+                        "--format",
+                        "json",
+                        *ordering,
+                    ]
+                )
+                self.assertEqual((status, error), (0, ""))
+                first = json.loads(output)
+                first_number = first["pairs"]["items"][0]["number"]
+                next_after = first["pairs"]["next_after"]
+                self.assertIsNotNone(next_after)
+
+                status, output, error = self._main(
+                    [
+                        "list",
+                        str(analysis),
+                        "--limit",
+                        "1",
+                        "--after",
+                        str(next_after),
+                        "--format",
+                        "json",
+                        *ordering,
+                    ]
+                )
+                self.assertEqual((status, error), (0, ""))
+                second = json.loads(output)
+                self.assertNotEqual(
+                    first_number, second["pairs"]["items"][0]["number"]
+                )
+
+    def test_human_show_hides_diagnostic_move_evidence(self) -> None:
+        output = _render_pair(
+            {
+                "number": 9,
+                "status": "completed",
+                "old_commit": "a" * 40,
+                "new_commit": "b" * 40,
+                "analyzable_path_count": 1,
+                "changed_path_count": 1,
+                "timings": {"pair_seconds": 1.25},
+                "moves": [
+                    {
+                        "match_kind": "exact",
+                        "from_xpaths": ["/secret/source"],
+                        "to_xpaths": ["/secret/destination"],
+                        "from_text_digests": [{"sha256": "c" * 64}],
+                    }
+                ],
+            }
+        )
+
+        self.assertIn("1. exact · 1 source region → 1 destination region", output)
+        self.assertNotIn("/secret", output)
+        self.assertNotIn("sha256", output)
 
     def test_target_options_are_mutually_exclusive_and_required(self) -> None:
         parser = build_parser()
         with contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):
-                parser.parse_args(["analyze", "--analysis-root", "analysis"])
+                parser.parse_args(["run", "analysis"])
             with self.assertRaises(SystemExit):
                 parser.parse_args(
                     [
-                        "analyze",
-                        "--analysis-root",
+                        "run",
                         "analysis",
-                        "--total-pairs",
+                        "--pairs",
                         "2",
                         "--all",
                     ]
                 )
 
-    def test_new_analysis_reports_missing_creation_inputs_without_partial_database(self) -> None:
+    def test_missing_creation_inputs_do_not_create_partial_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             analysis = Path(temporary_directory) / "analysis"
 
             status, _, error = self._main(
                 [
-                    "analyze",
-                    "--analysis-root",
+                    "run",
                     str(analysis),
-                    "--total-pairs",
+                    "--pairs",
                     "2",
                 ]
             )
@@ -128,20 +209,19 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             self.assertIn("new analysis requires", error)
             self.assertFalse((analysis / "analysis.sqlite3").exists())
 
-    def test_frozen_configuration_cannot_be_overridden_on_existing_analysis(self) -> None:
+    def test_frozen_configuration_cannot_be_overridden(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
             analysis = root / "analysis"
             arguments = [
-                "analyze",
-                "--analysis-root",
+                "run",
                 str(analysis),
-                "--total-pairs",
+                "--pairs",
                 "1",
                 "--repository",
                 str(repository),
-                "--repository-id",
+                "--name",
                 "fixture-repository",
                 "--srcdiff",
                 str(executable(root / "srcdiff")),
@@ -154,10 +234,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             status, _, error = self._main(
                 [
-                    "analyze",
-                    "--analysis-root",
+                    "run",
                     str(analysis),
-                    "--total-pairs",
+                    "--pairs",
                     "2",
                     "--directory",
                     "repository_analysis",
@@ -175,10 +254,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             status, _, error = self._main(
                 [
-                    "analyze",
-                    "--analysis-root",
+                    "run",
                     str(analysis),
-                    "--total-pairs",
+                    "--pairs",
                     "1",
                 ]
             )
@@ -192,7 +270,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             missing = Path(temporary_directory) / "missing"
 
             status, _, error = self._main(
-                ["status", "--analysis-root", str(missing)]
+                ["status", str(missing)]
             )
 
             self.assertEqual(status, 2)

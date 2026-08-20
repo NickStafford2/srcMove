@@ -102,8 +102,23 @@ class InvocationSnapshot:
 
 
 @dataclass(frozen=True, slots=True)
+class AnalysisIdentitySnapshot:
+    name: str
+    root: str
+    repository: str
+
+    def record(self) -> dict[str, str]:
+        return {
+            "name": self.name,
+            "root": self.root,
+            "repository": self.repository,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class StatusSnapshot:
     schema_version: int
+    analysis: AnalysisIdentitySnapshot
     revision: int
     coverage: CoverageSnapshot
     oldest_completed_commit: str | None
@@ -119,6 +134,7 @@ class StatusSnapshot:
         statuses = {item.name: item.count for item in self.statuses}
         return {
             "schema_version": self.schema_version,
+            "analysis": self.analysis.record(),
             "revision": self.revision,
             "completed_pair_count": self.coverage.committed,
             "checkpointed_pair_count": self.coverage.checkpointed,
@@ -228,6 +244,13 @@ class AnalysisReader:
     def __init__(self, analysis_root: Path) -> None:
         self.analysis_root = analysis_root
 
+    def identity(self) -> AnalysisIdentitySnapshot:
+        """Return immutable analysis identity without aggregating pair outcomes."""
+
+        with AnalysisDatabase.open(self.analysis_root, read_only=True) as database:
+            with database.read_snapshot():
+                return _analysis_identity(database)
+
     def status(self) -> StatusSnapshot:
         with AnalysisDatabase.open(self.analysis_root, read_only=True) as database:
             with database.read_snapshot():
@@ -267,6 +290,7 @@ class AnalysisReader:
                 stored_invocation = database.latest_invocation()
                 return StatusSnapshot(
                     schema_version=QUERY_SCHEMA_VERSION,
+                    analysis=_analysis_identity(database),
                     revision=state.revision,
                     coverage=CoverageSnapshot(state.completed_pair_count, checkpointed),
                     oldest_completed_commit=state.oldest_completed_commit,
@@ -413,6 +437,15 @@ def _pair_list_item(row: Any) -> PairListItem:
         elapsed_seconds=_seconds(timings.get("pair_seconds", 0.0), "pair_seconds"),
         checkpointed=row["batch_status"] == "pending",
         invocation_id=_text(row["outcome_invocation_id"], "outcome invocation ID"),
+    )
+
+
+def _analysis_identity(database: AnalysisDatabase) -> AnalysisIdentitySnapshot:
+    manifest = database.initial_manifest()
+    return AnalysisIdentitySnapshot(
+        name=manifest.repository_identity.value,
+        root=str(database.root),
+        repository=str(manifest.repository),
     )
 
 

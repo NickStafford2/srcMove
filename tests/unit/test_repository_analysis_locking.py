@@ -7,13 +7,89 @@ import unittest
 from pathlib import Path
 
 from repository_analysis.locking import (
+    LOCK_FILE_NAME,
     AnalysisBusyError,
     AnalysisOperationLock,
+    is_analysis_writer_locked,
     load_analysis_activity,
 )
 
 
 class AnalysisOperationLockTests(unittest.TestCase):
+    def test_probe_does_not_create_a_missing_root_or_lock_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory) / "missing-analysis"
+
+            self.assertFalse(is_analysis_writer_locked(root))
+            self.assertFalse(root.exists())
+
+            root.mkdir()
+            self.assertFalse(is_analysis_writer_locked(root))
+            self.assertEqual(list(root.iterdir()), [])
+
+    def test_probe_reports_held_and_available_locks_without_publishing_activity(
+        self,
+    ) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory) / "analysis"
+
+            with AnalysisOperationLock(root, command="owner"):
+                before = load_analysis_activity(root)
+                self.assertTrue(is_analysis_writer_locked(root))
+                self.assertEqual(load_analysis_activity(root), before)
+                with self.assertRaises(AnalysisBusyError):
+                    with AnalysisOperationLock(root, command="contender"):
+                        self.fail("probe disturbed the existing owner")
+
+            before = load_analysis_activity(root)
+            self.assertFalse(is_analysis_writer_locked(root))
+            self.assertEqual(load_analysis_activity(root), before)
+
+    def test_probe_rejects_symbolic_link_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            target = parent / "analysis"
+            target.mkdir()
+            alias = parent / "alias"
+            alias.symlink_to(target, target_is_directory=True)
+
+            with self.assertRaisesRegex(
+                ValueError, "root must not be a symbolic link"
+            ):
+                is_analysis_writer_locked(alias)
+
+    def test_probe_rejects_unsafe_lock_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory) / "analysis"
+            root.mkdir()
+            target = root / "target"
+            target.touch()
+            (root / LOCK_FILE_NAME).symlink_to(target)
+
+            with self.assertRaisesRegex(
+                ValueError, "lock must not be a symbolic link"
+            ):
+                is_analysis_writer_locked(root)
+
+    def test_probe_rejects_non_regular_and_multiply_linked_lock_files(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            parent = Path(temporary_directory)
+            directory_root = parent / "directory-lock-analysis"
+            directory_root.mkdir()
+            (directory_root / LOCK_FILE_NAME).mkdir()
+
+            with self.assertRaisesRegex(ValueError, "one owned regular file"):
+                is_analysis_writer_locked(directory_root)
+
+            linked_root = parent / "linked-lock-analysis"
+            linked_root.mkdir()
+            lock_path = linked_root / LOCK_FILE_NAME
+            lock_path.touch()
+            (parent / "second-link").hardlink_to(lock_path)
+
+            with self.assertRaisesRegex(ValueError, "one owned regular file"):
+                is_analysis_writer_locked(linked_root)
+
     def test_exclusive_lock_records_completed_activity(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory) / "analysis"

@@ -1,0 +1,14 @@
+#!/usr/bin/env python3
+"""Run the repository-history CLI directly from a srcMove checkout."""
+
+from pathlib import Path
+import sys
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(REPOSITORY_ROOT))
+
+from repository_analysis.cli import main
+
+
+raise SystemExit(main())

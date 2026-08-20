@@ -108,7 +108,7 @@ def analyze_repository(
         raise ValueError("jobs must be positive")
     _validate_target(target)
     root = analysis_root.expanduser().absolute()
-    with AnalysisOperationLock(root, command="analyze") as operation:
+    with AnalysisOperationLock(root, command="run") as operation:
         invocation_started = time.monotonic()
         remove_ephemeral_tree(root / "scratch", root)
         if analysis_database_exists(root):
@@ -171,6 +171,16 @@ def analyze_repository(
                 wall_seconds=time.monotonic() - invocation_started,
             )
             result.summary["invocation"] = invocation.record()
+            manifest = database.initial_manifest()
+            result.summary["analysis"] = {
+                "name": manifest.repository_identity.value,
+                "root": str(database.root),
+                "repository": str(manifest.repository),
+            }
+            result.summary["checkpointed_pair_count"] = 0
+            result.summary["durable_pair_count"] = result.summary[
+                "completed_pair_count"
+            ]
             return result
 
 
@@ -257,6 +267,12 @@ def analysis_status(analysis_root: Path) -> dict[str, Any]:
     return AnalysisReader(analysis_root).status().record()
 
 
+def analysis_identity(analysis_root: Path) -> dict[str, str]:
+    """Return immutable analysis identity without scanning pair outcomes."""
+
+    return AnalysisReader(analysis_root).identity().record()
+
+
 def analysis_list_pairs(
     analysis_root: Path,
     *,
@@ -309,7 +325,7 @@ def _create_database(
         name
         for name, value in (
             ("--repository", repository),
-            ("--repository-id", repository_identity),
+            ("--name", repository_identity),
             ("--srcdiff", srcdiff_path),
             ("--srcmove", srcmove_path),
         )

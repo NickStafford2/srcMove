@@ -1,65 +1,140 @@
-"""Target-driven command line for repository-history analysis."""
+"""Human-first command line for repository-history analysis."""
 
 from __future__ import annotations
 
 import argparse
 import json
+import shutil
 import sys
+from collections.abc import Mapping
 from pathlib import Path
-from typing import Sequence
+from typing import Any, Sequence
 
 from .analysis import (
     AnalysisTarget,
+    analysis_identity,
+    analysis_list_pairs,
     analysis_pair_details,
     analysis_status,
     analyze_repository,
 )
+from .database import analysis_database_exists
 from .inputs import AnalysisConfiguration, RepositoryIdentity
+from .locking import is_analysis_writer_locked
+from .presentation import render_run, render_status
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="python3 -m repository_analysis",
-        description="Analyze Git history toward one deterministic coverage target.",
+        prog="srcmove-history",
+        description="Analyze moves across adjacent commits in a Git repository.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
-    analyze = commands.add_parser(
-        "analyze", help="create, resume, or extend one repository analysis"
+    run = commands.add_parser(
+        "run",
+        help="create, resume, or extend one repository analysis",
+        description=(
+            "Create, resume, or extend ANALYSIS toward one absolute history "
+            "coverage target. Existing analyses reuse their frozen definition."
+        ),
     )
-    analyze.add_argument("--analysis-root", type=Path, required=True)
-    target = analyze.add_mutually_exclusive_group(required=True)
-    target.add_argument("--total-pairs", type=int, metavar="PAIRS")
-    target.add_argument("--through", metavar="COMMIT")
-    target.add_argument("--all", action="store_true", dest="all_history")
-    analyze.add_argument("--repository", type=Path)
-    analyze.add_argument("--start")
-    analyze.add_argument("--repository-id")
-    analyze.add_argument("--srcdiff", type=Path)
-    analyze.add_argument("--srcmove", type=Path)
-    analyze.add_argument("--directory")
-    analyze.add_argument("--exclude-suffix", action="append", metavar=".SUFFIX")
-    analyze.add_argument("--no-archive", action="store_true", default=None)
-    analyze.add_argument("--position", action="store_true", default=None)
-    analyze.add_argument("--encoding")
-    analyze.add_argument("--srcdiff-timeout", type=float)
-    analyze.add_argument("--srcmove-timeout", type=float)
-    analyze.add_argument("--jobs", type=int, default=1)
-
-    status = commands.add_parser("status", help="show durable coverage and progress")
-    status.add_argument("--analysis-root", type=Path, required=True)
-
-    inspect = commands.add_parser(
-        "inspect", help="show compact evidence for one durable pair"
+    run.add_argument("analysis", type=Path, metavar="ANALYSIS")
+    target = run.add_mutually_exclusive_group(required=True)
+    target.add_argument(
+        "--pairs", type=int, metavar="N", help="cover the newest N pairs in total"
     )
-    inspect.add_argument("--analysis-root", type=Path, required=True)
-    inspect.add_argument("--distance-from-newest", type=int, required=True)
+    target.add_argument(
+        "--through", metavar="COMMIT", help="cover through a full commit ID"
+    )
+    target.add_argument(
+        "--all", action="store_true", dest="all_history", help="cover all history"
+    )
+    run.add_argument("--repository", type=Path, help="Git checkout; creation only")
+    run.add_argument("--start", help="newest revision; creation only (default: HEAD)")
+    run.add_argument("--name", help="stable repository name; defaults to ANALYSIS name")
+    run.add_argument("--srcdiff", type=Path, help="srcdiff executable (default: PATH)")
+    run.add_argument("--srcmove", type=Path, help="srcMove executable (default: PATH)")
+    run.add_argument("--directory", help="repository-relative source scope")
+    run.add_argument(
+        "--exclude-suffix",
+        action="append",
+        metavar=".SUFFIX",
+        help="exclude a file suffix; repeatable and creation only",
+    )
+    run.add_argument(
+        "--no-archive",
+        action="store_true",
+        default=None,
+        help="avoid git archive; creation only",
+    )
+    run.add_argument(
+        "--position",
+        action="store_true",
+        default=None,
+        help="enable srcDiff positions; creation only",
+    )
+    run.add_argument("--encoding", help="source encoding; creation only")
+    run.add_argument(
+        "--srcdiff-timeout", type=float, help="srcDiff timeout seconds; creation only"
+    )
+    run.add_argument(
+        "--srcmove-timeout", type=float, help="srcMove timeout seconds; creation only"
+    )
+    run.add_argument("--jobs", type=int, default=1, help="parallel pair workers")
+    _add_format(run)
+
+    status = commands.add_parser("status", help="show durable coverage and state")
+    status.add_argument("analysis", type=Path, metavar="ANALYSIS")
+    _add_format(status)
+
+    list_command = commands.add_parser("list", help="list durable pair outcomes")
+    list_command.add_argument("analysis", type=Path, metavar="ANALYSIS")
+    filters = list_command.add_mutually_exclusive_group()
+    filters.add_argument("--failed", action="store_true")
+    filters.add_argument("--moves", action="store_true")
+    filters.add_argument(
+        "--status",
+        choices=(
+            "completed",
+            "no-analyzable-change",
+            "export-failed",
+            "srcdiff-failed",
+            "srcmove-failed",
+            "orchestration-failed",
+        ),
+    )
+    list_command.add_argument("--limit", type=int, default=50, help="maximum rows")
+    list_command.add_argument(
+        "--after", type=int, metavar="PAIR", help="continue after displayed pair number"
+    )
+    list_command.add_argument(
+        "--oldest-first",
+        action="store_true",
+        help="reverse the default newest-first order",
+    )
+    _add_format(list_command)
+
+    show = commands.add_parser("show", help="show evidence for one durable pair")
+    show.add_argument("analysis", type=Path, metavar="ANALYSIS")
+    show.add_argument("pair", type=int, metavar="PAIR")
+    _add_format(show)
     return parser
 
 
+def _add_format(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--format",
+        choices=("human", "json"),
+        default="human",
+        dest="output_format",
+        help="stdout format (default: human)",
+    )
+
+
 def _target(arguments: argparse.Namespace) -> AnalysisTarget:
-    if arguments.total_pairs is not None:
-        return AnalysisTarget("total_pairs", arguments.total_pairs)
+    if arguments.pairs is not None:
+        return AnalysisTarget("total_pairs", arguments.pairs)
     if arguments.through is not None:
         return AnalysisTarget("through", arguments.through)
     return AnalysisTarget("all", None)
@@ -88,54 +163,280 @@ def _new_configuration(arguments: argparse.Namespace) -> AnalysisConfiguration:
         use_position=bool(arguments.position),
         source_encoding=arguments.encoding or "UTF-8",
         srcdiff_timeout_seconds=(
-            1800.0
-            if arguments.srcdiff_timeout is None
-            else arguments.srcdiff_timeout
+            1800.0 if arguments.srcdiff_timeout is None else arguments.srcdiff_timeout
         ),
         srcmove_timeout_seconds=(
-            300.0
-            if arguments.srcmove_timeout is None
-            else arguments.srcmove_timeout
+            300.0 if arguments.srcmove_timeout is None else arguments.srcmove_timeout
         ),
     )
 
 
-def _run_analyze(arguments: argparse.Namespace):
-    return analyze_repository(
-        analysis_root=arguments.analysis_root,
+def _discover_tool(path: Path | None, name: str) -> Path:
+    if path is not None:
+        return path
+    discovered = shutil.which(name)
+    if discovered is None:
+        raise ValueError(
+            f"cannot find {name} on PATH; provide --{name} for a new analysis"
+        )
+    return Path(discovered)
+
+
+def _run(arguments: argparse.Namespace) -> Mapping[str, Any]:
+    creating = not analysis_database_exists(arguments.analysis)
+    repository_identity = (
+        RepositoryIdentity(arguments.name)
+        if arguments.name is not None
+        else RepositoryIdentity(arguments.analysis.name)
+        if creating
+        else None
+    )
+    srcdiff = (
+        _discover_tool(arguments.srcdiff, "srcdiff")
+        if creating and arguments.repository is not None
+        else arguments.srcdiff
+    )
+    srcmove = (
+        _discover_tool(arguments.srcmove, "srcmove")
+        if creating and arguments.repository is not None
+        else arguments.srcmove
+    )
+    result = analyze_repository(
+        analysis_root=arguments.analysis,
         target=_target(arguments),
         jobs=arguments.jobs,
         repository=arguments.repository,
         start=arguments.start,
-        repository_identity=(
-            None
-            if arguments.repository_id is None
-            else RepositoryIdentity(arguments.repository_id)
-        ),
+        repository_identity=repository_identity,
         configuration=(
             _new_configuration(arguments)
             if _configuration_arguments_present(arguments)
             else None
         ),
-        srcdiff_path=arguments.srcdiff,
-        srcmove_path=arguments.srcmove,
+        srcdiff_path=srcdiff,
+        srcmove_path=srcmove,
     )
+    summary = result.summary
+    summary["writer_active"] = False
+    summary["state"] = _state(summary)
+    return summary
+
+
+def _status(analysis: Path) -> dict[str, Any]:
+    summary = analysis_status(analysis)
+    summary["writer_active"] = is_analysis_writer_locked(analysis)
+    summary["state"] = _state(summary)
+    return summary
+
+
+def _state(summary: Mapping[str, Any]) -> str:
+    if summary.get("writer_active"):
+        return "running"
+    invocation = summary.get("invocation")
+    invocation = invocation if isinstance(invocation, Mapping) else {}
+    result = invocation.get("result")
+    if result == "failed" or invocation.get("error"):
+        return "failed"
+    if result in {"interrupted", "running"}:
+        return "interrupted"
+    durable = int(summary.get("durable_pair_count", 0))
+    target_kind = invocation.get("target_kind")
+    target_value = invocation.get("target_value")
+    if target_kind == "total_pairs" and target_value is not None:
+        target = int(target_value)
+        if summary.get("history_exhausted") and durable < target:
+            return "history_exhausted"
+    if result == "target_reached_with_failures" or summary.get("failed"):
+        return "target_reached_with_failures"
+    if result == "target_reached":
+        return "target_reached"
+    return "idle"
+
+
+def _status_document(summary: Mapping[str, Any]) -> dict[str, Any]:
+    invocation_value = summary.get("invocation")
+    invocation = (
+        dict(invocation_value) if isinstance(invocation_value, Mapping) else None
+    )
+    target_kind = None if invocation is None else invocation.get("target_kind")
+    target_value: Any = None if invocation is None else invocation.get("target_value")
+    if target_kind == "total_pairs" and target_value is not None:
+        target_kind = "pairs"
+        target_value = int(target_value)
+    if invocation is not None:
+        invocation["target_kind"] = target_kind
+        invocation["target_value"] = target_value
+    statuses = dict(summary.get("statuses", {}))
+    pending = summary.get("pending")
+    if isinstance(pending, Mapping):
+        pending = {key: value for key, value in pending.items() if key != "batch_id"}
+    return {
+        "schema_version": 1,
+        "analysis": dict(summary.get("analysis", {})),
+        "state": summary.get("state", "idle"),
+        "target": {"kind": target_kind, "value": target_value},
+        "coverage": {
+            "target": target_value if target_kind == "pairs" else None,
+            "committed": summary.get("completed_pair_count", 0),
+            "checkpointed": summary.get("checkpointed_pair_count", 0),
+            "durable": summary.get("durable_pair_count", 0),
+        },
+        "outcomes": {
+            "analyzed": summary.get("completed", 0),
+            "skipped": summary.get("no_analyzable_change", 0),
+            "failed": summary.get("failed", 0),
+            "by_status": statuses,
+        },
+        "moves": {
+            "moves": summary.get("move_count", 0),
+            "groups": summary.get("move_group_count", 0),
+            "pairs": summary.get("move_pair_count", 0),
+            "annotated_regions": summary.get("annotated_region_count", 0),
+        },
+        "history": {
+            "newest_commit": summary.get("newest_commit"),
+            "frontier_commit": summary.get("oldest_completed_commit"),
+            "exhausted": bool(summary.get("history_exhausted")),
+        },
+        "timings": dict(summary.get("timings", {})),
+        "pending": pending,
+        "invocation": invocation,
+    }
+
+
+def _render_pair_list(page: Mapping[str, Any]) -> str:
+    items = page.get("items", [])
+    if not items:
+        return "No matching pairs."
+    lines = ["Pair  Commits               Status                  Paths   Moves   Time"]
+    for item in items:
+        old = str(item["old_commit"])[:8]
+        new = str(item["new_commit"])[:8]
+        status = str(item["status"]).replace("_", "-")
+        paths = f"{item['analyzable_path_count']}/{item['changed_path_count']}"
+        lines.append(
+            f"{item['number']:>4}  {old} → {new}  {status:<22} "
+            f"{paths:>7} {item['move_count']:>7} {item['elapsed_seconds']:>6.1f}s"
+        )
+    if page.get("next_cursor") is not None:
+        lines.append(f"\nMore: --after {int(page['next_cursor']) + 1}")
+    return "\n".join(lines)
+
+
+def _render_pair(detail: Mapping[str, Any]) -> str:
+    status = str(detail["status"]).replace("_", " ")
+    lines = [
+        f"Pair {detail['number']} — {status}",
+        "",
+        f"Commits    {str(detail['old_commit'])[:12]} → "
+        f"{str(detail['new_commit'])[:12]}",
+        f"Paths      {detail['analyzable_path_count']} analyzable / "
+        f"{detail['changed_path_count']} changed",
+    ]
+    timings = detail.get("timings")
+    if isinstance(timings, Mapping) and "pair_seconds" in timings:
+        lines.append(f"Time       {float(timings['pair_seconds']):.1f}s pair work")
+    if detail.get("error"):
+        lines.extend(("", f"Failure: {detail['error']}"))
+    moves = detail.get("moves")
+    if moves:
+        lines.extend(("", "Moves"))
+        for index, move in enumerate(moves, start=1):
+            if not isinstance(move, Mapping):
+                continue
+            kind = str(move.get("match_kind", "unknown"))
+            sources = len(move.get("from_xpaths", ()))
+            destinations = len(move.get("to_xpaths", ()))
+            lines.append(
+                f"  {index}. {kind} · {sources} source region"
+                f"{'s' if sources != 1 else ''} → {destinations} destination region"
+                f"{'s' if destinations != 1 else ''}"
+            )
+    else:
+        lines.extend(("", "No moves detected."))
+    return "\n".join(lines)
+
+
+def _json(value: Mapping[str, Any]) -> str:
+    return json.dumps(value, sort_keys=True, separators=(",", ":"))
+
+
+def _pair_page_document(
+    identity: Mapping[str, str], page: Mapping[str, Any]
+) -> dict[str, Any]:
+    cursor = page.get("next_cursor")
+    return {
+        "schema_version": 1,
+        "analysis": dict(identity),
+        "pairs": {
+            "items": page.get("items", []),
+            "next_after": None if cursor is None else int(cursor) + 1,
+        },
+    }
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     arguments = parser.parse_args(argv)
     try:
-        if arguments.command == "status":
-            summary = analysis_status(arguments.analysis_root)
-        elif arguments.command == "inspect":
-            summary = analysis_pair_details(
-                arguments.analysis_root, arguments.distance_from_newest
+        if arguments.command == "run":
+            summary = _run(arguments)
+            output = (
+                render_run(summary)
+                if arguments.output_format == "human"
+                else _json(_status_document(summary))
             )
+            exit_status = 1 if summary["failed"] else 0
+        elif arguments.command == "status":
+            summary = _status(arguments.analysis)
+            output = (
+                render_status(summary)
+                if arguments.output_format == "human"
+                else _json(_status_document(summary))
+            )
+            exit_status = 0
+        elif arguments.command == "list":
+            after_distance = None if arguments.after is None else arguments.after - 1
+            page = analysis_list_pairs(
+                arguments.analysis,
+                status=(
+                    None
+                    if arguments.status is None
+                    else arguments.status.replace("-", "_")
+                ),
+                failed=arguments.failed,
+                with_moves=arguments.moves,
+                limit=arguments.limit,
+                after_distance=after_distance,
+                oldest_first=arguments.oldest_first,
+            )
+            identity = analysis_identity(arguments.analysis)
+            output = (
+                _render_pair_list(page)
+                if arguments.output_format == "human"
+                else _json(_pair_page_document(identity, page))
+            )
+            exit_status = 0
         else:
-            summary = _run_analyze(arguments).summary
+            detail = analysis_pair_details(arguments.analysis, arguments.pair - 1)
+            identity = analysis_identity(arguments.analysis)
+            output = (
+                _render_pair(detail)
+                if arguments.output_format == "human"
+                else _json(
+                    {
+                        "schema_version": 1,
+                        "analysis": identity,
+                        "pair": detail,
+                    }
+                )
+            )
+            exit_status = 0
+    except KeyboardInterrupt:
+        print("interrupted", file=sys.stderr)
+        return 130
     except (OSError, RuntimeError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-    print(json.dumps(summary, sort_keys=True, separators=(",", ":")))
-    return 1 if arguments.command == "analyze" and summary["failed"] else 0
+    print(output)
+    return exit_status

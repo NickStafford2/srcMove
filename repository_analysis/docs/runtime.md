@@ -13,36 +13,38 @@ do not own its state format or execution semantics.
 The public lifecycle is target-driven:
 
 ```bash
-python3 -m repository_analysis analyze \
-  --analysis-root ANALYSIS \
-  --total-pairs 100 \
+bin/srcmove-history run ANALYSIS \
+  --pairs 100 \
   --repository REPOSITORY \
-  --repository-id NAME \
+  --name NAME \
   --srcdiff PATH \
   --srcmove PATH
 
-python3 -m repository_analysis analyze \
-  --analysis-root ANALYSIS \
-  --total-pairs 500
+bin/srcmove-history run ANALYSIS --pairs 500
 
-python3 -m repository_analysis status --analysis-root ANALYSIS
-python3 -m repository_analysis inspect \
-  --analysis-root ANALYSIS \
-  --distance-from-newest 0
+bin/srcmove-history status ANALYSIS
+bin/srcmove-history list ANALYSIS --failed
+bin/srcmove-history show ANALYSIS 1
 ```
 
-`analyze` creates, resumes, or extends the same analysis. There are no public
+`run` creates, resumes, or extends the same analysis. There are no public
 `start`, `resume`, or `continue-older` state machines.
 
 Exactly one target is required:
 
-- `--total-pairs N` requests an absolute completed-pair count;
+- `--pairs N` requests an absolute covered-pair count;
 - `--through COMMIT` requests a full, immutable commit object ID on the frozen
   first-parent history;
 - `--all` continues in bounded batches until the repository root.
 
 Repeating a satisfied target is a verified no-op. A branch moving after the
 first invocation does not move the analysis's frozen newest anchor.
+
+Human-readable output is the default. `--format json` emits one versioned JSON
+document to stdout. Status derives live writer state by probing the operation
+lock; `activity.json` alone is never treated as proof that a run is active.
+Human output calls successful outcomes `analyzed`, no-change outcomes `skipped`,
+and all durable terminal outcomes `covered`.
 
 ## Authoritative state
 
@@ -74,7 +76,7 @@ analysis databases were present when these breaks were introduced.
 
 ## Invocation lifecycle
 
-After acquiring the writer lock and opening or creating the database, `analyze`
+After acquiring the writer lock and opening or creating the database, `run`
 records one running invocation. A successful target records
 `target_reached` or `target_reached_with_failures`; an orchestration exception
 records `failed`, and `KeyboardInterrupt` records `interrupted`. Wall time is
@@ -144,7 +146,7 @@ moved source bodies:
 - SHA-256 and UTF-8 byte length for each moved raw-text region;
 - results-file SHA-256 and byte length as an observation.
 
-`inspect` loads one committed pair and its moves on demand. It does not scan or
+`show` loads one committed pair and its moves on demand. It does not scan or
 materialize the full analysis.
 
 Failures retain termination/resource observations and a bounded stdout/stderr
@@ -189,4 +191,4 @@ Run focused tests in the intended Docker environment:
 The tests cover target convergence, root exhaustion, bounded all-history
 planning, exact pending recovery, terminal-failure idempotency, lock contention,
 stale scratch cleanup, frozen executable admission, compact storage, and
-read-only status/inspection.
+read-only status, list, and show queries.
