@@ -21,6 +21,12 @@ from .reporting import (
     publish_history_reports,
 )
 from .retention import RetentionPolicy
+from .resume import (
+    ResumeStats,
+    VerifiedReceiptPrefix,
+    prepare_verified_resume,
+    resume_pairs,
+)
 from .worker import PairExecutor
 
 __all__ = [
@@ -34,10 +40,14 @@ __all__ = [
     "PairWorkItem",
     "ProcessOutcome",
     "RetentionPolicy",
+    "ResumeStats",
     "VerifiedArtifact",
+    "VerifiedReceiptPrefix",
     "WorkerExecutionError",
     "derive_history_summary",
     "pair_receipt",
     "publish_history_reports",
+    "prepare_verified_resume",
+    "resume_pairs",
     "run_pairs",
 ]

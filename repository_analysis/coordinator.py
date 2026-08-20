@@ -62,6 +62,33 @@ def run_pairs(
     the ownership boundary that permits an executor to remove ephemeral inputs.
     """
 
+    return _run_pairs_from_sequence(
+        work_items,
+        execute_pair,
+        publish_pair,
+        worker_count=worker_count,
+        first_sequence=0,
+        work_queue_capacity=work_queue_capacity,
+        outcome_capacity=outcome_capacity,
+        acknowledge_pair=acknowledge_pair,
+    )
+
+
+def _run_pairs_from_sequence(
+    work_items: Iterable[PairWorkItem],
+    execute_pair: PairExecutor,
+    publish_pair: PairPublisher,
+    *,
+    worker_count: int,
+    first_sequence: int,
+    work_queue_capacity: int | None = None,
+    outcome_capacity: int | None = None,
+    acknowledge_pair: PairAcknowledger | None = None,
+) -> CoordinatorStats:
+    """Internal scheduler entry point for a previously verified prefix."""
+
+    if first_sequence < 0:
+        raise ValueError("first_sequence must be non-negative")
     work_capacity, pending_capacity = _validated_capacities(
         worker_count, work_queue_capacity, outcome_capacity
     )
@@ -94,8 +121,8 @@ def run_pairs(
     iterator = iter(work_items)
     next_item: PairWorkItem | None = None
     input_exhausted = False
-    expected_submission = 0
-    next_publication = 0
+    expected_submission = first_sequence
+    next_publication = first_sequence
     submitted_count = 0
     completed_count = 0
     published_count = 0
@@ -123,7 +150,8 @@ def run_pairs(
                         break
                     if next_item.sequence != expected_submission:
                         raise ValueError(
-                            "pair sequences must be contiguous and start at zero; "
+                            "pair sequences must be contiguous from the verified "
+                            "starting sequence; "
                             f"expected {expected_submission}, "
                             f"got {next_item.sequence}"
                         )

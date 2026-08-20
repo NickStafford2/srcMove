@@ -293,6 +293,29 @@ class PairReceiptPublisher:
         self.pairs_directory.mkdir(parents=True, exist_ok=True)
         self._next_sequence = 0
 
+    @classmethod
+    def from_verified_prefix(
+        cls,
+        analysis_root: Path,
+        verified_prefix: Any,
+        *,
+        retention_policy: RetentionPolicy = DEFAULT_RETENTION_POLICY,
+    ) -> PairReceiptPublisher:
+        """Create a publisher positioned only by a verified resume proof."""
+
+        from .resume import VerifiedReceiptPrefix
+
+        if not isinstance(verified_prefix, VerifiedReceiptPrefix):
+            raise TypeError("verified_prefix must be a VerifiedReceiptPrefix")
+        publisher = cls(analysis_root, retention_policy=retention_policy)
+        if publisher.analysis_root != verified_prefix.analysis_root:
+            raise ValueError("verified prefix belongs to a different analysis root")
+        policy_record = tuple(sorted(retention_policy.record().items()))
+        if policy_record != verified_prefix.retention_policy:
+            raise ValueError("verified prefix uses a different retention policy")
+        publisher._next_sequence = verified_prefix.next_sequence
+        return publisher
+
     def __call__(self, outcome: PairOutcome) -> None:
         sequence = outcome.work_item.sequence
         if sequence != self._next_sequence:
