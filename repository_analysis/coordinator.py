@@ -13,6 +13,7 @@ from .contracts import PairOutcome, PairWorkItem
 
 PairExecutor: TypeAlias = Callable[[PairWorkItem], PairOutcome]
 PairPublisher: TypeAlias = Callable[[PairOutcome], None]
+PairAcknowledger: TypeAlias = Callable[[PairOutcome], None]
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,8 +54,13 @@ def run_pairs(
     worker_count: int,
     work_queue_capacity: int | None = None,
     outcome_capacity: int | None = None,
+    acknowledge_pair: PairAcknowledger | None = None,
 ) -> CoordinatorStats:
-    """Execute each pair once and publish contiguous outcomes in order."""
+    """Execute, publish, and optionally acknowledge each pair in order.
+
+    An acknowledgement runs only after publication returns successfully. It is
+    the ownership boundary that permits an executor to remove ephemeral inputs.
+    """
 
     work_capacity, pending_capacity = _validated_capacities(
         worker_count, work_queue_capacity, outcome_capacity
@@ -155,6 +161,8 @@ def run_pairs(
                 outcome = pending.pop(next_publication)
                 try:
                     publish_pair(outcome)
+                    if acknowledge_pair is not None:
+                        acknowledge_pair(outcome)
                 finally:
                     unpublished_count -= 1
                     outcome_slots.release()

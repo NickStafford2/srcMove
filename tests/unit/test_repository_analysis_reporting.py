@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from repository_analysis import (
@@ -13,6 +15,7 @@ from repository_analysis import (
     PairWorkItem,
     ProcessOutcome,
     VerifiedArtifact,
+    RetentionPolicy,
     pair_receipt,
 )
 
@@ -57,6 +60,18 @@ def failed_process(root: Path, artifact: VerifiedArtifact) -> ProcessOutcome:
         oom_kill_observed=False,
         output_artifact=artifact,
         validation_error="archive output must contain child units",
+    )
+
+
+def file_artifact(path: Path, *, kind: str, stage: str) -> VerifiedArtifact:
+    content = path.read_bytes()
+    return VerifiedArtifact(
+        path=path,
+        size_bytes=len(content),
+        sha256=hashlib.sha256(content).hexdigest(),
+        kind=kind,
+        validation_status="valid",
+        producing_stage=stage,
     )
 
 
@@ -193,6 +208,155 @@ class PairReceiptTests(unittest.TestCase):
 
             self.assertEqual(destination.read_text(), '{"existing":true}\n')
             self.assertEqual(publisher.summary()["selected_pairs"], 0)
+
+    def test_zero_move_seal_retains_results_but_discards_xml(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            worker = root / "worker"
+            worker.mkdir()
+            xml = worker / "srcmove.xml"
+            xml.write_text("<unit/>", encoding="utf-8")
+            results = worker / "results.json"
+            results.write_text('{"move_count":0}\n', encoding="utf-8")
+            outcome = PairOutcome(
+                work_item=work_item(0),
+                status=PairStatus.COMPLETED,
+                artifacts=(
+                    file_artifact(xml, kind="xml", stage="srcmove"),
+                    file_artifact(results, kind="json_results", stage="srcmove"),
+                ),
+                metrics=(("move_count", 0),),
+            )
+
+            PairReceiptPublisher(root)(outcome)
+
+            receipt_path = root / "pairs" / "000000.json"
+            receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+            self.assertTrue(receipt["sealed"])
+            self.assertEqual(receipt["schema_version"], 2)
+            records = {entry["kind"]: entry for entry in receipt["artifacts"]}
+            self.assertIsNone(records["xml"]["path"])
+            self.assertEqual(records["xml"]["retention"], "not_retained")
+            retained_path = root / records["json_results"]["path"]
+            self.assertEqual(retained_path.read_bytes(), results.read_bytes())
+            self.assertEqual(records["json_results"]["retention"], "analysis_owned")
+            self.assertNotIn(str(worker), receipt_path.read_text(encoding="utf-8"))
+
+    def test_positive_xml_retention_is_explicit_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            worker = root / "worker"
+            worker.mkdir()
+            xml = worker / "srcmove.xml"
+            xml.write_text("<unit/>", encoding="utf-8")
+            results = worker / "results.json"
+            results.write_text('{"move_count":1}\n', encoding="utf-8")
+            outcome = PairOutcome(
+                work_item=work_item(0),
+                status=PairStatus.COMPLETED,
+                artifacts=(
+                    file_artifact(xml, kind="xml", stage="srcmove"),
+                    file_artifact(results, kind="json_results", stage="srcmove"),
+                ),
+                metrics=(("move_count", 1),),
+            )
+            publisher = PairReceiptPublisher(
+                root,
+                retention_policy=RetentionPolicy(retain_positive_xml=True),
+            )
+
+            publisher(outcome)
+
+            receipt = json.loads(
+                (root / "pairs" / "000000.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(
+                receipt["retention_policy"]["completed_positive"],
+                "results_and_xml",
+            )
+            self.assertTrue(
+                all(entry["path"] is not None for entry in receipt["artifacts"])
+            )
+
+    def test_failed_seal_retains_partial_output_and_bounded_log(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            worker = root / "worker"
+            worker.mkdir()
+            partial = worker / "srcdiff.xml"
+            partial.write_bytes(b"partial xml")
+            stdout = worker / "srcdiff.stdout.bin"
+            stdout.write_bytes(b"bounded log")
+            artifact = file_artifact(partial, kind="xml", stage="srcdiff")
+            process = failed_process(worker, artifact)
+            process = replace(
+                process,
+                stdout=CaptureObservation(
+                    path=stdout,
+                    total_bytes=len(stdout.read_bytes()),
+                    retained_bytes=len(stdout.read_bytes()),
+                    omitted_bytes=0,
+                    truncated=False,
+                    sha256=hashlib.sha256(stdout.read_bytes()).hexdigest(),
+                ),
+            )
+            outcome = PairOutcome(
+                work_item=work_item(0),
+                status=PairStatus.SRCDIFF_FAILED,
+                srcdiff_process=process,
+                artifacts=(artifact,),
+            )
+
+            PairReceiptPublisher(root)(outcome)
+
+            receipt = json.loads(
+                (root / "pairs" / "000000.json").read_text(encoding="utf-8")
+            )
+            artifact_record = receipt["artifacts"][0]
+            capture_record = receipt["srcdiff_process"]["stdout"]
+            self.assertEqual(
+                (root / artifact_record["path"]).read_bytes(), b"partial xml"
+            )
+            self.assertEqual(
+                (root / capture_record["path"]).read_bytes(), b"bounded log"
+            )
+            self.assertEqual(
+                capture_record["retained_sha256"],
+                hashlib.sha256(b"bounded log").hexdigest(),
+            )
+
+    def test_sealing_refuses_symlinked_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory) / "analysis"
+            root.mkdir()
+            outside = Path(temporary_directory) / "outside-results.json"
+            outside.write_text('{"move_count":0}\n', encoding="utf-8")
+            worker = root / "worker"
+            worker.mkdir()
+            linked = worker / "results.json"
+            linked.symlink_to(outside)
+            content = outside.read_bytes()
+            artifact = VerifiedArtifact(
+                path=linked,
+                size_bytes=len(content),
+                sha256=hashlib.sha256(content).hexdigest(),
+                kind="json_results",
+                validation_status="valid",
+                producing_stage="srcmove",
+            )
+
+            with self.assertRaisesRegex(ValueError, "symbolic link"):
+                PairReceiptPublisher(root)(
+                    PairOutcome(
+                        work_item=work_item(0),
+                        status=PairStatus.COMPLETED,
+                        artifacts=(artifact,),
+                        metrics=(("move_count", 0),),
+                    )
+                )
+
+            self.assertFalse((root / "pairs" / "000000.json").exists())
+            self.assertTrue(outside.exists())
 
 
 if __name__ == "__main__":

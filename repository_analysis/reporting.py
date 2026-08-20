@@ -16,9 +16,15 @@ from .contracts import (
     ProcessOutcome,
     VerifiedArtifact,
 )
+from .retention import (
+    DEFAULT_RETENTION_POLICY,
+    RetainedFile,
+    RetentionPolicy,
+    retain_outcome_files,
+)
 
 
-PAIR_RECEIPT_SCHEMA_VERSION = 1
+PAIR_RECEIPT_SCHEMA_VERSION = 2
 HISTORY_SUMMARY_SCHEMA_VERSION = 1
 FAILURE_STATUSES = {
     "export_failed",
@@ -90,6 +96,7 @@ def pair_receipt(outcome: PairOutcome) -> dict[str, Any]:
     item = outcome.work_item
     return {
         "schema_version": PAIR_RECEIPT_SCHEMA_VERSION,
+        "sealed": False,
         "sequence": item.sequence,
         "old_commit": item.old_commit,
         "new_commit": item.new_commit,
@@ -135,15 +142,78 @@ def _publish_new_file(path: Path, content: bytes) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.link(temporary, path)
+        _fsync_directory(path.parent)
     finally:
         temporary.unlink(missing_ok=True)
+
+
+def _fsync_directory(directory: Path) -> None:
+    descriptor = os.open(directory, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
+def _sealed_receipt(
+    outcome: PairOutcome,
+    retained_files: dict[Path, RetainedFile],
+    policy: RetentionPolicy,
+) -> dict[str, Any]:
+    receipt = pair_receipt(outcome)
+    receipt["sealed"] = True
+    receipt["artifact_path_base"] = "analysis_root"
+    receipt["retention_policy"] = policy.record()
+    for artifact in receipt["artifacts"]:
+        _seal_artifact_record(artifact, retained_files)
+    for process_name in ("srcdiff_process", "srcmove_process"):
+        process = receipt[process_name]
+        if process is None:
+            continue
+        output_artifact = process["output_artifact"]
+        if output_artifact is not None:
+            _seal_artifact_record(output_artifact, retained_files)
+        for stream_name in ("stdout", "stderr"):
+            capture = process[stream_name]
+            source = capture["path"]
+            retained = (
+                None
+                if source is None
+                else retained_files.get(Path(os.path.abspath(source)))
+            )
+            capture["path"] = (
+                None if retained is None else str(retained.relative_path)
+            )
+            capture["retained_sha256"] = (
+                None if retained is None else retained.sha256
+            )
+    return receipt
+
+
+def _seal_artifact_record(
+    artifact: dict[str, Any], retained_files: dict[Path, RetainedFile]
+) -> None:
+    source = Path(os.path.abspath(artifact["path"]))
+    retained = retained_files.get(source)
+    if retained is None:
+        artifact["path"] = None
+        artifact["retention"] = "not_retained"
+        return
+    artifact["path"] = str(retained.relative_path)
+    artifact["retention"] = "analysis_owned"
 
 
 class PairReceiptPublisher:
     """Publish ordered receipts and retain only constant-size summary state."""
 
-    def __init__(self, analysis_root: Path) -> None:
+    def __init__(
+        self,
+        analysis_root: Path,
+        *,
+        retention_policy: RetentionPolicy = DEFAULT_RETENTION_POLICY,
+    ) -> None:
         self.analysis_root = analysis_root.resolve()
+        self.retention_policy = retention_policy
         self.pairs_directory = self.analysis_root / "pairs"
         self.pairs_directory.mkdir(parents=True, exist_ok=True)
         self._next_sequence = 0
@@ -161,8 +231,19 @@ class PairReceiptPublisher:
                 "pair receipts must be published in contiguous sequence order; "
                 f"expected {self._next_sequence}, got {sequence}"
             )
-        receipt = pair_receipt(outcome)
         destination = self.pairs_directory / f"{sequence:06d}.json"
+        if destination.exists():
+            raise FileExistsError(destination)
+        pair_directory = self.pairs_directory / f"{sequence:06d}"
+        retained = retain_outcome_files(
+            outcome,
+            self.analysis_root,
+            pair_directory,
+            policy=self.retention_policy,
+        )
+        receipt = _sealed_receipt(
+            outcome, retained.by_source(), self.retention_policy
+        )
         _publish_new_file(destination, _canonical_json(receipt))
         self._next_sequence += 1
         status = outcome.status.value

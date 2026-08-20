@@ -233,6 +233,31 @@ class RunPairsTests(unittest.TestCase):
             )
         )
 
+    def test_acknowledgement_requires_successful_publication(self) -> None:
+        events: list[tuple[str, int]] = []
+
+        def publish(outcome: PairOutcome) -> None:
+            events.append(("publish", outcome.work_item.sequence))
+            if outcome.work_item.sequence == 1:
+                raise RuntimeError("injected publication failure")
+
+        def acknowledge(outcome: PairOutcome) -> None:
+            events.append(("acknowledge", outcome.work_item.sequence))
+
+        with self.assertRaisesRegex(RuntimeError, "publication failure"):
+            run_pairs(
+                work_items(3),
+                completed,
+                publish,
+                worker_count=1,
+                acknowledge_pair=acknowledge,
+            )
+
+        self.assertEqual(
+            events,
+            [("publish", 0), ("acknowledge", 0), ("publish", 1)],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

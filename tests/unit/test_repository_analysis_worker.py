@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import os
 import signal
 import shutil
@@ -12,12 +13,19 @@ from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
-from repository_analysis import PairExecutor, PairStatus, PairWorkItem, run_pairs
+from repository_analysis import (
+    PairExecutor,
+    PairReceiptPublisher,
+    PairStatus,
+    PairWorkItem,
+    run_pairs,
+)
 from repository_analysis.git import GitBatch, GitMaterializationError
 from repository_analysis.process import (
     run_process,
     validate_xml_artifact,
 )
+from repository_analysis.worker import _remove_tree_within
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -84,6 +92,59 @@ def item(
 
 
 class PairExecutorTests(unittest.TestCase):
+    def test_cleanup_unlinks_symlinks_without_crossing_analysis_root(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            analysis = root / "analysis"
+            owned = analysis / "worker" / "pair"
+            owned.mkdir(parents=True)
+            outside = root / "outside"
+            outside.mkdir()
+            evidence = outside / "keep.txt"
+            evidence.write_text("keep", encoding="utf-8")
+            (owned / "outside-link").symlink_to(outside, target_is_directory=True)
+
+            _remove_tree_within(owned, analysis)
+
+            self.assertFalse(owned.exists())
+            self.assertEqual(evidence.read_text(encoding="utf-8"), "keep")
+            with self.assertRaisesRegex(ValueError, "escapes analysis root"):
+                _remove_tree_within(outside, analysis)
+            self.assertTrue(outside.exists())
+
+    def test_sealed_publication_acknowledges_worker_cleanup(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository, commits = create_history(root)
+            tools = root / "tools"
+            tools.mkdir()
+            srcdiff = executable_copy(tools, "srcdiff-valid-archive")
+            srcmove = executable_copy(tools, "srcmove-valid-archive")
+            analysis = root / "analysis"
+            executor = PairExecutor(analysis)
+            publisher = PairReceiptPublisher(analysis)
+
+            run_pairs(
+                [item(0, commits[0], commits[1], repository, srcdiff, srcmove)],
+                executor,
+                publisher,
+                worker_count=1,
+                acknowledge_pair=executor.acknowledge,
+            )
+
+            receipt = json.loads(
+                (analysis / "pairs" / "000000.json").read_text(encoding="utf-8")
+            )
+            results_record = next(
+                artifact
+                for artifact in receipt["artifacts"]
+                if artifact["kind"] == "json_results"
+            )
+            self.assertTrue((analysis / results_record["path"]).is_file())
+            self.assertEqual(
+                list(analysis.glob("repository-analysis-worker-*")), []
+            )
+
     def test_worker_session_setup_failure_propagates_without_deadlock(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

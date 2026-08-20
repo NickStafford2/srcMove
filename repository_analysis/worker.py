@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import contextlib
+import os
+import stat
 import threading
 import time
 import uuid
 from pathlib import Path
-from typing import Iterator
+from typing import Callable, Iterator
 
 from .contracts import (
     ChangedPath,
@@ -38,6 +40,8 @@ class PairExecutor:
             raise ValueError("log_limit must be at least two bytes")
         self.analysis_root = analysis_root.resolve()
         self.log_limit = log_limit
+        self._owned_pairs: dict[tuple[int, str], Path] = {}
+        self._owned_pairs_lock = threading.Lock()
 
     def __call__(self, work_item: PairWorkItem) -> PairOutcome:
         raise RuntimeError("PairExecutor must be used through run_pairs")
@@ -48,19 +52,52 @@ class PairExecutor:
         name = threading.current_thread().name.replace("/", "-")
         worker_directory = self.analysis_root / f"{name}-{uuid.uuid4().hex}"
         worker_directory.mkdir(exist_ok=False)
-        session = _WorkerSession(worker_directory, self.log_limit)
+        session = _WorkerSession(
+            worker_directory, self.log_limit, self._register_pair
+        )
         try:
             yield session
         finally:
             session.close()
+            try:
+                worker_directory.rmdir()
+            except OSError:
+                pass
+
+    def _register_pair(self, item: PairWorkItem, directory: Path) -> None:
+        key = (item.sequence, item.fingerprint)
+        with self._owned_pairs_lock:
+            if key in self._owned_pairs:
+                raise RuntimeError(f"pair {item.sequence} already has an owner")
+            self._owned_pairs[key] = directory
+
+    def acknowledge(self, outcome: PairOutcome) -> None:
+        """Remove one worker-owned pair only after coordinator publication."""
+
+        item = outcome.work_item
+        key = (item.sequence, item.fingerprint)
+        with self._owned_pairs_lock:
+            directory = self._owned_pairs.get(key)
+        if directory is None:
+            return
+        _remove_tree_within(directory, self.analysis_root)
+        with self._owned_pairs_lock:
+            if self._owned_pairs.get(key) == directory:
+                del self._owned_pairs[key]
 
 
 class _WorkerSession:
     """Long-lived worker state, including its persistent Git batch process."""
 
-    def __init__(self, directory: Path, log_limit: int) -> None:
+    def __init__(
+        self,
+        directory: Path,
+        log_limit: int,
+        register_pair: Callable[[PairWorkItem, Path], None],
+    ) -> None:
         self.directory = directory
         self.log_limit = log_limit
+        self._register_pair = register_pair
         self._repository: Path | None = None
         self._git_batch: GitBatch | None = None
 
@@ -108,6 +145,7 @@ class _WorkerSession:
                 f"pair-{item.sequence:08d}-{item.fingerprint[:12]}"
             )
             pair_directory.mkdir(exist_ok=False)
+            self._register_pair(item, pair_directory)
             original = pair_directory / "original"
             modified = pair_directory / "modified"
             materialize_started = time.monotonic()
@@ -319,3 +357,35 @@ def _process_failure(stage: str, outcome: ProcessOutcome) -> str:
     if validation_error:
         return f"{stage} artifact validation failed: {validation_error}"
     return f"{stage} failed with termination status {termination}"
+
+
+def _remove_tree_within(directory: Path, analysis_root: Path) -> None:
+    """Remove a worker-owned tree without following links or escaping root."""
+
+    root = analysis_root.resolve()
+    target = Path(os.path.abspath(directory))
+    try:
+        target.relative_to(root)
+    except ValueError as error:
+        raise ValueError(f"cleanup target escapes analysis root: {target}") from error
+    if target == root:
+        raise ValueError("refusing to clean the analysis root")
+    target_stat = target.lstat()
+    if not stat.S_ISDIR(target_stat.st_mode) or stat.S_ISLNK(target_stat.st_mode):
+        raise ValueError(f"cleanup target is not an owned directory: {target}")
+    _remove_directory_contents(target)
+    target.rmdir()
+
+
+def _remove_directory_contents(directory: Path) -> None:
+    with os.scandir(directory) as entries:
+        for entry in entries:
+            path = Path(entry.path)
+            entry_stat = entry.stat(follow_symlinks=False)
+            if stat.S_ISDIR(entry_stat.st_mode) and not stat.S_ISLNK(
+                entry_stat.st_mode
+            ):
+                _remove_directory_contents(path)
+                path.rmdir()
+            else:
+                path.unlink()

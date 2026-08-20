@@ -15,6 +15,7 @@ from .coordinator import (
     run_pairs,
 )
 from .reporting import PairReceiptPublisher, pair_receipt
+from .retention import RetentionPolicy
 from .worker import PairExecutor
 
 __all__ = [
@@ -27,6 +28,7 @@ __all__ = [
     "PairStatus",
     "PairWorkItem",
     "ProcessOutcome",
+    "RetentionPolicy",
     "VerifiedArtifact",
     "WorkerExecutionError",
     "pair_receipt",
