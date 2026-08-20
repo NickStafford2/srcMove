@@ -245,9 +245,29 @@ def _validate_completed_seal(receipt: Mapping[str, Any]) -> None:
         raise ValueError(
             "completed receipt requires one retained valid results.json artifact"
         )
+    policy = _mapping(receipt, "retention_policy")
+    if (
+        policy.get("completed_positive") == "results_and_xml"
+        and _count(metrics, "move_count", required=True) > 0
+    ):
+        retained_xml_stages = [
+            artifact.get("producing_stage")
+            for artifact in artifacts
+            if artifact.get("kind") == "xml"
+            and artifact.get("validation_status") == "valid"
+            and artifact.get("retention") == "analysis_owned"
+            and isinstance(artifact.get("path"), str)
+        ]
+        if sorted(retained_xml_stages) != ["srcdiff", "srcmove"]:
+            raise ValueError(
+                "completed positive receipt requires retained valid srcDiff "
+                "and srcMove XML artifacts"
+            )
 
 
-def _validate_completed_outcome(outcome: PairOutcome) -> None:
+def _validate_completed_outcome(
+    outcome: PairOutcome, policy: RetentionPolicy
+) -> None:
     if outcome.status.value != "completed":
         return
     metrics = dict(outcome.metrics)
@@ -263,6 +283,19 @@ def _validate_completed_outcome(outcome: PairOutcome) -> None:
         raise ValueError(
             "completed outcome requires one valid results.json artifact"
         )
+    if policy.retain_positive_xml and _count(
+        metrics, "move_count", required=True
+    ) > 0:
+        xml_stages = sorted(
+            artifact.producing_stage
+            for artifact in outcome.artifacts
+            if artifact.kind == "xml" and artifact.validation_status == "valid"
+        )
+        if xml_stages != ["srcdiff", "srcmove"]:
+            raise ValueError(
+                "completed positive outcome requires valid srcDiff and srcMove "
+                "XML artifacts"
+            )
 
 
 def _seal_artifact_record(
@@ -293,29 +326,6 @@ class PairReceiptPublisher:
         self.pairs_directory.mkdir(parents=True, exist_ok=True)
         self._next_sequence = 0
 
-    @classmethod
-    def from_verified_prefix(
-        cls,
-        analysis_root: Path,
-        verified_prefix: Any,
-        *,
-        retention_policy: RetentionPolicy = DEFAULT_RETENTION_POLICY,
-    ) -> PairReceiptPublisher:
-        """Create a publisher positioned only by a verified resume proof."""
-
-        from .resume import VerifiedReceiptPrefix
-
-        if not isinstance(verified_prefix, VerifiedReceiptPrefix):
-            raise TypeError("verified_prefix must be a VerifiedReceiptPrefix")
-        publisher = cls(analysis_root, retention_policy=retention_policy)
-        if publisher.analysis_root != verified_prefix.analysis_root:
-            raise ValueError("verified prefix belongs to a different analysis root")
-        policy_record = tuple(sorted(retention_policy.record().items()))
-        if policy_record != verified_prefix.retention_policy:
-            raise ValueError("verified prefix uses a different retention policy")
-        publisher._next_sequence = verified_prefix.next_sequence
-        return publisher
-
     def __call__(self, outcome: PairOutcome) -> None:
         sequence = outcome.work_item.sequence
         if sequence != self._next_sequence:
@@ -326,7 +336,7 @@ class PairReceiptPublisher:
         destination = self.pairs_directory / f"{sequence:06d}.json"
         if destination.exists():
             raise FileExistsError(destination)
-        _validate_completed_outcome(outcome)
+        _validate_completed_outcome(outcome, self.retention_policy)
         pair_directory = self.pairs_directory / f"{sequence:06d}"
         retained = retain_outcome_files(
             outcome,

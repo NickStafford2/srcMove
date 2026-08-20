@@ -92,6 +92,23 @@ def _run_pairs_from_sequence(
     work_capacity, pending_capacity = _validated_capacities(
         worker_count, work_queue_capacity, outcome_capacity
     )
+    iterator = iter(work_items)
+    try:
+        next_item: PairWorkItem | None = next(iterator)
+    except StopIteration:
+        return CoordinatorStats(
+            worker_count=worker_count,
+            submitted_count=0,
+            completed_count=0,
+            published_count=0,
+            max_queued_work=0,
+            max_unpublished_outcomes=0,
+        )
+    if next_item.sequence != first_sequence:
+        raise ValueError(
+            "pair sequences must be contiguous from the verified starting "
+            f"sequence; expected {first_sequence}, got {next_item.sequence}"
+        )
     work_queue: queue.Queue[PairWorkItem] = queue.Queue(maxsize=work_capacity)
     result_queue: queue.Queue[_WorkerResult] = queue.Queue(
         maxsize=pending_capacity
@@ -118,8 +135,6 @@ def _run_pairs_from_sequence(
     for worker in workers:
         worker.start()
 
-    iterator = iter(work_items)
-    next_item: PairWorkItem | None = None
     input_exhausted = False
     expected_submission = first_sequence
     next_publication = first_sequence

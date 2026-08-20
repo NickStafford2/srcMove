@@ -245,8 +245,10 @@ class PairReceiptTests(unittest.TestCase):
             root = Path(temporary_directory)
             worker = root / "worker"
             worker.mkdir()
-            xml = worker / "srcmove.xml"
-            xml.write_text("<unit/>", encoding="utf-8")
+            srcdiff_xml = worker / "srcdiff.xml"
+            srcdiff_xml.write_text("<unit/>", encoding="utf-8")
+            srcmove_xml = worker / "srcmove.xml"
+            srcmove_xml.write_text("<unit/>", encoding="utf-8")
             results = worker / "results.json"
             results.write_text(
                 '{"move_count":0,"move_group_count":0,'
@@ -257,7 +259,8 @@ class PairReceiptTests(unittest.TestCase):
                 work_item=work_item(0),
                 status=PairStatus.COMPLETED,
                 artifacts=(
-                    file_artifact(xml, kind="xml", stage="srcmove"),
+                    file_artifact(srcdiff_xml, kind="xml", stage="srcdiff"),
+                    file_artifact(srcmove_xml, kind="xml", stage="srcmove"),
                     file_artifact(results, kind="json_results", stage="srcmove"),
                 ),
                 metrics=(
@@ -287,8 +290,10 @@ class PairReceiptTests(unittest.TestCase):
             root = Path(temporary_directory)
             worker = root / "worker"
             worker.mkdir()
-            xml = worker / "srcmove.xml"
-            xml.write_text("<unit/>", encoding="utf-8")
+            srcdiff_xml = worker / "srcdiff.xml"
+            srcdiff_xml.write_text("<unit/>", encoding="utf-8")
+            srcmove_xml = worker / "srcmove.xml"
+            srcmove_xml.write_text("<unit/>", encoding="utf-8")
             results = worker / "results.json"
             results.write_text(
                 '{"move_count":1,"move_group_count":1,'
@@ -299,7 +304,8 @@ class PairReceiptTests(unittest.TestCase):
                 work_item=work_item(0),
                 status=PairStatus.COMPLETED,
                 artifacts=(
-                    file_artifact(xml, kind="xml", stage="srcmove"),
+                    file_artifact(srcdiff_xml, kind="xml", stage="srcdiff"),
+                    file_artifact(srcmove_xml, kind="xml", stage="srcmove"),
                     file_artifact(results, kind="json_results", stage="srcmove"),
                 ),
                 metrics=(
@@ -326,6 +332,42 @@ class PairReceiptTests(unittest.TestCase):
             self.assertTrue(
                 all(entry["path"] is not None for entry in receipt["artifacts"])
             )
+
+    def test_positive_xml_policy_requires_both_tool_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            worker = root / "worker"
+            worker.mkdir()
+            srcmove_xml = worker / "srcmove.xml"
+            srcmove_xml.write_text("<unit/>", encoding="utf-8")
+            results = worker / "results.json"
+            results.write_text(
+                '{"move_count":1,"move_group_count":1,'
+                '"move_pair_count":1,"annotated_region_count":2}\n',
+                encoding="utf-8",
+            )
+            outcome = PairOutcome(
+                work_item=work_item(0),
+                status=PairStatus.COMPLETED,
+                artifacts=(
+                    file_artifact(srcmove_xml, kind="xml", stage="srcmove"),
+                    file_artifact(results, kind="json_results", stage="srcmove"),
+                ),
+                metrics=(
+                    ("move_count", 1),
+                    ("move_group_count", 1),
+                    ("move_pair_count", 1),
+                    ("annotated_region_count", 2),
+                ),
+            )
+
+            with self.assertRaisesRegex(ValueError, "srcDiff and srcMove XML"):
+                PairReceiptPublisher(
+                    root,
+                    retention_policy=RetentionPolicy(retain_positive_xml=True),
+                )(outcome)
+
+            self.assertFalse((root / "pairs" / "000000").exists())
 
     def test_failed_seal_retains_partial_output_and_bounded_log(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

@@ -23,7 +23,6 @@ from .reporting import (
 from .retention import RetentionPolicy
 from .resume import (
     ResumeStats,
-    VerifiedReceiptPrefix,
     prepare_verified_resume,
     resume_pairs,
 )
@@ -42,7 +41,6 @@ __all__ = [
     "RetentionPolicy",
     "ResumeStats",
     "VerifiedArtifact",
-    "VerifiedReceiptPrefix",
     "WorkerExecutionError",
     "derive_history_summary",
     "pair_receipt",

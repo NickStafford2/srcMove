@@ -5,6 +5,7 @@ from __future__ import annotations
 import hashlib
 import os
 import stat
+import uuid
 from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -18,7 +19,7 @@ from .retention import DEFAULT_RETENTION_POLICY, RetentionPolicy
 
 
 @dataclass(frozen=True, slots=True)
-class VerifiedReceiptPrefix:
+class _VerifiedReceiptPrefix:
     """Proof that receipts before ``next_sequence`` match frozen work."""
 
     analysis_root: Path
@@ -30,7 +31,7 @@ class VerifiedReceiptPrefix:
 class VerifiedResumePlan:
     """A verified immutable prefix and the unconsumed requested work."""
 
-    prefix: VerifiedReceiptPrefix
+    prefix: _VerifiedReceiptPrefix
     remaining_work_items: Iterator[PairWorkItem]
 
 
@@ -66,7 +67,7 @@ def prepare_verified_resume(
         _verify_receipt(root, receipt, expected_policy, receipt_path)
         verified_count += 1
     return VerifiedResumePlan(
-        prefix=VerifiedReceiptPrefix(
+        prefix=_VerifiedReceiptPrefix(
             root, verified_count, tuple(sorted(expected_policy.items()))
         ),
         remaining_work_items=requested,
@@ -89,11 +90,16 @@ def resume_pairs(
     plan = prepare_verified_resume(
         analysis_root, work_items, retention_policy=retention_policy
     )
-    publisher = PairReceiptPublisher.from_verified_prefix(
-        analysis_root, plan.prefix, retention_policy=retention_policy
+    publisher = PairReceiptPublisher(
+        analysis_root, retention_policy=retention_policy
     )
+    publisher._next_sequence = plan.prefix.next_sequence
     execution = _run_pairs_from_sequence(
-        plan.remaining_work_items,
+        _preserve_unsealed_pair_evidence(
+            plan.remaining_work_items,
+            plan.prefix.analysis_root,
+            plan.prefix.next_sequence,
+        ),
         execute_pair,
         publisher,
         worker_count=worker_count,
@@ -197,7 +203,7 @@ def _verify_receipt(
             _verify_capture_record(
                 root,
                 capture,
-                required=status.endswith("_failed"),
+                retained_by_policy=status.endswith("_failed"),
                 context=f"{receipt_path}: {process_name}.{stream_name}",
             )
 
@@ -255,18 +261,100 @@ def _verify_capture_record(
     root: Path,
     capture: Mapping[str, Any],
     *,
-    required: bool,
+    retained_by_policy: bool,
     context: str,
 ) -> None:
     path = capture.get("path")
     checksum = capture.get("retained_sha256")
+    total_bytes = capture.get("total_bytes")
+    retained_bytes = capture.get("retained_bytes")
+    omitted_bytes = capture.get("omitted_bytes")
+    truncated = capture.get("truncated")
+    stream_sha256 = capture.get("sha256")
+    for name, value in (
+        ("total_bytes", total_bytes),
+        ("retained_bytes", retained_bytes),
+        ("omitted_bytes", omitted_bytes),
+    ):
+        if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+            raise ValueError(f"capture {name} schema drift: {context}")
+    if (
+        retained_bytes > total_bytes
+        or omitted_bytes != total_bytes - retained_bytes
+        or not isinstance(truncated, bool)
+        or truncated != (retained_bytes < total_bytes)
+    ):
+        raise ValueError(f"capture accounting schema drift: {context}")
+    if (
+        not isinstance(stream_sha256, str)
+        or len(stream_sha256) != 64
+        or any(
+            character not in "0123456789abcdef" for character in stream_sha256
+        )
+    ):
+        raise ValueError(f"capture SHA-256 schema drift: {context}")
+    if retained_by_policy and total_bytes > 0 and retained_bytes == 0:
+        raise ValueError(f"required retained capture is missing: {context}")
+    required = retained_by_policy and total_bytes > 0
     if required:
-        if not isinstance(path, str):
+        if not isinstance(path, str) or not isinstance(checksum, str):
             raise ValueError(f"required retained capture is missing: {context}")
     elif path is not None or checksum is not None:
         raise ValueError(f"unexpected retained capture: {context}")
     if path is not None:
-        _verify_file(root, path, capture.get("retained_bytes"), checksum, context)
+        _verify_file(root, path, retained_bytes, checksum, context)
+
+
+def _preserve_unsealed_pair_evidence(
+    work_items: Iterator[PairWorkItem], root: Path, first_sequence: int
+) -> Iterator[PairWorkItem]:
+    """Move an interrupted durable pair directory aside before retrying it."""
+
+    first = True
+    for item in work_items:
+        if first:
+            if item.sequence != first_sequence:
+                raise ValueError(
+                    "pair sequences must be contiguous from the verified starting "
+                    f"sequence; expected {first_sequence}, got {item.sequence}"
+                )
+            _preserve_pair_directory(root, first_sequence)
+            first = False
+        yield item
+
+
+def _preserve_pair_directory(root: Path, sequence: int) -> None:
+    source = root / "pairs" / f"{sequence:06d}"
+    try:
+        metadata = source.lstat()
+    except FileNotFoundError:
+        return
+    if stat.S_ISLNK(metadata.st_mode) or not stat.S_ISDIR(metadata.st_mode):
+        raise ValueError(f"unsealed pair evidence is not an owned directory: {source}")
+    evidence_root = root / "unsealed-pairs"
+    if evidence_root.exists():
+        evidence_metadata = evidence_root.lstat()
+        if stat.S_ISLNK(evidence_metadata.st_mode) or not stat.S_ISDIR(
+            evidence_metadata.st_mode
+        ):
+            raise ValueError(
+                f"unsealed evidence path is not an owned directory: {evidence_root}"
+            )
+    else:
+        evidence_root.mkdir()
+        _fsync_directory(root)
+    destination = evidence_root / f"pair-{sequence:06d}-{uuid.uuid4().hex}"
+    os.rename(source, destination)
+    _fsync_directory(source.parent)
+    _fsync_directory(evidence_root)
+
+
+def _fsync_directory(directory: Path) -> None:
+    descriptor = os.open(directory, os.O_RDONLY)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
 
 
 def _verify_file(
@@ -290,23 +378,7 @@ def _verify_file(
     ):
         raise ValueError(f"retained file SHA-256 schema drift: {context}")
 
-    path = root.joinpath(*relative.parts)
-    current = root
-    for part in relative.parts:
-        current = current / part
-        try:
-            metadata = current.lstat()
-        except FileNotFoundError as error:
-            raise ValueError(f"required retained file is missing: {context}") from error
-        if stat.S_ISLNK(metadata.st_mode):
-            raise ValueError(f"retained path contains a symbolic link: {context}")
-    if not stat.S_ISREG(path.lstat().st_mode):
-        raise ValueError(f"retained path is not a regular file: {context}")
-
-    flags = os.O_RDONLY
-    if hasattr(os, "O_NOFOLLOW"):
-        flags |= os.O_NOFOLLOW
-    descriptor = os.open(path, flags)
+    descriptor = _open_owned_file(root, relative, context)
     try:
         metadata = os.fstat(descriptor)
         if not stat.S_ISREG(metadata.st_mode):
@@ -320,6 +392,43 @@ def _verify_file(
         os.close(descriptor)
     if hasher.hexdigest() != expected_sha256:
         raise ValueError(f"retained file checksum drift: {context}")
+
+
+def _open_owned_file(
+    root: Path, relative: PurePosixPath, context: str
+) -> int:
+    """Open a retained file without following any path-component symlink."""
+
+    directory_flags = os.O_RDONLY
+    if hasattr(os, "O_DIRECTORY"):
+        directory_flags |= os.O_DIRECTORY
+    if hasattr(os, "O_NOFOLLOW"):
+        directory_flags |= os.O_NOFOLLOW
+    file_flags = os.O_RDONLY
+    if hasattr(os, "O_NOFOLLOW"):
+        file_flags |= os.O_NOFOLLOW
+
+    descriptors: list[int] = []
+    try:
+        descriptors.append(os.open(root, directory_flags))
+        for part in relative.parts[:-1]:
+            descriptors.append(
+                os.open(part, directory_flags, dir_fd=descriptors[-1])
+            )
+        descriptor = os.open(
+            relative.parts[-1], file_flags, dir_fd=descriptors[-1]
+        )
+    except FileNotFoundError as error:
+        raise ValueError(f"required retained file is missing: {context}") from error
+    except OSError as error:
+        raise ValueError(
+            "retained path is not a regular file or contains a symbolic link: "
+            f"{context}"
+        ) from error
+    finally:
+        for directory_descriptor in reversed(descriptors):
+            os.close(directory_descriptor)
+    return descriptor
 
 
 def _safe_relative_path(value: str, context: str) -> PurePosixPath:
