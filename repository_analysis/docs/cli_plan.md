@@ -22,7 +22,7 @@ storage contract.
 | Durable state | Implemented | SQLite schema v4, relocatable analysis definition, admitted executable bytes, invocation records, terminal outcomes, and pending-batch recovery | No CLI-specific work required |
 | Status data | First slice implemented | Snapshot aggregation, analysis identity, real writer-lock state, derived product state, and human/JSON output | Add verbose frozen configuration/tool detail and `status --watch` |
 | Pair exploration | First slice implemented | `list` filtering/pagination and `show` evidence are exposed with human/JSON output | Add optional Git diff and refine verbose move evidence |
-| Command surface | Partial | Repository-local `srcmove-history` with `run`, `status`, `list`, and `show`, Git-root discovery, `-C`, explicit archived-state selection, and PATH tool discovery | Add preflight, `--dry-run`, creation presets, and eventual installed-image PATH setup |
+| Command surface | Partial | Repository-local `srcmove-history` with `init`, `run`, `status`, `list`, and `show`, strict TOML configuration, Git-root discovery, `-C`, explicit archived-state selection, and PATH tool discovery | Add preflight, `--dry-run`, and eventual installed-image PATH setup |
 | Human output | First slice implemented | Run/status summaries and compact list/show views use analyzed/skipped/covered terminology | Add live progress and continue usability refinement from real studies |
 | Live progress | First slice implemented | Immediate preparation, durable publication events, TTY spinner/bar/ETA, sparse redirected updates, resume baselines, and `auto`/`always`/`never` modes | Refine from long real-world runs and add `status --watch` |
 | Export | Not implemented | Normalized evidence is queryable in SQLite | Stable CSV/JSONL research exports |
@@ -30,7 +30,7 @@ storage contract.
 
 In phase terms, the data/query prerequisites, first command/rendering slice, and
 durable live progress slice are complete. Result browsing has its first usable
-slice. Preflight/presets are now the highest-value next increment, followed by
+slice. Preflight is now the highest-value next increment, followed by
 Git diff inspection, export, and `status --watch`.
 
 ## Design assessment
@@ -46,9 +46,9 @@ Keep the current plan's strongest decisions:
 
 The redesign should also address three workflow gaps:
 
-1. **Creation is too verbose.** Tool discovery, sensible defaults, and an
-   optional creation preset should make the common command short without
-   hiding the frozen study definition.
+1. **Creation must be reviewable.** Repository-local TOML, tool discovery, and
+   sensible defaults should keep the common workflow short without hiding the
+   frozen study definition.
 2. **Status lacks a product-level state.** Raw counters are insufficient. The
    CLI must say whether the analysis is running, interrupted, idle, complete,
    or complete with pair failures, then show the evidence behind that state.
@@ -100,6 +100,7 @@ For example, a target with 41 successful pairs, 56 skips, and 3 failures is:
 Install one executable named `srcmove-history`.
 
 ```text
+srcmove-history [-C PATH] [--state-dir NAME] init
 srcmove-history [-C PATH] [--state-dir NAME] run [OPTIONS]
 srcmove-history [-C PATH] [--state-dir NAME] status [OPTIONS]
 srcmove-history [-C PATH] [--state-dir NAME] list [OPTIONS]
@@ -118,6 +119,14 @@ The enclosing Git worktree supplies the repository and its `.srcmove` state
 directory. `-C` changes the discovery starting point. `--state-dir` selects a
 different repository-local directory explicitly, allowing a renamed analysis
 to remain inspectable without introducing named analyses inside `.srcmove`.
+
+### `init`
+
+`init` creates the editable `.srcmove/config.toml` and local ignore rules. It
+does not create the database, admit executables, retain commits, or run work.
+It never overwrites an existing configuration. If a database predates the
+configuration file, `init` backfills the exact frozen analysis settings and
+latest invocation's worker count without changing the database.
 
 ### `run`
 
@@ -138,11 +147,13 @@ the analysis and exits without opening workers.
 Creation example:
 
 ```bash
+srcmove-history -C benchmarks/repositories/sqlite/work/repo init
+# Edit benchmarks/repositories/sqlite/work/repo/.srcmove/config.toml.
+
 srcmove-history -C benchmarks/repositories/sqlite/work/repo run \
   --pairs 100 \
   --name sqlite \
   --start version-3.50.0 \
-  --directory src \
   --srcdiff /workspace/srcDiff/build/bin/srcdiff \
   --srcmove /workspace/srcMove/build/srcMove \
   --jobs 6
@@ -167,28 +178,29 @@ count. These values are then frozen in the authoritative database. `--dry-run`
 performs the complete preflight without creating the analysis or opening
 workers.
 
-An optional TOML creation preset removes repeated setup from study workflows:
+`init` generates the repository-local TOML configuration used by every run:
 
-```bash
-srcmove-history -C benchmarks/repositories/sqlite/work/repo run \
-  --config studies/sqlite.toml \
-  --pairs 300 \
-  --jobs 8
+```toml
+schema_version = 1
+
+[analysis]
+selected_directory = "."
+excluded_suffixes = [".py"]
+use_archive = true
+use_position = false
+source_encoding = "UTF-8"
+srcdiff_timeout_seconds = 1800.0
+srcmove_timeout_seconds = 300.0
+
+[run]
+jobs = 1
 ```
 
-The preset is an input, not saved authority. CLI options override preset
-values, the resolved definition and preset digest are recorded at creation,
-and later runs read the definition from SQLite rather than rereading the file.
-Do not add a global mutable profile registry or an implicit "latest" analysis;
-repository-local state and explicit `-C` paths are reproducible in thesis
-automation.
-
-Configuration options such as `--directory`, encodings, exclusions, and tool
-timeouts are creation-only. Passing one while resuming an existing analysis is
-an error, even if it happens to equal the stored value. This gives every option
-one clear purpose and avoids an apparent ability to modify frozen state.
-
-`--jobs` is invocation configuration and may change between runs.
+The first run freezes `[analysis]` in SQLite. Later edits to those fields are
+reported as configuration drift and require a new state directory. `[run].jobs`
+remains mutable, and `--jobs` is a one-invocation override. Python exclusion is
+therefore a reviewable template default rather than a language rule hardwired
+into `AnalysisConfiguration`.
 
 ### `status`
 
@@ -534,7 +546,7 @@ backend item is not evidence that its CLI is complete.
 - add the installed `srcmove-history` executable;
 - replace `analyze` with `run` and discover repository-local `.srcmove` state;
 - add human and JSON renderers with the terminology in this plan;
-- implement executable discovery, preflight, `--dry-run`, and creation presets;
+- implement executable discovery, preflight, and `--dry-run`;
 - render the lock-aware product state and actionable failure command;
 - update CLI tests around stdout/stderr separation and user-visible behavior.
 

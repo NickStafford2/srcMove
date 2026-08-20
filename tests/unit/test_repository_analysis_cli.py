@@ -6,11 +6,18 @@ import json
 import subprocess
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
+from repository_analysis.analysis import AnalysisTarget, analyze_repository
 from repository_analysis.cli import _render_pair, build_parser, main
+from repository_analysis.configuration import (
+    load_history_configuration,
+    render_history_configuration,
+)
 from repository_analysis.locking import AnalysisOperationLock
+from repository_analysis.inputs import AnalysisConfiguration, RepositoryIdentity
 from repository_analysis.worker import PairExecutor
 
 
@@ -36,6 +43,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             root = Path(temporary_directory)
             repository = self._history(root, 5)
             analysis = repository / ".srcmove"
+            self._init(repository, excluded_suffixes=(".py", ".txt"))
             common = [
                 "--pairs",
                 "2",
@@ -50,8 +58,6 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 str(executable(root / "srcdiff")),
                 "--srcmove",
                 str(executable(root / "srcmove")),
-                "--exclude-suffix",
-                ".txt",
             ]
 
             status, output, error = self._main(["-C", str(repository), "run", *creation])
@@ -216,6 +222,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             root = Path(temporary_directory)
             repository = self._history(root, 3)
             analysis = repository / ".srcmove"
+            self._init(repository, excluded_suffixes=(".py", ".txt"))
             arguments = [
                 "-C",
                 str(repository),
@@ -228,25 +235,36 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 str(executable(root / "srcdiff")),
                 "--srcmove",
                 str(executable(root / "srcmove")),
-                "--exclude-suffix",
-                ".txt",
             ]
             self.assertEqual(self._main(arguments)[0], 0)
 
+            before = json.loads(
+                self._main(
+                    ["-C", str(repository), "status", "--format", "json"]
+                )[1]
+            )["invocation"]["invocation_id"]
+            configuration = load_history_configuration(analysis)
+            analysis_settings = replace(
+                configuration.analysis,
+                selected_directory="repository_analysis",
+            )
+            (analysis / "config.toml").write_text(
+                render_history_configuration(
+                    replace(configuration, analysis=analysis_settings)
+                ),
+                encoding="utf-8",
+            )
             status, _, error = self._main(
-                [
-                    "-C",
-                    str(repository),
-                    "run",
-                    "--pairs",
-                    "2",
-                    "--directory",
-                    "repository_analysis",
-                ]
+                ["-C", str(repository), "run", "--pairs", "2"]
             )
             self.assertEqual(status, 2)
-            self.assertIn("frozen definition", error)
-            self.assertIn("rename or remove .srcmove", error)
+            self.assertIn("configuration drift", error)
+            after = json.loads(
+                self._main(
+                    ["-C", str(repository), "status", "--format", "json"]
+                )[1]
+            )["invocation"]["invocation_id"]
+            self.assertEqual(after, before)
 
     def test_legacy_state_is_rejected_instead_of_mixed_with_sqlite(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -255,6 +273,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             analysis = repository / ".srcmove"
             analysis.mkdir()
             (analysis / "current.json").write_text("{}", encoding="utf-8")
+            self.assertEqual(self._main(["-C", str(repository), "init"])[0], 0)
 
             status, _, error = self._main(
                 [
@@ -292,6 +311,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             repository = self._history(root, 3)
             nested = repository / "src" / "nested"
             nested.mkdir(parents=True)
+            self._init(repository, excluded_suffixes=(".py", ".txt"))
 
             status, output, error = self._main(
                 [
@@ -306,8 +326,6 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                     str(executable(root / "srcdiff")),
                     "--srcmove",
                     str(executable(root / "srcmove")),
-                    "--exclude-suffix",
-                    ".txt",
                 ]
             )
 
@@ -319,6 +337,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
+            self._init(repository, excluded_suffixes=(".py", ".txt"))
             creation = [
                 "-C",
                 str(repository),
@@ -329,8 +348,6 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 str(executable(root / "srcdiff")),
                 "--srcmove",
                 str(executable(root / "srcmove")),
-                "--exclude-suffix",
-                ".txt",
             ]
             self.assertEqual(self._main(creation)[0], 0)
             active = repository / ".srcmove"
@@ -359,6 +376,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 4)
+            self._init(repository, excluded_suffixes=(".py", ".txt"))
             creation = [
                 "-C",
                 str(repository),
@@ -371,8 +389,6 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 str(executable(root / "srcdiff")),
                 "--srcmove",
                 str(executable(root / "srcmove")),
-                "--exclude-suffix",
-                ".txt",
             ]
             self.assertEqual(self._main(creation)[0], 0)
 
@@ -397,6 +413,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
+            self._init(repository, excluded_suffixes=(".py", ".txt"))
             creation = [
                 "-C",
                 str(repository),
@@ -407,8 +424,6 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 str(executable(root / "srcdiff")),
                 "--srcmove",
                 str(executable(root / "srcmove")),
-                "--exclude-suffix",
-                ".txt",
             ]
             self.assertEqual(self._main(creation)[0], 0)
             admitted = next((repository / ".srcmove" / "tools").glob("*/srcmove"))
@@ -422,19 +437,190 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             self.assertEqual(status, 2)
             self.assertIn("analysis-owned srcMove executable drift", error)
 
-    def _history(self, root: Path, count: int) -> Path:
+    def test_python_changes_are_skipped_by_default_and_can_be_enabled(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 2, filename="fixture.py")
+            self._init(repository)
+            base = [
+                "-C",
+                str(repository),
+                "run",
+                "--pairs",
+                "1",
+                "--format",
+                "json",
+                "--srcdiff",
+                str(executable(root / "srcdiff")),
+                "--srcmove",
+                str(executable(root / "srcmove")),
+            ]
+
+            status, output, error = self._main(base)
+            self.assertEqual((status, error), (0, ""))
+            self.assertEqual(json.loads(output)["outcomes"]["skipped"], 1)
+
+            (repository / ".srcmove").rename(repository / ".srcmove-default")
+            self._init(repository, excluded_suffixes=())
+            status, output, error = self._main(base)
+            self.assertEqual(status, 1)
+            self.assertEqual(error, "")
+            self.assertEqual(
+                json.loads(output)["outcomes"]["by_status"]["srcdiff_failed"], 1
+            )
+
+    def test_run_requires_init_and_init_does_not_create_database(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 2)
+
+            status, _, error = self._main(
+                ["-C", str(repository), "run", "--pairs", "1"]
+            )
+            self.assertEqual(status, 2)
+            self.assertIn("run srcmove-history init first", error)
+            self.assertFalse((repository / ".srcmove").exists())
+
+            status, output, error = self._main(["-C", str(repository), "init"])
+            self.assertEqual((status, error), (0, ""))
+            self.assertIn("Initialized repository analysis", output)
+            self.assertTrue((repository / ".srcmove" / "config.toml").is_file())
+            self.assertEqual(
+                load_history_configuration(repository / ".srcmove")
+                .analysis.excluded_suffixes,
+                (".py",),
+            )
+            self.assertFalse(
+                (repository / ".srcmove" / "analysis.sqlite3").exists()
+            )
+            before = (repository / ".srcmove" / "config.toml").read_bytes()
+            status, output, error = self._main(["-C", str(repository), "init"])
+            self.assertEqual((status, error), (0, ""))
+            self.assertIn("Already initialized", output)
+            self.assertEqual(
+                (repository / ".srcmove" / "config.toml").read_bytes(), before
+            )
+
+    def test_mutable_jobs_setting_applies_after_first_run(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 3)
+            self._init(repository, excluded_suffixes=(".py", ".txt"))
+            creation = [
+                "-C",
+                str(repository),
+                "run",
+                "--pairs",
+                "1",
+                "--srcdiff",
+                str(executable(root / "srcdiff")),
+                "--srcmove",
+                str(executable(root / "srcmove")),
+            ]
+            self.assertEqual(self._main(creation)[0], 0)
+            analysis = repository / ".srcmove"
+            configuration = load_history_configuration(analysis)
+            (analysis / "config.toml").write_text(
+                render_history_configuration(replace(configuration, jobs=5)),
+                encoding="utf-8",
+            )
+
+            self.assertEqual(
+                self._main(
+                    [
+                        "-C",
+                        str(repository),
+                        "run",
+                        "--pairs",
+                        "1",
+                        "--jobs",
+                        "2",
+                    ]
+                )[0],
+                0,
+            )
+            report = json.loads(
+                self._main(
+                    ["-C", str(repository), "status", "--format", "json"]
+                )[1]
+            )
+            self.assertEqual(report["invocation"]["jobs"], 2)
+            self.assertEqual(
+                self._main(
+                    ["-C", str(repository), "run", "--pairs", "1"]
+                )[0],
+                0,
+            )
+            report = json.loads(
+                self._main(
+                    ["-C", str(repository), "status", "--format", "json"]
+                )[1]
+            )
+            self.assertEqual(report["invocation"]["jobs"], 5)
+
+    def test_init_backfills_configuration_for_existing_database(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 3)
+            analysis = repository / ".srcmove"
+            frozen = AnalysisConfiguration(excluded_suffixes=(".txt",))
+            analyze_repository(
+                analysis_root=analysis,
+                target=AnalysisTarget("total_pairs", 1),
+                jobs=3,
+                repository=repository,
+                repository_identity=RepositoryIdentity("fixture"),
+                configuration=frozen,
+                srcdiff_path=executable(root / "srcdiff"),
+                srcmove_path=executable(root / "srcmove"),
+            )
+            self.assertFalse((analysis / "config.toml").exists())
+
+            status, _, error = self._main(["-C", str(repository), "init"])
+
+            self.assertEqual((status, error), (0, ""))
+            backfilled = load_history_configuration(analysis)
+            self.assertEqual(backfilled.analysis, frozen)
+            self.assertEqual(backfilled.jobs, 3)
+
+    def _history(
+        self, root: Path, count: int, *, filename: str = "fixture.txt"
+    ) -> Path:
         repository = root / "repository"
         repository.mkdir()
         git(repository, "init", "--initial-branch=main")
         git(repository, "config", "user.name", "CLI Test")
         git(repository, "config", "user.email", "cli@example.invalid")
         for index in range(count):
-            (repository / "fixture.txt").write_text(
+            (repository / filename).write_text(
                 f"commit-{index}", encoding="utf-8"
             )
-            git(repository, "add", "fixture.txt")
+            git(repository, "add", filename)
             git(repository, "commit", "-m", f"commit-{index}")
         return repository
+
+    def _init(
+        self,
+        repository: Path,
+        *,
+        excluded_suffixes: tuple[str, ...] | None = None,
+    ) -> None:
+        status, _, error = self._main(["-C", str(repository), "init"])
+        self.assertEqual((status, error), (0, ""))
+        if excluded_suffixes is None:
+            return
+        analysis = repository / ".srcmove"
+        configuration = load_history_configuration(analysis)
+        updated = replace(
+            configuration,
+            analysis=replace(
+                configuration.analysis,
+                excluded_suffixes=excluded_suffixes,
+            ),
+        )
+        (analysis / "config.toml").write_text(
+            render_history_configuration(updated), encoding="utf-8"
+        )
 
     def _main(self, arguments: list[str]) -> tuple[int, str, str]:
         output = io.StringIO()

@@ -6,10 +6,15 @@ import json
 import subprocess
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
 from repository_analysis.cli import main
+from repository_analysis.configuration import (
+    load_history_configuration,
+    render_history_configuration,
+)
 from repository_analysis.worker import PairExecutor
 
 
@@ -142,6 +147,20 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
 
     def _creation_arguments(self, root: Path, *, pairs: int) -> list[str]:
         repository = self._history(root, pairs + 1)
+        self.assertEqual(self._main(["-C", str(repository), "init"])[0], 0)
+        analysis = repository / ".srcmove"
+        configuration = load_history_configuration(analysis)
+        configuration = replace(
+            configuration,
+            analysis=replace(
+                configuration.analysis,
+                excluded_suffixes=(".py", ".txt"),
+            ),
+            jobs=2,
+        )
+        (analysis / "config.toml").write_text(
+            render_history_configuration(configuration), encoding="utf-8"
+        )
         return [
             "-C",
             str(repository),
@@ -154,10 +173,6 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
             str(executable(root / "srcdiff")),
             "--srcmove",
             str(executable(root / "srcmove")),
-            "--exclude-suffix",
-            ".txt",
-            "--jobs",
-            "2",
         ]
 
     def _history(self, root: Path, count: int) -> Path:

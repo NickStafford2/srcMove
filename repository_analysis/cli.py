@@ -12,16 +12,22 @@ from typing import Any, Sequence
 
 from .analysis import (
     AnalysisTarget,
+    _ensure_state_gitignore,
     analysis_identity,
     analysis_list_pairs,
     analysis_pair_details,
     analysis_status,
     analyze_repository,
 )
-from .database import analysis_database_exists
+from .configuration import (
+    HistoryConfiguration,
+    create_history_configuration,
+    load_history_configuration,
+)
+from .database import AnalysisDatabase, analysis_database_exists
 from .git import find_repository_root
 from .inputs import AnalysisConfiguration, RepositoryIdentity
-from .locking import is_analysis_writer_locked
+from .locking import AnalysisOperationLock, is_analysis_writer_locked
 from .presentation import render_run, render_status
 from .progress import TerminalAnalysisObserver
 
@@ -46,6 +52,15 @@ def build_parser() -> argparse.ArgumentParser:
     )
     commands = parser.add_subparsers(dest="command", required=True)
 
+    commands.add_parser(
+        "init",
+        help="create editable repository-analysis configuration",
+        description=(
+            "Initialize repository-local configuration without creating an "
+            "analysis database or running tools."
+        ),
+    )
+
     run = commands.add_parser(
         "run",
         help="create, resume, or extend one repository analysis",
@@ -69,33 +84,9 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--name", help="stable repository name; defaults to checkout name")
     run.add_argument("--srcdiff", type=Path, help="srcdiff executable (default: PATH)")
     run.add_argument("--srcmove", type=Path, help="srcMove executable (default: PATH)")
-    run.add_argument("--directory", help="repository-relative source scope")
     run.add_argument(
-        "--exclude-suffix",
-        action="append",
-        metavar=".SUFFIX",
-        help="exclude a file suffix; repeatable and creation only",
+        "--jobs", type=int, help="override config.toml run.jobs for this invocation"
     )
-    run.add_argument(
-        "--no-archive",
-        action="store_true",
-        default=None,
-        help="avoid git archive; creation only",
-    )
-    run.add_argument(
-        "--position",
-        action="store_true",
-        default=None,
-        help="enable srcDiff positions; creation only",
-    )
-    run.add_argument("--encoding", help="source encoding; creation only")
-    run.add_argument(
-        "--srcdiff-timeout", type=float, help="srcDiff timeout seconds; creation only"
-    )
-    run.add_argument(
-        "--srcmove-timeout", type=float, help="srcMove timeout seconds; creation only"
-    )
-    run.add_argument("--jobs", type=int, default=1, help="parallel pair workers")
     run.add_argument(
         "--progress",
         choices=("auto", "always", "never"),
@@ -157,37 +148,6 @@ def _target(arguments: argparse.Namespace) -> AnalysisTarget:
     return AnalysisTarget("all", None)
 
 
-def _configuration_arguments_present(arguments: argparse.Namespace) -> bool:
-    return any(
-        value is not None
-        for value in (
-            arguments.directory,
-            arguments.exclude_suffix,
-            arguments.no_archive,
-            arguments.position,
-            arguments.encoding,
-            arguments.srcdiff_timeout,
-            arguments.srcmove_timeout,
-        )
-    )
-
-
-def _new_configuration(arguments: argparse.Namespace) -> AnalysisConfiguration:
-    return AnalysisConfiguration(
-        selected_directory=arguments.directory,
-        excluded_suffixes=tuple(arguments.exclude_suffix or ()),
-        use_archive=not bool(arguments.no_archive),
-        use_position=bool(arguments.position),
-        source_encoding=arguments.encoding or "UTF-8",
-        srcdiff_timeout_seconds=(
-            1800.0 if arguments.srcdiff_timeout is None else arguments.srcdiff_timeout
-        ),
-        srcmove_timeout_seconds=(
-            300.0 if arguments.srcmove_timeout is None else arguments.srcmove_timeout
-        ),
-    )
-
-
 def _discover_tool(path: Path | None, name: str) -> Path:
     if path is not None:
         return path
@@ -222,8 +182,16 @@ def _repository_and_analysis(arguments: argparse.Namespace) -> tuple[Path, Path]
 def _run(
     arguments: argparse.Namespace, *, repository: Path, analysis: Path
 ) -> Mapping[str, Any]:
+    configuration = load_history_configuration(analysis)
     creating = not analysis_database_exists(analysis)
     if not creating:
+        with AnalysisDatabase.open(analysis, read_only=True) as database:
+            frozen_configuration = database.initial_manifest().configuration
+        if configuration.analysis != frozen_configuration:
+            raise ValueError(
+                "configuration drift from frozen analysis; restore config.toml "
+                f"or rename {analysis.name} and initialize a new analysis"
+            )
         supplied = []
         for option, value in (
             ("--start", arguments.start),
@@ -233,8 +201,6 @@ def _run(
         ):
             if value is not None:
                 supplied.append(option)
-        if _configuration_arguments_present(arguments):
-            supplied.append("analysis configuration options")
         if supplied:
             raise ValueError(
                 "existing analysis has a frozen definition; creation-only "
@@ -267,15 +233,11 @@ def _run(
         result = analyze_repository(
             analysis_root=analysis,
             target=_target(arguments),
-            jobs=arguments.jobs,
+            jobs=configuration.jobs if arguments.jobs is None else arguments.jobs,
             repository=repository,
             start=arguments.start,
             repository_identity=repository_identity,
-            configuration=(
-                _new_configuration(arguments)
-                if _configuration_arguments_present(arguments)
-                else None
-            ),
+            configuration=configuration.analysis,
             srcdiff_path=srcdiff,
             srcmove_path=srcmove,
             observer=observer,
@@ -284,6 +246,27 @@ def _run(
     summary["writer_active"] = False
     summary["state"] = _state(summary)
     return summary
+
+
+def _init(analysis: Path) -> str:
+    with AnalysisOperationLock(analysis, command="init"):
+        _ensure_state_gitignore(analysis)
+        path = analysis / "config.toml"
+        if path.exists() or path.is_symlink():
+            load_history_configuration(analysis)
+            return f"Already initialized: {path}"
+        configuration = HistoryConfiguration(
+            analysis=AnalysisConfiguration(excluded_suffixes=(".py",))
+        )
+        if analysis_database_exists(analysis):
+            with AnalysisDatabase.open(analysis, read_only=True) as database:
+                invocation = database.latest_invocation()
+                configuration = HistoryConfiguration(
+                    analysis=database.initial_manifest().configuration,
+                    jobs=1 if invocation is None else invocation.jobs,
+                )
+        create_history_configuration(analysis, configuration)
+        return f"Initialized repository analysis: {path}"
 
 
 def _progress_enabled(arguments: argparse.Namespace) -> bool:
@@ -450,7 +433,10 @@ def main(argv: Sequence[str] | None = None) -> int:
     arguments = parser.parse_args(argv)
     try:
         repository, analysis = _repository_and_analysis(arguments)
-        if arguments.command == "run":
+        if arguments.command == "init":
+            output = _init(analysis)
+            exit_status = 0
+        elif arguments.command == "run":
             summary = _run(arguments, repository=repository, analysis=analysis)
             output = (
                 render_run(summary)

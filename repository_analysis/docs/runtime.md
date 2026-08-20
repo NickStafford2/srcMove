@@ -15,6 +15,9 @@ The public lifecycle is target-driven:
 ```bash
 cd REPOSITORY
 
+bin/srcmove-history init
+# Edit .srcmove/config.toml before the first run.
+
 bin/srcmove-history run \
   --pairs 100 \
   --srcdiff PATH \
@@ -51,13 +54,26 @@ the database, admitted tools, locks, and scratch remain ignored even when the
 directory is renamed. The CLI never edits the repository's top-level
 `.gitignore` or `.git/info/exclude`.
 
+`init` creates `.srcmove/config.toml` but does not create SQLite, admit tools,
+retain Git objects, or analyze history. The generated `[analysis]` table is
+editable until the first `run`; its default excluded suffix list contains
+`.py` while srcDiff's Python handling remains unreliable. Removing `.py` from
+that file before the first run enables Python without a special CLI override.
+
+The first `run` freezes the `[analysis]` values in SQLite. Later runs reread
+the file and reject drift before recording an invocation. The `[run]` table is
+not part of the frozen analysis definition: `jobs` may change between runs, and
+`--jobs` overrides it for one invocation. `init` can also backfill a missing
+configuration for an existing database from its frozen definition without
+changing that database.
+
 One state directory contains one immutable analysis definition. History
 coverage may be extended, and stored results may be queried in different ways,
 but changing source scope, excluded suffixes, tool bytes, or other creation
 configuration requires a new state directory. Renaming `.srcmove` archives the
-old analysis; the next `run` creates a new active one. Creation-only options are
-rejected when an analysis already exists rather than being interpreted as an
-in-place update.
+old analysis; initialize a new `.srcmove` before running a different analysis.
+Creation-only options are rejected when an analysis already exists rather than
+being interpreted as an in-place update.
 
 Human-readable output is the default. `--format json` emits one versioned JSON
 document to stdout. Status derives live writer state by probing the operation

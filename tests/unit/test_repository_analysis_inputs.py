@@ -44,6 +44,9 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
         self.assertEqual(configuration.srcdiff_timeout_seconds, 12.0)
         self.assertEqual(configuration.record()["schema_version"], 1)
 
+    def test_library_configuration_has_no_language_specific_exclusions(self) -> None:
+        self.assertEqual(AnalysisConfiguration().excluded_suffixes, ())
+
     def test_configuration_rejects_unsafe_or_ambiguous_values(self) -> None:
         invalid = (
             {"selected_directory": "../src"},
