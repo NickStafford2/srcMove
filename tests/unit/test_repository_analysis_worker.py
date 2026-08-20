@@ -200,6 +200,12 @@ class PairExecutorTests(unittest.TestCase):
                 self.assertEqual(dict(outcome.metrics)["move_count"], 0)
                 self.assertTrue(outcome.srcdiff_process.admitted)
                 self.assertTrue(outcome.srcmove_process.admitted)
+                self.assertEqual(
+                    outcome.srcdiff_process.command.count("--archive"), 1
+                )
+                self.assertEqual(
+                    outcome.srcdiff_process.output_artifact.shape, "archive"
+                )
                 kinds = [artifact.kind for artifact in outcome.artifacts]
                 self.assertIn("git_blob", kinds)
                 self.assertIn("json_results", kinds)

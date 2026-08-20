@@ -42,7 +42,7 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
         self.assertEqual(configuration.selected_directory, "src/analysis")
         self.assertEqual(configuration.excluded_suffixes, (".py", ".txt"))
         self.assertEqual(configuration.srcdiff_timeout_seconds, 12.0)
-        self.assertEqual(configuration.record()["schema_version"], 1)
+        self.assertEqual(configuration.record()["schema_version"], 2)
 
     def test_library_configuration_has_no_language_specific_exclusions(self) -> None:
         self.assertEqual(AnalysisConfiguration().excluded_suffixes, ())
@@ -139,7 +139,6 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
             configuration_changes = {
                 "selected_directory": None,
                 "excluded_suffixes": (".new",),
-                "use_archive": False,
                 "use_position": True,
                 "source_encoding": "ISO-8859-1",
                 "srcdiff_timeout_seconds": 10.0,
@@ -191,7 +190,7 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
             manifest = self._manifest(Path(temporary_directory))
             record = json.loads(manifest.canonical_bytes())
 
-            self.assertEqual(record["schema_version"], 5)
+            self.assertEqual(record["schema_version"], 6)
             self.assertEqual(record["commits"], ["a", "b", "c"])
             self.assertEqual(record["repository_identity"], {"value": "repo-id"})
             self.assertIn("configuration", record)

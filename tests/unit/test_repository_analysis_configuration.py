@@ -21,7 +21,6 @@ class RepositoryAnalysisConfigurationTests(unittest.TestCase):
                 analysis=AnalysisConfiguration(
                     selected_directory="src",
                     excluded_suffixes=(".py", ".txt"),
-                    use_archive=False,
                     use_position=True,
                     source_encoding="ISO-8859-1",
                     srcdiff_timeout_seconds=12,
@@ -58,7 +57,15 @@ class RepositoryAnalysisConfigurationTests(unittest.TestCase):
             "bad suffix": baseline.replace(
                 "excluded_suffixes = []", 'excluded_suffixes = ["py"]'
             ),
-            "bad schema": baseline.replace("schema_version = 1", "schema_version = 2"),
+            "removed archive option": baseline.replace(
+                "use_position = false", "use_archive = true\nuse_position = false"
+            ),
+            "older archive schema": baseline.replace(
+                "schema_version = 2", "schema_version = 1"
+            ).replace(
+                "use_position = false", "use_archive = true\nuse_position = false"
+            ),
+            "bad schema": baseline.replace("schema_version = 2", "schema_version = 3"),
         }
         for name, content in mutations.items():
             with self.subTest(name=name), tempfile.TemporaryDirectory() as temporary:

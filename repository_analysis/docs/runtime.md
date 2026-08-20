@@ -10,6 +10,9 @@ refactoring direction without claiming that unimplemented structure exists.
 commits. It is production analysis infrastructure; benchmarks may invoke it but
 do not own its state format or execution semantics.
 
+Each pair is materialized as two directory trees. srcDiff is therefore always
+invoked with `--archive`, and its XML output is always validated as an archive.
+
 The public lifecycle is target-driven:
 
 ```bash
@@ -122,11 +125,12 @@ Old JSON chain roots are deliberately rejected. Mixing the old chain format
 with SQLite would recreate multiple authorities and ambiguous recovery. Start a
 new analysis root instead.
 
-Database schema version 4 is a deliberate clean break. Older roots are rejected
-with an instruction to start a fresh state directory. Version 4 replaces frozen
-absolute repository and admitted-tool paths with locators relative to the state
-directory. Moving a repository together with `.srcmove` therefore preserves
-its executable-byte identity and allows later history extension.
+Database schema version 5 is a deliberate clean break. Older roots are rejected
+with an instruction to start a fresh state directory. Version 5 retains the
+analysis-relative repository and admitted-tool locators introduced in version 4
+and makes srcDiff archive output an execution invariant instead of a frozen
+configuration choice. Moving a repository together with `.srcmove` therefore
+preserves its executable-byte identity and allows later history extension.
 
 ## Invocation lifecycle
 

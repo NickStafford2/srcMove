@@ -19,7 +19,7 @@ storage contract.
 | Area | State | What exists | What remains |
 | --- | --- | --- | --- |
 | Target-driven runtime | Implemented | `run` presents create, resume, extend, no-op verification, bounded batches, parallel workers, and failure exit status | Live progress is tracked separately below |
-| Durable state | Implemented | SQLite schema v4, relocatable analysis definition, admitted executable bytes, invocation records, terminal outcomes, and pending-batch recovery | No CLI-specific work required |
+| Durable state | Implemented | SQLite schema v5, relocatable analysis definition, admitted executable bytes, invocation records, terminal outcomes, and pending-batch recovery | No CLI-specific work required |
 | Status data | First slice implemented | Snapshot aggregation, analysis identity, real writer-lock state, derived product state, and human/JSON output | Add verbose frozen configuration/tool detail and `status --watch` |
 | Pair exploration | First slice implemented | `list` filtering/pagination and `show` evidence are exposed with human/JSON output | Add optional Git diff and refine verbose move evidence |
 | Command surface | Partial | Repository-local `srcmove-history` with `init`, `run`, `status`, `list`, and `show`, strict TOML configuration, Git-root discovery, `-C`, explicit archived-state selection, and PATH tool discovery | Add preflight, `--dry-run`, and eventual installed-image PATH setup |
@@ -181,12 +181,11 @@ workers.
 `init` generates the repository-local TOML configuration used by every run:
 
 ```toml
-schema_version = 1
+schema_version = 2
 
 [analysis]
 selected_directory = "."
 excluded_suffixes = [".py"]
-use_archive = true
 use_position = false
 source_encoding = "UTF-8"
 srcdiff_timeout_seconds = 1800.0

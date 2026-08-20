@@ -14,7 +14,7 @@ from .inputs import AnalysisConfiguration
 
 
 CONFIG_FILE_NAME = "config.toml"
-CONFIG_SCHEMA_VERSION = 1
+CONFIG_SCHEMA_VERSION = 2
 
 
 @dataclass(frozen=True, slots=True)
@@ -61,7 +61,6 @@ def load_history_configuration(analysis_root: Path) -> HistoryConfiguration:
         {
             "selected_directory",
             "excluded_suffixes",
-            "use_archive",
             "use_position",
             "source_encoding",
             "srcdiff_timeout_seconds",
@@ -78,7 +77,6 @@ def load_history_configuration(analysis_root: Path) -> HistoryConfiguration:
     frozen = AnalysisConfiguration(
         selected_directory=selected_directory,
         excluded_suffixes=tuple(suffixes),
-        use_archive=analysis["use_archive"],
         use_position=analysis["use_position"],
         source_encoding=analysis["source_encoding"],
         srcdiff_timeout_seconds=analysis["srcdiff_timeout_seconds"],
@@ -122,7 +120,6 @@ def render_history_configuration(configuration: HistoryConfiguration) -> str:
     lines.extend(
         (
             f"excluded_suffixes = [{suffixes}]",
-            f"use_archive = {_toml_boolean(analysis.use_archive)}",
             f"use_position = {_toml_boolean(analysis.use_position)}",
             f"source_encoding = {_toml_string(analysis.source_encoding)}",
             f"srcdiff_timeout_seconds = {analysis.srcdiff_timeout_seconds}",

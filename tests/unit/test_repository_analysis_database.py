@@ -151,7 +151,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 retention_policy=RetentionPolicy(),
             )
             database.close()
-            for version in (1, 2):
+            for version in (1, 2, 3, 4):
                 connection = sqlite3.connect(analysis / "analysis.sqlite3")
                 try:
                     connection.execute(f"PRAGMA user_version = {version}")

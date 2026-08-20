@@ -20,9 +20,9 @@ from .process import (
     SRCDIFF_XML_VALIDATOR_SCHEMA_VERSION,
     SRCMOVE_RESULTS_VALIDATOR_SCHEMA_VERSION,
 )
-ANALYSIS_CONFIGURATION_SCHEMA_VERSION = 1
+ANALYSIS_CONFIGURATION_SCHEMA_VERSION = 2
 EXECUTABLE_OBSERVATION_SCHEMA_VERSION = 2
-FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 5
+FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 6
 PAIR_FINGERPRINT_SCHEMA_VERSION = 1
 
 
@@ -78,7 +78,6 @@ class AnalysisConfiguration:
 
     selected_directory: str | None = None
     excluded_suffixes: tuple[str, ...] = ()
-    use_archive: bool = True
     use_position: bool = False
     source_encoding: str = "UTF-8"
     srcdiff_timeout_seconds: float = 1800.0
@@ -107,10 +106,8 @@ class AnalysisConfiguration:
             suffixes.add(suffix.lower())
         object.__setattr__(self, "excluded_suffixes", tuple(sorted(suffixes)))
 
-        if not isinstance(self.use_archive, bool) or not isinstance(
-            self.use_position, bool
-        ):
-            raise ValueError("archive and position options must be booleans")
+        if not isinstance(self.use_position, bool):
+            raise ValueError("position option must be a boolean")
         if not isinstance(self.source_encoding, str) or not self.source_encoding:
             raise ValueError("source encoding must be non-empty")
         for name in ("srcdiff_timeout_seconds", "srcmove_timeout_seconds"):
@@ -129,7 +126,6 @@ class AnalysisConfiguration:
             "schema_version": ANALYSIS_CONFIGURATION_SCHEMA_VERSION,
             "selected_directory": self.selected_directory,
             "excluded_suffixes": list(self.excluded_suffixes),
-            "use_archive": self.use_archive,
             "use_position": self.use_position,
             "source_encoding": self.source_encoding,
             "srcdiff_timeout_seconds": self.srcdiff_timeout_seconds,
@@ -470,7 +466,6 @@ def _load_configuration(value: Any) -> AnalysisConfiguration:
         "schema_version",
         "selected_directory",
         "excluded_suffixes",
-        "use_archive",
         "use_position",
         "source_encoding",
         "srcdiff_timeout_seconds",
@@ -491,7 +486,6 @@ def _load_configuration(value: Any) -> AnalysisConfiguration:
     configuration = AnalysisConfiguration(
         selected_directory=directory,
         excluded_suffixes=parsed_suffixes,
-        use_archive=_boolean(record, "use_archive"),
         use_position=_boolean(record, "use_position"),
         source_encoding=_string(record, "source_encoding"),
         srcdiff_timeout_seconds=_number(record, "srcdiff_timeout_seconds"),
@@ -655,7 +649,6 @@ def build_pair_work_items(
             srcdiff_timeout_seconds=configuration.srcdiff_timeout_seconds,
             srcmove_timeout_seconds=configuration.srcmove_timeout_seconds,
             use_position=configuration.use_position,
-            use_archive=configuration.use_archive,
             source_encoding=configuration.source_encoding,
         )
         for sequence, (old_commit, new_commit) in enumerate(

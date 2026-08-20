@@ -178,13 +178,11 @@ class _WorkerSession:
                 error,
             )
 
-        shape = "archive" if item.use_archive else "single_file"
         srcdiff_xml = pair_directory / "srcdiff.xml"
         srcdiff_command = [str(srcdiff)]
         if item.use_position:
             srcdiff_command.append("--position")
-        if item.use_archive:
-            srcdiff_command.append("--archive")
+        srcdiff_command.append("--archive")
         if item.source_encoding:
             srcdiff_command.extend(["--src-encoding", item.source_encoding])
         srcdiff_command.extend(
@@ -197,7 +195,7 @@ class _WorkerSession:
             timeout_seconds=item.srcdiff_timeout_seconds,
             output_path=srcdiff_xml,
             validator=lambda path: validate_xml_artifact(
-                path, shape=shape, producing_stage="srcdiff"
+                path, shape="archive", producing_stage="srcdiff"
             ),
             capture_prefix="srcdiff",
             log_limit=self.log_limit,
@@ -235,7 +233,7 @@ class _WorkerSession:
             timeout_seconds=item.srcmove_timeout_seconds,
             output_path=srcmove_xml,
             validator=lambda path: validate_xml_artifact(
-                path, shape=shape, producing_stage="srcmove"
+                path, shape="archive", producing_stage="srcmove"
             ),
             capture_prefix="srcmove",
             log_limit=self.log_limit,

@@ -68,7 +68,6 @@ class PairWorkItem:
     srcdiff_timeout_seconds: float = 1800.0
     srcmove_timeout_seconds: float = 300.0
     use_position: bool = False
-    use_archive: bool = True
     source_encoding: str = "UTF-8"
 
     def __post_init__(self) -> None:
