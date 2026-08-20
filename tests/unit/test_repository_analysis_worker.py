@@ -8,11 +8,12 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 from unittest import mock
 
 from repository_analysis import PairExecutor, PairStatus, PairWorkItem, run_pairs
-from repository_analysis.git import GitBatch
+from repository_analysis.git import GitBatch, GitMaterializationError
 from repository_analysis.process import (
     run_process,
     validate_xml_artifact,
@@ -161,6 +162,115 @@ class PairExecutorTests(unittest.TestCase):
                 )
             self.assertFalse(any(_process_exists(pid) for pid in starts))
 
+    def test_materialization_failure_has_export_failed_status(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository, commits = create_history(root)
+            tools = root / "tools"
+            tools.mkdir()
+            srcdiff = executable_copy(tools, "srcdiff-valid-archive")
+            srcmove = executable_copy(tools, "srcmove-valid-archive")
+            outcomes = []
+
+            with mock.patch.object(
+                GitBatch,
+                "materialize",
+                side_effect=GitMaterializationError(
+                    "injected materialization failure"
+                ),
+            ):
+                run_pairs(
+                    [item(0, commits[0], commits[1], repository, srcdiff, srcmove)],
+                    PairExecutor(root / "analysis"),
+                    outcomes.append,
+                    worker_count=1,
+                )
+
+            outcome = outcomes[0]
+            self.assertEqual(outcome.status, PairStatus.EXPORT_FAILED)
+            self.assertIn("injected materialization failure", outcome.error)
+            self.assertIsNone(outcome.srcdiff_process)
+            self.assertIsNone(outcome.srcmove_process)
+
+    def test_incomplete_work_item_has_orchestration_failed_status(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            outcomes = []
+            work_item = PairWorkItem(
+                sequence=0,
+                old_commit="old",
+                new_commit="new",
+                fingerprint="incomplete",
+            )
+
+            run_pairs(
+                [work_item],
+                PairExecutor(Path(temporary_directory) / "analysis"),
+                outcomes.append,
+                worker_count=1,
+            )
+
+            outcome = outcomes[0]
+            self.assertEqual(outcome.status, PairStatus.ORCHESTRATION_FAILED)
+            self.assertIn("missing execution fields", outcome.error)
+            self.assertIsNone(outcome.srcdiff_process)
+            self.assertIsNone(outcome.srcmove_process)
+
+    def test_srcdiff_process_failures_are_terminal_and_skip_srcmove(self) -> None:
+        cases = {
+            "nonzero": ("exited", 23, None, "exited with code 23"),
+            "signal": ("signaled", None, signal.SIGTERM, "terminated by signal"),
+            "timeout": ("timed_out", None, None, "timed out"),
+            "spawn": ("spawn_failed", None, None, "could not start"),
+        }
+        for name, (termination, exit_code, signal_number, error_text) in cases.items():
+            with (
+                self.subTest(name=name),
+                tempfile.TemporaryDirectory() as temporary_directory,
+            ):
+                root = Path(temporary_directory)
+                repository, commits = create_history(root)
+                tools = root / "tools"
+                tools.mkdir()
+                srcdiff = (
+                    tools / "srcdiff-does-not-exist"
+                    if name == "spawn"
+                    else executable_copy(tools, f"srcdiff-{name}")
+                )
+                marker = root / "srcmove-ran"
+                srcmove = tools / "srcmove"
+                srcmove.write_text(
+                    "#!/bin/sh\ntouch \"$SRMOVE_MARKER\"\nexit 99\n",
+                    encoding="utf-8",
+                )
+                srcmove.chmod(0o755)
+                work_item = item(
+                    0, commits[0], commits[1], repository, srcdiff, srcmove
+                )
+                if name == "timeout":
+                    work_item = replace(work_item, srcdiff_timeout_seconds=0.1)
+
+                with mock.patch.dict(os.environ, {"SRMOVE_MARKER": str(marker)}):
+                    outcomes = []
+                    run_pairs(
+                        [work_item],
+                        PairExecutor(root / "analysis"),
+                        outcomes.append,
+                        worker_count=1,
+                    )
+
+                outcome = outcomes[0]
+                self.assertEqual(outcome.status, PairStatus.SRCDIFF_FAILED)
+                self.assertEqual(
+                    outcome.srcdiff_process.termination_status, termination
+                )
+                self.assertEqual(outcome.srcdiff_process.exit_code, exit_code)
+                self.assertEqual(
+                    outcome.srcdiff_process.signal_number, signal_number
+                )
+                self.assertIn(error_text, outcome.error)
+                self.assertIsNone(outcome.srcmove_process)
+                self.assertFalse(marker.exists())
+
     def test_srcdiff_validation_failure_does_not_run_srcmove(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -225,6 +335,55 @@ class PairExecutorTests(unittest.TestCase):
             self.assertEqual(outcome.status, PairStatus.SRCMOVE_FAILED)
             self.assertTrue(outcome.srcmove_process.admitted)
             self.assertIn("results JSON is missing", outcome.error)
+
+    def test_srcmove_process_failures_have_srcmove_failed_status(self) -> None:
+        cases = {
+            "nonzero": ("exited", 23, None, "exited with code 23"),
+            "signal": ("signaled", None, signal.SIGTERM, "terminated by signal"),
+            "timeout": ("timed_out", None, None, "timed out"),
+            "malformed": ("exited", 0, None, "artifact validation failed"),
+            "spawn": ("spawn_failed", None, None, "could not start"),
+        }
+        for name, (termination, exit_code, signal_number, error_text) in cases.items():
+            with (
+                self.subTest(name=name),
+                tempfile.TemporaryDirectory() as temporary_directory,
+            ):
+                root = Path(temporary_directory)
+                repository, commits = create_history(root)
+                tools = root / "tools"
+                tools.mkdir()
+                srcdiff = executable_copy(tools, "srcdiff-valid-archive")
+                srcmove = (
+                    tools / "srcmove-does-not-exist"
+                    if name == "spawn"
+                    else executable_copy(tools, f"srcmove-{name}")
+                )
+                work_item = item(
+                    0, commits[0], commits[1], repository, srcdiff, srcmove
+                )
+                if name == "timeout":
+                    work_item = replace(work_item, srcmove_timeout_seconds=0.1)
+                outcomes = []
+
+                run_pairs(
+                    [work_item],
+                    PairExecutor(root / "analysis"),
+                    outcomes.append,
+                    worker_count=1,
+                )
+
+                outcome = outcomes[0]
+                self.assertEqual(outcome.status, PairStatus.SRCMOVE_FAILED)
+                self.assertTrue(outcome.srcdiff_process.admitted)
+                self.assertEqual(
+                    outcome.srcmove_process.termination_status, termination
+                )
+                self.assertEqual(outcome.srcmove_process.exit_code, exit_code)
+                self.assertEqual(
+                    outcome.srcmove_process.signal_number, signal_number
+                )
+                self.assertIn(error_text, outcome.error)
 
 
 class ProcessSupervisorTests(unittest.TestCase):

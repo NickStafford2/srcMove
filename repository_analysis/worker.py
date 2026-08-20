@@ -307,13 +307,15 @@ def _present_artifacts(
 
 def _process_failure(stage: str, outcome: ProcessOutcome) -> str:
     termination = outcome.termination_status
-    validation_error = outcome.validation_error
-    if validation_error:
-        return f"{stage} artifact validation failed: {validation_error}"
-    if termination == "exited":
+    if termination == "exited" and outcome.exit_code != 0:
         return f"{stage} exited with code {outcome.exit_code}"
     if termination == "signaled":
         return f"{stage} terminated by signal {outcome.signal_number}"
     if termination == "timed_out":
         return f"{stage} timed out"
-    return f"{stage} could not start: {outcome.spawn_error}"
+    if termination == "spawn_failed":
+        return f"{stage} could not start: {outcome.spawn_error}"
+    validation_error = outcome.validation_error
+    if validation_error:
+        return f"{stage} artifact validation failed: {validation_error}"
+    return f"{stage} failed with termination status {termination}"
