@@ -29,6 +29,8 @@ settled.
   text-pair counts, and functionality coverage across a run.
 - Decide whether BigCloneBench pair rows and distinct fragment-text cases should
   be reported as separate metrics.
+- Flesh out expected_srcdiff_format.xml. it should show srcdiff normal output. 
+  Maybe redesign to not be xml? think about the best way to do this. 
 
 ## Questions
 
