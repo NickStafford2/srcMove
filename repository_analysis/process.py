@@ -21,6 +21,9 @@ from .contracts import CaptureObservation, ProcessOutcome, VerifiedArtifact
 
 DEFAULT_LOG_LIMIT = 1024 * 1024
 DEFAULT_TIMEOUT_GRACE_SECONDS = 5.0
+# These versions are fingerprint inputs; bump them when admission semantics change.
+SRCDIFF_XML_VALIDATOR_SCHEMA_VERSION = 1
+SRCMOVE_RESULTS_VALIDATOR_SCHEMA_VERSION = 1
 SRCML_NAMESPACE = "http://www.srcML.org/srcML/src"
 SRCDIFF_NAMESPACES = {
     "http://www.srcML.org/srcDiff",

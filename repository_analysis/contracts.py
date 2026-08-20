@@ -8,6 +8,10 @@ from pathlib import Path
 from typing import Any
 
 
+# Bump when the normalized terminal pair-result contract changes.
+PAIR_OUTCOME_SCHEMA_VERSION = 1
+
+
 class PairStatus(str, Enum):
     """Terminal status of one adjacent commit pair."""
 
