@@ -3,6 +3,7 @@ from __future__ import annotations
 import contextlib
 import io
 import json
+import os
 import subprocess
 import tempfile
 import unittest
@@ -265,6 +266,42 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 )[1]
             )["invocation"]["invocation_id"]
             self.assertEqual(after, before)
+
+    def test_run_recovers_interrupted_initial_database_publication(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 3)
+            analysis = repository / ".srcmove"
+            self._init(repository, excluded_suffixes=(".py", ".txt"))
+            creation = [
+                "-C",
+                str(repository),
+                "run",
+                "--pairs",
+                "1",
+                "--srcdiff",
+                str(executable(root / "srcdiff")),
+                "--srcmove",
+                str(executable(root / "srcmove")),
+            ]
+            self.assertEqual(self._main(creation)[0], 0)
+            interrupted = analysis / ".analysis.sqlite3.tmp-interrupted"
+            os.link(analysis / "analysis.sqlite3", interrupted)
+
+            status, _, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "run",
+                    "--pairs",
+                    "1",
+                    "--progress",
+                    "never",
+                ]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            self.assertFalse(interrupted.exists())
 
     def test_legacy_state_is_rejected_instead_of_mixed_with_sqlite(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

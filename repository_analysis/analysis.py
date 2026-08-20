@@ -173,6 +173,17 @@ def analyze_repository(
                 srcmove_path=srcmove_path,
             )
         with database:
+            state = database.analysis()
+            _verify_supplied_definition(
+                database.latest_manifest(),
+                newest_commit=state.newest_commit,
+                start=start,
+                repository=repository,
+                repository_identity=repository_identity,
+                configuration=configuration,
+                srcdiff_path=srcdiff_path,
+                srcmove_path=srcmove_path,
+            )
             assert operation.started_at is not None
             database.begin_invocation(
                 operation.invocation_id,
@@ -625,7 +636,10 @@ def _verify_supplied_definition(
     ):
         raise ValueError("repository identity drift from existing analysis")
     if configuration is not None and configuration != template.configuration:
-        raise ValueError("configuration drift from existing analysis")
+        raise ValueError(
+            "configuration drift from existing analysis; restore config.toml "
+            "or initialize a new state directory"
+        )
     for name, path, frozen in (
         ("srcDiff", srcdiff_path, template.srcdiff),
         ("srcMove", srcmove_path, template.srcmove),

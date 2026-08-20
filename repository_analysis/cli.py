@@ -185,13 +185,6 @@ def _run(
     configuration = load_history_configuration(analysis)
     creating = not analysis_database_exists(analysis)
     if not creating:
-        with AnalysisDatabase.open(analysis, read_only=True) as database:
-            frozen_configuration = database.initial_manifest().configuration
-        if configuration.analysis != frozen_configuration:
-            raise ValueError(
-                "configuration drift from frozen analysis; restore config.toml "
-                f"or rename {analysis.name} and initialize a new analysis"
-            )
         supplied = []
         for option, value in (
             ("--start", arguments.start),
