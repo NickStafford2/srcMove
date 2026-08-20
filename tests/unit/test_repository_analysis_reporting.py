@@ -1,12 +1,15 @@
 from __future__ import annotations
 
-import json
+import csv
 import hashlib
+import json
 import tempfile
 import unittest
 from dataclasses import replace
 from pathlib import Path
+from unittest import mock
 
+import repository_analysis.reporting as reporting_module
 from repository_analysis import (
     CaptureObservation,
     PairOutcome,
@@ -75,6 +78,35 @@ def file_artifact(path: Path, *, kind: str, stage: str) -> VerifiedArtifact:
     )
 
 
+def completed_outcome(
+    root: Path,
+    sequence: int,
+    *,
+    metrics: tuple[tuple[str, int], ...] = (),
+    timings: tuple[tuple[str, float], ...] = (),
+) -> PairOutcome:
+    normalized = {
+        "move_count": 0,
+        "move_group_count": 0,
+        "move_pair_count": 0,
+        "annotated_region_count": 0,
+    }
+    normalized.update(metrics)
+    worker = root / f"worker-{sequence}"
+    worker.mkdir(exist_ok=True)
+    results = worker / "results.json"
+    results.write_text(json.dumps(normalized) + "\n", encoding="utf-8")
+    return PairOutcome(
+        work_item=work_item(sequence),
+        status=PairStatus.COMPLETED,
+        artifacts=(
+            file_artifact(results, kind="json_results", stage="srcmove"),
+        ),
+        metrics=tuple(normalized.items()),
+        timings=timings,
+    )
+
+
 class PairReceiptTests(unittest.TestCase):
     def test_failure_receipt_preserves_process_and_artifact_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -117,9 +149,9 @@ class PairReceiptTests(unittest.TestCase):
             root = Path(temporary_directory)
             publisher = PairReceiptPublisher(root)
             outcomes = (
-                PairOutcome(
-                    work_item=work_item(0),
-                    status=PairStatus.COMPLETED,
+                completed_outcome(
+                    root,
+                    0,
                     metrics=(
                         ("move_count", 1),
                         ("move_group_count", 1),
@@ -183,9 +215,7 @@ class PairReceiptTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "expected 0, got 1"):
                 publisher(second)
 
-            first = PairOutcome(
-                work_item=work_item(0), status=PairStatus.COMPLETED
-            )
+            first = completed_outcome(Path(temporary_directory), 0)
             publisher(first)
             with self.assertRaisesRegex(ValueError, "expected 1, got 0"):
                 publisher(first)
@@ -207,7 +237,8 @@ class PairReceiptTests(unittest.TestCase):
                 )
 
             self.assertEqual(destination.read_text(), '{"existing":true}\n')
-            self.assertEqual(publisher.summary()["selected_pairs"], 0)
+            with self.assertRaisesRegex(ValueError, "unsupported pair receipt schema"):
+                publisher.summary()
 
     def test_zero_move_seal_retains_results_but_discards_xml(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -217,7 +248,11 @@ class PairReceiptTests(unittest.TestCase):
             xml = worker / "srcmove.xml"
             xml.write_text("<unit/>", encoding="utf-8")
             results = worker / "results.json"
-            results.write_text('{"move_count":0}\n', encoding="utf-8")
+            results.write_text(
+                '{"move_count":0,"move_group_count":0,'
+                '"move_pair_count":0,"annotated_region_count":0}\n',
+                encoding="utf-8",
+            )
             outcome = PairOutcome(
                 work_item=work_item(0),
                 status=PairStatus.COMPLETED,
@@ -225,7 +260,12 @@ class PairReceiptTests(unittest.TestCase):
                     file_artifact(xml, kind="xml", stage="srcmove"),
                     file_artifact(results, kind="json_results", stage="srcmove"),
                 ),
-                metrics=(("move_count", 0),),
+                metrics=(
+                    ("move_count", 0),
+                    ("move_group_count", 0),
+                    ("move_pair_count", 0),
+                    ("annotated_region_count", 0),
+                ),
             )
 
             PairReceiptPublisher(root)(outcome)
@@ -250,7 +290,11 @@ class PairReceiptTests(unittest.TestCase):
             xml = worker / "srcmove.xml"
             xml.write_text("<unit/>", encoding="utf-8")
             results = worker / "results.json"
-            results.write_text('{"move_count":1}\n', encoding="utf-8")
+            results.write_text(
+                '{"move_count":1,"move_group_count":1,'
+                '"move_pair_count":1,"annotated_region_count":2}\n',
+                encoding="utf-8",
+            )
             outcome = PairOutcome(
                 work_item=work_item(0),
                 status=PairStatus.COMPLETED,
@@ -258,7 +302,12 @@ class PairReceiptTests(unittest.TestCase):
                     file_artifact(xml, kind="xml", stage="srcmove"),
                     file_artifact(results, kind="json_results", stage="srcmove"),
                 ),
-                metrics=(("move_count", 1),),
+                metrics=(
+                    ("move_count", 1),
+                    ("move_group_count", 1),
+                    ("move_pair_count", 1),
+                    ("annotated_region_count", 2),
+                ),
             )
             publisher = PairReceiptPublisher(
                 root,
@@ -351,12 +400,278 @@ class PairReceiptTests(unittest.TestCase):
                         work_item=work_item(0),
                         status=PairStatus.COMPLETED,
                         artifacts=(artifact,),
-                        metrics=(("move_count", 0),),
+                        metrics=(
+                            ("move_count", 0),
+                            ("move_group_count", 0),
+                            ("move_pair_count", 0),
+                            ("annotated_region_count", 0),
+                        ),
                     )
                 )
 
             self.assertFalse((root / "pairs" / "000000.json").exists())
             self.assertTrue(outside.exists())
+
+    def test_completed_seal_requires_results_and_complete_metrics(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            publisher = PairReceiptPublisher(root)
+            metrics = (
+                ("move_count", 0),
+                ("move_group_count", 0),
+                ("move_pair_count", 0),
+                ("annotated_region_count", 0),
+            )
+
+            with self.assertRaisesRegex(ValueError, "one valid results.json"):
+                publisher(
+                    PairOutcome(
+                        work_item=work_item(0),
+                        status=PairStatus.COMPLETED,
+                        metrics=metrics,
+                    )
+                )
+
+            self.assertFalse((root / "pairs" / "000000.json").exists())
+            self.assertFalse((root / "pairs" / "000000").exists())
+            publisher(completed_outcome(root, 0))
+            self.assertTrue((root / "pairs" / "000000.json").is_file())
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            worker = root / "worker"
+            worker.mkdir()
+            results = worker / "results.json"
+            results.write_text('{"move_count":0}\n', encoding="utf-8")
+
+            with self.assertRaisesRegex(ValueError, "missing metric"):
+                PairReceiptPublisher(root)(
+                    PairOutcome(
+                        work_item=work_item(0),
+                        status=PairStatus.COMPLETED,
+                        artifacts=(
+                            file_artifact(
+                                results, kind="json_results", stage="srcmove"
+                            ),
+                        ),
+                        metrics=(("move_count", 0),),
+                    )
+                )
+
+            self.assertFalse((root / "pairs" / "000000.json").exists())
+            self.assertFalse((root / "pairs" / "000000").exists())
+
+    def test_finalization_rebuilds_aggregate_and_chronological_csv(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            publisher = PairReceiptPublisher(root)
+            outcomes = (
+                completed_outcome(
+                    root,
+                    0,
+                    metrics=(
+                        ("move_count", 2),
+                        ("move_group_count", 1),
+                        ("move_pair_count", 2),
+                        ("annotated_region_count", 3),
+                    ),
+                    timings=(("pair_seconds", 1.0),),
+                ),
+                PairOutcome(
+                    work_item=work_item(1),
+                    status=PairStatus.NO_ANALYZABLE_CHANGE,
+                    timings=(("pair_seconds", 0.25),),
+                ),
+                PairOutcome(
+                    work_item=work_item(2),
+                    status=PairStatus.SRCDIFF_FAILED,
+                    timings=(("pair_seconds", 0.5),),
+                    error="=unsafe spreadsheet formula",
+                ),
+            )
+            for outcome in outcomes:
+                publisher(outcome)
+
+            published = publisher.finalize()
+
+            summary_path = root / "summary.json"
+            csv_path = root / "summary.csv"
+            self.assertEqual(
+                json.loads(summary_path.read_text(encoding="utf-8")), published
+            )
+            self.assertEqual(published["selected_pairs"], 3)
+            self.assertEqual(published["move_count"], 2)
+            self.assertEqual(published["summary_csv"]["rows"], 3)
+            self.assertEqual(
+                published["summary_csv"]["sha256"],
+                hashlib.sha256(csv_path.read_bytes()).hexdigest(),
+            )
+            with csv_path.open(newline="", encoding="utf-8") as stream:
+                rows = list(csv.DictReader(stream))
+            self.assertEqual([row["sequence"] for row in rows], ["0", "1", "2"])
+            self.assertEqual(
+                [row["status"] for row in rows],
+                ["completed", "no_analyzable_change", "srcdiff_failed"],
+            )
+            self.assertEqual(rows[2]["move_count"], "")
+            self.assertEqual(rows[2]["error"], "'=unsafe spreadsheet formula")
+            self.assertEqual(rows[0]["receipt_path"], "pairs/000000.json")
+            self.assertEqual(
+                PairReceiptPublisher(root).summary(),
+                {
+                    **{
+                        key: value
+                        for key, value in published.items()
+                        if key != "summary_csv"
+                    },
+                    "schema_version": 1,
+                },
+            )
+
+            first_csv = csv_path.read_bytes()
+            first_summary = summary_path.read_bytes()
+            publisher.finalize()
+            self.assertEqual(csv_path.read_bytes(), first_csv)
+            self.assertEqual(summary_path.read_bytes(), first_summary)
+            self.assertEqual(list(root.glob(".*.tmp-*")), [])
+
+    def test_reporting_rejects_unsealed_and_noncontiguous_receipts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            pairs = root / "pairs"
+            pairs.mkdir()
+            unsealed = pair_receipt(
+                PairOutcome(
+                    work_item=work_item(0), status=PairStatus.COMPLETED
+                )
+            )
+            (pairs / "000000.json").write_text(
+                json.dumps(unsealed), encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(ValueError, "not sealed"):
+                PairReceiptPublisher(root).finalize()
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            pairs = root / "pairs"
+            pairs.mkdir()
+            later = pair_receipt(
+                PairOutcome(
+                    work_item=work_item(1), status=PairStatus.COMPLETED
+                )
+            )
+            later["sealed"] = True
+            (pairs / "000001.json").write_text(
+                json.dumps(later), encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(ValueError, "must be contiguous"):
+                PairReceiptPublisher(root).finalize()
+
+    def test_reporting_never_aggregates_missing_completed_metrics_as_zero(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            pairs = root / "pairs"
+            pairs.mkdir()
+            incomplete = pair_receipt(
+                PairOutcome(
+                    work_item=work_item(0),
+                    status=PairStatus.COMPLETED,
+                    metrics=(("move_count", 0),),
+                )
+            )
+            incomplete["sealed"] = True
+            (pairs / "000000.json").write_text(
+                json.dumps(incomplete), encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(ValueError, "missing metric"):
+                PairReceiptPublisher(root).summary()
+
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            pairs = root / "pairs"
+            pairs.mkdir()
+            no_results = pair_receipt(
+                PairOutcome(
+                    work_item=work_item(0),
+                    status=PairStatus.COMPLETED,
+                    metrics=(
+                        ("move_count", 0),
+                        ("move_group_count", 0),
+                        ("move_pair_count", 0),
+                        ("annotated_region_count", 0),
+                    ),
+                )
+            )
+            no_results["sealed"] = True
+            (pairs / "000000.json").write_text(
+                json.dumps(no_results), encoding="utf-8"
+            )
+
+            with self.assertRaisesRegex(ValueError, "retained valid results.json"):
+                PairReceiptPublisher(root).summary()
+
+    def test_failed_report_publication_never_changes_receipts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            publisher = PairReceiptPublisher(root)
+            publisher(completed_outcome(root, 0))
+            receipt = root / "pairs" / "000000.json"
+            before = receipt.read_bytes()
+
+            with (
+                mock.patch(
+                    "repository_analysis.reporting._replace_derived_file",
+                    side_effect=OSError("injected publication failure"),
+                ),
+                self.assertRaisesRegex(OSError, "publication failure"),
+            ):
+                publisher.finalize()
+
+            self.assertEqual(receipt.read_bytes(), before)
+            self.assertEqual(list(root.glob(".*.tmp-*")), [])
+            self.assertFalse((root / "summary.json").exists())
+
+    def test_summary_hash_detects_crash_between_csv_and_json_replacement(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            publisher = PairReceiptPublisher(root)
+            publisher(completed_outcome(root, 0))
+            publisher.finalize()
+            summary_path = root / "summary.json"
+            old_summary = json.loads(summary_path.read_text(encoding="utf-8"))
+            publisher(
+                PairOutcome(
+                    work_item=work_item(1),
+                    status=PairStatus.NO_ANALYZABLE_CHANGE,
+                )
+            )
+            real_replace = reporting_module._replace_derived_file
+
+            def fail_json_replacement(temporary: Path, destination: Path) -> None:
+                if destination.name == "summary.json":
+                    raise OSError("injected summary replacement failure")
+                real_replace(temporary, destination)
+
+            with (
+                mock.patch(
+                    "repository_analysis.reporting._replace_derived_file",
+                    side_effect=fail_json_replacement,
+                ),
+                self.assertRaisesRegex(OSError, "summary replacement failure"),
+            ):
+                publisher.finalize()
+
+            self.assertEqual(
+                json.loads(summary_path.read_text(encoding="utf-8")), old_summary
+            )
+            self.assertNotEqual(
+                hashlib.sha256((root / "summary.csv").read_bytes()).hexdigest(),
+                old_summary["summary_csv"]["sha256"],
+            )
+            self.assertEqual(list(root.glob(".*.tmp-*")), [])
 
 
 if __name__ == "__main__":

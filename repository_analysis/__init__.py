@@ -14,7 +14,12 @@ from .coordinator import (
     WorkerExecutionError,
     run_pairs,
 )
-from .reporting import PairReceiptPublisher, pair_receipt
+from .reporting import (
+    PairReceiptPublisher,
+    derive_history_summary,
+    pair_receipt,
+    publish_history_reports,
+)
 from .retention import RetentionPolicy
 from .worker import PairExecutor
 
@@ -31,6 +36,8 @@ __all__ = [
     "RetentionPolicy",
     "VerifiedArtifact",
     "WorkerExecutionError",
+    "derive_history_summary",
     "pair_receipt",
+    "publish_history_reports",
     "run_pairs",
 ]

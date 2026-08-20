@@ -359,13 +359,27 @@ def validate_results_artifact(
                 message,
             ),
         )
-    move_count = value.get("move_count")
-    if (
-        isinstance(move_count, bool)
-        or not isinstance(move_count, int)
-        or move_count < 0
-    ):
-        message = "srcMove results require a non-negative integer move_count"
+    required_counts = (
+        "move_count",
+        "move_group_count",
+        "move_pair_count",
+        "annotated_region_count",
+    )
+    invalid_count = next(
+        (
+            name
+            for name in required_counts
+            if isinstance(value.get(name), bool)
+            or not isinstance(value.get(name), int)
+            or value[name] < 0
+        ),
+        None,
+    )
+    if invalid_count is not None:
+        message = (
+            "srcMove results require a non-negative integer "
+            f"{invalid_count}"
+        )
         raise ArtifactValidationError(
             message,
             _invalid_results_artifact(
@@ -378,6 +392,7 @@ def validate_results_artifact(
                 message,
             ),
         )
+    move_count = value["move_count"]
     moves = value.get("moves")
     if moves is not None and (not isinstance(moves, list) or len(moves) != move_count):
         message = "srcMove results moves must be a list matching move_count"

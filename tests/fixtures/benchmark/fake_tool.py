@@ -71,7 +71,11 @@ def main() -> int:
             write_xml(destination, archive=outcome == "valid-archive")
         if "--results" in arguments:
             results = Path(arguments[arguments.index("--results") + 1])
-            results.write_text('{"move_count": 0}\n', encoding="utf-8")
+            results.write_text(
+                '{"move_count":0,"move_group_count":0,'
+                '"move_pair_count":0,"annotated_region_count":0}\n',
+                encoding="utf-8",
+            )
         return 0
     if outcome == "nonzero-valid":
         if destination is not None:

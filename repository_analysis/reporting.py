@@ -2,11 +2,14 @@
 
 from __future__ import annotations
 
+import csv
+import hashlib
 import json
+import math
 import os
 import uuid
 from collections import Counter
-from collections.abc import Mapping
+from collections.abc import Iterator, Mapping
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +29,34 @@ from .retention import (
 
 PAIR_RECEIPT_SCHEMA_VERSION = 2
 HISTORY_SUMMARY_SCHEMA_VERSION = 1
+HISTORY_REPORT_SCHEMA_VERSION = 2
+_MOVE_COUNT_METRICS = (
+    "move_count",
+    "move_group_count",
+    "move_pair_count",
+    "annotated_region_count",
+)
+SUMMARY_COLUMNS = (
+    "sequence",
+    "old_commit",
+    "new_commit",
+    "pair_fingerprint",
+    "status",
+    "changed_paths",
+    "analyzable_changed_paths",
+    "move_count",
+    "move_group_count",
+    "move_pair_count",
+    "annotated_region_count",
+    "pair_seconds",
+    "inventory_seconds",
+    "materialization_seconds",
+    "srcdiff_seconds",
+    "srcmove_seconds",
+    "results_validation_seconds",
+    "error",
+    "receipt_path",
+)
 FAILURE_STATUSES = {
     "export_failed",
     "srcdiff_failed",
@@ -187,7 +218,51 @@ def _sealed_receipt(
             capture["retained_sha256"] = (
                 None if retained is None else retained.sha256
             )
+    _validate_completed_seal(receipt)
     return receipt
+
+
+def _validate_completed_seal(receipt: Mapping[str, Any]) -> None:
+    if receipt.get("status") != "completed":
+        return
+    metrics = _mapping(receipt, "metrics")
+    for name in _MOVE_COUNT_METRICS:
+        _count(metrics, name, required=True)
+    artifacts = receipt.get("artifacts")
+    if not isinstance(artifacts, list) or not all(
+        isinstance(artifact, Mapping) for artifact in artifacts
+    ):
+        raise ValueError("completed receipt artifacts must be a list of objects")
+    retained_results = [
+        artifact
+        for artifact in artifacts
+        if artifact.get("kind") == "json_results"
+        and artifact.get("validation_status") == "valid"
+        and artifact.get("retention") == "analysis_owned"
+        and isinstance(artifact.get("path"), str)
+    ]
+    if len(retained_results) != 1:
+        raise ValueError(
+            "completed receipt requires one retained valid results.json artifact"
+        )
+
+
+def _validate_completed_outcome(outcome: PairOutcome) -> None:
+    if outcome.status.value != "completed":
+        return
+    metrics = dict(outcome.metrics)
+    for name in _MOVE_COUNT_METRICS:
+        _count(metrics, name, required=True)
+    results = [
+        artifact
+        for artifact in outcome.artifacts
+        if artifact.kind == "json_results"
+        and artifact.validation_status == "valid"
+    ]
+    if len(results) != 1:
+        raise ValueError(
+            "completed outcome requires one valid results.json artifact"
+        )
 
 
 def _seal_artifact_record(
@@ -204,7 +279,7 @@ def _seal_artifact_record(
 
 
 class PairReceiptPublisher:
-    """Publish ordered receipts and retain only constant-size summary state."""
+    """Publish ordered sealed receipts and their derived history reports."""
 
     def __init__(
         self,
@@ -217,12 +292,6 @@ class PairReceiptPublisher:
         self.pairs_directory = self.analysis_root / "pairs"
         self.pairs_directory.mkdir(parents=True, exist_ok=True)
         self._next_sequence = 0
-        self._statuses: Counter[str] = Counter()
-        self._move_count = 0
-        self._move_group_count = 0
-        self._move_pair_count = 0
-        self._annotated_region_count = 0
-        self._timings: Counter[str] = Counter()
 
     def __call__(self, outcome: PairOutcome) -> None:
         sequence = outcome.work_item.sequence
@@ -234,6 +303,7 @@ class PairReceiptPublisher:
         destination = self.pairs_directory / f"{sequence:06d}.json"
         if destination.exists():
             raise FileExistsError(destination)
+        _validate_completed_outcome(outcome)
         pair_directory = self.pairs_directory / f"{sequence:06d}"
         retained = retain_outcome_files(
             outcome,
@@ -246,32 +316,266 @@ class PairReceiptPublisher:
         )
         _publish_new_file(destination, _canonical_json(receipt))
         self._next_sequence += 1
-        status = outcome.status.value
-        self._statuses[status] += 1
-        metrics = dict(outcome.metrics)
-        if status == "completed":
-            self._move_count += int(metrics.get("move_count", 0))
-            self._move_group_count += int(metrics.get("move_group_count", 0))
-            self._move_pair_count += int(metrics.get("move_pair_count", 0))
-            self._annotated_region_count += int(
-                metrics.get("annotated_region_count", 0)
-            )
-        for name, seconds in outcome.timings:
-            self._timings[name] += seconds
 
     def summary(self) -> dict[str, Any]:
-        """Return a deterministic aggregate of receipts published so far."""
+        """Derive a deterministic aggregate from sealed receipts."""
 
-        return {
-            "schema_version": HISTORY_SUMMARY_SCHEMA_VERSION,
-            "selected_pairs": self._next_sequence,
-            "completed": self._statuses["completed"],
-            "no_analyzable_change": self._statuses["no_analyzable_change"],
-            "failed": sum(self._statuses[status] for status in FAILURE_STATUSES),
-            "statuses": dict(sorted(self._statuses.items())),
-            "move_count": self._move_count,
-            "move_group_count": self._move_group_count,
-            "move_pair_count": self._move_pair_count,
-            "annotated_region_count": self._annotated_region_count,
-            "timings": dict(sorted(self._timings.items())),
+        return derive_history_summary(self.analysis_root)
+
+    def finalize(self) -> dict[str, Any]:
+        """Atomically publish aggregate JSON and chronological CSV views."""
+
+        return publish_history_reports(self.analysis_root)
+
+
+def derive_history_summary(analysis_root: Path) -> dict[str, Any]:
+    """Return a constant-size aggregate derived only from sealed receipts."""
+
+    statuses: Counter[str] = Counter()
+    timings: Counter[str] = Counter()
+    move_count = 0
+    move_group_count = 0
+    move_pair_count = 0
+    annotated_region_count = 0
+    selected_pairs = 0
+    for _, receipt in _sealed_receipts(analysis_root):
+        selected_pairs += 1
+        status = _receipt_status(receipt)
+        statuses[status] += 1
+        if status == "completed":
+            metrics = _mapping(receipt, "metrics")
+            move_count += _count(metrics, "move_count", required=True)
+            move_group_count += _count(metrics, "move_group_count", required=True)
+            move_pair_count += _count(metrics, "move_pair_count", required=True)
+            annotated_region_count += _count(
+                metrics, "annotated_region_count", required=True
+            )
+        for name, seconds in _mapping(receipt, "timings").items():
+            if (
+                isinstance(seconds, bool)
+                or not isinstance(seconds, (int, float))
+                or not math.isfinite(seconds)
+                or seconds < 0
+            ):
+                raise ValueError(f"receipt timing {name!r} must be numeric")
+            timings[str(name)] += float(seconds)
+    return {
+        "schema_version": HISTORY_SUMMARY_SCHEMA_VERSION,
+        "selected_pairs": selected_pairs,
+        "completed": statuses["completed"],
+        "no_analyzable_change": statuses["no_analyzable_change"],
+        "failed": sum(statuses[status] for status in FAILURE_STATUSES),
+        "statuses": dict(sorted(statuses.items())),
+        "move_count": move_count,
+        "move_group_count": move_group_count,
+        "move_pair_count": move_pair_count,
+        "annotated_region_count": annotated_region_count,
+        "timings": dict(sorted(timings.items())),
+    }
+
+
+def publish_history_reports(analysis_root: Path) -> dict[str, Any]:
+    """Publish replaceable views after receipt publication has stopped.
+
+    ``summary.csv`` is the initial human browse view. A positive-artifact link
+    hierarchy can be added later without changing the sealed receipt source of
+    truth.
+    """
+
+    root = analysis_root.resolve()
+    root.mkdir(parents=True, exist_ok=True)
+    summary = derive_history_summary(root)
+    csv_destination = root / "summary.csv"
+    json_destination = root / "summary.json"
+    csv_temporary, csv_count = _write_summary_csv_temporary(root, csv_destination)
+    try:
+        if csv_count != summary["selected_pairs"]:
+            raise RuntimeError("sealed receipts changed during report publication")
+        published_summary = {
+            **summary,
+            "schema_version": HISTORY_REPORT_SCHEMA_VERSION,
+            "summary_csv": {
+                "path": csv_destination.relative_to(root).as_posix(),
+                "rows": csv_count,
+                "sha256": _sha256_file(csv_temporary),
+            },
         }
+        json_temporary = _write_temporary(
+            json_destination, _canonical_json(published_summary)
+        )
+    except BaseException:
+        csv_temporary.unlink(missing_ok=True)
+        raise
+    try:
+        _replace_derived_file(csv_temporary, csv_destination)
+        _replace_derived_file(json_temporary, json_destination)
+    finally:
+        csv_temporary.unlink(missing_ok=True)
+        json_temporary.unlink(missing_ok=True)
+    return published_summary
+
+
+def _sealed_receipts(
+    analysis_root: Path,
+) -> Iterator[tuple[Path, dict[str, Any]]]:
+    root = analysis_root.resolve()
+    pairs_directory = root / "pairs"
+    if not pairs_directory.exists():
+        return
+    if not pairs_directory.is_dir() or pairs_directory.is_symlink():
+        raise ValueError(f"pair receipt path is not an owned directory: {pairs_directory}")
+    sequence = 0
+    while True:
+        path = pairs_directory / f"{sequence:06d}.json"
+        if not path.exists():
+            break
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(f"pair receipt is not a regular file: {path}")
+        try:
+            value = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            raise ValueError(f"pair receipt is unreadable: {path}") from error
+        if not isinstance(value, dict):
+            raise ValueError(f"pair receipt must contain a JSON object: {path}")
+        if value.get("schema_version") != PAIR_RECEIPT_SCHEMA_VERSION:
+            raise ValueError(f"unsupported pair receipt schema: {path}")
+        if value.get("sealed") is not True:
+            raise ValueError(f"pair receipt is not sealed: {path}")
+        if value.get("sequence") != sequence:
+            raise ValueError(
+                f"pair receipt sequence mismatch: expected {sequence}, "
+                f"got {value.get('sequence')}"
+            )
+        _validate_completed_seal(value)
+        yield path, value
+        sequence += 1
+    _reject_later_or_malformed_receipts(pairs_directory, sequence)
+
+
+def _reject_later_or_malformed_receipts(
+    pairs_directory: Path, expected_sequence: int
+) -> None:
+    with os.scandir(pairs_directory) as entries:
+        for entry in entries:
+            if not entry.name.endswith(".json"):
+                continue
+            stem = entry.name.removesuffix(".json")
+            if len(stem) != 6 or not stem.isdigit():
+                raise ValueError(f"malformed pair receipt filename: {entry.name}")
+            sequence = int(stem)
+            if sequence >= expected_sequence:
+                raise ValueError(
+                    "pair receipts must be contiguous; "
+                    f"missing {expected_sequence:06d}.json before {entry.name}"
+                )
+
+
+def _receipt_status(receipt: Mapping[str, Any]) -> str:
+    status = receipt.get("status")
+    allowed = {"completed", "no_analyzable_change", *FAILURE_STATUSES}
+    if not isinstance(status, str) or status not in allowed:
+        raise ValueError(f"sealed receipt has unknown status: {status!r}")
+    return status
+
+
+def _mapping(receipt: Mapping[str, Any], name: str) -> Mapping[str, Any]:
+    value = receipt.get(name, {})
+    if not isinstance(value, Mapping):
+        raise ValueError(f"receipt field {name!r} must be an object")
+    return value
+
+
+def _count(
+    values: Mapping[str, Any], name: str, *, required: bool = False
+) -> int:
+    if required and name not in values:
+        raise ValueError(f"completed receipt is missing metric {name!r}")
+    value = values.get(name, 0)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise ValueError(f"receipt metric {name!r} must be a non-negative integer")
+    return value
+
+
+def _write_summary_csv_temporary(
+    analysis_root: Path, destination: Path
+) -> tuple[Path, int]:
+    temporary = destination.with_name(f".{destination.name}.tmp-{uuid.uuid4().hex}")
+    count = 0
+    try:
+        with temporary.open("x", newline="", encoding="utf-8") as stream:
+            writer = csv.DictWriter(
+                stream, fieldnames=SUMMARY_COLUMNS, lineterminator="\n"
+            )
+            writer.writeheader()
+            for receipt_path, receipt in _sealed_receipts(analysis_root):
+                writer.writerow(_summary_row(analysis_root, receipt_path, receipt))
+                count += 1
+            stream.flush()
+            os.fsync(stream.fileno())
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+    return temporary, count
+
+
+def _summary_row(
+    analysis_root: Path,
+    receipt_path: Path,
+    receipt: Mapping[str, Any],
+) -> dict[str, Any]:
+    metrics = _mapping(receipt, "metrics")
+    timings = _mapping(receipt, "timings")
+    path_counts = _mapping(receipt, "path_counts")
+    return {
+        "sequence": receipt["sequence"],
+        "old_commit": _spreadsheet_safe(receipt.get("old_commit")),
+        "new_commit": _spreadsheet_safe(receipt.get("new_commit")),
+        "pair_fingerprint": _spreadsheet_safe(receipt.get("pair_fingerprint")),
+        "status": _receipt_status(receipt),
+        "changed_paths": path_counts.get("changed"),
+        "analyzable_changed_paths": path_counts.get("analyzable"),
+        "move_count": metrics.get("move_count"),
+        "move_group_count": metrics.get("move_group_count"),
+        "move_pair_count": metrics.get("move_pair_count"),
+        "annotated_region_count": metrics.get("annotated_region_count"),
+        "pair_seconds": timings.get("pair_seconds"),
+        "inventory_seconds": timings.get("inventory_seconds"),
+        "materialization_seconds": timings.get("materialization_seconds"),
+        "srcdiff_seconds": timings.get("srcdiff_seconds"),
+        "srcmove_seconds": timings.get("srcmove_seconds"),
+        "results_validation_seconds": timings.get("results_validation_seconds"),
+        "error": _spreadsheet_safe(receipt.get("error")),
+        "receipt_path": receipt_path.relative_to(analysis_root).as_posix(),
+    }
+
+
+def _spreadsheet_safe(value: Any) -> Any:
+    if not isinstance(value, str):
+        return value
+    return f"'{value}" if value.startswith(("=", "+", "-", "@")) else value
+
+
+def _write_temporary(destination: Path, content: bytes) -> Path:
+    temporary = destination.with_name(f".{destination.name}.tmp-{uuid.uuid4().hex}")
+    try:
+        with temporary.open("xb") as stream:
+            stream.write(content)
+            stream.flush()
+            os.fsync(stream.fileno())
+    except BaseException:
+        temporary.unlink(missing_ok=True)
+        raise
+    return temporary
+
+
+def _replace_derived_file(temporary: Path, destination: Path) -> None:
+    os.replace(temporary, destination)
+    _fsync_directory(destination.parent)
+
+
+def _sha256_file(path: Path) -> str:
+    hasher = hashlib.sha256()
+    with path.open("rb") as stream:
+        while block := stream.read(1024 * 1024):
+            hasher.update(block)
+    return hasher.hexdigest()
