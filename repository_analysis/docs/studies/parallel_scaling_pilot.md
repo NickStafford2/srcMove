@@ -1,4 +1,9 @@
-### Preliminary Parallel Scaling Evaluation
+# Preliminary Parallel Scaling Evaluation
+
+> Superseded study: this pilot measured the retired experimental history
+> runner, not the production `repository_analysis` implementation. Preserve it
+> as historical evidence, but replace it with a repeated scaling study of the
+> production analyzer before drawing current performance conclusions.
 
 A preliminary scaling experiment evaluated repository-history analysis over 300 adjacent first-parent commits from SQLite. Worker counts of 1, 2, 4, 6, 8, 10, 12, and 16 were tested once each in Docker on a 16-logical-CPU Intel Core i9-9980HK system. Each run used the same commit range, executable binaries, and benchmark configuration.
 

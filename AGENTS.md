@@ -44,7 +44,9 @@ repeating the same information.
 - [README.md](README.md): project overview and build/run basics
 - [Makefile](Makefile): canonical build and test commands
 - [doc/README.md](doc/README.md): documentation index
-- [doc/architecture.md](doc/architecture.md): verified implementation overview
+- [doc/architecture.md](doc/architecture.md): verified srcMove implementation overview
+- [repository_analysis/docs/README.md](repository_analysis/docs/README.md):
+  repository-history analyzer architecture, runtime, and research notes
 - [doc/bigclonebench_notes.md](doc/bigclonebench_notes.md): BigCloneBench setup notes
 - [doc/bigclonebench_srcmove_conversion.md](doc/bigclonebench_srcmove_conversion.md):
   converting BigCloneBench clone pairs into srcMove tests

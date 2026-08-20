@@ -17,8 +17,8 @@ and command-line usage.
 - [srcDiff notes](srcDiff_notes.md): investigated srcDiff behavior and XML
   format details
 - [XPath commands](sample_xpath_commands.md): example queries for srcMove XML
-- [Repository-history analysis](historical_repository_analysis_plan.md):
-  target-driven CLI, SQLite state, recovery, compact storage, and inspection
+- [Repository analysis](../repository_analysis/docs/README.md): architecture
+  decision, target-driven runtime, research motivation, and study results
 
 The project README and implementation are authoritative when older research
 summaries or diagrams disagree with current behavior.

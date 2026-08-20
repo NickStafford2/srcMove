@@ -196,6 +196,7 @@ For the complete implemented pipeline and its performance model, see
 
 - [Documentation index](doc/README.md)
 - [Architecture](doc/architecture.md)
+- [Repository analysis](repository_analysis/docs/README.md)
 - [Correctness tests](tests/README.md)
 - [Benchmarks](benchmarks/README.md)
 - [BigCloneBench methodology](doc/bigclonebench_srcmove_conversion.md)

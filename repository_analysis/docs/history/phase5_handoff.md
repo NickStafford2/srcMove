@@ -1,13 +1,16 @@
 # srcMove Handoff: Repository Analysis Phase 5 Prerequisites
 
+> Historical record: this handoff describes an earlier receipt-based phase and
+> does not define the current architecture or remaining work.
+
 ## Objective
 
 Add the frozen invocation inputs needed before exposing the production
 repository-history analyzer through a CLI. Phase 4 retention, reporting, and
 verified resume are complete.
 
-The canonical architecture remains
-[the repository-history analysis plan](../historical_repository_analysis_plan.md).
+At the time of this handoff, the canonical architecture was the document now
+preserved as [runtime behavior](../runtime.md).
 Do not copy the experimental runner into the production package or migrate the
 benchmark CLI in this slice.
 
@@ -16,7 +19,7 @@ benchmark CLI in this slice.
 Work in `srcMove/` and read:
 
 - `AGENTS.md`
-- `doc/historical_repository_analysis_plan.md`, especially “History and pair
+- `repository_analysis/docs/runtime.md`, especially “History and pair
   definition,” “Resume and cache safety,” and Phase 5
 - `repository_analysis/contracts.py`
 - `repository_analysis/git.py`

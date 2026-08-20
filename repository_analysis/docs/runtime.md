@@ -1,5 +1,9 @@
 # Repository-History Analysis
 
+This document describes verified current behavior. The accepted
+[architecture decision](architecture.md) defines the consolidation and
+refactoring direction without claiming that unimplemented structure exists.
+
 ## Purpose
 
 `repository_analysis` runs srcDiff and srcMove across adjacent first-parent Git

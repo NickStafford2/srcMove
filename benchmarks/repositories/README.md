@@ -304,7 +304,7 @@ complete generations avoid global attempt scans; only an existing incomplete
 generation performs recovery and reconciliation.
 
 This create-only pilot is the migration baseline for the production
-[repository-history analysis plan](../../doc/historical_repository_analysis_plan.md).
+[repository-analysis runtime](../../repository_analysis/docs/runtime.md).
 Resume, retry, and crash-window reconciliation remain planned work.
 
 ### History scaling studies
