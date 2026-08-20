@@ -9,13 +9,23 @@ import sys
 from pathlib import Path
 from typing import Sequence
 
+from .chain import (
+    create_pending_continuation,
+    initialize_analysis_state,
+    load_oldest_segment,
+    load_pending_continuation,
+    oldest_segment_retention_policy,
+    promote_pending_continuation,
+    publish_analysis_state_reports,
+    reconcile_promoted_continuation,
+)
+from .coordinator import CoordinatorStats
 from .git import (
     retain_history,
     retained_history_ref,
     select_first_parent_history,
     verify_frozen_commits,
 )
-from .chain import load_verified_analysis_chain, publish_chain_reports
 from .inputs import (
     FROZEN_ANALYSIS_MANIFEST_NAME,
     AnalysisContinuation,
@@ -60,11 +70,10 @@ def build_parser() -> argparse.ArgumentParser:
         required=True,
         help="completed newer analysis",
     )
-    continuation.add_argument("--new-analysis-root", type=Path, required=True)
     continuation.add_argument("--count", type=int, required=True, metavar="PAIRS")
     continuation.add_argument("--srcdiff", type=Path)
     continuation.add_argument("--srcmove", type=Path)
-    _add_runtime_arguments(continuation)
+    _add_runtime_arguments(continuation, retention_default=None)
     return parser
 
 
@@ -84,9 +93,13 @@ def _add_frozen_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--srcmove-timeout", type=float, default=300.0)
 
 
-def _add_runtime_arguments(parser: argparse.ArgumentParser) -> None:
+def _add_runtime_arguments(
+    parser: argparse.ArgumentParser, *, retention_default: bool | None = False
+) -> None:
     parser.add_argument("--jobs", type=int, default=1)
-    parser.add_argument("--retain-positive-xml", action="store_true")
+    parser.add_argument(
+        "--retain-positive-xml", action="store_true", default=retention_default
+    )
 
 
 def _configuration(arguments: argparse.Namespace) -> AnalysisConfiguration:
@@ -151,11 +164,17 @@ def start_analysis(arguments: argparse.Namespace) -> ResumeStats:
     ref = retained_history_ref(manifest.canonical_bytes())
     retain_history(manifest.repository, ref, history.resolved_start)
     persist_frozen_manifest(arguments.analysis_root, manifest)
-    return _execute(
+    stats = _execute(
         manifest,
         analysis_root=arguments.analysis_root,
         jobs=arguments.jobs,
         retain_positive_xml=arguments.retain_positive_xml,
+    )
+    state = initialize_analysis_state(arguments.analysis_root)
+    return ResumeStats(
+        stats.verified_count,
+        stats.execution,
+        publish_analysis_state_reports(arguments.analysis_root, state),
     )
 
 
@@ -183,12 +202,25 @@ def resume_analysis(arguments: argparse.Namespace) -> ResumeStats:
         jobs=arguments.jobs,
         retain_positive_xml=arguments.retain_positive_xml,
     )
-    if manifest.continuation is None:
-        return stats
+    state = initialize_analysis_state(arguments.analysis_root)
+    verify_frozen_commits(
+        manifest.repository,
+        state.commits,
+        retained_ref=retained_history_ref(frozen.canonical_bytes()),
+    )
+    reconciled = reconcile_promoted_continuation(arguments.analysis_root, state)
+    if reconciled is not None:
+        state, summary = reconciled
+        verify_frozen_commits(
+            manifest.repository,
+            state.commits,
+            retained_ref=retained_history_ref(frozen.canonical_bytes()),
+        )
+        return ResumeStats(stats.verified_count, stats.execution, summary)
     return ResumeStats(
         stats.verified_count,
         stats.execution,
-        publish_chain_reports(arguments.analysis_root),
+        publish_analysis_state_reports(arguments.analysis_root, state),
     )
 
 
@@ -199,57 +231,118 @@ def continue_older_analysis(arguments: argparse.Namespace) -> ResumeStats:
         raise ValueError("jobs must be positive")
     if arguments.count <= 0:
         raise ValueError("pair count must be positive")
-    new_root = _validate_new_analysis_root(arguments.new_analysis_root)
-    chain = load_verified_analysis_chain(arguments.analysis_root)
-    newer_segment = chain[0]
-    frozen = newer_segment.manifest
-    srcdiff = observe_executable(arguments.srcdiff or frozen.srcdiff.requested_path)
-    srcmove = observe_executable(arguments.srcmove or frozen.srcmove.requested_path)
-    verified = verify_resume_inputs(
-        frozen,
-        repository_identity=frozen.repository_identity,
-        configuration=frozen.configuration,
-        srcdiff=srcdiff,
-        srcmove=srcmove,
-    )
+    root = arguments.analysis_root.expanduser().resolve()
+    state = initialize_analysis_state(root)
+    root_manifest = load_frozen_manifest(root)
     verify_frozen_commits(
-        verified.repository,
-        verified.commits,
-        retained_ref=retained_history_ref(frozen.canonical_bytes()),
+        root_manifest.repository,
+        state.commits,
+        retained_ref=retained_history_ref(root_manifest.canonical_bytes()),
     )
-    boundary = frozen.commits[0]
-    history = select_first_parent_history(
-        verified.repository, boundary, arguments.count
-    )
-    continuation = AnalysisContinuation(
-        newer_analysis_root=newer_segment.analysis_root,
-        newer_manifest_sha256=hashlib.sha256(
-            frozen.canonical_bytes()
-        ).hexdigest(),
-        boundary_commit=boundary,
-    )
-    manifest = freeze_analysis_inputs(
-        repository=verified.repository,
-        repository_identity=verified.repository_identity,
-        commits=history.commits,
-        configuration=verified.configuration,
-        srcdiff=srcdiff,
-        srcmove=srcmove,
-        continuation=continuation,
-    )
-    ref = retained_history_ref(manifest.canonical_bytes())
-    retain_history(manifest.repository, ref, history.resolved_start)
-    persist_frozen_manifest(new_root, manifest)
+    inherited_retention = oldest_segment_retention_policy(root, state)
+    requested_retention = arguments.retain_positive_xml
+    if (
+        requested_retention is not None
+        and requested_retention != inherited_retention.retain_positive_xml
+    ):
+        raise ValueError("retention policy drift across analysis continuation")
+    retain_positive_xml = inherited_retention.retain_positive_xml
+    reconciled = reconcile_promoted_continuation(root, state)
+    if reconciled is not None:
+        reconciled_state, summary = reconciled
+        verify_frozen_commits(
+            root_manifest.repository,
+            reconciled_state.commits,
+            retained_ref=retained_history_ref(root_manifest.canonical_bytes()),
+        )
+        return ResumeStats(
+            0,
+            CoordinatorStats(arguments.jobs, 0, 0, 0, 0, 0),
+            summary,
+        )
+    pending = load_pending_continuation(root, state, arguments.count)
+    if pending is None:
+        _, newer = load_oldest_segment(root, state)
+        srcdiff = observe_executable(
+            arguments.srcdiff or newer.srcdiff.requested_path
+        )
+        srcmove = observe_executable(
+            arguments.srcmove or newer.srcmove.requested_path
+        )
+        verified = verify_resume_inputs(
+            newer,
+            repository_identity=newer.repository_identity,
+            configuration=newer.configuration,
+            srcdiff=srcdiff,
+            srcmove=srcmove,
+        )
+        verify_frozen_commits(
+            verified.repository,
+            verified.commits,
+            retained_ref=retained_history_ref(newer.canonical_bytes()),
+        )
+        boundary = newer.commits[0]
+        history = select_first_parent_history(
+            verified.repository, boundary, arguments.count
+        )
+        continuation = AnalysisContinuation(
+            newer_segment_path=state.segments[0].relative_path,
+            newer_manifest_sha256=hashlib.sha256(
+                newer.canonical_bytes()
+            ).hexdigest(),
+            boundary_commit=boundary,
+        )
+        manifest = freeze_analysis_inputs(
+            repository=verified.repository,
+            repository_identity=verified.repository_identity,
+            commits=history.commits,
+            configuration=verified.configuration,
+            srcdiff=srcdiff,
+            srcmove=srcmove,
+            continuation=continuation,
+        )
+        ref = retained_history_ref(manifest.canonical_bytes())
+        retain_history(manifest.repository, ref, history.resolved_start)
+        pending_root = create_pending_continuation(
+            root,
+            manifest,
+            requested_pair_count=arguments.count,
+            base_state=state,
+        )
+        execution_manifest = manifest
+    else:
+        pending_root, manifest = pending
+        srcdiff = observe_executable(
+            arguments.srcdiff or manifest.srcdiff.requested_path
+        )
+        srcmove = observe_executable(
+            arguments.srcmove or manifest.srcmove.requested_path
+        )
+        execution_manifest = verify_resume_inputs(
+            manifest,
+            repository_identity=manifest.repository_identity,
+            configuration=manifest.configuration,
+            srcdiff=srcdiff,
+            srcmove=srcmove,
+        )
+        verify_frozen_commits(
+            execution_manifest.repository,
+            execution_manifest.commits,
+            retained_ref=retained_history_ref(manifest.canonical_bytes()),
+        )
     stats = _execute(
-        manifest,
-        analysis_root=new_root,
+        execution_manifest,
+        analysis_root=pending_root,
         jobs=arguments.jobs,
-        retain_positive_xml=arguments.retain_positive_xml,
+        retain_positive_xml=retain_positive_xml,
+    )
+    _, summary = promote_pending_continuation(
+        root, state, pending_root, manifest
     )
     return ResumeStats(
         stats.verified_count,
         stats.execution,
-        publish_chain_reports(new_root),
+        summary,
     )
 
 

@@ -5,7 +5,7 @@ import json
 import tempfile
 import unittest
 from dataclasses import replace
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from repository_analysis.inputs import (
     AnalysisConfiguration,
@@ -224,7 +224,7 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
             linked = replace(
                 baseline,
                 continuation=AnalysisContinuation(
-                    newer_analysis_root=(root / "newer").resolve(),
+                    newer_segment_path=PurePosixPath("segments/000001"),
                     newer_manifest_sha256="a" * 64,
                     boundary_commit=baseline.commits[-1],
                 ),

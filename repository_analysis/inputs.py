@@ -23,7 +23,7 @@ from .reporting import PAIR_RECEIPT_SCHEMA_VERSION
 ANALYSIS_CONFIGURATION_SCHEMA_VERSION = 1
 EXECUTABLE_OBSERVATION_SCHEMA_VERSION = 1
 FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 2
-ANALYSIS_CONTINUATION_SCHEMA_VERSION = 1
+ANALYSIS_CONTINUATION_SCHEMA_VERSION = 2
 PAIR_FINGERPRINT_SCHEMA_VERSION = 1
 FROZEN_ANALYSIS_MANIFEST_NAME = "manifest.json"
 
@@ -241,16 +241,20 @@ class FingerprintSchemaVersions:
 class AnalysisContinuation:
     """Immutable link from an older segment to its completed newer segment."""
 
-    newer_analysis_root: Path
+    newer_segment_path: PurePosixPath
     newer_manifest_sha256: str
     boundary_commit: str
 
     def __post_init__(self) -> None:
+        path = self.newer_segment_path
+        if not isinstance(path, PurePosixPath):
+            raise ValueError("newer segment path must be a canonical relative path")
         if (
-            not isinstance(self.newer_analysis_root, Path)
-            or not self.newer_analysis_root.is_absolute()
+            path.is_absolute()
+            or ".." in path.parts
+            or str(PurePosixPath(str(path))) != str(path)
         ):
-            raise ValueError("newer analysis root must be an absolute path")
+            raise ValueError("newer segment path must be a canonical relative path")
         if len(self.newer_manifest_sha256) != 64 or any(
             character not in "0123456789abcdef"
             for character in self.newer_manifest_sha256
@@ -266,7 +270,7 @@ class AnalysisContinuation:
     def record(self) -> dict[str, Any]:
         return {
             "schema_version": ANALYSIS_CONTINUATION_SCHEMA_VERSION,
-            "newer_analysis_root": str(self.newer_analysis_root),
+            "newer_segment_path": str(self.newer_segment_path),
             "newer_manifest_sha256": self.newer_manifest_sha256,
             "boundary_commit": self.boundary_commit,
         }
@@ -597,16 +601,16 @@ def _load_continuation(value: Any) -> AnalysisContinuation | None:
         record,
         {
             "schema_version",
-            "newer_analysis_root",
+            "newer_segment_path",
             "newer_manifest_sha256",
             "boundary_commit",
         },
         "continuation",
     )
     _schema(record, "schema_version", ANALYSIS_CONTINUATION_SCHEMA_VERSION)
-    root = Path(_string(record, "newer_analysis_root"))
+    path = PurePosixPath(_string(record, "newer_segment_path"))
     return AnalysisContinuation(
-        newer_analysis_root=root,
+        newer_segment_path=path,
         newer_manifest_sha256=_string(record, "newer_manifest_sha256"),
         boundary_commit=_string(record, "boundary_commit"),
     )

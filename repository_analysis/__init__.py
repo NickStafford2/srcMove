@@ -2,8 +2,10 @@
 
 from .chain import (
     AnalysisSegment,
-    load_verified_analysis_chain,
-    publish_chain_reports,
+    AnalysisState,
+    initialize_analysis_state,
+    load_verified_analysis_state,
+    publish_analysis_state_reports,
 )
 from .contracts import (
     CaptureObservation,
@@ -55,6 +57,7 @@ __all__ = [
     "AnalysisConfiguration",
     "AnalysisContinuation",
     "AnalysisSegment",
+    "AnalysisState",
     "ExecutableObservation",
     "FrozenAnalysisManifest",
     "PairOutcome",
@@ -75,12 +78,13 @@ __all__ = [
     "prepare_verified_resume",
     "freeze_analysis_inputs",
     "load_frozen_manifest",
-    "load_verified_analysis_chain",
+    "load_verified_analysis_state",
     "observe_executable",
     "pair_fingerprint",
     "pair_fingerprint_bytes",
     "persist_frozen_manifest",
-    "publish_chain_reports",
+    "publish_analysis_state_reports",
+    "initialize_analysis_state",
     "resume_pairs",
     "run_pairs",
     "verify_resume_inputs",
