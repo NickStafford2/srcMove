@@ -9,6 +9,22 @@ from repository_analysis.tools import admit_executable
 
 
 class AnalysisExecutableAdmissionTests(unittest.TestCase):
+    def test_admission_rejects_a_regular_non_executable_file(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            analysis = root / "analysis"
+            analysis.mkdir()
+            source = root / "srcdiff"
+            source.write_bytes(b"#!/bin/sh\nexit 0\n")
+            source.chmod(0o644)
+
+            with self.assertRaisesRegex(
+                ValueError, r"^executable is not executable:"
+            ):
+                admit_executable(source, analysis, role="srcdiff")
+
+            self.assertEqual(list((analysis / "tools").rglob("*")), [])
+
     def test_admission_binds_identity_to_analysis_owned_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

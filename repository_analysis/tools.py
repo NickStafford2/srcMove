@@ -34,6 +34,8 @@ def admit_executable(
             metadata = os.fstat(descriptor)
             if not stat.S_ISREG(metadata.st_mode):
                 raise ValueError(f"executable is not a regular file: {resolved}")
+            if not os.access(resolved, os.X_OK):
+                raise ValueError(f"executable is not executable: {resolved}")
             hasher = hashlib.sha256()
             size = 0
             with temporary.open("xb") as output:

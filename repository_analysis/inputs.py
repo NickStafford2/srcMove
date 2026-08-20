@@ -177,7 +177,7 @@ def observe_executable(path: Path) -> ExecutableObservation:
             if not stat.S_ISREG(before.st_mode):
                 raise ValueError(f"executable is not a regular file: {resolved}")
             if not os.access(resolved, os.X_OK):
-                raise ValueError(f"file is not executable: {resolved}")
+                raise ValueError(f"executable is not executable: {resolved}")
             hasher = hashlib.sha256()
             size = 0
             while block := stream.read(1024 * 1024):

@@ -224,6 +224,35 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             self.assertIn("not inside a Git worktree", error)
             self.assertFalse((root / ".srcmove" / "analysis.sqlite3").exists())
 
+    def test_non_executable_tool_stops_analysis_creation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 2)
+            self._init(repository, excluded_suffixes=(".py", ".txt"))
+            srcdiff = root / "srcdiff"
+            srcdiff.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+            srcdiff.chmod(0o644)
+
+            status, _, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "run",
+                    "--pairs",
+                    "1",
+                    "--srcdiff",
+                    str(srcdiff),
+                    "--srcmove",
+                    str(executable(root / "srcmove")),
+                    "--progress",
+                    "never",
+                ]
+            )
+
+            self.assertEqual(status, 2)
+            self.assertIn("executable is not executable", error)
+            self.assertFalse((repository / ".srcmove" / "analysis.sqlite3").exists())
+
     def test_frozen_configuration_cannot_be_overridden(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
