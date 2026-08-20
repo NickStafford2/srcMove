@@ -141,7 +141,7 @@ That instruction came after asking to proceed, so it should be respected unless 
 If later validation is allowed, good checks would be:
 
 - existing custom suite:
-  - `python3 test/e2e_custom/run_tests.py build/srcMove`
+  - `python3 tests/regression/xml/run.py build/srcMove`
 - compare behavior with and without the flag on the Wowy example
 
 Expected demo story:
@@ -173,7 +173,7 @@ The structural-child behavior exists because whole-file delete/insert wrappers w
 
 Relevant regression fixture already added:
 
-- [test/e2e_custom/cases/archive_whole_file_split_structural/input.xml](/home/nick/Projects/srcMLBuildTemplate/srcMove/test/e2e_custom/cases/archive_whole_file_split_structural/input.xml:1)
+- [tests/regression/xml/cases/archive_whole_file_split_structural/input.xml](/home/nick/Projects/srcMLBuildTemplate/srcMove/tests/regression/xml/cases/archive_whole_file_split_structural/input.xml:1)
 
 That fixture is useful when explaining why the toggle matters.
 

@@ -1,5 +1,0 @@
-#!/usr/bin/env bash
-# build_and_test
-set -euo pipefail
-
-python3 test/run_all.py --build "$@"

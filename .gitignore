@@ -1,12 +1,13 @@
 build/
 build-release/
+__pycache__/
+*.py[cod]
 out.txt
 compile_commands.json
 .cache/
 context-export.toml
 examples/
 profile-results/
-test/bigclonebench/
-test/BigCloneEval/
-test/IJaDataset
+benchmark-data/
+benchmarks/bigclonebench/data/
 srcReader/

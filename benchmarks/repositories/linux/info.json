@@ -1,0 +1,6 @@
+{
+  "github": "https://github.com/torvalds/linux.git",
+  "old_rev": "v6.12",
+  "new_rev": "v6.13",
+  "directory": "kernel/sched"
+}

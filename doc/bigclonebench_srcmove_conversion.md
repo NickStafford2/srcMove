@@ -1,21 +1,28 @@
 # Converting BigCloneEval Into srcMove Tests
 
-BigCloneEval is not a move-detection benchmark by itself. Its oracle is a set of
-clone pairs: two independently existing Java function fragments that implement
-the same functionality. To use it for srcMove, synthesize a before/after edit
-where one clone fragment is deleted from the old version and its paired clone
-fragment is inserted at a different location in the new version.
+BigCloneEval is not a move-detection benchmark by itself. Its positive oracle is
+a set of clone pairs: two independently existing Java function fragments that
+implement the same functionality. The current srcMove evaluation synthesizes a
+before/after edit where one clone fragment is deleted from the old version and
+its paired clone fragment is inserted at a different location in the new
+version.
+
+The resulting pass rate is a strict whole-fragment synthetic
+detection-and-classification rate for the declared slice and oracle. It is not
+historical-move accuracy, general detector recall, overall accuracy, or
+precision.
 
 ## Local Assets
 
-Install BigCloneEval manually at `test/BigCloneEval/` and follow its setup
-instructions in `test/BigCloneEval/ReadMe.md` or the upstream README at
-<https://github.com/jeffsvajlenko/BigCloneEval>. This checkout expects the two
-required inputs at:
+Install BigCloneEval manually at
+`benchmarks/bigclonebench/data/BigCloneEval/` and follow its setup instructions
+in `benchmarks/bigclonebench/data/BigCloneEval/ReadMe.md` or the upstream README
+at <https://github.com/jeffsvajlenko/BigCloneEval>. This checkout expects the
+two required inputs at:
 
 ```text
-test/BigCloneEval/bigclonebenchdb/bcb.h2.db
-test/BigCloneEval/ijadataset/{default,sample,selected}/*.java
+benchmarks/bigclonebench/data/BigCloneEval/bigclonebenchdb/bcb.h2.db
+benchmarks/bigclonebench/data/BigCloneEval/ijadataset/{default,sample,selected}/*.java
 ```
 
 The H2 database contains the truth tables:
@@ -42,18 +49,82 @@ For each selected clone pair:
 5. Build a synthetic new file containing the paired fragment after that class,
    at top-level srcML scope.
 6. Run `srcDiff original.java modified.java --position`.
-7. Run `srcMove` over the srcDiff XML.
-8. Score whether srcMove reports one delete/insert move whose annotated positions
+7. Verify that srcDiff exposed the intended synthetic payload as usable
+   delete/insert regions.
+8. Run `srcMove` over eligible srcDiff XML.
+9. Score whether srcMove reports one delete/insert move whose annotated positions
    overlap the generated line ranges for the two benchmark fragments.
+
+The current evaluation uses a strict detection-and-classification oracle:
+Type-1 cases must report the intended whole-fragment move as `exact`, and Type-2
+cases must report it as `type2`. Position and per-side text validation must also
+pass. Detecting the intended payload with the wrong match kind is useful failure
+evidence, but it is not counted as a pass. The benchmark deliberately uses
+BigCloneBench as the best available large labeled source; questionable labels,
+unsupported variations, extraction problems, or conversion artifacts discovered
+in the failure set should be analyzed and reported rather than silently removed.
 
 This converts clone similarity into move similarity. Exact and Type-2 clone pairs
 are the best first target for srcMove because they align with the current exact and
 Type-2 match categories. Type-3 and Type-4 pairs are useful later as expected misses
 or as recall targets for future similarity scoring.
 
-## Recommended Sampling Query
+## srcDiff Eligibility Boundary
 
-Start with a deterministic exact/Type-2 sample:
+Well-formed srcDiff XML does not prove that srcDiff exposed the intended
+BigCloneBench payload. srcDiff may legally align the synthetic source differently
+and omit the delete/insert regions that srcMove would need as candidates. srcMove
+cannot recover a move that is absent from its input, so such a case must not be
+reported as a srcMove detection miss.
+
+The staged BigCloneBench pipeline applies a versioned semantic eligibility check
+before srcMove evaluation. For each side, it finds `diff:delete` or `diff:insert`
+regions and aggregates their descendant `pos:start` and `pos:end` line numbers.
+A case is eligible only when one delete region covers the complete generated
+source range and one insert region covers the complete generated target range.
+This deliberately tests candidate exposure rather than srcMove behavior. The
+pipeline keeps these outcomes distinct:
+
+- srcDiff failed, timed out, or produced malformed output
+- srcDiff produced valid XML but did not expose the intended payload
+- srcMove ran on an eligible input but missed the expected move
+- srcMove satisfied the positional, text, and match-kind oracle
+
+The per-run summary reports both the end-to-end strict pass rate over generated
+cases and the conditional srcMove detection-and-classification rate over
+srcDiff-eligible cases. The eligibility and scoring oracle versions are recorded
+in the corpus and run artifacts.
+
+## Future Negative Cases From Known False Positives
+
+BigCloneBench also provides known false-positive clone pairs. They are an
+optional future source of negative cases: similar-looking regions that srcMove
+must not annotate as moves. Their absence does not make the current positive-case
+detection-and-classification evaluation incomplete for its declared purpose.
+
+This work is intentionally deferred until the positive-case pipeline is
+reproducible. A BigCloneBench clone-detector false positive is not automatically
+a valid srcMove negative case. The future extension must define:
+
+- how each pair is converted into a before/after source edit without introducing
+  an accidental real move through the synthetic wrapper
+- why the expected srcMove result is no move
+- how to verify that srcDiff exposed comparable candidate regions
+- which judgment, confidence, size, and deduplication filters define eligibility
+- whether the metric describes the selected negative slice or supports a broader
+  false-positive-rate or precision claim
+
+Keep those negative results separate from the current positive-case detection
+rate. Once the conversion and oracle are defensible, useful failures can be
+minimized into small checked-in regression tests while the generated suite
+continues to provide breadth.
+
+## Exploratory Query and Thesis Selection
+
+The following ordered query is useful for smoke tests and debugging, beginning
+with Type-1. Its first `LIMIT` rows are a deterministic convenience slice, not a
+random or representative sample and not a basis for inference about the wider
+eligible population:
 
 ```sql
 SELECT
@@ -87,13 +158,31 @@ f1.project = f2.project        intra-project rows
 f1.project != f2.project       inter-project rows
 ```
 
+Before a thesis evaluation, choose and freeze one of two defensible designs:
+
+- a census of a precisely declared eligible population
+- a seeded sample from a declared frame, stratified where needed by clone type,
+  functionality, size, raw-text relationship, or project relationship
+
+The selection manifest must preserve the exact query and parameters, database
+checksum, ordered eligible and selected row IDs, pre/post-deduplication counts,
+sampling seed and strata when applicable, and generator/oracle versions. Report
+functionality coverage and distinct raw-text-pair coverage so repeated clone rows
+cannot masquerade as independent variety.
+
+BigCloneBench treats clone pairs as unordered, but the synthetic edit has a
+direction. The evaluation must declare whether `(A, B)` means only deleting A and
+inserting B, whether both directions are evaluated, or whether a canonical
+direction is chosen. Keep cases used to tune srcMove identifiable and freeze a
+separate evaluation census or sample for the final thesis result.
+
 ## Practical Test Layout
 
 Generate into a separate directory so the large suite is not mixed with small
 hand-authored e2e fixtures:
 
 ```text
-test/e2e_bigclonebench/
+benchmarks/bigclonebench/
   cases/
     bcb_t2_000001/
       original.java
@@ -133,6 +222,9 @@ cases from a previous larger run.
 - BigCloneBench labels clones, not historical edits. The generated suite measures
   whether srcMove can recognize a synthetic move whose payload is drawn from a
   known clone pair.
+- The current generator uses positive clone rows only. BigCloneBench's known
+  false-positive pairs are a future negative-case source, not part of the current
+  metric.
 - BigCloneBench pair rows can heavily repeat the same fragment texts. Report both
   row counts and distinct raw-text-pair counts when using these cases as a metric.
 - H2 embedded database access is single-process. Run BigCloneBench generator or

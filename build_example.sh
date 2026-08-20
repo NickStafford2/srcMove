@@ -9,9 +9,9 @@ Usage:
   ./build_example.sh <keyword> [--position]
 
 Description:
-  Runs the opencv stress-test case using the revisions configured in
-  test/stress/opencv/info.json, then copies the generated srcDiff and srcMove
-  XML outputs into examples/ using the requested keyword.
+  Runs the wowy_advanced_analytics repository benchmark using its configured
+  revisions, then copies the generated srcDiff and srcMove XML outputs into
+  examples/ using the requested keyword.
 
 Examples:
   ./build_example.sh baseline
@@ -21,9 +21,9 @@ EOF
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 repo_root="$script_dir"
-stress_runner="$repo_root/test/stress/diff_and_move_repo.py"
-stress_case="wowy_advanced_analytics"
-stress_work_dir="$repo_root/test/stress/$stress_case/work"
+benchmark_runner="$repo_root/benchmarks/repositories/run_case.py"
+benchmark_case="wowy_advanced_analytics"
+benchmark_work_dir="$repo_root/benchmarks/repositories/$benchmark_case/work"
 examples_dir="$repo_root/examples"
 
 keyword=""
@@ -67,21 +67,21 @@ if [[ ! "$keyword" =~ ^[A-Za-z0-9._-]+$ ]]; then
   exit 1
 fi
 
-if [[ ! -f "$stress_runner" ]]; then
-  echo "error: stress runner not found: $stress_runner" >&2
+if [[ ! -f "$benchmark_runner" ]]; then
+  echo "error: benchmark runner not found: $benchmark_runner" >&2
   exit 1
 fi
 
-runner_cmd=(python3 "$stress_runner" "$stress_case")
+runner_cmd=(python3 "$benchmark_runner" "$benchmark_case")
 if ((use_position)); then
   runner_cmd+=(--position)
 fi
 
-echo "Running stress case: $stress_case"
+echo "Running repository benchmark: $benchmark_case"
 "${runner_cmd[@]}"
 
-src_diff="$stress_work_dir/diff.xml"
-src_move="$stress_work_dir/diff_new.xml"
+src_diff="$benchmark_work_dir/diff.xml"
+src_move="$benchmark_work_dir/diff_new.xml"
 
 if [[ ! -f "$src_diff" ]]; then
   echo "error: expected generated diff file not found: $src_diff" >&2
@@ -95,7 +95,7 @@ fi
 
 mkdir -p "$examples_dir"
 
-name_prefix="$stress_case.$keyword"
+name_prefix="$benchmark_case.$keyword"
 if ((use_position)); then
   name_prefix="$name_prefix.position"
 fi

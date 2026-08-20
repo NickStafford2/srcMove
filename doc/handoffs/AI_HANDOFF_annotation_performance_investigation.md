@@ -1,5 +1,11 @@
 # srcMove Handoff: Investigate Annotation Performance
 
+> Historical note: commit `3afbc86` implemented this handoff's primary
+> recommendation by retaining candidate XPaths and removing the extra
+> `collect_start_node_xpaths(...)` pass. The profiles below describe the older
+> three-pass pipeline. Current performance work is planned in the
+> [parallel programming upgrade plan](../parallel_programming_upgrade_plan.md).
+
 ## Situation
 
 Recent profiling shows `srcMove` spends most runtime in XML parsing and
@@ -13,8 +19,11 @@ Command:
 
 ```bash
 scripts/build_release.sh
-python3 scripts/profile_srcmove.py --prepare-bigclonebench
 ```
+
+The historical coupled BigCloneBench setup/profile command is retired. Use the
+current input snapshot and corpus workflow documented in
+`benchmarks/bigclonebench/README.md`.
 
 Profile file:
 
@@ -41,7 +50,7 @@ Command:
 
 ```bash
 scripts/build_release.sh
-python3 scripts/profile_srcmove.py --suite opencv --repeats 1 --no-latest
+python3 benchmarks/profile.py --suite opencv --repeats 1 --no-latest
 ```
 
 Profile file:
@@ -84,7 +93,7 @@ Content grouping is not currently a performance priority for these workloads.
 - `src/srcml_reader.hpp`
 - `src/xpath_builder.*` if present in the checkout
 - `src/parse/diff_region.cpp`
-- `scripts/profile_srcmove.py`
+- `benchmarks/profile.py`
 - `src/profile.hpp`
 
 ## Investigation Goal
@@ -146,16 +155,17 @@ Correctness:
 
 ```bash
 scripts/build_release.sh
-python3 test/e2e_custom/run_tests.py build-release/srcMove
-python3 test/e2e_generated/run_tests.py
-python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --limit 10 --srcmove build-release/srcMove
+python3 tests/regression/xml/run.py build-release/srcMove
+python3 tests/regression/source/run.py
+python3 benchmarks/bigclonebench/run.py --clone-type type1 --limit 10 --srcmove build-release/srcMove
 ```
 
 Performance:
 
 ```bash
-python3 scripts/profile_srcmove.py --prepare-bigclonebench --label annotation-before
-python3 scripts/profile_srcmove.py --suite opencv --repeats 1 --label opencv-before
+python3 benchmarks/profile.py --corpus CORPUS_ID \
+  --srcmove build-release/srcMove --run-id annotation-before
+python3 benchmarks/profile.py --suite opencv --repeats 1 --label opencv-before
 ```
 
 After a change, rerun the same commands with `annotation-after` /
@@ -169,9 +179,9 @@ After a change, rerun the same commands with `annotation-after` /
 
 ## Notes
 
-`scripts/profile_srcmove.py --prepare-bigclonebench` now continues profiling if
-BigCloneBench validation reports known failures, as long as the active manifest
-was generated.
+The current workflow creates a BigCloneBench input snapshot and corpus before
+profiling. The corpus keeps benchmark generation and validation outside the
+timed srcMove measurements.
 
 The OpenCV profile is a large XML I/O/annotation stress test. It currently has
 nearly no candidate/grouping cost, so it is not a content-group stress test.

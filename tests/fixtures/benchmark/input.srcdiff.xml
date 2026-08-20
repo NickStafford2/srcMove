@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src"
+      xmlns:diff="http://www.srcML.org/srcDiff/diff"
+      revision="1.0.0" language="C++">
+  <diff:delete diff:id="1"><function><type><name>int</name></type> <name>moved</name><parameter_list>()</parameter_list> <block>{<block_content><return>return <expr><literal type="number">2</literal></expr>;</return></block_content>}</block></function></diff:delete>
+  <function><type><name>int</name></type> <name>retained</name><parameter_list>()</parameter_list> <block>{<block_content><return>return <expr><literal type="number">1</literal></expr>;</return></block_content>}</block></function>
+  <diff:insert diff:id="1"><function><type><name>int</name></type> <name>moved</name><parameter_list>()</parameter_list> <block>{<block_content><return>return <expr><literal type="number">2</literal></expr>;</return></block_content>}</block></function></diff:insert>
+</unit>

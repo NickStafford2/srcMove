@@ -10,9 +10,11 @@
 
 namespace srcmove {
 
+inline constexpr const char *DEFAULT_OUTPUT_PATH = "srcmove.xml";
+
 struct cli_options {
   std::string input_path;
-  std::string output_path = "diff_new.xml";
+  std::string output_path = DEFAULT_OUTPUT_PATH;
   std::string results_path;
   bool        verbose = false;
   bool        profile = false;

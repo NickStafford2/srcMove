@@ -42,9 +42,9 @@ In short:
 
 A named e2e fixture now records this policy:
 
-- [test/e2e_custom/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/input.xml](/home/nick/Projects/srcMLBuildTemplate/srcMove/test/e2e_custom/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/input.xml:1)
-- [test/e2e_custom/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/expected.json](/home/nick/Projects/srcMLBuildTemplate/srcMove/test/e2e_custom/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/expected.json:1)
-- [test/e2e_custom/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/expected.xml](/home/nick/Projects/srcMLBuildTemplate/srcMove/test/e2e_custom/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/expected.xml:1)
+- [tests/regression/xml/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/input.xml](/home/nick/Projects/srcMLBuildTemplate/srcMove/tests/regression/xml/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/input.xml:1)
+- [tests/regression/xml/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/expected.json](/home/nick/Projects/srcMLBuildTemplate/srcMove/tests/regression/xml/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/expected.json:1)
+- [tests/regression/xml/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/expected.xml](/home/nick/Projects/srcMLBuildTemplate/srcMove/tests/regression/xml/cases/do_not_annotate_diff_wrapper_when_child_construct_moves/expected.xml:1)
 
 It expects a moved function to be annotated at:
 
@@ -66,7 +66,7 @@ That failure is intentional until the candidate-selection design is fixed.
 ## Failure Categories Observed
 
 After setting `expand_structural_children = false`, `python3
-test/e2e_custom/run_tests.py build/srcMove` produced failures in two categories.
+tests/regression/xml/run.py build/srcMove` produced failures in two categories.
 
 ### 1. Annotation moved to the diff wrapper
 
@@ -207,13 +207,13 @@ small and driven by the current failing fixtures.
 Run the focused suite first:
 
 ```bash
-python3 test/e2e_custom/run_tests.py build/srcMove
+python3 tests/regression/xml/run.py build/srcMove
 ```
 
 Then run generated e2e:
 
 ```bash
-python3 test/e2e_generated/run_tests.py
+python3 tests/regression/source/run.py
 ```
 
 Before calling the fix done, also rerun a BigCloneBench Type-1 slice that

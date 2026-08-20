@@ -1,127 +1,71 @@
-# srcMove
-Source code move detection algorithm. Takes srcDiff inputs and applies moves to them. Master's Thesis of Nicholas Stafford
+# srcMove Documentation
 
-Takes srcDiff as input
-Outputs new srcDiff
+This directory contains the detailed documentation for srcMove. Start with the
+project [README](../README.md) for its purpose, current behavior, prerequisites,
+and command-line usage.
 
-# Planning
+## Architecture and behavior
 
-Use [Backlog](backlog.md) for short-lived plans, open questions, and candidate
-improvements.
+- [Architecture](architecture.md): verified current pipeline, matching behavior,
+  output annotations, performance model, and limitations
+- [Pipeline diagram](diagrams/pipeline_diagram.md): one-page view of the
+  processing stages
+- [Data structure diagram](diagrams/data_structure_diagram.md): relationships
+  among the primary implementation types
+- [Scoring model diagram](diagrams/scoring_model_diagram.md): move-selection
+  decision model
+- [srcDiff notes](srcDiff_notes.md): investigated srcDiff behavior and XML
+  format details
+- [XPath commands](sample_xpath_commands.md): example queries for srcMove XML
 
-Use [BigCloneBench Review Handoff](handoffs/AI_HANDOFF_bigclonebench_review.md)
-for the next critical review of the generated BigCloneBench move-test framework.
+The project README and implementation are authoritative when older research
+summaries or diagrams disagree with current behavior.
 
-Use [Thesis Notes](thesis/README.md) for the nested thesis repository, paper
-notes, and archived thesis data generated from this project. Keep durable
-srcMove workflow facts in this repository's docs, and keep thesis artifacts in
-the thesis repo.
+## Development and testing
 
-# Dependencies
-srcReader
+- [Code rules](code_rules.md): local implementation conventions
+- [Correctness tests](../tests/README.md): test entry points, suite boundaries,
+  and fixture conventions
+- [Benchmarks](../benchmarks/README.md): benchmark types and runners
 
+## BigCloneBench research
 
-# Implementation Steps
-  Pass 1
-    Creating objects that store information about moves and surrounding context
-  Analyze all potential moves
-    Good place for future tools to analyze 
-  Pass 2 
-    mark all moves and add attributes
+- [BigCloneBench and IJaDataset notes](bigclonebench_notes.md): dataset setup,
+  terminology, and interpretation
+- [Converting BigCloneEval into srcMove tests](bigclonebench_srcmove_conversion.md):
+  methodology for generating synthetic move cases
+- [BigCloneBench runner](../benchmarks/bigclonebench/README.md): operational
+  setup and commands
 
-  Type 1 and Type 2 moves
+## Planning and non-authoritative notes
 
+- [Benchmarking upgrade plan](benchmarking_upgrade_plan.md): staged design for
+  reproducible accuracy, performance, reliability, and thesis data runs
+- [Historical repository analysis plan](historical_repository_analysis_plan.md):
+  proposed first-parent commit traversal, resumable execution, and longitudinal
+  move-count reporting built on the repository benchmark pipeline
+- [Parallel programming upgrade plan](parallel_programming_upgrade_plan.md):
+  staged design for bounded archive-level parallelism on large srcDiff inputs
+- [Backlog](backlog.md): open questions and candidate improvements
+- [`user-notes/`](user-notes/): thesis outlines, terminology, hypotheses, and
+  other exploratory material that does not define current behavior
+- [Thesis summary draft](user-notes/thesis-summary-draft.md): preserved thesis
+  prose and aspirational research framing; not authoritative implementation
+  documentation
+- [Notes migrated from the former documentation index](user-notes/legacy_doc_readme_notes.md):
+  historical design questions preserved when this file became an index
 
-# Psychological Considerations
-I think it is valueable to strongly consider developer psychological information. 
-  Developer expectation is important. 
-  Do not want false positives. 
-  Was reading some papers on clone detection. 
-    What counts as a clone is highly subjective and debated by experts.
-    Think about how developers expect moves to work with regard to **changelog and impact tracing**
-      Debating if we should care about if moves affect behavior.
-        Devs may think about moves as more akin to refactoring operations.
-      Do devs care about if 
-        code changes location, or 
-        if code changes behavior. 
-        or who 
+The files under `handoffs/` contain temporary or historical task state. They
+are not canonical documentation; verified findings should be incorporated into
+the relevant document above.
 
-## Ideomatic operations
-We should identify ideomatic operations people perform and check if each move fullfills those criteria. 
-  Move of full construct to new file
-  Move of full construct to a different location in file
-  alphabetize a bunch of lines
-  Single line move 
-  Moving comment location
-  Whitespace changes
-    Formatting
-    Move function parameters to new line.
-  to/from syntactic categories must be correct. 
-    function, class, ect.
+## Guidance for AI agents
 
-## Attributes 
-Could add attribues marking the type of idiomatic move/refactor. Useful for changelog and impact tracing.
-add srcMove prefix for all attirbutes.
-### operation_details
-type1 move
-type2 move
-formatting_change
-move_id
-hunk_to_new_file
-### Need some id 
-whereto
-not where from
-delete move_to
-to mark location, use xml id, xpath,
-filepath_filename_xpath_tag_index
-don't need position row/col
-class should have its name
+- [Repository agent guidance](../AGENTS.md): scope, required entry points, test
+  rules, and Git constraints
+- [AI documentation guidelines](ai_documentation_guidelines.md): how to record
+  durable discoveries without creating duplicate sources of truth
 
-Josh sent me the attribute tag that he used for eye tracking.
-
-'''
-//src:unit[@filename='_data/EL_A_CS_NI/edge_ratio_2.py']/src:function[@pos:start='14:1' and @pos:end='75:0']/src:block[@pos:start='14:66' and @pos:end='75:0']/src:block_content[@pos:start='14:67' and @pos:end='75:0']/src:expr_stmt[@pos:start='15:5' and @pos:end='29:7']/src:expr[@pos:start='15:5' and @pos:end='29:7']/src:literal[@pos:start='15:5' and @pos:end='29:7']
-'''
-
-'''
-         QString syntactic_context = "",
-                xpath = "/";
-        for(auto element : element_list) {
-            if(element.namespaceURI() == "") {
-                xpath += "/src:"+element.tagName();
-            }
-            else {
-                xpath += "/" + element.tagName();
-            }
-            if(element.tagName() == "unit") {
-                xpath += "[@filename=\"" + element.attributeNode("filename").value()+"\"]";
-            }
-            QDomAttr start = element.attributeNode("pos:start"),
-                     end = element.attributeNode("pos:end");
-            if(!start.isNull() && !end.isNull()) {
-                xpath += "[@pos:start=\""+start.value()+"\" and ";
-                xpath += "@pos:end=\""+end.value()+"\"]";
-            }
-            if(syntactic_context != "") {
-                syntactic_context += "->"+element.tagName();
-            }
-            else {
-                syntactic_context = element.tagName();
-            }
-            QApplication::processEvents();
-        } 
-'''
-### Multiple Ids option
-srcmove:id="..." (stable id)
-srcmove:path="..." (XPath-like path for querying)
-srcmove:file="..." 
-srcmove:kind="insert|delete"
-srcmove:pair="..." (optional: id of matching partner)
-srcmove:hash="..." (optional: subtree signature)
-
-# Questions:
-SrcDiff has nested diff and delete tags. 
-why does diff have so many <diff:ws>  </diff:ws> everywhere
-
-
-
+AI agents should use the same architecture, testing, and methodology documents
+as human contributors. Agent-specific files define operating constraints, not
+an alternative description of srcMove.

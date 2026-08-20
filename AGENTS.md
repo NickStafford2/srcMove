@@ -2,6 +2,18 @@
 
 Guidance for AI agents working in this repository.
 
+## Repository Boundary
+
+`srcMove` is an independent Git repository. It may be checked out as
+`srcMLBuildTemplate/srcMove` beside `srcReader`, `srcDiff`, and `srcML-install`,
+but its parent and siblings are separate repositories or generated dependency
+paths. Do not treat them as part of srcMove or edit them unless the task
+explicitly includes workspace integration.
+
+[README.md](README.md) is the canonical srcMove build and dependency guide. When
+this checkout is embedded in SrcMLBuildTemplate, the parent's
+`docs/workspace.md` is the canonical guide to the surrounding scaffold.
+
 ## Work Style
 
 - Start small. Prefer one inspectable step over a large hidden change.
@@ -25,6 +37,8 @@ workspace at `../docs/workspace.md`.
 
 ## Testing
 
+- Use `make build` and `make test` as the public developer entry points.
+- Use `tests/run.py` directly only for test inventory or case-level selection.
 - Use existing test runners and fixture patterns when possible.
 - For BigCloneBench work, start with Type-1 clone pairs only.
 - Type-3 and Type-4 moves are not supported.
@@ -33,14 +47,14 @@ workspace at `../docs/workspace.md`.
 ## Useful Entry Points
 
 - [README.md](README.md): project overview and build/run basics
-- [../docs/workspace.md](../docs/workspace.md): parent workspace layout,
-  sibling repositories, build order, and Docker/macOS workflow
+- [Makefile](Makefile): canonical build and test commands
 - [doc/README.md](doc/README.md): documentation index
-- [doc/technical_summary.md](doc/technical_summary.md): implementation overview
+- [doc/architecture.md](doc/architecture.md): verified implementation overview
 - [doc/bigclonebench_notes.md](doc/bigclonebench_notes.md): BigCloneBench setup notes
 - [doc/bigclonebench_srcmove_conversion.md](doc/bigclonebench_srcmove_conversion.md):
   converting BigCloneBench clone pairs into srcMove tests
-- [test/README.md](test/README.md): test entry points and suite boundaries
+- [tests/README.md](tests/README.md): test entry points and suite boundaries
+- [benchmarks/README.md](benchmarks/README.md): benchmark types and entry points
 
 ## Git
 

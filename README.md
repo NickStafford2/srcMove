@@ -1,62 +1,116 @@
 # srcMove — Move Annotation for srcDiff XML
 
-srcMove is a C++ tool that post-processes `srcDiff` XML output and annotates detected “move” operations by adding a stable `move` id (and an `xpath` location) onto matching `diff:delete` / `diff:insert` regions.
+srcMove is a C++ command-line tool that post-processes srcDiff XML and annotates
+delete/insert regions that represent relocated source code. Matching regions
+receive a shared `mv:id` plus directional `mv:from` and `mv:to` XPath
+relationships.
 
-This repository is being developed as part of a master’s thesis project focused on improving the interpretability of fine-grained source-to-source diffs produced in the srcML/srcDiff ecosystem.
+The project is Nicholas Stafford's master's thesis work on making structured
+source-code differences more interpretable, with particular emphasis on moves
+across file boundaries.
+
+## Project role
+
+srcMove is the thesis's primary program and research deliverable. It is a
+portable CLI rather than a component tied to one development workspace: it can
+be built wherever srcML and srcReader are available, and it consumes XML
+produced by srcDiff.
+
+[SrcMLBuildTemplate](https://github.com/NickStafford2/SrcMLBuildTemplate)
+provides the recommended reproducible workspace for building the complete
+toolchain. The companion `srcVisual` project presents srcDiff and srcMove XML in
+a synchronized code-editor-like interface so detected moves can be inspected
+across files.
 
 ## What it does
 
-Given a `srcdiff.xml` file (the XML produced by `srcDiff`), `srcMove`:
+Given a srcDiff XML document, srcMove:
 
-1. streams the XML and collects all `diff:insert` and `diff:delete` regions
-2. filters the regions to choose good “move units” (default: leaf-only diff regions, skip whitespace-only, skip regions already marked with `move`)
-3. hashes each region by its inner text content
-4. groups deletes/inserts by content (hash + exact text equality confirmation)
-5. assigns a new move id to each group that has both deletes and inserts
-6. writes a new XML file identical to the input, except:
-   - adds `move="<id>"` to the START tag of matched `diff:insert` and `diff:delete`
-   - adds `xpath="<path>"` to those tags (even if `move` already existed)
+1. streams all `diff:delete` and `diff:insert` regions from single-file or
+   archive input
+2. selects leaf diff regions and eligible structural children as move
+   candidates while excluding whitespace-only and very small payloads
+3. builds canonical representations from the embedded srcML structure
+4. uses FNV-1a hashes as indexes, then confirms exact matches with the full
+   canonical text
+5. recovers constrained one-to-one Type-2 matches by normalizing eligible
+   identifier names
+6. suppresses overlapping parent/child selections and annotates every group
+   containing both deletes and inserts
 
-Output is a new XML file (default: `diff_new.xml`) you can feed into downstream tooling, renderers, or visualizers.
+The output remains srcDiff XML and can be consumed by downstream analysis or
+visualization tools.
 
-## Quick start
+## Installation
 
-### Prerequisites
+### Recommended: reproducible workspace
 
-- CMake 3.20+
-- A C++17 compiler (Clang or GCC recommended)
-- `libxml2` development package
-- A workspace that contains:
-  - `srcReader` (sibling repository)
-  - a built/installed `srcML` (expected at `srcML-install`)
+For macOS users, evaluators, and new contributors, the easiest supported path
+is [SrcMLBuildTemplate](https://github.com/NickStafford2/SrcMLBuildTemplate).
+It builds the complete native dependency chain inside Ubuntu Docker, keeps the
+toolchain isolated from the host system, and exposes the resulting files to
+normal macOS editors.
 
-### Recommended: use the workspace installer
-
-[SrcMLBuildTemplate](https://github.com/NickStafford2/SrcMLBuildTemplate)
-
-This project is designed to live inside a srcML workspace alongside its dependencies. While you can configure paths manually, the recommended setup is to use my installer repo, **SrcMLBuildTemplate**, which bootstraps a reproducible workspace.
-
-Typical layout:
-
-```text
-srcMLBuildTemplate/    # installer root (recommended)
-  srcML/
-  srcML-install/      # local srcML install prefix
-  srcReader/          # dependency
-  srcDiff/            # to generate input XML
-  srcMove/            # this repo
-```
-
-### Configure and build with CMake + Ninja:
-From the repository root:
+Install Docker Desktop, then run:
 
 ```bash
-cmake -S . -B build \
-  -G Ninja
-ninja -C build
-````
+git clone https://github.com/NickStafford2/SrcMLBuildTemplate.git
+cd SrcMLBuildTemplate
+make srcmove
+./bin/srcml-dev-shell srcMove --version
+```
 
-If your workspace layout differs, configure with:
+The build scripts clone missing source repositories and build srcML, srcReader,
+srcDiff, and srcMove in dependency order.
+
+#### Repository and workspace model
+
+srcMove is an independent Git repository. It is commonly checked out inside
+the SrcMLBuildTemplate workspace scaffold, but the parent directory and sibling
+repositories are not part of this repository. The scaffold provides a
+reproducible Docker environment and coordinates dependency builds; srcMove owns
+its source, build interface, tests, and documentation.
+
+The usual workspace layout is:
+
+```text
+srcMLBuildTemplate/
+  srcML/
+  srcML-install/
+  srcReader/
+  srcDiff/
+  srcMove/
+  srcVisual/
+```
+
+The workspace is a convenience and the recommended installation experience,
+not an architectural dependency of srcMove.
+
+### Standalone build
+
+To build srcMove outside SrcMLBuildTemplate, provide the same dependencies
+yourself:
+
+- CMake 3.20+
+- Ninja
+- a C++17 compiler, preferably Clang or GCC
+- the `libxml2` development package
+- a `srcReader` checkout and build
+- a local srcML development installation
+- the `srcdiff` executable for source-pair tests and generating input XML
+
+From the srcMove repository root:
+
+```bash
+make build
+make test
+```
+
+The Makefile is the canonical developer interface when the dependency paths use
+the expected sibling layout. Run `make help` for focused unit and
+regression-suite targets.
+
+For any other layout, configure the paths explicitly:
 
 ```bash
 cmake -S . -B build \
@@ -65,7 +119,7 @@ cmake -S . -B build \
   -DSRCREADER_ROOT=/path/to/srcReader \
   -DSRCML_INSTALL_PREFIX=/path/to/srcML-install
 
-ninja -C build
+cmake --build build
 ```
 
 ### Run
@@ -74,199 +128,107 @@ ninja -C build
 ./build/srcMove path/to/srcdiff.xml
 ```
 
-By default, `srcMove` writes annotated XML to `diff_new.xml` in the current
-working directory. Optionally specify an output filename:
+The default output is `srcmove.xml` in the current directory. An explicit
+output path and JSON results file can also be supplied:
 
 ```bash
-./build/srcMove path/to/srcdiff.xml out.xml
+./build/srcMove input.srcdiff.xml output.srcmove.xml \
+  --results results.json
 ```
 
-### CLI reference
+CLI synopsis:
 
 ```text
-./build/srcMove <srcdiff.xml> [out.xml] [--results results.json] [--profile] [-v]
-./build/srcMove --help
-./build/srcMove --version
+srcMove <srcdiff.xml> [out.xml] [--results results.json] [--profile] [-v]
+srcMove --help
+srcMove --version
 ```
 
-Arguments:
-
-* `<srcdiff.xml>`: input XML produced by `srcDiff`
-* `[out.xml]`: output annotated XML file; defaults to `diff_new.xml`
-
-Options:
-
-* `--results <file>`: write a JSON summary of detected move groups, annotated
-  regions, candidate counts, group kinds, and match kinds
-* `--profile`: write coarse wall-clock timings to stderr as
-  `profile.<stage>_ms=<milliseconds>` lines
-* `-v`, `--verbose`: accepted by the parser, but currently no pipeline behavior
-  is gated by it
-* `-h`, `--help`: print command usage
-* `--version`: print the current `srcMove` version string
-
-## Example: run against a fixture
-
-This repo includes small, focused srcDiff fixtures under `test/e2e_custom/cases/`.
-
-For example:
-
-```bash
-./build/srcMove test/e2e_custom/cases/1x1_basic/input.xml /tmp/srcmove-1x1.xml
-```
-
-To also capture the summary JSON:
-
-```bash
-./build/srcMove \
-  test/e2e_custom/cases/1x1_basic/input.xml \
-  /tmp/srcmove-1x1.xml \
-  --results /tmp/srcmove-1x1.json
-```
-
-To profile a run without changing the XML or JSON output format:
-
-```bash
-./build/srcMove \
-  test/e2e_custom/cases/1x1_basic/input.xml \
-  /tmp/srcmove-1x1.xml \
-  --results /tmp/srcmove-1x1.json \
-  --profile
-```
-
-For repeatable performance tracking, prefer a release build and the profiling
-runner:
-
-```bash
-scripts/build_release.sh
-
-python3 scripts/profile_srcmove.py \
-  --prepare-bigclonebench
-```
-
-The script records only `srcMove --profile` timings from generated case inputs.
-BigCloneBench setup, database loading, and case generation are run before the
-measured profile pass and are not included in the CSV timing columns. For
-BigCloneBench, the profiler reads the active `bcb_t*_manifest.json` so stale case
-directories from older runs are ignored. By default, profile runs are written
-under `profile-results/runs/` and copied to `profile-results/latest.csv` with
-matching `.txt` metadata files. The default profile run requests a BigCloneBench
-Type-1 `--limit 1000` generation batch, then profiles however many deduped cases
-are actually generated, repeated 3 times. In this checkout that request usually
-yields 915 Type-1 cases. Use `--clone-type`, `--bigclonebench-limit`,
-`--repeats`, and `--label` to name or reshape a run.
-
-To profile the large premade OpenCV srcDiff fixture at
-`examples/opencv/opencv.1_2.v000001-to-v000002.e46e13a77579-to-5e38cf8042d1.position.diff.xml`:
-
-```bash
-scripts/build_release.sh
-python3 scripts/profile_srcmove.py --suite opencv
-```
-
-Each custom fixture directory contains `input.xml`, `expected.xml`, and
-`expected.json`. See [test/README.md](test/README.md) for the normal test
-runner entry points, generated source-pair tests, and the larger generated
-BigCloneBench Type-1/Type-2 suites.
-
-## How it works
-
-The pipeline (see `src/pipeline.cpp`) is intentionally simple and streaming-friendly:
-
-* `collect_all_regions` (`src/diff_region.*`)
-
-  * single pass over `srcml_reader`
-  * records every diff region with nesting metadata and inner text
-  * detects pre-existing `move` attributes and tracks the max id
-
-* `filter_regions_for_registry` (`src/region_filter.*`)
-
-  * selects which regions become candidates for move detection
-  * defaults:
-
-    * leaf-only diff regions
-    * skip whitespace-only regions
-    * skip regions that already have a `move` attribute
-
-* `move_registry` + group builder (`src/move_registry.*`)
-
-  * buckets candidates by a fast 64-bit FNV-1a hash of raw inner text
-  * refined grouping splits hash buckets by exact canonical text, selects
-    non-overlapping exact groups, recovers eligible one-to-one Type-2 groups,
-    and emits unmatched leftovers
-  * produces “content groups” that can be classified (1-to-1, many-to-many, etc.)
-
-* `annotation_plan` + writer (`src/writer/annotation_plan.*`, `src/writer/annotation_writer.*`)
-
-  * assigns a new `move` id per group that has both deletes and inserts
-  * rewrites the XML in a second pass
-  * patches only the START tags of `diff:insert` / `diff:delete`
-  * writes `xpath` values using a streaming path builder (`src/xpath_builder.*`)
-
-This design keeps memory usage predictable and avoids generating the full D×I pair explosion unless explicitly requested.
+- `--results <file>` writes move groups, XPaths, raw texts, candidate counts,
+  group classifications, and match kinds as JSON.
+- `--profile` writes coarse `profile.<stage>_ms=<milliseconds>` timings to
+  standard error.
+- `-v` and `--verbose` are accepted for compatibility but currently have no
+  effect on the pipeline.
 
 ## Output format
 
-`srcMove` edits only the START tags of `diff:insert` and `diff:delete` elements:
+srcMove adds `xmlns:mv="http://www.srcML.org/srcMove"` to the root unit and
+patches the start tags of selected diff regions or structural children:
 
-* `move="<id>"` is added only if the element was not already marked by srcDiff
-* `xpath="<path>"` is written even if `move` already existed
+- `mv:id` identifies one move group.
+- `mv:to` lists destination XPath values on deletions.
+- `mv:from` lists source XPath values on insertions.
 
-The produced output remains valid srcDiff XML and should be usable anywhere the original was used.
+Multiple partners are represented as an XPath union separated by ` | `.
 
-```XML
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" language="C++" filename="test/simple/original.cpp|test/simple/modified.cpp"><function><type><name>int</name></type> <name>main</name><parameter_list>()</parameter_list> <block>{<block_content>
-<diff:delete><diff:ws>  </diff:ws><diff:delete move="1" xpath="/unit[1]/function[1]/block[1]/block_content[1]/diff:delete[1]/diff:delete[1]"><decl_stmt><decl><type><name>int</name></type><diff:ws> </diff:ws><name>first</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="number">123</literal></expr></init></decl>;</decl_stmt></diff:delete><diff:ws>
-</diff:ws></diff:delete>  <decl_stmt><decl><type><name>int</name></type> <name>second</name> <init>= <expr><literal type="number">456</literal></expr></init></decl>;</decl_stmt>
-<diff:insert><diff:ws>  </diff:ws><diff:insert move="1" xpath="/unit[1]/function[1]/block[1]/block_content[1]/diff:insert[1]/diff:insert[1]"><decl_stmt><decl><type><name>int</name></type><diff:ws> </diff:ws><name>first</name><diff:ws> </diff:ws><init>=<diff:ws> </diff:ws><expr><literal type="number">123</literal></expr></init></decl>;</decl_stmt></diff:insert><diff:ws>
-</diff:ws></diff:insert>  <return>return <expr><literal type="number">0</literal></expr>;</return>
-</block_content>}</block></function>
+```xml
+<unit xmlns="http://www.srcML.org/srcML/src"
+      xmlns:diff="http://www.srcML.org/srcDiff"
+      xmlns:mv="http://www.srcML.org/srcMove">
+  <diff:delete mv:id="97b1dcdaf"
+               mv:to="/src:unit[1]/diff:insert[1]">int a;</diff:delete>
+  <diff:insert mv:id="97b1dcdaf"
+               mv:from="/src:unit[1]/diff:delete[1]">int a;</diff:insert>
 </unit>
 ```
 
-## Included developer tools
+Legacy unnamespaced `move` attributes are preserved. They do not currently
+prevent a selected region from also receiving the `mv:*` annotations produced
+by this pipeline.
 
-This repository also builds a few small utilities under `src/tools/`:
+## Matching scope
 
-* `srcdiff_render`
-* `srcdiff_highlight`
-* `srcdiff_highlight_pos`
+The current matcher reports:
 
-These are intended for debugging and inspection during development (they link against the same srcReader/srcML stack).
+- `exact`: identical canonical structure and meaningful text
+- `type2`: identical identifier-normalized canonical structure for an eligible
+  one-delete/one-insert construct
 
-## Project structure
+Hash equality alone never establishes a match. Many-to-many and unequal-count
+groups may share a move identifier and partner set, but srcMove does not yet
+infer a unique pairing within those groups.
 
-* `src/`
+For the complete implemented pipeline and its performance model, see
+[Architecture](doc/architecture.md).
 
-  * core pipeline and move detection logic
-* `src/tools/`
+## Documentation and evaluation
 
-  * small inspection utilities (debug-focused)
-* `doc/`
+- [Documentation index](doc/README.md)
+- [Architecture](doc/architecture.md)
+- [Correctness tests](tests/README.md)
+- [Benchmarks](benchmarks/README.md)
+- [BigCloneBench methodology](doc/bigclonebench_srcmove_conversion.md)
 
-  * diagrams, notes, terms, and papers reviewed during thesis work
-* `test/`
+Small deterministic XML fixtures live under `tests/regression/xml/cases/`.
+Generated source-pair tests and BigCloneBench evaluation are documented by the
+test and benchmark entry points above.
 
-  * compact fixtures (original/modified + sample diffs)
+## Developer utilities
 
-## Limitations (current)
+The build also produces text-oriented inspection tools from `src/tools/`:
 
-* Matching is currently content-based (raw inner text) and does not use AST-aware similarity scoring.
-* Pairing is currently a fast baseline (greedy 1-to-1 consumption inside each content group).
-* Many-to-many groups are identified but not fully disambiguated into specific move pairings.
-* This tool expects srcDiff XML input and is not a general-purpose diff engine.
+- `srcdiff_render`
+- `srcdiff_highlight`
+- `srcdiff_highlight_pos`
 
-These are active areas for improvement as the thesis work progresses.
+These utilities are for debugging srcDiff/srcMove XML and use the same
+srcReader/srcML stack.
 
-## Roadmap
+## Current limitations
 
-Planned directions (subject to change as research evolves):
+- Type-3 and Type-4 moves are not supported.
+- Type-2 support is constrained identifier normalization, not general near-miss
+  clone detection or semantic equivalence.
+- There is no probabilistic confidence score, locality model, or behavioral
+  interpretation.
+- Many-to-many and unequal-count groups are classified but not fully paired or
+  disambiguated.
+- srcMove depends on candidate regions exposed by srcDiff and is not a
+  general-purpose diff engine.
 
-* richer move classification (copy vs move vs repeated insertion)
-* better disambiguation strategies for many-to-many groups
-* scoring models that incorporate structural context (xpath, node type, surrounding tokens)
-* a dedicated visualization companion tool (side-by-side view with insert/delete/move highlighting)
+Research directions include richer move classification, contextual scoring,
+and better ambiguous-group disambiguation.
 
 ## License
 
@@ -274,4 +236,5 @@ GPL-3.0-only. See `LICENSE`.
 
 ## Acknowledgements
 
-This project builds on the srcML/srcDiff tooling ecosystem and depends on `srcReader` and `srcML` for streaming parsing and writing of srcML-derived XML formats.
+srcMove builds on the srcML/srcDiff ecosystem and uses srcReader and srcML for
+streaming parsing and writing of srcML-derived XML formats.

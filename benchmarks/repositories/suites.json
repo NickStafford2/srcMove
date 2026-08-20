@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "default_suite": "standard",
+  "suites": {
+    "standard": {
+      "description": "External-repository baseline spanning small, medium, and large C/C++ projects.",
+      "cases": ["notepadpp", "sqlite", "opencv"]
+    },
+    "linux": {
+      "description": "Opt-in Linux scheduler benchmark across pinned adjacent mainline releases.",
+      "cases": ["linux"]
+    },
+    "srcmove": {
+      "description": "Shelved srcMove self-benchmarks retained for explicit investigation.",
+      "cases": ["srcMove", "srcMoveFormattingOnly"]
+    }
+  }
+}

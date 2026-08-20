@@ -23,16 +23,16 @@ review work.
 
 ## Current Files
 
-- [scripts/generate_bigclonebench_move_cases.py](/home/nick/Projects/srcMLBuildTemplate/srcMove/scripts/generate_bigclonebench_move_cases.py:1)
-- [test/e2e_bigclonebench/run_tests.py](/home/nick/Projects/srcMLBuildTemplate/srcMove/test/e2e_bigclonebench/run_tests.py:1)
-- [test/e2e_bigclonebench/README.md](/home/nick/Projects/srcMLBuildTemplate/srcMove/test/e2e_bigclonebench/README.md:1)
+- [benchmarks/bigclonebench/generate.py](/home/nick/Projects/srcMLBuildTemplate/srcMove/benchmarks/bigclonebench/generate.py:1)
+- [benchmarks/bigclonebench/run.py](/home/nick/Projects/srcMLBuildTemplate/srcMove/benchmarks/bigclonebench/run.py:1)
+- [benchmarks/bigclonebench/README.md](/home/nick/Projects/srcMLBuildTemplate/srcMove/benchmarks/bigclonebench/README.md:1)
 - [doc/bigclonebench_srcmove_conversion.md](/home/nick/Projects/srcMLBuildTemplate/srcMove/doc/bigclonebench_srcmove_conversion.md:1)
 - [doc/backlog.md](/home/nick/Projects/srcMLBuildTemplate/srcMove/doc/backlog.md:1)
 
 Generated cases and summaries live under:
 
 ```text
-test/e2e_bigclonebench/cases/
+benchmarks/bigclonebench/cases/
 ```
 
 That directory is intentionally ignored by git.
@@ -42,13 +42,13 @@ That directory is intentionally ignored by git.
 Run Type-1:
 
 ```bash
-python3 test/e2e_bigclonebench/run_tests.py --clone-type type1 --limit 100
+python3 benchmarks/bigclonebench/run.py --clone-type type1 --limit 100
 ```
 
 Run Type-2:
 
 ```bash
-python3 test/e2e_bigclonebench/run_tests.py --clone-type type2 --limit 100
+python3 benchmarks/bigclonebench/run.py --clone-type type2 --limit 100
 ```
 
 The runner:
@@ -58,7 +58,7 @@ The runner:
 3. Runs `srcMove diff.xml diff_new.xml --results results.json`.
 4. Validates expected move count, match kind, and generated source/target line
    range overlap.
-5. Writes `test/e2e_bigclonebench/cases/summary.csv`.
+5. Writes `benchmarks/bigclonebench/cases/summary.csv`.
 
 Type-1 currently expects one `exact` move. Type-2 currently expects one `type2`
 move. Type-3 and Type-4 are not supported as required pass tests.
