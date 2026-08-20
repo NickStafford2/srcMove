@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-from repository_analysis import Coordinator, PairExecutor, PairStatus, PairWorkItem
+from repository_analysis import PairExecutor, PairStatus, PairWorkItem, run_pairs
 from repository_analysis.git import GitBatch
 from repository_analysis.process import (
     run_process,
@@ -90,7 +90,7 @@ class PairExecutorTests(unittest.TestCase):
             invalid_root.write_text("fixture", encoding="utf-8")
 
             with self.assertRaises(FileExistsError):
-                Coordinator(worker_count=2).run(
+                run_pairs(
                     [
                         PairWorkItem(
                             sequence=0,
@@ -101,6 +101,7 @@ class PairExecutorTests(unittest.TestCase):
                     ],
                     PairExecutor(invalid_root),
                     lambda outcome: None,
+                    worker_count=2,
                 )
 
     def test_worker_reuses_one_git_batch_and_runs_tools_in_order(self) -> None:
@@ -125,10 +126,11 @@ class PairExecutorTests(unittest.TestCase):
                     starts.append(self.process_id)
 
             with mock.patch("repository_analysis.worker.GitBatch", CountingBatch):
-                Coordinator(worker_count=1).run(
+                run_pairs(
                     work,
                     PairExecutor(root / "analysis"),
                     outcomes.append,
+                    worker_count=1,
                 )
 
             self.assertEqual(len(starts), 1)
@@ -175,10 +177,11 @@ class PairExecutorTests(unittest.TestCase):
             srcmove.chmod(0o755)
             with mock.patch.dict(os.environ, {"SRMOVE_MARKER": str(marker)}):
                 outcomes = []
-                Coordinator(worker_count=1).run(
+                run_pairs(
                     [item(0, commits[0], commits[1], repository, srcdiff, srcmove)],
                     PairExecutor(root / "analysis"),
                     outcomes.append,
+                    worker_count=1,
                 )
 
             outcome = outcomes[0]
@@ -211,10 +214,11 @@ class PairExecutorTests(unittest.TestCase):
             )
             srcmove.chmod(0o755)
             outcomes = []
-            Coordinator(worker_count=1).run(
+            run_pairs(
                 [item(0, commits[0], commits[1], repository, srcdiff, srcmove)],
                 PairExecutor(root / "analysis"),
                 outcomes.append,
+                worker_count=1,
             )
 
             outcome = outcomes[0]

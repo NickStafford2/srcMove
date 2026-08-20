@@ -6,12 +6,12 @@ import unittest
 from collections import Counter
 
 from repository_analysis import (
-    Coordinator,
     CoordinatorStats,
     PairOutcome,
     PairStatus,
     PairWorkItem,
     WorkerExecutionError,
+    run_pairs,
 )
 
 
@@ -31,7 +31,7 @@ def completed(item: PairWorkItem) -> PairOutcome:
     return PairOutcome(work_item=item, status=PairStatus.COMPLETED)
 
 
-class CoordinatorTests(unittest.TestCase):
+class RunPairsTests(unittest.TestCase):
     def test_slow_early_pair_does_not_prevent_dynamic_claiming(self) -> None:
         release_first = threading.Event()
         later_progress = threading.Event()
@@ -57,14 +57,13 @@ class CoordinatorTests(unittest.TestCase):
 
         def run() -> None:
             try:
-                Coordinator(
+                run_pairs(
+                    work_items(8),
+                    execute,
+                    lambda outcome: published.append(outcome.work_item.sequence),
                     worker_count=3,
                     work_queue_capacity=2,
                     outcome_capacity=8,
-                ).run(
-                    work_items(8), execute, lambda outcome: published.append(
-                        outcome.work_item.sequence
-                    )
                 )
             except BaseException as error:
                 run_error.append(error)
@@ -98,8 +97,11 @@ class CoordinatorTests(unittest.TestCase):
                 first_claims.wait(timeout=10)
             return completed(item)
 
-        stats = Coordinator(worker_count=worker_count).run(
-            work_items(40), execute, lambda outcome: None
+        stats = run_pairs(
+            work_items(40),
+            execute,
+            lambda outcome: None,
+            worker_count=worker_count,
         )
 
         self.assertEqual(stats.worker_count, worker_count)
@@ -137,10 +139,12 @@ class CoordinatorTests(unittest.TestCase):
 
         release_thread = threading.Thread(target=release_after_second)
         release_thread.start()
-        Coordinator(worker_count=2, outcome_capacity=4).run(
+        run_pairs(
             work_items(4),
             execute,
             lambda outcome: publication_order.append(outcome.work_item.sequence),
+            worker_count=2,
+            outcome_capacity=4,
         )
         release_thread.join(timeout=10)
 
@@ -166,11 +170,14 @@ class CoordinatorTests(unittest.TestCase):
 
         def run() -> None:
             stats_result.append(
-                Coordinator(
+                run_pairs(
+                    work_items(6),
+                    execute,
+                    lambda outcome: None,
                     worker_count=2,
                     work_queue_capacity=1,
                     outcome_capacity=2,
-                ).run(work_items(6), execute, lambda outcome: None)
+                )
             )
 
         coordinator_thread = threading.Thread(target=run)
@@ -199,14 +206,13 @@ class CoordinatorTests(unittest.TestCase):
 
         def run() -> None:
             try:
-                Coordinator(
-                    worker_count=3,
-                    work_queue_capacity=2,
-                    outcome_capacity=3,
-                ).run(
+                run_pairs(
                     work_items(100),
                     execute,
                     lambda outcome: published.append(outcome.work_item.sequence),
+                    worker_count=3,
+                    work_queue_capacity=2,
+                    outcome_capacity=3,
                 )
             except BaseException as error:
                 result.append(error)

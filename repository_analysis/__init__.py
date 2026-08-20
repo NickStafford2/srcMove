@@ -10,14 +10,13 @@ from .contracts import (
     VerifiedArtifact,
 )
 from .coordinator import (
-    Coordinator,
     CoordinatorStats,
     WorkerExecutionError,
+    run_pairs,
 )
 from .worker import PairExecutor
 
 __all__ = [
-    "Coordinator",
     "CoordinatorStats",
     "CaptureObservation",
     "ChangedPath",
@@ -28,4 +27,5 @@ __all__ = [
     "ProcessOutcome",
     "VerifiedArtifact",
     "WorkerExecutionError",
+    "run_pairs",
 ]

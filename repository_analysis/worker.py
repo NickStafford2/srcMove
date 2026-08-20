@@ -40,7 +40,7 @@ class PairExecutor:
         self.log_limit = log_limit
 
     def __call__(self, work_item: PairWorkItem) -> PairOutcome:
-        raise RuntimeError("PairExecutor must be used through Coordinator")
+        raise RuntimeError("PairExecutor must be used through run_pairs")
 
     @contextlib.contextmanager
     def open_worker(self) -> Iterator[_WorkerSession]:
