@@ -25,6 +25,50 @@ class FirstParentHistory:
 
     resolved_start: str
     commits: tuple[str, ...]
+    history_exhausted: bool
+
+
+def resolve_commit(repository: Path, revision: str) -> str:
+    """Resolve one revision to its complete native commit object ID."""
+
+    if not isinstance(revision, str) or not revision or "\0" in revision:
+        raise ValueError("revision must be a non-empty string")
+    root = repository.expanduser().resolve(strict=True)
+    return _git(root, "rev-parse", "--verify", f"{revision}^{{commit}}")
+
+
+def first_parent_distance(repository: Path, start: str, through: str) -> int:
+    """Count pairs to a first-parent commit without loading every object ID."""
+
+    root = repository.expanduser().resolve(strict=True)
+    if _git(root, "rev-parse", "--is-shallow-repository") == "true":
+        raise RuntimeError(
+            "historical repository analysis requires a complete, non-shallow repository"
+        )
+    resolved_start = resolve_commit(root, start)
+    resolved_through = resolve_commit(root, through)
+    count_text = _git(
+        root,
+        "rev-list",
+        "--first-parent",
+        "--count",
+        f"{resolved_through}..{resolved_start}",
+    )
+    try:
+        distance = int(count_text)
+    except ValueError as error:
+        raise RuntimeError("Git returned a malformed first-parent count") from error
+    candidate = _git(
+        root,
+        "rev-list",
+        "--first-parent",
+        "--max-count=1",
+        f"--skip={distance}",
+        resolved_start,
+    )
+    if candidate != resolved_through:
+        raise ValueError("through commit is not on the frozen first-parent history")
+    return distance
 
 
 def select_first_parent_history(
@@ -40,6 +84,39 @@ def select_first_parent_history(
         raise ValueError("pair count must be positive")
     if not isinstance(start, str) or not start or "\0" in start:
         raise ValueError("start revision must be a non-empty string")
+    history = select_older_first_parent_history(
+        repository, start, pair_count=pair_count
+    )
+    if len(history.commits) < 2:
+        raise RuntimeError(
+            "the selected history has fewer than two commits; no adjacent pair exists"
+        )
+    return history
+
+
+def select_older_first_parent_history(
+    repository: Path,
+    start: str,
+    *,
+    pair_count: int | None = None,
+    through: str | None = None,
+) -> FirstParentHistory:
+    """Select an idempotent older-history target, allowing an exhausted frontier."""
+
+    if pair_count is not None and (
+        isinstance(pair_count, bool)
+        or not isinstance(pair_count, int)
+        or pair_count <= 0
+    ):
+        raise ValueError("pair count must be positive")
+    if pair_count is not None and through is not None:
+        raise ValueError("history selection accepts either pair_count or through")
+    if not isinstance(start, str) or not start or "\0" in start:
+        raise ValueError("start revision must be a non-empty string")
+    if through is not None and (
+        not isinstance(through, str) or not through or "\0" in through
+    ):
+        raise ValueError("through revision must be a non-empty string")
     root = repository.expanduser().resolve(strict=True)
     shallow = _git(root, "rev-parse", "--is-shallow-repository")
     if shallow == "true":
@@ -47,22 +124,48 @@ def select_first_parent_history(
             "historical repository analysis requires a complete, non-shallow repository"
         )
     resolved = _git(root, "rev-parse", "--verify", f"{start}^{{commit}}")
+    if through is not None:
+        resolved_through = _git(
+            root, "rev-parse", "--verify", f"{through}^{{commit}}"
+        )
+        newest_first = tuple(
+            line
+            for line in _git(root, "rev-list", "--first-parent", resolved).splitlines()
+            if line
+        )
+        try:
+            through_index = newest_first.index(resolved_through)
+        except ValueError as error:
+            raise ValueError(
+                "through commit is not on the frozen first-parent history"
+            ) from error
+        selected = newest_first[: through_index + 1]
+        return FirstParentHistory(
+            resolved,
+            tuple(reversed(selected)),
+            history_exhausted=through_index == len(newest_first) - 1,
+        )
+    maximum = [] if pair_count is None else [f"--max-count={pair_count + 2}"]
     newest_first = tuple(
         line
         for line in _git(
             root,
             "rev-list",
             "--first-parent",
-            f"--max-count={pair_count + 1}",
+            *maximum,
             resolved,
         ).splitlines()
         if line
     )
-    if len(newest_first) < 2:
-        raise RuntimeError(
-            "the selected history has fewer than two commits; no adjacent pair exists"
-        )
-    return FirstParentHistory(resolved, tuple(reversed(newest_first)))
+    if not newest_first:
+        raise RuntimeError("Git returned no commits for the selected history")
+    if pair_count is None:
+        selected = newest_first
+        exhausted = True
+    else:
+        selected = newest_first[: pair_count + 1]
+        exhausted = len(newest_first) <= pair_count + 1
+    return FirstParentHistory(resolved, tuple(reversed(selected)), exhausted)
 
 
 def retained_history_ref(manifest_bytes: bytes) -> str:
@@ -89,8 +192,22 @@ def verify_frozen_commits(
     if not frozen:
         raise ValueError("frozen commit sequence must not be empty")
     retained = _git(repository, "rev-parse", "--verify", f"{retained_ref}^{{commit}}")
-    if retained != frozen[-1]:
-        raise ValueError("retained history ref drift from frozen newest commit")
+    ancestry = subprocess.run(
+        ["git", "merge-base", "--is-ancestor", frozen[-1], retained],
+        cwd=repository,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.PIPE,
+        text=True,
+        check=False,
+    )
+    if ancestry.returncode == 1:
+        raise ValueError("retained history ref does not cover frozen newest commit")
+    if ancestry.returncode != 0:
+        detail = ancestry.stderr.strip()
+        raise RuntimeError(
+            "git merge-base --is-ancestor failed"
+            + (f": {detail}" if detail else "")
+        )
     for commit in frozen:
         _git(repository, "cat-file", "-e", f"{commit}^{{commit}}")
 

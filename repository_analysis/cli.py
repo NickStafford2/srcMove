@@ -1,348 +1,124 @@
-"""Minimal production command line for frozen repository-history analysis."""
+"""Target-driven command line for repository-history analysis."""
 
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import sys
 from pathlib import Path
 from typing import Sequence
 
-from .chain import (
-    create_pending_continuation,
-    initialize_analysis_state,
-    load_oldest_segment,
-    load_pending_continuation,
-    oldest_segment_retention_policy,
-    promote_pending_continuation,
-    publish_analysis_state_reports,
-    reconcile_promoted_continuation,
+from .analysis import (
+    AnalysisTarget,
+    analysis_pair_details,
+    analysis_status,
+    analyze_repository,
 )
-from .coordinator import CoordinatorStats
-from .git import (
-    retain_history,
-    retained_history_ref,
-    select_first_parent_history,
-    verify_frozen_commits,
-)
-from .inputs import (
-    FROZEN_ANALYSIS_MANIFEST_NAME,
-    AnalysisContinuation,
-    AnalysisConfiguration,
-    RepositoryIdentity,
-    build_pair_work_items,
-    freeze_analysis_inputs,
-    load_frozen_manifest,
-    observe_executable,
-    persist_frozen_manifest,
-    verify_resume_inputs,
-)
-from .resume import ResumeStats, resume_pairs
-from .retention import RetentionPolicy
-from .worker import PairExecutor
+from .inputs import AnalysisConfiguration, RepositoryIdentity
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="python3 -m repository_analysis",
-        description="Run deterministic srcDiff/srcMove analysis over Git history.",
+        description="Analyze Git history toward one deterministic coverage target.",
     )
     commands = parser.add_subparsers(dest="command", required=True)
-    start = commands.add_parser("start", help="freeze and start a new analysis")
-    start.add_argument("--repository", type=Path, required=True)
-    start.add_argument("--start", default="HEAD")
-    start.add_argument("--count", type=int, required=True, metavar="PAIRS")
-    _add_frozen_arguments(start)
-    _add_runtime_arguments(start)
 
-    resume = commands.add_parser("resume", help="verify and resume an analysis")
-    _add_frozen_arguments(resume)
-    _add_runtime_arguments(resume)
+    analyze = commands.add_parser(
+        "analyze", help="create, resume, or extend one repository analysis"
+    )
+    analyze.add_argument("--analysis-root", type=Path, required=True)
+    target = analyze.add_mutually_exclusive_group(required=True)
+    target.add_argument("--total-pairs", type=int, metavar="PAIRS")
+    target.add_argument("--through", metavar="COMMIT")
+    target.add_argument("--all", action="store_true", dest="all_history")
+    analyze.add_argument("--repository", type=Path)
+    analyze.add_argument("--start")
+    analyze.add_argument("--repository-id")
+    analyze.add_argument("--srcdiff", type=Path)
+    analyze.add_argument("--srcmove", type=Path)
+    analyze.add_argument("--directory")
+    analyze.add_argument("--exclude-suffix", action="append", metavar=".SUFFIX")
+    analyze.add_argument("--no-archive", action="store_true", default=None)
+    analyze.add_argument("--position", action="store_true", default=None)
+    analyze.add_argument("--encoding")
+    analyze.add_argument("--srcdiff-timeout", type=float)
+    analyze.add_argument("--srcmove-timeout", type=float)
+    analyze.add_argument("--jobs", type=int, default=1)
 
-    continuation = commands.add_parser(
-        "continue-older",
-        help="analyze the next older pairs after a completed analysis",
+    status = commands.add_parser("status", help="show committed coverage and progress")
+    status.add_argument("--analysis-root", type=Path, required=True)
+
+    inspect = commands.add_parser(
+        "inspect", help="show compact evidence for one committed pair"
     )
-    continuation.add_argument(
-        "--analysis-root",
-        type=Path,
-        required=True,
-        help="completed newer analysis",
-    )
-    continuation.add_argument("--count", type=int, required=True, metavar="PAIRS")
-    continuation.add_argument("--srcdiff", type=Path)
-    continuation.add_argument("--srcmove", type=Path)
-    _add_runtime_arguments(continuation, retention_default=None)
+    inspect.add_argument("--analysis-root", type=Path, required=True)
+    inspect.add_argument("--distance-from-newest", type=int, required=True)
     return parser
 
 
-def _add_frozen_arguments(parser: argparse.ArgumentParser) -> None:
-    parser.add_argument("--analysis-root", type=Path, required=True)
-    parser.add_argument("--repository-id", required=True)
-    parser.add_argument("--srcdiff", type=Path, required=True)
-    parser.add_argument("--srcmove", type=Path, required=True)
-    parser.add_argument("--directory")
-    parser.add_argument(
-        "--exclude-suffix", action="append", default=[], metavar=".SUFFIX"
-    )
-    parser.add_argument("--no-archive", action="store_true")
-    parser.add_argument("--position", action="store_true")
-    parser.add_argument("--encoding", default="UTF-8")
-    parser.add_argument("--srcdiff-timeout", type=float, default=1800.0)
-    parser.add_argument("--srcmove-timeout", type=float, default=300.0)
+def _target(arguments: argparse.Namespace) -> AnalysisTarget:
+    if arguments.total_pairs is not None:
+        return AnalysisTarget("total_pairs", arguments.total_pairs)
+    if arguments.through is not None:
+        return AnalysisTarget("through", arguments.through)
+    return AnalysisTarget("all", None)
 
 
-def _add_runtime_arguments(
-    parser: argparse.ArgumentParser, *, retention_default: bool | None = False
-) -> None:
-    parser.add_argument("--jobs", type=int, default=1)
-    parser.add_argument(
-        "--retain-positive-xml", action="store_true", default=retention_default
+def _configuration_arguments_present(arguments: argparse.Namespace) -> bool:
+    return any(
+        value is not None
+        for value in (
+            arguments.directory,
+            arguments.exclude_suffix,
+            arguments.no_archive,
+            arguments.position,
+            arguments.encoding,
+            arguments.srcdiff_timeout,
+            arguments.srcmove_timeout,
+        )
     )
 
 
-def _configuration(arguments: argparse.Namespace) -> AnalysisConfiguration:
+def _new_configuration(arguments: argparse.Namespace) -> AnalysisConfiguration:
     return AnalysisConfiguration(
         selected_directory=arguments.directory,
-        excluded_suffixes=tuple(arguments.exclude_suffix),
-        use_archive=not arguments.no_archive,
-        use_position=arguments.position,
-        source_encoding=arguments.encoding,
-        srcdiff_timeout_seconds=arguments.srcdiff_timeout,
-        srcmove_timeout_seconds=arguments.srcmove_timeout,
-    )
-
-
-def _execute(
-    manifest, *, analysis_root: Path, jobs: int, retain_positive_xml: bool
-) -> ResumeStats:
-    executor = PairExecutor(analysis_root)
-    return resume_pairs(
-        build_pair_work_items(manifest),
-        executor,
-        analysis_root=analysis_root,
-        worker_count=jobs,
-        acknowledge_pair=executor.acknowledge,
-        retention_policy=RetentionPolicy(
-            retain_positive_xml=retain_positive_xml
+        excluded_suffixes=tuple(arguments.exclude_suffix or ()),
+        use_archive=not bool(arguments.no_archive),
+        use_position=bool(arguments.position),
+        source_encoding=arguments.encoding or "UTF-8",
+        srcdiff_timeout_seconds=(
+            1800.0
+            if arguments.srcdiff_timeout is None
+            else arguments.srcdiff_timeout
+        ),
+        srcmove_timeout_seconds=(
+            300.0
+            if arguments.srcmove_timeout is None
+            else arguments.srcmove_timeout
         ),
     )
 
 
-def _validate_new_analysis_root(analysis_root: Path) -> Path:
-    requested_root = analysis_root.expanduser().absolute()
-    if requested_root.is_symlink():
-        raise ValueError(f"analysis root must not be a symbolic link: {requested_root}")
-    if requested_root.exists() and any(requested_root.iterdir()):
-        raise ValueError(f"analysis root is not empty: {requested_root}")
-    manifest_path = requested_root.resolve() / FROZEN_ANALYSIS_MANIFEST_NAME
-    if manifest_path.exists() or manifest_path.is_symlink():
-        raise ValueError(f"analysis manifest already exists: {manifest_path}")
-    return requested_root.resolve()
-
-
-def start_analysis(arguments: argparse.Namespace) -> ResumeStats:
-    """Freeze and persist all inputs before opening any worker sessions."""
-
-    if arguments.jobs <= 0:
-        raise ValueError("jobs must be positive")
-    _validate_new_analysis_root(arguments.analysis_root)
-    history = select_first_parent_history(
-        arguments.repository, arguments.start, arguments.count
-    )
-    srcdiff = observe_executable(arguments.srcdiff)
-    srcmove = observe_executable(arguments.srcmove)
-    manifest = freeze_analysis_inputs(
+def _run_analyze(arguments: argparse.Namespace):
+    return analyze_repository(
+        analysis_root=arguments.analysis_root,
+        target=_target(arguments),
+        jobs=arguments.jobs,
         repository=arguments.repository,
-        repository_identity=RepositoryIdentity(arguments.repository_id),
-        commits=history.commits,
-        configuration=_configuration(arguments),
-        srcdiff=srcdiff,
-        srcmove=srcmove,
-    )
-    ref = retained_history_ref(manifest.canonical_bytes())
-    retain_history(manifest.repository, ref, history.resolved_start)
-    persist_frozen_manifest(arguments.analysis_root, manifest)
-    stats = _execute(
-        manifest,
-        analysis_root=arguments.analysis_root,
-        jobs=arguments.jobs,
-        retain_positive_xml=arguments.retain_positive_xml,
-    )
-    state = initialize_analysis_state(arguments.analysis_root)
-    return ResumeStats(
-        stats.verified_count,
-        stats.execution,
-        publish_analysis_state_reports(arguments.analysis_root, state),
-    )
-
-
-def resume_analysis(arguments: argparse.Namespace) -> ResumeStats:
-    """Load immutable state, verify current tools/commits, and run its suffix."""
-
-    frozen = load_frozen_manifest(arguments.analysis_root)
-    srcdiff = observe_executable(arguments.srcdiff)
-    srcmove = observe_executable(arguments.srcmove)
-    manifest = verify_resume_inputs(
-        frozen,
-        repository_identity=RepositoryIdentity(arguments.repository_id),
-        configuration=_configuration(arguments),
-        srcdiff=srcdiff,
-        srcmove=srcmove,
-    )
-    verify_frozen_commits(
-        manifest.repository,
-        manifest.commits,
-        retained_ref=retained_history_ref(frozen.canonical_bytes()),
-    )
-    stats = _execute(
-        manifest,
-        analysis_root=arguments.analysis_root,
-        jobs=arguments.jobs,
-        retain_positive_xml=arguments.retain_positive_xml,
-    )
-    state = initialize_analysis_state(arguments.analysis_root)
-    verify_frozen_commits(
-        manifest.repository,
-        state.commits,
-        retained_ref=retained_history_ref(frozen.canonical_bytes()),
-    )
-    reconciled = reconcile_promoted_continuation(arguments.analysis_root, state)
-    if reconciled is not None:
-        state, summary = reconciled
-        verify_frozen_commits(
-            manifest.repository,
-            state.commits,
-            retained_ref=retained_history_ref(frozen.canonical_bytes()),
-        )
-        return ResumeStats(stats.verified_count, stats.execution, summary)
-    return ResumeStats(
-        stats.verified_count,
-        stats.execution,
-        publish_analysis_state_reports(arguments.analysis_root, state),
-    )
-
-
-def continue_older_analysis(arguments: argparse.Namespace) -> ResumeStats:
-    """Freeze and execute the next older immutable segment without overlap."""
-
-    if arguments.jobs <= 0:
-        raise ValueError("jobs must be positive")
-    if arguments.count <= 0:
-        raise ValueError("pair count must be positive")
-    root = arguments.analysis_root.expanduser().resolve()
-    state = initialize_analysis_state(root)
-    root_manifest = load_frozen_manifest(root)
-    verify_frozen_commits(
-        root_manifest.repository,
-        state.commits,
-        retained_ref=retained_history_ref(root_manifest.canonical_bytes()),
-    )
-    inherited_retention = oldest_segment_retention_policy(root, state)
-    requested_retention = arguments.retain_positive_xml
-    if (
-        requested_retention is not None
-        and requested_retention != inherited_retention.retain_positive_xml
-    ):
-        raise ValueError("retention policy drift across analysis continuation")
-    retain_positive_xml = inherited_retention.retain_positive_xml
-    reconciled = reconcile_promoted_continuation(root, state)
-    if reconciled is not None:
-        reconciled_state, summary = reconciled
-        verify_frozen_commits(
-            root_manifest.repository,
-            reconciled_state.commits,
-            retained_ref=retained_history_ref(root_manifest.canonical_bytes()),
-        )
-        return ResumeStats(
-            0,
-            CoordinatorStats(arguments.jobs, 0, 0, 0, 0, 0),
-            summary,
-        )
-    pending = load_pending_continuation(root, state, arguments.count)
-    if pending is None:
-        _, newer = load_oldest_segment(root, state)
-        srcdiff = observe_executable(
-            arguments.srcdiff or newer.srcdiff.requested_path
-        )
-        srcmove = observe_executable(
-            arguments.srcmove or newer.srcmove.requested_path
-        )
-        verified = verify_resume_inputs(
-            newer,
-            repository_identity=newer.repository_identity,
-            configuration=newer.configuration,
-            srcdiff=srcdiff,
-            srcmove=srcmove,
-        )
-        verify_frozen_commits(
-            verified.repository,
-            verified.commits,
-            retained_ref=retained_history_ref(newer.canonical_bytes()),
-        )
-        boundary = newer.commits[0]
-        history = select_first_parent_history(
-            verified.repository, boundary, arguments.count
-        )
-        continuation = AnalysisContinuation(
-            newer_segment_path=state.segments[0].relative_path,
-            newer_manifest_sha256=hashlib.sha256(
-                newer.canonical_bytes()
-            ).hexdigest(),
-            boundary_commit=boundary,
-        )
-        manifest = freeze_analysis_inputs(
-            repository=verified.repository,
-            repository_identity=verified.repository_identity,
-            commits=history.commits,
-            configuration=verified.configuration,
-            srcdiff=srcdiff,
-            srcmove=srcmove,
-            continuation=continuation,
-        )
-        ref = retained_history_ref(manifest.canonical_bytes())
-        retain_history(manifest.repository, ref, history.resolved_start)
-        pending_root = create_pending_continuation(
-            root,
-            manifest,
-            requested_pair_count=arguments.count,
-            base_state=state,
-        )
-        execution_manifest = manifest
-    else:
-        pending_root, manifest = pending
-        srcdiff = observe_executable(
-            arguments.srcdiff or manifest.srcdiff.requested_path
-        )
-        srcmove = observe_executable(
-            arguments.srcmove or manifest.srcmove.requested_path
-        )
-        execution_manifest = verify_resume_inputs(
-            manifest,
-            repository_identity=manifest.repository_identity,
-            configuration=manifest.configuration,
-            srcdiff=srcdiff,
-            srcmove=srcmove,
-        )
-        verify_frozen_commits(
-            execution_manifest.repository,
-            execution_manifest.commits,
-            retained_ref=retained_history_ref(manifest.canonical_bytes()),
-        )
-    stats = _execute(
-        execution_manifest,
-        analysis_root=pending_root,
-        jobs=arguments.jobs,
-        retain_positive_xml=retain_positive_xml,
-    )
-    _, summary = promote_pending_continuation(
-        root, state, pending_root, manifest
-    )
-    return ResumeStats(
-        stats.verified_count,
-        stats.execution,
-        summary,
+        start=arguments.start,
+        repository_identity=(
+            None
+            if arguments.repository_id is None
+            else RepositoryIdentity(arguments.repository_id)
+        ),
+        configuration=(
+            _new_configuration(arguments)
+            if _configuration_arguments_present(arguments)
+            else None
+        ),
+        srcdiff_path=arguments.srcdiff,
+        srcmove_path=arguments.srcmove,
     )
 
 
@@ -350,14 +126,16 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     arguments = parser.parse_args(argv)
     try:
-        if arguments.command == "start":
-            stats = start_analysis(arguments)
-        elif arguments.command == "resume":
-            stats = resume_analysis(arguments)
+        if arguments.command == "status":
+            summary = analysis_status(arguments.analysis_root)
+        elif arguments.command == "inspect":
+            summary = analysis_pair_details(
+                arguments.analysis_root, arguments.distance_from_newest
+            )
         else:
-            stats = continue_older_analysis(arguments)
+            summary = _run_analyze(arguments).summary
     except (OSError, RuntimeError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-    print(json.dumps(stats.summary, sort_keys=True, separators=(",", ":")))
-    return 1 if stats.summary["failed"] else 0
+    print(json.dumps(summary, sort_keys=True, separators=(",", ":")))
+    return 1 if arguments.command == "analyze" and summary["failed"] else 0

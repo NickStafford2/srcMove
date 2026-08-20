@@ -17,13 +17,14 @@ from pathlib import Path
 from typing import Any, Callable, Sequence
 
 from .contracts import CaptureObservation, ProcessOutcome, VerifiedArtifact
+from .results import normalize_compactable_results
 
 
 DEFAULT_LOG_LIMIT = 1024 * 1024
 DEFAULT_TIMEOUT_GRACE_SECONDS = 5.0
 # These versions are fingerprint inputs; bump them when admission semantics change.
 SRCDIFF_XML_VALIDATOR_SCHEMA_VERSION = 1
-SRCMOVE_RESULTS_VALIDATOR_SCHEMA_VERSION = 1
+SRCMOVE_RESULTS_VALIDATOR_SCHEMA_VERSION = 2
 SRCML_NAMESPACE = "http://www.srcML.org/srcML/src"
 SRCDIFF_NAMESPACES = {
     "http://www.srcML.org/srcDiff",
@@ -362,27 +363,10 @@ def validate_results_artifact(
                 message,
             ),
         )
-    required_counts = (
-        "move_count",
-        "move_group_count",
-        "move_pair_count",
-        "annotated_region_count",
-    )
-    invalid_count = next(
-        (
-            name
-            for name in required_counts
-            if isinstance(value.get(name), bool)
-            or not isinstance(value.get(name), int)
-            or value[name] < 0
-        ),
-        None,
-    )
-    if invalid_count is not None:
-        message = (
-            "srcMove results require a non-negative integer "
-            f"{invalid_count}"
-        )
+    try:
+        normalize_compactable_results(value)
+    except ValueError as error:
+        message = str(error)
         raise ArtifactValidationError(
             message,
             _invalid_results_artifact(
@@ -394,23 +378,7 @@ def validate_results_artifact(
                 "invalid_structure",
                 message,
             ),
-        )
-    move_count = value["move_count"]
-    moves = value.get("moves")
-    if moves is not None and (not isinstance(moves, list) or len(moves) != move_count):
-        message = "srcMove results moves must be a list matching move_count"
-        raise ArtifactValidationError(
-            message,
-            _invalid_results_artifact(
-                path,
-                content,
-                checksum,
-                producing_stage,
-                producing_command,
-                "invalid_structure",
-                message,
-            ),
-        )
+        ) from error
     metrics = tuple(
         sorted(
             (key, metric)

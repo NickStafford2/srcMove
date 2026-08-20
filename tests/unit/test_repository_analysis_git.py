@@ -6,9 +6,11 @@ import unittest
 from pathlib import Path
 
 from repository_analysis.git import (
+    first_parent_distance,
     retain_history,
     retained_history_ref,
     select_first_parent_history,
+    select_older_first_parent_history,
     verify_frozen_commits,
 )
 
@@ -55,6 +57,25 @@ class RepositoryAnalysisGitTests(unittest.TestCase):
 
             self.assertEqual(selected.resolved_start, merge)
             self.assertEqual(selected.commits, (first, second, merge))
+            self.assertTrue(selected.history_exhausted)
+
+            bounded = select_older_first_parent_history(
+                repository, "HEAD", pair_count=1
+            )
+            self.assertEqual(bounded.commits, (second, merge))
+            self.assertFalse(bounded.history_exhausted)
+
+            through = select_older_first_parent_history(
+                repository, "HEAD", through=second
+            )
+            self.assertEqual(through.commits, (second, merge))
+            self.assertFalse(through.history_exhausted)
+
+            root_frontier = select_older_first_parent_history(
+                repository, first, pair_count=25
+            )
+            self.assertEqual(root_frontier.commits, (first,))
+            self.assertTrue(root_frontier.history_exhausted)
 
     def test_rejects_shallow_repository(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -92,6 +113,23 @@ class RepositoryAnalysisGitTests(unittest.TestCase):
 
             verify_frozen_commits(repository, (first, second), retained_ref=ref)
             self.assertEqual(git(repository, "rev-parse", ref), second)
+
+    def test_first_parent_distance_rejects_a_side_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repository = Path(temporary_directory) / "repository"
+            initialize(repository)
+            first = commit(repository, "one.c", "one\n")
+            git(repository, "checkout", "-b", "side")
+            side = commit(repository, "side.c", "side\n")
+            git(repository, "checkout", "main")
+            second = commit(repository, "two.c", "two\n")
+            git(repository, "merge", "--no-ff", "side", "-m", "merge")
+            newest = git(repository, "rev-parse", "HEAD")
+
+            self.assertEqual(first_parent_distance(repository, newest, first), 2)
+            self.assertEqual(first_parent_distance(repository, newest, second), 1)
+            with self.assertRaisesRegex(ValueError, "not on.*first-parent"):
+                first_parent_distance(repository, newest, side)
 
 
 if __name__ == "__main__":

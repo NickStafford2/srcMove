@@ -62,7 +62,7 @@ def run_pairs(
     the ownership boundary that permits an executor to remove ephemeral inputs.
     """
 
-    return _run_pairs_from_sequence(
+    return run_pairs_from_sequence(
         work_items,
         execute_pair,
         publish_pair,
@@ -74,7 +74,7 @@ def run_pairs(
     )
 
 
-def _run_pairs_from_sequence(
+def run_pairs_from_sequence(
     work_items: Iterable[PairWorkItem],
     execute_pair: PairExecutor,
     publish_pair: PairPublisher,
@@ -85,7 +85,7 @@ def _run_pairs_from_sequence(
     outcome_capacity: int | None = None,
     acknowledge_pair: PairAcknowledger | None = None,
 ) -> CoordinatorStats:
-    """Internal scheduler entry point for a previously verified prefix."""
+    """Schedule a suffix after its earlier immutable outcomes were verified."""
 
     if first_sequence < 0:
         raise ValueError("first_sequence must be non-negative")

@@ -17,6 +17,8 @@ and command-line usage.
 - [srcDiff notes](srcDiff_notes.md): investigated srcDiff behavior and XML
   format details
 - [XPath commands](sample_xpath_commands.md): example queries for srcMove XML
+- [Repository-history analysis](historical_repository_analysis_plan.md):
+  target-driven CLI, SQLite state, recovery, compact storage, and inspection
 
 The project README and implementation are authoritative when older research
 summaries or diagrams disagree with current behavior.
@@ -41,9 +43,6 @@ summaries or diagrams disagree with current behavior.
 
 - [Benchmarking upgrade plan](benchmarking_upgrade_plan.md): staged design for
   reproducible accuracy, performance, reliability, and thesis data runs
-- [Historical repository analysis plan](historical_repository_analysis_plan.md):
-  production design for bounded commit-pair workers, deterministic publication,
-  retention, resume, and longitudinal move reporting
 - [Parallel programming upgrade plan](parallel_programming_upgrade_plan.md):
   staged design for bounded archive-level parallelism on large srcDiff inputs
 - [Backlog](backlog.md): open questions and candidate improvements

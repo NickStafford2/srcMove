@@ -12,18 +12,18 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Iterable, Mapping
 
-from .contracts import PAIR_OUTCOME_SCHEMA_VERSION, PairWorkItem
+from .contracts import (
+    COMPACT_PAIR_SCHEMA_VERSION,
+    PAIR_OUTCOME_SCHEMA_VERSION,
+    PairWorkItem,
+)
 from .process import (
     SRCDIFF_XML_VALIDATOR_SCHEMA_VERSION,
     SRCMOVE_RESULTS_VALIDATOR_SCHEMA_VERSION,
 )
-from .reporting import PAIR_RECEIPT_SCHEMA_VERSION
-
-
 ANALYSIS_CONFIGURATION_SCHEMA_VERSION = 1
 EXECUTABLE_OBSERVATION_SCHEMA_VERSION = 1
-FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 2
-ANALYSIS_CONTINUATION_SCHEMA_VERSION = 2
+FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 4
 PAIR_FINGERPRINT_SCHEMA_VERSION = 1
 FROZEN_ANALYSIS_MANIFEST_NAME = "manifest.json"
 
@@ -214,7 +214,7 @@ class FingerprintSchemaVersions:
     pair_outcome: int = PAIR_OUTCOME_SCHEMA_VERSION
     srcdiff_xml_validator: int = SRCDIFF_XML_VALIDATOR_SCHEMA_VERSION
     srcmove_results_validator: int = SRCMOVE_RESULTS_VALIDATOR_SCHEMA_VERSION
-    pair_receipt: int = PAIR_RECEIPT_SCHEMA_VERSION
+    compact_pair: int = COMPACT_PAIR_SCHEMA_VERSION
 
     def __post_init__(self) -> None:
         if any(
@@ -223,7 +223,7 @@ class FingerprintSchemaVersions:
                 self.pair_outcome,
                 self.srcdiff_xml_validator,
                 self.srcmove_results_validator,
-                self.pair_receipt,
+                self.compact_pair,
             )
         ):
             raise ValueError("fingerprint schema versions must be positive integers")
@@ -233,46 +233,7 @@ class FingerprintSchemaVersions:
             "pair_outcome": self.pair_outcome,
             "srcdiff_xml_validator": self.srcdiff_xml_validator,
             "srcmove_results_validator": self.srcmove_results_validator,
-            "pair_receipt": self.pair_receipt,
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class AnalysisContinuation:
-    """Immutable link from an older segment to its completed newer segment."""
-
-    newer_segment_path: PurePosixPath
-    newer_manifest_sha256: str
-    boundary_commit: str
-
-    def __post_init__(self) -> None:
-        path = self.newer_segment_path
-        if not isinstance(path, PurePosixPath):
-            raise ValueError("newer segment path must be a canonical relative path")
-        if (
-            path.is_absolute()
-            or ".." in path.parts
-            or str(PurePosixPath(str(path))) != str(path)
-        ):
-            raise ValueError("newer segment path must be a canonical relative path")
-        if len(self.newer_manifest_sha256) != 64 or any(
-            character not in "0123456789abcdef"
-            for character in self.newer_manifest_sha256
-        ):
-            raise ValueError("newer manifest SHA-256 must be 64 lowercase hex digits")
-        if (
-            not isinstance(self.boundary_commit, str)
-            or not self.boundary_commit
-            or "\0" in self.boundary_commit
-        ):
-            raise ValueError("continuation boundary must be a native Git object ID")
-
-    def record(self) -> dict[str, Any]:
-        return {
-            "schema_version": ANALYSIS_CONTINUATION_SCHEMA_VERSION,
-            "newer_segment_path": str(self.newer_segment_path),
-            "newer_manifest_sha256": self.newer_manifest_sha256,
-            "boundary_commit": self.boundary_commit,
+            "compact_pair": self.compact_pair,
         }
 
 
@@ -287,7 +248,6 @@ class FrozenAnalysisManifest:
     srcdiff: ExecutableObservation
     srcmove: ExecutableObservation
     schema_versions: FingerprintSchemaVersions = FingerprintSchemaVersions()
-    continuation: AnalysisContinuation | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.repository, Path) or not self.repository.is_absolute():
@@ -315,9 +275,6 @@ class FrozenAnalysisManifest:
                 "srcmove": self.srcmove.record(),
             },
             "fingerprint_schema_versions": self.schema_versions.record(),
-            "continuation": (
-                None if self.continuation is None else self.continuation.record()
-            ),
         }
 
     def canonical_bytes(self) -> bytes:
@@ -362,10 +319,22 @@ def load_frozen_manifest(analysis_root: Path) -> FrozenAnalysisManifest:
     if path.is_symlink() or not path.is_file():
         raise ValueError(f"frozen analysis manifest is not a regular file: {path}")
     try:
-        raw = path.read_text(encoding="utf-8")
-        value = json.loads(raw, object_pairs_hook=_strict_json_object)
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+        content = path.read_bytes()
+    except OSError as error:
         raise ValueError(f"frozen analysis manifest is unreadable: {path}") from error
+    return load_frozen_manifest_bytes(content, context=str(path))
+
+
+def load_frozen_manifest_bytes(
+    content: bytes, *, context: str = "manifest"
+) -> FrozenAnalysisManifest:
+    """Strictly load canonical manifest bytes from an authoritative store."""
+
+    try:
+        raw = content.decode("utf-8")
+        value = json.loads(raw, object_pairs_hook=_strict_json_object)
+    except (UnicodeDecodeError, json.JSONDecodeError) as error:
+        raise ValueError(f"frozen analysis manifest is unreadable: {context}") from error
     record = _object(value, "manifest")
     _fields(
         record,
@@ -377,7 +346,6 @@ def load_frozen_manifest(analysis_root: Path) -> FrozenAnalysisManifest:
             "configuration",
             "executables",
             "fingerprint_schema_versions",
-            "continuation",
         },
         "manifest",
     )
@@ -404,7 +372,6 @@ def load_frozen_manifest(analysis_root: Path) -> FrozenAnalysisManifest:
     schema_versions = _load_fingerprint_schema_versions(
         record["fingerprint_schema_versions"]
     )
-    continuation = _load_continuation(record["continuation"])
     manifest = FrozenAnalysisManifest(
         repository=repository,
         repository_identity=identity,
@@ -413,9 +380,8 @@ def load_frozen_manifest(analysis_root: Path) -> FrozenAnalysisManifest:
         srcdiff=_load_executable(executables["srcdiff"], "executables.srcdiff"),
         srcmove=_load_executable(executables["srcmove"], "executables.srcmove"),
         schema_versions=schema_versions,
-        continuation=continuation,
     )
-    if raw.encode("utf-8") != manifest.canonical_bytes():
+    if content != manifest.canonical_bytes():
         raise ValueError("frozen analysis manifest is not canonically encoded")
     return manifest
 
@@ -451,7 +417,6 @@ def verify_resume_inputs(
         srcdiff=srcdiff,
         srcmove=srcmove,
         schema_versions=manifest.schema_versions,
-        continuation=manifest.continuation,
     )
 
 
@@ -593,29 +558,6 @@ def _load_fingerprint_schema_versions(value: Any) -> FingerprintSchemaVersions:
     return FingerprintSchemaVersions(**record)
 
 
-def _load_continuation(value: Any) -> AnalysisContinuation | None:
-    if value is None:
-        return None
-    record = _object(value, "continuation")
-    _fields(
-        record,
-        {
-            "schema_version",
-            "newer_segment_path",
-            "newer_manifest_sha256",
-            "boundary_commit",
-        },
-        "continuation",
-    )
-    _schema(record, "schema_version", ANALYSIS_CONTINUATION_SCHEMA_VERSION)
-    path = PurePosixPath(_string(record, "newer_segment_path"))
-    return AnalysisContinuation(
-        newer_segment_path=path,
-        newer_manifest_sha256=_string(record, "newer_manifest_sha256"),
-        boundary_commit=_string(record, "boundary_commit"),
-    )
-
-
 def _fsync_directory(directory: Path) -> None:
     descriptor = os.open(directory, os.O_RDONLY)
     try:
@@ -632,7 +574,6 @@ def freeze_analysis_inputs(
     configuration: AnalysisConfiguration,
     srcdiff: ExecutableObservation,
     srcmove: ExecutableObservation,
-    continuation: AnalysisContinuation | None = None,
 ) -> FrozenAnalysisManifest:
     """Freeze an already-resolved first-parent sequence without querying Git."""
 
@@ -646,7 +587,6 @@ def freeze_analysis_inputs(
         configuration=configuration,
         srcdiff=srcdiff,
         srcmove=srcmove,
-        continuation=continuation,
     )
 
 

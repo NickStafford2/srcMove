@@ -363,7 +363,8 @@ def _remove_tree_within(directory: Path, analysis_root: Path) -> None:
     """Remove a worker-owned tree without following links or escaping root."""
 
     root = analysis_root.resolve()
-    target = Path(os.path.abspath(directory))
+    absolute = Path(os.path.abspath(directory))
+    target = absolute.parent.resolve() / absolute.name
     try:
         target.relative_to(root)
     except ValueError as error:
@@ -375,6 +376,16 @@ def _remove_tree_within(directory: Path, analysis_root: Path) -> None:
         raise ValueError(f"cleanup target is not an owned directory: {target}")
     _remove_directory_contents(target)
     target.rmdir()
+
+
+def remove_ephemeral_tree(directory: Path, analysis_root: Path) -> None:
+    """Remove stale unsealed worker data after exclusive ownership is acquired."""
+
+    try:
+        directory.lstat()
+    except FileNotFoundError:
+        return
+    _remove_tree_within(directory, analysis_root)
 
 
 def _remove_directory_contents(directory: Path) -> None:

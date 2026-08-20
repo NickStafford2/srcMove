@@ -5,11 +5,10 @@ import json
 import tempfile
 import unittest
 from dataclasses import replace
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from repository_analysis.inputs import (
     AnalysisConfiguration,
-    AnalysisContinuation,
     ExecutableObservation,
     FingerprintSchemaVersions,
     RepositoryIdentity,
@@ -127,7 +126,7 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
                 "schemas": replace(
                     manifest,
                     schema_versions=replace(
-                        FingerprintSchemaVersions(), pair_receipt=999
+                        FingerprintSchemaVersions(), compact_pair=999
                     ),
                 ),
             }
@@ -189,7 +188,7 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
             manifest = self._manifest(Path(temporary_directory))
             record = json.loads(manifest.canonical_bytes())
 
-            self.assertEqual(record["schema_version"], 2)
+            self.assertEqual(record["schema_version"], 4)
             self.assertEqual(record["commits"], ["a", "b", "c"])
             self.assertEqual(record["repository_identity"], {"value": "repo-id"})
             self.assertIn("configuration", record)
@@ -215,29 +214,6 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
                 persist_frozen_manifest(analysis, manifest)
             self.assertEqual(
                 [item.name for item in analysis.iterdir()], ["manifest.json"]
-            )
-
-    def test_continuation_round_trip_does_not_change_pair_fingerprints(self) -> None:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            root = Path(temporary_directory)
-            baseline = self._manifest(root / "repository")
-            linked = replace(
-                baseline,
-                continuation=AnalysisContinuation(
-                    newer_segment_path=PurePosixPath("segments/000001"),
-                    newer_manifest_sha256="a" * 64,
-                    boundary_commit=baseline.commits[-1],
-                ),
-            )
-            analysis = root / "analysis"
-
-            persist_frozen_manifest(analysis, linked)
-            loaded = load_frozen_manifest(analysis)
-
-            self.assertEqual(loaded, linked)
-            self.assertEqual(
-                [item.fingerprint for item in build_pair_work_items(loaded)],
-                [item.fingerprint for item in build_pair_work_items(baseline)],
             )
 
     def test_manifest_loader_rejects_schema_and_json_drift(self) -> None:

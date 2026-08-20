@@ -13,7 +13,7 @@ from typing import Any
 
 from .contracts import PairWorkItem
 from .coordinator import CoordinatorStats, PairAcknowledger, PairExecutor
-from .coordinator import _run_pairs_from_sequence
+from .coordinator import run_pairs_from_sequence
 from .reporting import PairReceiptPublisher, _receipt_status, _sealed_receipts
 from .retention import DEFAULT_RETENTION_POLICY, RetentionPolicy
 
@@ -94,7 +94,7 @@ def resume_pairs(
         analysis_root, retention_policy=retention_policy
     )
     publisher._next_sequence = plan.prefix.next_sequence
-    execution = _run_pairs_from_sequence(
+    execution = run_pairs_from_sequence(
         _preserve_unsealed_pair_evidence(
             plan.remaining_work_items,
             plan.prefix.analysis_root,

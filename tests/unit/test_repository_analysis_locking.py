@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -66,6 +68,45 @@ class AnalysisOperationLockTests(unittest.TestCase):
                 self.assertIsNotNone(current)
                 assert current is not None
                 self.assertEqual(current["previous"]["result"], "failed")
+
+    def test_owner_process_crash_releases_kernel_lock(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory) / "analysis"
+            script = """
+import sys
+from pathlib import Path
+from repository_analysis.locking import AnalysisOperationLock
+
+with AnalysisOperationLock(Path(sys.argv[1]), command="child"):
+    print("ready", flush=True)
+    sys.stdin.read()
+"""
+            child = subprocess.Popen(
+                [sys.executable, "-c", script, str(root)],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+            )
+            self.addCleanup(self._stop_child, child)
+            assert child.stdout is not None
+            self.assertEqual(child.stdout.readline().strip(), "ready")
+            with self.assertRaises(AnalysisBusyError):
+                with AnalysisOperationLock(root, command="contender"):
+                    self.fail("contender acquired a live child lock")
+
+            child.kill()
+            child.communicate(timeout=5)
+            with AnalysisOperationLock(root, command="recovery"):
+                activity = load_analysis_activity(root)
+                assert activity is not None
+                self.assertEqual(activity["previous"]["result"], "interrupted")
+
+    @staticmethod
+    def _stop_child(child: subprocess.Popen) -> None:
+        if child.poll() is None:
+            child.kill()
+        child.communicate()
 
 
 if __name__ == "__main__":
