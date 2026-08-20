@@ -23,6 +23,7 @@ from .reporting import PAIR_RECEIPT_SCHEMA_VERSION
 ANALYSIS_CONFIGURATION_SCHEMA_VERSION = 1
 EXECUTABLE_OBSERVATION_SCHEMA_VERSION = 1
 FROZEN_ANALYSIS_MANIFEST_SCHEMA_VERSION = 2
+ANALYSIS_CONTINUATION_SCHEMA_VERSION = 1
 PAIR_FINGERPRINT_SCHEMA_VERSION = 1
 FROZEN_ANALYSIS_MANIFEST_NAME = "manifest.json"
 
@@ -237,6 +238,41 @@ class FingerprintSchemaVersions:
 
 
 @dataclass(frozen=True, slots=True)
+class AnalysisContinuation:
+    """Immutable link from an older segment to its completed newer segment."""
+
+    newer_analysis_root: Path
+    newer_manifest_sha256: str
+    boundary_commit: str
+
+    def __post_init__(self) -> None:
+        if (
+            not isinstance(self.newer_analysis_root, Path)
+            or not self.newer_analysis_root.is_absolute()
+        ):
+            raise ValueError("newer analysis root must be an absolute path")
+        if len(self.newer_manifest_sha256) != 64 or any(
+            character not in "0123456789abcdef"
+            for character in self.newer_manifest_sha256
+        ):
+            raise ValueError("newer manifest SHA-256 must be 64 lowercase hex digits")
+        if (
+            not isinstance(self.boundary_commit, str)
+            or not self.boundary_commit
+            or "\0" in self.boundary_commit
+        ):
+            raise ValueError("continuation boundary must be a native Git object ID")
+
+    def record(self) -> dict[str, Any]:
+        return {
+            "schema_version": ANALYSIS_CONTINUATION_SCHEMA_VERSION,
+            "newer_analysis_root": str(self.newer_analysis_root),
+            "newer_manifest_sha256": self.newer_manifest_sha256,
+            "boundary_commit": self.boundary_commit,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FrozenAnalysisManifest:
     """Durable history and invocation inputs, frozen before workers start."""
 
@@ -247,6 +283,7 @@ class FrozenAnalysisManifest:
     srcdiff: ExecutableObservation
     srcmove: ExecutableObservation
     schema_versions: FingerprintSchemaVersions = FingerprintSchemaVersions()
+    continuation: AnalysisContinuation | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.repository, Path) or not self.repository.is_absolute():
@@ -274,6 +311,9 @@ class FrozenAnalysisManifest:
                 "srcmove": self.srcmove.record(),
             },
             "fingerprint_schema_versions": self.schema_versions.record(),
+            "continuation": (
+                None if self.continuation is None else self.continuation.record()
+            ),
         }
 
     def canonical_bytes(self) -> bytes:
@@ -333,6 +373,7 @@ def load_frozen_manifest(analysis_root: Path) -> FrozenAnalysisManifest:
             "configuration",
             "executables",
             "fingerprint_schema_versions",
+            "continuation",
         },
         "manifest",
     )
@@ -359,6 +400,7 @@ def load_frozen_manifest(analysis_root: Path) -> FrozenAnalysisManifest:
     schema_versions = _load_fingerprint_schema_versions(
         record["fingerprint_schema_versions"]
     )
+    continuation = _load_continuation(record["continuation"])
     manifest = FrozenAnalysisManifest(
         repository=repository,
         repository_identity=identity,
@@ -367,6 +409,7 @@ def load_frozen_manifest(analysis_root: Path) -> FrozenAnalysisManifest:
         srcdiff=_load_executable(executables["srcdiff"], "executables.srcdiff"),
         srcmove=_load_executable(executables["srcmove"], "executables.srcmove"),
         schema_versions=schema_versions,
+        continuation=continuation,
     )
     if raw.encode("utf-8") != manifest.canonical_bytes():
         raise ValueError("frozen analysis manifest is not canonically encoded")
@@ -404,6 +447,7 @@ def verify_resume_inputs(
         srcdiff=srcdiff,
         srcmove=srcmove,
         schema_versions=manifest.schema_versions,
+        continuation=manifest.continuation,
     )
 
 
@@ -545,6 +589,29 @@ def _load_fingerprint_schema_versions(value: Any) -> FingerprintSchemaVersions:
     return FingerprintSchemaVersions(**record)
 
 
+def _load_continuation(value: Any) -> AnalysisContinuation | None:
+    if value is None:
+        return None
+    record = _object(value, "continuation")
+    _fields(
+        record,
+        {
+            "schema_version",
+            "newer_analysis_root",
+            "newer_manifest_sha256",
+            "boundary_commit",
+        },
+        "continuation",
+    )
+    _schema(record, "schema_version", ANALYSIS_CONTINUATION_SCHEMA_VERSION)
+    root = Path(_string(record, "newer_analysis_root"))
+    return AnalysisContinuation(
+        newer_analysis_root=root,
+        newer_manifest_sha256=_string(record, "newer_manifest_sha256"),
+        boundary_commit=_string(record, "boundary_commit"),
+    )
+
+
 def _fsync_directory(directory: Path) -> None:
     descriptor = os.open(directory, os.O_RDONLY)
     try:
@@ -561,6 +628,7 @@ def freeze_analysis_inputs(
     configuration: AnalysisConfiguration,
     srcdiff: ExecutableObservation,
     srcmove: ExecutableObservation,
+    continuation: AnalysisContinuation | None = None,
 ) -> FrozenAnalysisManifest:
     """Freeze an already-resolved first-parent sequence without querying Git."""
 
@@ -574,6 +642,7 @@ def freeze_analysis_inputs(
         configuration=configuration,
         srcdiff=srcdiff,
         srcmove=srcmove,
+        continuation=continuation,
     )
 
 

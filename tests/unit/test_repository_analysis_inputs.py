@@ -9,6 +9,7 @@ from pathlib import Path
 
 from repository_analysis.inputs import (
     AnalysisConfiguration,
+    AnalysisContinuation,
     ExecutableObservation,
     FingerprintSchemaVersions,
     RepositoryIdentity,
@@ -214,6 +215,29 @@ class RepositoryAnalysisInputTests(unittest.TestCase):
                 persist_frozen_manifest(analysis, manifest)
             self.assertEqual(
                 [item.name for item in analysis.iterdir()], ["manifest.json"]
+            )
+
+    def test_continuation_round_trip_does_not_change_pair_fingerprints(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            baseline = self._manifest(root / "repository")
+            linked = replace(
+                baseline,
+                continuation=AnalysisContinuation(
+                    newer_analysis_root=(root / "newer").resolve(),
+                    newer_manifest_sha256="a" * 64,
+                    boundary_commit=baseline.commits[-1],
+                ),
+            )
+            analysis = root / "analysis"
+
+            persist_frozen_manifest(analysis, linked)
+            loaded = load_frozen_manifest(analysis)
+
+            self.assertEqual(loaded, linked)
+            self.assertEqual(
+                [item.fingerprint for item in build_pair_work_items(loaded)],
+                [item.fingerprint for item in build_pair_work_items(baseline)],
             )
 
     def test_manifest_loader_rejects_schema_and_json_drift(self) -> None:

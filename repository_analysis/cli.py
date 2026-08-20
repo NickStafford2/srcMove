@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import sys
 from pathlib import Path
@@ -14,8 +15,10 @@ from .git import (
     select_first_parent_history,
     verify_frozen_commits,
 )
+from .chain import load_verified_analysis_chain, publish_chain_reports
 from .inputs import (
     FROZEN_ANALYSIS_MANIFEST_NAME,
+    AnalysisContinuation,
     AnalysisConfiguration,
     RepositoryIdentity,
     build_pair_work_items,
@@ -46,6 +49,22 @@ def build_parser() -> argparse.ArgumentParser:
     resume = commands.add_parser("resume", help="verify and resume an analysis")
     _add_frozen_arguments(resume)
     _add_runtime_arguments(resume)
+
+    continuation = commands.add_parser(
+        "continue-older",
+        help="analyze the next older pairs after a completed analysis",
+    )
+    continuation.add_argument(
+        "--analysis-root",
+        type=Path,
+        required=True,
+        help="completed newer analysis",
+    )
+    continuation.add_argument("--new-analysis-root", type=Path, required=True)
+    continuation.add_argument("--count", type=int, required=True, metavar="PAIRS")
+    continuation.add_argument("--srcdiff", type=Path)
+    continuation.add_argument("--srcmove", type=Path)
+    _add_runtime_arguments(continuation)
     return parser
 
 
@@ -98,12 +117,8 @@ def _execute(
     )
 
 
-def start_analysis(arguments: argparse.Namespace) -> ResumeStats:
-    """Freeze and persist all inputs before opening any worker sessions."""
-
-    if arguments.jobs <= 0:
-        raise ValueError("jobs must be positive")
-    requested_root = arguments.analysis_root.expanduser().absolute()
+def _validate_new_analysis_root(analysis_root: Path) -> Path:
+    requested_root = analysis_root.expanduser().absolute()
     if requested_root.is_symlink():
         raise ValueError(f"analysis root must not be a symbolic link: {requested_root}")
     if requested_root.exists() and any(requested_root.iterdir()):
@@ -111,6 +126,15 @@ def start_analysis(arguments: argparse.Namespace) -> ResumeStats:
     manifest_path = requested_root.resolve() / FROZEN_ANALYSIS_MANIFEST_NAME
     if manifest_path.exists() or manifest_path.is_symlink():
         raise ValueError(f"analysis manifest already exists: {manifest_path}")
+    return requested_root.resolve()
+
+
+def start_analysis(arguments: argparse.Namespace) -> ResumeStats:
+    """Freeze and persist all inputs before opening any worker sessions."""
+
+    if arguments.jobs <= 0:
+        raise ValueError("jobs must be positive")
+    _validate_new_analysis_root(arguments.analysis_root)
     history = select_first_parent_history(
         arguments.repository, arguments.start, arguments.count
     )
@@ -153,11 +177,79 @@ def resume_analysis(arguments: argparse.Namespace) -> ResumeStats:
         manifest.commits,
         retained_ref=retained_history_ref(frozen.canonical_bytes()),
     )
-    return _execute(
+    stats = _execute(
         manifest,
         analysis_root=arguments.analysis_root,
         jobs=arguments.jobs,
         retain_positive_xml=arguments.retain_positive_xml,
+    )
+    if manifest.continuation is None:
+        return stats
+    return ResumeStats(
+        stats.verified_count,
+        stats.execution,
+        publish_chain_reports(arguments.analysis_root),
+    )
+
+
+def continue_older_analysis(arguments: argparse.Namespace) -> ResumeStats:
+    """Freeze and execute the next older immutable segment without overlap."""
+
+    if arguments.jobs <= 0:
+        raise ValueError("jobs must be positive")
+    if arguments.count <= 0:
+        raise ValueError("pair count must be positive")
+    new_root = _validate_new_analysis_root(arguments.new_analysis_root)
+    chain = load_verified_analysis_chain(arguments.analysis_root)
+    newer_segment = chain[0]
+    frozen = newer_segment.manifest
+    srcdiff = observe_executable(arguments.srcdiff or frozen.srcdiff.requested_path)
+    srcmove = observe_executable(arguments.srcmove or frozen.srcmove.requested_path)
+    verified = verify_resume_inputs(
+        frozen,
+        repository_identity=frozen.repository_identity,
+        configuration=frozen.configuration,
+        srcdiff=srcdiff,
+        srcmove=srcmove,
+    )
+    verify_frozen_commits(
+        verified.repository,
+        verified.commits,
+        retained_ref=retained_history_ref(frozen.canonical_bytes()),
+    )
+    boundary = frozen.commits[0]
+    history = select_first_parent_history(
+        verified.repository, boundary, arguments.count
+    )
+    continuation = AnalysisContinuation(
+        newer_analysis_root=newer_segment.analysis_root,
+        newer_manifest_sha256=hashlib.sha256(
+            frozen.canonical_bytes()
+        ).hexdigest(),
+        boundary_commit=boundary,
+    )
+    manifest = freeze_analysis_inputs(
+        repository=verified.repository,
+        repository_identity=verified.repository_identity,
+        commits=history.commits,
+        configuration=verified.configuration,
+        srcdiff=srcdiff,
+        srcmove=srcmove,
+        continuation=continuation,
+    )
+    ref = retained_history_ref(manifest.canonical_bytes())
+    retain_history(manifest.repository, ref, history.resolved_start)
+    persist_frozen_manifest(new_root, manifest)
+    stats = _execute(
+        manifest,
+        analysis_root=new_root,
+        jobs=arguments.jobs,
+        retain_positive_xml=arguments.retain_positive_xml,
+    )
+    return ResumeStats(
+        stats.verified_count,
+        stats.execution,
+        publish_chain_reports(new_root),
     )
 
 
@@ -165,11 +257,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = build_parser()
     arguments = parser.parse_args(argv)
     try:
-        stats = (
-            start_analysis(arguments)
-            if arguments.command == "start"
-            else resume_analysis(arguments)
-        )
+        if arguments.command == "start":
+            stats = start_analysis(arguments)
+        elif arguments.command == "resume":
+            stats = resume_analysis(arguments)
+        else:
+            stats = continue_older_analysis(arguments)
     except (OSError, RuntimeError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
