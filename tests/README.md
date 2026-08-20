@@ -4,7 +4,8 @@ The repository `Makefile` is the developer interface. From the repository root:
 
 ```bash
 make test                         # build, then run every correctness suite
-make test-unit                    # Python infrastructure tests only
+make test-unit                    # all Python unit tests
+make test-repository-analysis     # repository-analysis unit tests only
 make test-xml                     # build, then run XML regressions
 make test-source                  # build, then run source-pair regressions
 ```
@@ -23,7 +24,10 @@ python3 tests/run.py --case 1x1_basic --case blocks_swapped
 
 ## Suites
 
-- `unit`: Python tests for test and benchmark infrastructure.
+- `unit`: all Python unit tests, including the repository-analysis tests.
+- `repository-analysis`: focused unit tests under
+  `tests/unit/repository_analysis/`; run explicitly with
+  `make test-repository-analysis`.
 - `xml`: checked-in srcDiff XML fixtures run directly through `srcMove`.
 - `source`: checked-in source pairs regenerated with `srcdiff`, then run through
   `srcMove`.

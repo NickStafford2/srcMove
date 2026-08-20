@@ -22,7 +22,7 @@ from repository_analysis.process import (
 from repository_analysis.worker import PairExecutor, _remove_tree_within
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 FAKE_TOOL = REPO_ROOT / "tests" / "fixtures" / "benchmark" / "fake_tool.py"
 
 

@@ -19,10 +19,13 @@ from support.tooling import command_text, find_srcdiff, find_srcmove, run_comman
 
 
 SUITE_DESCRIPTIONS = {
-    "unit": "Python unit tests for test and benchmark infrastructure",
+    "unit": "all Python unit tests",
+    "repository-analysis": "focused repository-analysis unit tests",
     "xml": "checked-in srcDiff XML regression fixtures",
     "source": "checked-in source pairs regenerated through srcdiff",
 }
+
+DEFAULT_SUITES = ("unit", "xml", "source")
 
 
 @dataclass(frozen=True)
@@ -68,7 +71,7 @@ def parse_args() -> argparse.Namespace:
 
 def print_inventory() -> None:
     for suite, description in SUITE_DESCRIPTIONS.items():
-        if suite == "unit":
+        if suite not in REGRESSION_SUITES:
             print(f"{suite}: {description}")
             continue
 
@@ -136,6 +139,27 @@ def test_steps(
                     "discover",
                     "-s",
                     "tests/unit",
+                    "-t",
+                    ".",
+                    "-p",
+                    "test_*.py",
+                ],
+            )
+        )
+
+    if not args.cases and "repository-analysis" in suites:
+        steps.append(
+            TestStep(
+                "repository-analysis unit",
+                [
+                    sys.executable,
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    "tests/unit/repository_analysis",
+                    "-t",
+                    ".",
                     "-p",
                     "test_*.py",
                 ],
@@ -182,9 +206,13 @@ def main() -> int:
             print(f"error: {error}", file=sys.stderr)
             return 2
 
-    suites = list(dict.fromkeys(args.suite or SUITE_DESCRIPTIONS))
-    if args.cases and "unit" in suites:
-        suites.remove("unit")
+    suites = list(dict.fromkeys(args.suite or DEFAULT_SUITES))
+    if args.cases:
+        suites = [
+            suite
+            for suite in suites
+            if suite not in ("unit", "repository-analysis")
+        ]
 
     try:
         selected_cases = select_regression_cases(suites, args.cases or [])

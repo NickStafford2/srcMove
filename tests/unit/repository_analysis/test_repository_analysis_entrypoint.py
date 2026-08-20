@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
+REPOSITORY_ROOT = Path(__file__).resolve().parents[3]
 ENTRYPOINT = REPOSITORY_ROOT / "bin" / "srcmove-history"
 
 

@@ -250,9 +250,8 @@ pending work recoverable.
 Run focused tests in the intended Docker environment:
 
 ```bash
-./bin/srcml-dev-shell bash -lc \
-  "cd srcMove && python3 -m unittest discover \
-  -s tests/unit -p 'test_repository_analysis_*.py'"
+./bin/srcml-dev-shell make --no-print-directory \
+  -C srcMove test-repository-analysis
 ```
 
 The tests cover target convergence, root exhaustion, bounded all-history

@@ -6,13 +6,14 @@ SELECTION_ROLE ?= tuning
 CASES_DIR ?= benchmarks/bigclonebench/cases
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 
-.PHONY: help configure build test test-unit test-xml test-source benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-cases bigclonebench
+.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-cases bigclonebench
 
 help:
 	@printf '%s\n' 'Available targets:'
 	@printf '  %-28s %s\n' 'make build' 'Configure and build srcMove'
 	@printf '  %-28s %s\n' 'make test' 'Build and run every correctness suite'
-	@printf '  %-28s %s\n' 'make test-unit' 'Run Python infrastructure tests'
+	@printf '  %-28s %s\n' 'make test-unit' 'Run all Python unit tests'
+	@printf '  %-28s %s\n' 'make test-repository-analysis' 'Run repository-analysis unit tests'
 	@printf '  %-28s %s\n' 'make test-xml' 'Build and run XML regression tests'
 	@printf '  %-28s %s\n' 'make test-source' 'Build and run source-pair regression tests'
 	@printf '  %-28s %s\n' 'make benchmark-repo' 'Run and save CASE repository benchmark'
@@ -34,6 +35,9 @@ test: build
 
 test-unit:
 	$(PYTHON) tests/run.py --suite unit
+
+test-repository-analysis:
+	$(PYTHON) tests/run.py --suite repository-analysis
 
 test-xml: build
 	$(PYTHON) tests/run.py --suite xml

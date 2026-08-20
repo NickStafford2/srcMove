@@ -24,7 +24,7 @@ Work in `srcMove/` and read:
 - `repository_analysis/contracts.py`
 - `repository_analysis/git.py`
 - `repository_analysis/resume.py`
-- `tests/unit/test_repository_analysis_*.py`
+- `tests/unit/repository_analysis/`
 - the first-parent selection tests in `tests/unit/test_repository_history.py`
 
 Check `git status` before editing. The user normally owns staging, commits, and
@@ -122,9 +122,8 @@ query mutable Git state to fill those columns.
 From the workspace root:
 
 ```bash
-./bin/srcml-dev-shell bash -lc \
-  'cd /workspace/srcMove && python3 -W error::ResourceWarning \
-  -m unittest discover -s tests/unit -p "test_repository_analysis_*.py"'
+./bin/srcml-dev-shell make --no-print-directory \
+  -C srcMove test-repository-analysis
 
 ./bin/srcml-dev-shell make --no-print-directory -C srcMove test-unit
 
