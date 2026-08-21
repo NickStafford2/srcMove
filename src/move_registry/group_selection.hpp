@@ -50,9 +50,9 @@ private:
   std::vector<covered_span>        covered_;
 };
 
-bool group_selection_order_less(const pending_group      &lhs,
-                                const pending_group      &rhs,
-                                const candidate_registry &registry);
+std::vector<std::size_t>
+group_selection_order(const std::vector<pending_group> &groups,
+                      const candidate_registry         &registry);
 
 std::vector<candidate_id>
 filter_unselected_ids(const std::vector<candidate_id> &ids,

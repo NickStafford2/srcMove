@@ -10,7 +10,6 @@
 #include "move_registry/group_selection.hpp"
 #include "profile.hpp"
 
-#include <algorithm>
 #include <cassert>
 #include <string_view>
 #include <unordered_map>
@@ -177,17 +176,11 @@ build_exact_groups(const candidate_registry &registry) {
 
 void add_selected_exact_groups(content_groups             &out,
                                const candidate_registry   &registry,
-                               std::vector<pending_group> &exact_groups,
+                               const std::vector<pending_group> &exact_groups,
+                               const std::vector<std::size_t>   &order,
                                group_selection            &selection) {
-  // Current sort comparisons rescan group ids for tier/span/min-id keys:
-  // O(G log G * K), where K is average ids per compared group. See the
-  // precompute-selection-key note before optimizing this.
-  std::sort(exact_groups.begin(), exact_groups.end(),
-            [&registry](const pending_group &lhs, const pending_group &rhs) {
-              return group_selection_order_less(lhs, rhs, registry);
-            });
-
-  for (const pending_group &group : exact_groups) {
+  for (std::size_t group_index : order) {
+    const pending_group &group = exact_groups[group_index];
     if (!has_both_sides(group)) {
       continue;
     }
@@ -205,13 +198,15 @@ using type2_group_map =
 type2_group_map
 build_type2_groups(const candidate_registry         &registry,
                    const std::vector<pending_group> &exact_groups,
+                   const std::vector<std::size_t>   &order,
                    const group_selection            &selection) {
   type2_group_map type2_groups;
   type2_groups.reserve(exact_groups.size());
 
   // O(unmatched exact-group ids). Type-2 candidates are grouped by their
   // already-computed identifier-normalized canonical text.
-  for (const pending_group &group : exact_groups) {
+  for (std::size_t group_index : order) {
+    const pending_group &group = exact_groups[group_index];
     if (has_both_sides(group)) {
       continue;
     }
@@ -272,10 +267,12 @@ void add_selected_type2_groups(content_groups           &out,
 void add_unmatched_exact_groups(content_groups                   &out,
                                 const candidate_registry         &registry,
                                 const std::vector<pending_group> &exact_groups,
+                                const std::vector<std::size_t>   &order,
                                 const group_selection            &selection) {
   // O(unmatched exact-group ids * covered spans) in the worst case because
   // suppression checks scan selected covered spans.
-  for (const pending_group &group : exact_groups) {
+  for (std::size_t group_index : order) {
+    const pending_group &group = exact_groups[group_index];
     if (has_both_sides(group)) {
       continue;
     }
@@ -314,17 +311,25 @@ content_groups build_content_groups(const candidate_registry &registry,
     exact_groups = build_exact_groups(registry);
   }
 
-  group_selection            selection(registry.active_candidate_count());
+  std::vector<std::size_t> exact_group_order;
+  {
+    scoped_profile_timer timer(profile, "content_groups.exact_order");
+    exact_group_order = group_selection_order(exact_groups, registry);
+  }
+
+  group_selection selection(registry.active_candidate_count());
 
   {
     scoped_profile_timer timer(profile, "content_groups.exact_select");
-    add_selected_exact_groups(out, registry, exact_groups, selection);
+    add_selected_exact_groups(out, registry, exact_groups, exact_group_order,
+                              selection);
   }
 
   type2_group_map type2_groups;
   {
     scoped_profile_timer timer(profile, "content_groups.type2_build");
-    type2_groups = build_type2_groups(registry, exact_groups, selection);
+    type2_groups =
+        build_type2_groups(registry, exact_groups, exact_group_order, selection);
   }
 
   {
@@ -334,7 +339,8 @@ content_groups build_content_groups(const candidate_registry &registry,
 
   {
     scoped_profile_timer timer(profile, "content_groups.unmatched_emit");
-    add_unmatched_exact_groups(out, registry, exact_groups, selection);
+    add_unmatched_exact_groups(out, registry, exact_groups, exact_group_order,
+                               selection);
   }
 
 #ifndef NDEBUG

@@ -5,6 +5,7 @@
 #include "move_registry/group_selection.hpp"
 
 #include <algorithm>
+#include <numeric>
 
 namespace srcmove {
 
@@ -164,6 +165,12 @@ enum class selection_tier : int {
   single_child_fallback = 2,
 };
 
+struct selection_sort_key {
+  selection_tier tier      = selection_tier::primary;
+  std::size_t    span_size = 0;
+  candidate_id   min_id    = static_cast<candidate_id>(-1);
+};
+
 selection_tier group_selection_tier(const pending_group      &group,
                                     const candidate_registry &registry) {
   if (any_single_child_wrapper(group, registry)) {
@@ -172,24 +179,49 @@ selection_tier group_selection_tier(const pending_group      &group,
   return selection_tier::primary;
 }
 
+selection_sort_key make_selection_sort_key(const pending_group      &group,
+                                           const candidate_registry &registry) {
+  return selection_sort_key{
+      group_selection_tier(group, registry),
+      group_span_size(group, registry),
+      min_group_id(group),
+  };
+}
+
+bool selection_sort_key_less(const selection_sort_key &lhs,
+                             const selection_sort_key &rhs) {
+  if (lhs.tier != rhs.tier) {
+    return lhs.tier < rhs.tier;
+  }
+
+  if (lhs.span_size != rhs.span_size) {
+    return lhs.span_size > rhs.span_size;
+  }
+
+  return lhs.min_id < rhs.min_id;
+}
+
 } // namespace
 
-bool group_selection_order_less(const pending_group      &lhs,
-                                const pending_group      &rhs,
-                                const candidate_registry &registry) {
-  const selection_tier lhs_tier = group_selection_tier(lhs, registry);
-  const selection_tier rhs_tier = group_selection_tier(rhs, registry);
-  if (lhs_tier != rhs_tier) {
-    return lhs_tier < rhs_tier;
+std::vector<std::size_t>
+group_selection_order(const std::vector<pending_group> &groups,
+                      const candidate_registry         &registry) {
+  std::vector<selection_sort_key> keys;
+  keys.reserve(groups.size());
+
+  for (const pending_group &group : groups) {
+    keys.push_back(make_selection_sort_key(group, registry));
   }
 
-  const std::size_t lhs_size = group_span_size(lhs, registry);
-  const std::size_t rhs_size = group_span_size(rhs, registry);
-  if (lhs_size != rhs_size) {
-    return lhs_size > rhs_size;
-  }
+  std::vector<std::size_t> order(groups.size());
+  std::iota(order.begin(), order.end(), 0);
 
-  return min_group_id(lhs) < min_group_id(rhs);
+  std::sort(order.begin(), order.end(),
+            [&keys](std::size_t lhs, std::size_t rhs) {
+              return selection_sort_key_less(keys[lhs], keys[rhs]);
+            });
+
+  return order;
 }
 
 std::vector<candidate_id>
