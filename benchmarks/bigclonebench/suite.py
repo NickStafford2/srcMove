@@ -28,7 +28,7 @@ from benchmarks.bigclonebench.snapshot import materialize_compiled_selection
 from benchmarks.contracts import RunMode
 from benchmarks.process import write_json_atomic
 from benchmarks.progress import ProgressDisplay
-from benchmarks.provenance import utc_now
+from benchmarks.provenance import observe_executable, utc_now
 from support.tooling import find_srcdiff, find_srcmove
 
 
@@ -163,6 +163,12 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
         )
     )
     compiled, compiled_reused = compiled_result
+    (srcdiff_observation, srcdiff_observation_seconds) = _timed(
+        lambda: observe_executable(srcdiff)
+    )
+    (srcmove_observation, srcmove_observation_seconds) = _timed(
+        lambda: observe_executable(srcmove)
+    )
     pair_results: list[dict[str, Any]] = []
 
     for pair_set, label in PAIR_SETS:
@@ -204,6 +210,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                     timeout_seconds=args.srcdiff_timeout,
                     retry_failed=False,
                     activity_callback=callback,
+                    srcdiff_observation=srcdiff_observation,
                 )
             )
             corpus_disposition = "created" if activity["running"] else "reused"
@@ -223,6 +230,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                     timeout_seconds=args.srcmove_timeout,
                     mode=RunMode.DEVELOPMENT,
                     activity_callback=callback,
+                    srcmove_observation=srcmove_observation,
                 )
             )
             run_dir, run_manifest, summary = evaluation
@@ -271,6 +279,10 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
             "seconds": compile_seconds,
         },
         "scoring_oracle_version": SCORING_ORACLE_VERSION,
+        "tool_observation_seconds": {
+            "srcdiff": srcdiff_observation_seconds,
+            "srcmove": srcmove_observation_seconds,
+        },
         "pair_sets": pair_results,
     }
     write_json_atomic(suite_dir / "summary.json", suite)

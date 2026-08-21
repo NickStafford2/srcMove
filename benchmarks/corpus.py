@@ -316,7 +316,14 @@ def _load_manifest(path: Path, schema_version: int, id_field: str) -> dict[str, 
     return value
 
 
-def _verify_input_snapshot(directory: Path, manifest: Mapping[str, Any]) -> None:
+def _verify_input_snapshot(
+    directory: Path,
+    manifest: Mapping[str, Any],
+    *,
+    verification: str = "full",
+) -> None:
+    if verification not in {"identity", "full"}:
+        raise ValueError(f"unsupported input snapshot verification: {verification}")
     identity_payload = {
         "schema_version": INPUT_SNAPSHOT_SCHEMA_VERSION,
         "adapter": manifest["adapter"],
@@ -338,6 +345,8 @@ def _verify_input_snapshot(directory: Path, manifest: Mapping[str, Any]) -> None
         raise ValueError("input snapshot identity does not match its manifest")
     if manifest["identity_sha256"] != expected_identity_checksum:
         raise ValueError("input snapshot identity checksum does not match its manifest")
+    if verification == "identity":
+        return
     for case in manifest["cases"]:
         original = directory / case["original_path"]
         modified = directory / case["modified_path"]
@@ -351,7 +360,14 @@ def _verify_input_snapshot(directory: Path, manifest: Mapping[str, Any]) -> None
             )
 
 
-def _verify_corpus(directory: Path, manifest: Mapping[str, Any]) -> None:
+def _verify_corpus(
+    directory: Path,
+    manifest: Mapping[str, Any],
+    *,
+    verification: str = "full",
+) -> None:
+    if verification not in {"identity", "full"}:
+        raise ValueError(f"unsupported corpus verification: {verification}")
     artifact = manifest["srcdiff"].get("artifact", {})
     accepted_checksums = [
         {"case_id": case["case_id"], "sha256": case["xml"]["sha256"]}
@@ -372,6 +388,8 @@ def _verify_corpus(directory: Path, manifest: Mapping[str, Any]) -> None:
     )
     if manifest["corpus_id"] != expected_id:
         raise ValueError("corpus identity does not match its manifest")
+    if verification == "identity":
+        return
     for case in manifest["cases"]:
         if case["generation_status"] != "accepted":
             continue
@@ -381,7 +399,10 @@ def _verify_corpus(directory: Path, manifest: Mapping[str, Any]) -> None:
 
 
 def load_input_snapshot(
-    data_root: Path, identifier_or_path: str | Path
+    data_root: Path,
+    identifier_or_path: str | Path,
+    *,
+    verification: str = "full",
 ) -> VerifiedSnapshot:
     """Load and checksum-verify one current-schema input snapshot."""
 
@@ -392,12 +413,15 @@ def load_input_snapshot(
         manifest_path, INPUT_SNAPSHOT_SCHEMA_VERSION, "input_snapshot_id"
     )
     directory = manifest_path.parent
-    _verify_input_snapshot(directory, manifest)
+    _verify_input_snapshot(directory, manifest, verification=verification)
     return _verified_snapshot(directory, manifest, sha256_file(manifest_path))
 
 
 def load_corpus(
-    data_root: Path, identifier_or_path: str | Path
+    data_root: Path,
+    identifier_or_path: str | Path,
+    *,
+    verification: str = "full",
 ) -> VerifiedCorpus:
     """Load and checksum-verify one current-schema corpus."""
 
@@ -406,7 +430,7 @@ def load_corpus(
         manifest_path, CORPUS_SCHEMA_VERSION, "corpus_id"
     )
     directory = manifest_path.parent
-    _verify_corpus(directory, manifest)
+    _verify_corpus(directory, manifest, verification=verification)
     return _verified_corpus(directory, manifest, sha256_file(manifest_path))
 
 
@@ -845,9 +869,9 @@ def generate_corpus(
             final_dir / "manifest.json", CORPUS_SCHEMA_VERSION, "corpus_id"
         )
         with _timed(timing_callback, "srcdiff_corpus_verification_seconds"):
-            _verify_corpus(final_dir, manifest)
-        with _timed(timing_callback, "srcdiff_attempt_compaction_seconds"):
-            _compact_promoted_srcdiff_outputs(data_root, final_dir, manifest)
+            _verify_corpus(final_dir, manifest, verification="identity")
+        if timing_callback is not None:
+            timing_callback("srcdiff_attempt_compaction_seconds", 0.0)
         return _verified_corpus(
             final_dir, manifest, sha256_file(final_dir / "manifest.json")
         )

@@ -123,10 +123,14 @@ blended into one accuracy percentage. Combined run metadata is saved below
 evaluation run.
 
 Use `ROLE=tuning|evaluation`, `SEED=<integer>`, `SAMPLE_SIZE=<count>`, and
-`VERIFY_SOURCE=1` as needed. Full source verification rehashes the original H2
-database, H2 driver, and selected Java sources before accepting a compiled
-cache. The compile, select, snapshot, corpus, and evaluate commands remain
-available as debugging interfaces.
+`VERIFY_SOURCE=1` as needed. Normal development runs trust artifacts when they
+were sealed: they validate manifest identities and hash `srcdiff` and `srcMove`
+once, but do not revisit the original dataset or rehash selection JSONL,
+snapshot sources, or corpus XML. `VERIFY_SOURCE=1` is the explicit upstream
+audit; it rehashes the original H2 database, H2 driver, and selected Java
+sources before accepting a compiled cache. The compile, select, snapshot,
+corpus, and evaluate commands remain available as debugging interfaces, and
+direct snapshot/corpus loads retain full checksum verification.
 
 The workflow keeps generated sources, reusable srcDiff XML, and srcMove runs
 separate. Generate a deterministic tuning slice:

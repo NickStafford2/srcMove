@@ -479,7 +479,11 @@ def create_selection(
     root = data_root.expanduser().resolve() / "bigclonebench" / "selections"
     final = root / selection_id
     if final.exists():
-        manifest = load_selection(final, expected_dataset_id=compiled.dataset_id)
+        manifest = load_selection(
+            final,
+            expected_dataset_id=compiled.dataset_id,
+            verification="identity",
+        )
         return final, manifest, True
 
     root.mkdir(parents=True, exist_ok=True)
@@ -610,9 +614,15 @@ def create_selection(
 
 
 def load_selection(
-    directory: Path, *, expected_dataset_id: str | None = None
+    directory: Path,
+    *,
+    expected_dataset_id: str | None = None,
+    verification: str = "full",
 ) -> Mapping[str, Any]:
     """Validate a published immutable selection manifest and its artifacts."""
+
+    if verification not in {"identity", "full"}:
+        raise ValueError(f"unsupported selection verification: {verification}")
 
     directory = directory.expanduser().resolve()
     if directory.is_symlink() or not directory.is_dir():
@@ -641,7 +651,9 @@ def load_selection(
         path = directory / declaration["path"]
         if path.is_symlink() or not path.is_file():
             raise ValueError(f"selection artifact is unavailable: {path}")
-        if path.stat().st_size != declaration.get("size_bytes") or sha256_file(path) != declaration.get("sha256"):
+        if path.stat().st_size != declaration.get("size_bytes"):
+            raise ValueError(f"selection artifact size mismatch: {path}")
+        if verification == "full" and sha256_file(path) != declaration.get("sha256"):
             raise ValueError(f"selection artifact checksum mismatch: {path}")
     return manifest
 

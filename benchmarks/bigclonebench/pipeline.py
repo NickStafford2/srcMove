@@ -9,7 +9,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Callable
+from typing import Any, Callable, Mapping
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -32,6 +32,7 @@ from benchmarks.corpus import (
     create_input_snapshot,
     generate_corpus,
     load_corpus,
+    load_input_snapshot,
     run_corpus,
 )
 from benchmarks.progress import ProgressDisplay
@@ -142,14 +143,25 @@ def build_corpus(
     timeout_seconds: float,
     retry_failed: bool,
     activity_callback: Callable[[str, str], None] | None = None,
+    srcdiff_observation: Mapping[str, Any] | None = None,
 ) -> VerifiedCorpus:
+    verified_snapshot = (
+        input_snapshot
+        if isinstance(input_snapshot, VerifiedSnapshot)
+        else load_input_snapshot(data_root, input_snapshot)
+    )
+    snapshot_manifest = verified_snapshot.manifest
+    compiled_snapshot = bool(
+        isinstance(snapshot_manifest.get("source"), Mapping)
+        and snapshot_manifest["source"].get("compiled_dataset_id")
+    )
     return generate_corpus(
         data_root=data_root,
-        input_snapshot=input_snapshot,
+        input_snapshot=verified_snapshot,
         srcdiff=srcdiff,
         timeout_seconds=timeout_seconds,
         use_position=True,
-        use_archive=False,
+        use_archive=compiled_snapshot,
         retry_failed=retry_failed,
         semantic_validator=BigCloneBenchAdapter.validate_semantics,
         semantic_oracle={
@@ -157,6 +169,7 @@ def build_corpus(
             "version": SEMANTIC_ORACLE_VERSION,
         },
         activity_callback=activity_callback,
+        srcdiff_observation=srcdiff_observation,
     )
 
 
@@ -168,6 +181,7 @@ def evaluate_corpus(
     timeout_seconds: float,
     mode: RunMode,
     activity_callback: Callable[[str, str], None] | None = None,
+    srcmove_observation: Mapping[str, Any] | None = None,
 ) -> tuple[Path, dict, dict]:
     verified_corpus = (
         corpus if isinstance(corpus, VerifiedCorpus) else load_corpus(data_root, corpus)
@@ -180,6 +194,7 @@ def evaluate_corpus(
         mode=mode,
         require_semantic_eligible=True,
         activity_callback=activity_callback,
+        srcmove_observation=srcmove_observation,
     )
     corpus_dir = verified_corpus.directory
     corpus_manifest = verified_corpus.manifest

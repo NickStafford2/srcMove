@@ -67,6 +67,60 @@ def _safe_fragment_sha256(value: Any) -> str:
     return value
 
 
+def compiled_selection_source_manifest(
+    selection_manifest: Mapping[str, Any], selection_directory: Path
+) -> dict[str, Any]:
+    """Build the snapshot dependency declaration without opening the catalog."""
+
+    request = selection_manifest["request"]
+    counts = selection_manifest["counts"]
+    pair_set = request["pair_set"]
+    case_kind = (
+        "known_false_positive"
+        if pair_set == "known-false-positive"
+        else "positive"
+    )
+    return {
+        "dataset": "BigCloneBench",
+        "compiled_dataset_id": request["compiled_dataset_id"],
+        "compiled_manifest_sha256": selection_manifest["compiled_dataset"][
+            "manifest_sha256"
+        ],
+        "selection_id": selection_manifest["selection_id"],
+        "selection_manifest_sha256": sha256_file(
+            selection_directory / "manifest.json"
+        ),
+        "pair_set": pair_set,
+        "synthetic_wrapper_version": SYNTHETIC_WRAPPER_VERSION,
+        "selection": {
+            "clone_type": (
+                "known_false_positive"
+                if case_kind == "known_false_positive"
+                else pair_set
+            ),
+            "case_kind": case_kind,
+            "dedupe": request["dedupe"],
+            "text_change": "any",
+            "min_tokens": None,
+            "min_judges": None,
+            "min_confidence": None,
+            "row_count_before_deduplication": counts["eligible_source_rows"],
+            "distinct_raw_text_pair_count": counts["eligible_frames"],
+            "functionality_group_count": None,
+            "selection": {
+                "id": selection_manifest["selection_id"],
+                "role": request["role"],
+                "method": request["mode"],
+                "seed": (
+                    request["sample"]["seed"]
+                    if isinstance(request.get("sample"), Mapping)
+                    else None
+                ),
+            },
+        },
+    }
+
+
 class CompiledBigCloneBenchAdapter:
     """Materialize Phase 2 selections directly from the compiled fragment store."""
 
@@ -87,7 +141,9 @@ class CompiledBigCloneBenchAdapter:
             selection_directory = (
                 self.data_root / "bigclonebench" / "selections" / str(selection)
             )
-        self.selection_manifest = load_selection(selection_directory)
+        self.selection_manifest = load_selection(
+            selection_directory, verification="identity"
+        )
         self.selection_directory = selection_directory
 
         request = self.selection_manifest["request"]
@@ -111,7 +167,7 @@ class CompiledBigCloneBenchAdapter:
         self.compiled = load_compiled_dataset(
             request["compiled_dataset_id"],
             data_root=self.data_root,
-            verification="catalog",
+            verification="identity",
         )
         compiled_declaration = self.selection_manifest.get("compiled_dataset", {})
         if (
@@ -342,47 +398,9 @@ class CompiledBigCloneBenchAdapter:
         return validate_srcdiff_semantics(case, srcdiff_xml)
 
     def source_manifest(self) -> dict[str, Any]:
-        request = self.selection_manifest["request"]
-        counts = self.selection_manifest["counts"]
-        return {
-            "dataset": "BigCloneBench",
-            "compiled_dataset_id": self.compiled.dataset_id,
-            "compiled_manifest_sha256": self.compiled.manifest_sha256,
-            "selection_id": self.selection_manifest["selection_id"],
-            "selection_manifest_sha256": sha256_file(
-                self.selection_directory / "manifest.json"
-            ),
-            "pair_set": request["pair_set"],
-            "synthetic_wrapper_version": SYNTHETIC_WRAPPER_VERSION,
-            "selection": {
-                "clone_type": (
-                    "known_false_positive"
-                    if self.case_kind == "known_false_positive"
-                    else self.pair_set
-                ),
-                "case_kind": self.case_kind,
-                "dedupe": request["dedupe"],
-                "text_change": "any",
-                "min_tokens": None,
-                "min_judges": None,
-                "min_confidence": None,
-                "row_count_before_deduplication": counts[
-                    "eligible_source_rows"
-                ],
-                "distinct_raw_text_pair_count": counts["eligible_frames"],
-                "functionality_group_count": None,
-                "selection": {
-                    "id": self.selection_manifest["selection_id"],
-                    "role": request["role"],
-                    "method": request["mode"],
-                    "seed": (
-                        request["sample"]["seed"]
-                        if isinstance(request.get("sample"), Mapping)
-                        else None
-                    ),
-                },
-            },
-        }
+        return compiled_selection_source_manifest(
+            self.selection_manifest, self.selection_directory
+        )
 
 
 def _local_name(value: str) -> str:

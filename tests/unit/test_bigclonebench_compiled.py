@@ -3,12 +3,14 @@ from __future__ import annotations
 import csv
 import hashlib
 import json
+import os
 import shutil
 import sqlite3
 import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from unittest import mock
 from unittest.mock import patch
 
 
@@ -16,6 +18,7 @@ from benchmarks.bigclonebench.compile import (
     _false_positive_query,
     _positive_query,
     cached_or_export_h2,
+    ensure_compiled_dataset,
 )
 from benchmarks.bigclonebench.compiled import (
     compile_exports,
@@ -121,6 +124,24 @@ def pair_row(*, reverse: bool = False, pair_type: str = "positive") -> dict[str,
 
 
 class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
+    def test_ensure_reuses_sealed_catalog_without_upstream_prerequisites(self) -> None:
+        compiled = mock.sentinel.compiled
+        missing_bce = Path("/definitely/missing/bigclonebench")
+        with patch(
+            "benchmarks.bigclonebench.compile.find_reusable_compiled_dataset",
+            return_value=compiled,
+        ) as find_reusable, patch(
+            "benchmarks.bigclonebench.compile.verify_upstream_sources",
+            side_effect=AssertionError("ordinary reuse inspected upstream sources"),
+        ):
+            observed, reused = ensure_compiled_dataset(
+                data_root=Path("unused"), bce_dir=missing_bce
+            )
+
+        self.assertIs(observed, compiled)
+        self.assertTrue(reused)
+        self.assertFalse(find_reusable.call_args.kwargs["verify_upstream"])
+
     def create_bce(self, root: Path) -> Path:
         bce = root / "BigCloneEval"
         (bce / "bigclonebenchdb").mkdir(parents=True)
@@ -294,7 +315,81 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             )
             self.assertEqual(
                 verify_upstream_sources(compiled, bce_dir=copied)["status"],
-                "mismatch",
+                "metadata_match",
+            )
+
+    def test_reuse_is_portable_across_catalog_and_upstream_inodes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bce, compiled = self.compile_fixture(root)
+            copied_data = root / "copied-data"
+            copied_compiled = (
+                copied_data
+                / "bigclonebench"
+                / "compiled"
+                / compiled.dataset_id
+            )
+            copied_compiled.parent.mkdir(parents=True)
+            shutil.copytree(compiled.directory, copied_compiled)
+            copied_bce = root / "copied-bce"
+            shutil.copytree(bce, copied_bce)
+
+            reused = find_reusable_compiled_dataset(
+                data_root=copied_data,
+                bce_dir=copied_bce,
+                compile_scope={"fixture": True, "external_only": True},
+            )
+
+            self.assertIsNotNone(reused)
+            self.assertEqual(reused.dataset_id, compiled.dataset_id)
+
+    def test_metadata_drift_verifies_checksum_once_then_updates_index(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bce, compiled = self.compile_fixture(root)
+            database = bce / "bigclonebenchdb" / "bcb.h2.db"
+            stat = database.stat()
+            os.utime(database, ns=(stat.st_atime_ns, stat.st_mtime_ns + 1_000_000))
+            diagnostics = []
+
+            reused = find_reusable_compiled_dataset(
+                data_root=root / "data",
+                bce_dir=bce,
+                compile_scope={"fixture": True, "external_only": True},
+                diagnostic_callback=diagnostics.append,
+            )
+
+            self.assertIsNotNone(reused)
+            self.assertEqual(
+                [item["status"] for item in diagnostics],
+                ["verifying", "reused"],
+            )
+            index = json.loads(
+                (
+                    root
+                    / "data"
+                    / "bigclonebench"
+                    / "compiled"
+                    / "index.json"
+                ).read_text()
+            )
+            entry = next(iter(index["entries"].values()))
+            self.assertEqual(entry["dataset_id"], compiled.dataset_id)
+            self.assertEqual(
+                entry["quick_identity"]["database"]["mtime_ns"],
+                database.stat().st_mtime_ns,
+            )
+
+            diagnostics.clear()
+            reused_again = find_reusable_compiled_dataset(
+                data_root=root / "data",
+                bce_dir=bce,
+                compile_scope={"fixture": True, "external_only": True},
+                diagnostic_callback=diagnostics.append,
+            )
+            self.assertIsNotNone(reused_again)
+            self.assertEqual(
+                [item["status"] for item in diagnostics], ["reused"]
             )
 
     def test_reuse_stops_when_a_previously_missing_source_appears(self) -> None:

@@ -30,8 +30,11 @@ output = Path(sys.argv[sys.argv.index('-o') + 1])
 output.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
     "xmlns:diff='http://www.srcML.org/srcDiff/diff' "
     "xmlns:pos='http://www.srcML.org/srcML/position'>"
+    "<unit language='Java' filename='original.java|'>"
     "<diff:delete><name pos:start='1:1|1:1' pos:end='1000:1|1000:1'/></diff:delete>"
+    "</unit><unit language='Java' filename='|modified.java'>"
     "<diff:insert><name pos:start='1:1|1:1' pos:end='1000:1|1000:1'/></diff:insert>"
+    "</unit>"
     "</unit>")
 """,
             )
@@ -67,6 +70,32 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 return_value=(compiled, True),
             ), redirect_stdout(StringIO()):
                 first_dir, first, first_passed = run_suite(args)
+
+            from benchmarks import corpus as corpus_module
+
+            real_sha256_file = corpus_module.sha256_file
+
+            def reject_cached_payload_hash(path: Path) -> str:
+                if path.suffix in {".java", ".xml"}:
+                    raise AssertionError(f"cached payload was rehashed: {path}")
+                return real_sha256_file(path)
+
+            with mock.patch(
+                "benchmarks.bigclonebench.suite.ensure_compiled_dataset",
+                return_value=(compiled, True),
+            ), mock.patch(
+                "benchmarks.bigclonebench.adapter.load_compiled_dataset",
+                side_effect=AssertionError("compiled catalog reopened on snapshot reuse"),
+            ), mock.patch(
+                "benchmarks.bigclonebench.selection.sha256_file",
+                side_effect=AssertionError("selection artifact was rehashed"),
+            ), mock.patch(
+                "benchmarks.corpus._input_identity",
+                side_effect=AssertionError("snapshot inputs were traversed"),
+            ), mock.patch(
+                "benchmarks.corpus.sha256_file",
+                side_effect=reject_cached_payload_hash,
+            ), redirect_stdout(StringIO()):
                 second_dir, second, second_passed = run_suite(args)
 
             self.assertFalse(first_passed)

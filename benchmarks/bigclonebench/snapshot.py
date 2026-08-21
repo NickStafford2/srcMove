@@ -15,8 +15,12 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.bigclonebench.adapter import CompiledBigCloneBenchAdapter
+from benchmarks.bigclonebench.adapter import (
+    CompiledBigCloneBenchAdapter,
+    compiled_selection_source_manifest,
+)
 from benchmarks.bigclonebench.compile import DEFAULT_DATA_ROOT
+from benchmarks.bigclonebench.selection import load_selection
 from benchmarks.corpus import (
     VerifiedSnapshot,
     create_input_snapshot,
@@ -40,17 +44,27 @@ def materialize_compiled_selection(
     """Load an existing selection snapshot without rematerializing its sources."""
 
     data_root = data_root.expanduser().resolve()
-    adapter = CompiledBigCloneBenchAdapter(
-        data_root=data_root,
-        selection=selection,
+    supplied = Path(selection)
+    selection_directory = (
+        supplied.expanduser().resolve()
+        if supplied.is_absolute() or supplied.exists()
+        else data_root / "bigclonebench" / "selections" / str(selection)
     )
-    source = adapter.source_manifest()
+    selection_manifest = load_selection(
+        selection_directory, verification="identity"
+    )
+    source = compiled_selection_source_manifest(
+        selection_manifest, selection_directory
+    )
     snapshots_root = data_root / "input-snapshots"
     index_path = data_root / "bigclonebench" / "snapshot-index.json"
     request_id = content_identifier(
         "bcb-snapshot-request",
         {
-            "adapter": {"name": adapter.name, "version": adapter.version},
+            "adapter": {
+                "name": CompiledBigCloneBenchAdapter.name,
+                "version": CompiledBigCloneBenchAdapter.version,
+            },
             "source": source,
             "filter_configuration": {"excluded_suffixes": [".py"]},
         },
@@ -69,7 +83,10 @@ def materialize_compiled_selection(
     def matches(candidate: VerifiedSnapshot) -> bool:
         return (
             candidate.manifest.get("adapter")
-            == {"name": adapter.name, "version": adapter.version}
+            == {
+                "name": CompiledBigCloneBenchAdapter.name,
+                "version": CompiledBigCloneBenchAdapter.version,
+            }
             and candidate.manifest.get("source") == source
             and candidate.manifest.get("filter_configuration")
             == {"excluded_suffixes": [".py"]}
@@ -78,7 +95,9 @@ def materialize_compiled_selection(
     indexed_id = index["entries"].get(request_id)
     if isinstance(indexed_id, str):
         try:
-            indexed = load_input_snapshot(data_root, indexed_id)
+            indexed = load_input_snapshot(
+                data_root, indexed_id, verification="identity"
+            )
         except (OSError, ValueError, json.JSONDecodeError):
             pass
         else:
@@ -95,18 +114,27 @@ def materialize_compiled_selection(
                 continue
             if (
                 candidate.get("adapter")
-                != {"name": adapter.name, "version": adapter.version}
+                != {
+                    "name": CompiledBigCloneBenchAdapter.name,
+                    "version": CompiledBigCloneBenchAdapter.version,
+                }
                 or candidate.get("source") != source
                 or candidate.get("filter_configuration")
                 != {"excluded_suffixes": [".py"]}
             ):
                 continue
-            verified = load_input_snapshot(data_root, manifest_path.parent)
+            verified = load_input_snapshot(
+                data_root, manifest_path.parent, verification="identity"
+            )
             index["entries"][request_id] = verified.snapshot_id
             write_json_atomic(index_path, index)
             return verified, "reused"
 
     disposition = "created"
+    adapter = CompiledBigCloneBenchAdapter(
+        data_root=data_root,
+        selection=selection_directory,
+    )
 
     def record_disposition(value: str) -> None:
         nonlocal disposition

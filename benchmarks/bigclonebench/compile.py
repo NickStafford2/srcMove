@@ -10,7 +10,7 @@ import shutil
 import sqlite3
 import sys
 import tempfile
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 
 
@@ -341,6 +341,44 @@ def ensure_compiled_dataset(
 
     data_root = data_root.expanduser().resolve()
     bce_dir = bce_dir.expanduser().resolve()
+    scope = {
+        "pair_tables": ["clones", "false_positives"],
+        "external_only": True,
+        "limit_per_kind": limit_per_kind,
+        "ordering": "syntactic_type_functionality_function_ids",
+    }
+
+    def report_reuse_diagnostic(observation: Mapping[str, object]) -> None:
+        status = observation.get("status")
+        if status == "verifying":
+            print(
+                "Compiled cache metadata changed; "
+                f"{observation.get('detail')} before H2 fallback",
+                flush=True,
+            )
+        elif status == "rejected":
+            print(
+                "Compiled cache rejected: "
+                f"{observation.get('reason', 'unknown reason')}",
+                flush=True,
+            )
+
+    reusable = find_reusable_compiled_dataset(
+        data_root=data_root,
+        bce_dir=bce_dir,
+        compile_scope=scope,
+        diagnostic_callback=report_reuse_diagnostic,
+        verify_upstream=False,
+    )
+    if reusable is not None and verify_source:
+        verification = verify_upstream_sources(
+            reusable, bce_dir=bce_dir, verification="full"
+        )
+        if verification.get("status") != "verified":
+            reusable = None
+    if reusable is not None:
+        return reusable, True
+
     failures = preflight() if bce_dir == BCE_DIR.resolve() else []
     required = (
         bce_dir / "bigclonebenchdb" / "bcb.h2.db",
@@ -354,25 +392,6 @@ def ensure_compiled_dataset(
     )
     if failures:
         raise ValueError("\n  - ".join(failures))
-    scope = {
-        "pair_tables": ["clones", "false_positives"],
-        "external_only": True,
-        "limit_per_kind": limit_per_kind,
-        "ordering": "syntactic_type_functionality_function_ids",
-    }
-    reusable = find_reusable_compiled_dataset(
-        data_root=data_root,
-        bce_dir=bce_dir,
-        compile_scope=scope,
-    )
-    if reusable is not None and verify_source:
-        verification = verify_upstream_sources(
-            reusable, bce_dir=bce_dir, verification="full"
-        )
-        if verification.get("status") != "verified":
-            reusable = None
-    if reusable is not None:
-        return reusable, True
 
     with ProgressDisplay(
         "compile/export", detail="checking for reusable exports"
@@ -406,6 +425,7 @@ def ensure_compiled_dataset(
         compiled,
         data_root=data_root,
         compile_scope=scope,
+        bce_dir=bce_dir,
     )
     export_work_root = data_root / "bigclonebench" / "work"
     if (

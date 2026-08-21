@@ -646,6 +646,22 @@ def _database_quick_identity(path: Path) -> dict[str, Any]:
     }
 
 
+def _portable_quick_identity(path: Path) -> dict[str, int]:
+    identity = _database_quick_identity(path)
+    return {
+        field: int(identity[field]) for field in ("size_bytes", "mtime_ns")
+    }
+
+
+def _portable_identity_matches(
+    observed: Mapping[str, Any], declared: Mapping[str, Any]
+) -> bool:
+    return all(
+        observed.get(field) == declared.get(field)
+        for field in ("size_bytes", "mtime_ns")
+    )
+
+
 def compile_exports(
     *,
     bce_dir: Path,
@@ -1111,6 +1127,8 @@ def verify_upstream_sources(
     *,
     bce_dir: Path,
     verification: str = "metadata",
+    quick_identity_override: Mapping[str, Mapping[str, Any]] | None = None,
+    verify_source_files: bool = True,
 ) -> dict[str, Any]:
     """Compare current BigCloneBench inputs with a compiled dataset."""
 
@@ -1123,48 +1141,56 @@ def verify_upstream_sources(
     if not database.is_file() or not h2_jar.is_file():
         return {"status": "mismatch", "reason": "database_or_h2_missing"}
     if verification == "metadata":
-        if _database_quick_identity(database) != upstream["database"]["quick_identity"]:
+        baselines = quick_identity_override or {}
+        database_baseline = baselines.get(
+            "database", upstream["database"]["quick_identity"]
+        )
+        h2_baseline = baselines.get("h2_jar", upstream["h2_jar"]["quick_identity"])
+        if not _portable_identity_matches(
+            _portable_quick_identity(database), database_baseline
+        ):
             return {"status": "mismatch", "reason": "database_metadata_changed"}
-        if _database_quick_identity(h2_jar) != upstream["h2_jar"]["quick_identity"]:
+        if not _portable_identity_matches(
+            _portable_quick_identity(h2_jar), h2_baseline
+        ):
             return {"status": "mismatch", "reason": "h2_metadata_changed"}
-    uri = f"file:{compiled.directory / 'catalog.sqlite'}?mode=ro"
-    with closing(sqlite3.connect(uri, uri=True)) as connection:
-        for relative, size, device, inode, mtime_ns, expected_sha in connection.execute(
-            "SELECT source_path, size_bytes, device, inode, mtime_ns, sha256 "
-            "FROM source_files ORDER BY source_path"
-        ):
-            path = (bce_dir / relative).resolve()
-            if not path.is_relative_to(bce_dir) or not path.is_file():
-                return {"status": "mismatch", "reason": "source_missing", "path": relative}
-            stat = path.stat()
-            if verification == "metadata" and (
-                stat.st_size,
-                stat.st_dev,
-                stat.st_ino,
-                stat.st_mtime_ns,
-            ) != (size, device, inode, mtime_ns):
-                return {
-                    "status": "mismatch",
-                    "reason": "source_metadata_changed",
-                    "path": relative,
-                }
-            if verification == "full" and sha256_file(path) != expected_sha:
-                return {
-                    "status": "mismatch",
-                    "reason": "source_checksum_changed",
-                    "path": relative,
-                }
-        for (relative,) in connection.execute(
-            "SELECT DISTINCT expected_source_path FROM function_materializations "
-            "WHERE extraction_status='missing' ORDER BY expected_source_path"
-        ):
-            path = (bce_dir / relative).resolve()
-            if not path.is_relative_to(bce_dir) or path.exists():
-                return {
-                    "status": "mismatch",
-                    "reason": "previously_missing_source_changed",
-                    "path": relative,
-                }
+    if verify_source_files:
+        uri = f"file:{compiled.directory / 'catalog.sqlite'}?mode=ro"
+        with closing(sqlite3.connect(uri, uri=True)) as connection:
+            for relative, size, device, inode, mtime_ns, expected_sha in connection.execute(
+                "SELECT source_path, size_bytes, device, inode, mtime_ns, sha256 "
+                "FROM source_files ORDER BY source_path"
+            ):
+                path = (bce_dir / relative).resolve()
+                if not path.is_relative_to(bce_dir) or not path.is_file():
+                    return {"status": "mismatch", "reason": "source_missing", "path": relative}
+                stat = path.stat()
+                if verification == "metadata" and (
+                    stat.st_size,
+                    stat.st_mtime_ns,
+                ) != (size, mtime_ns):
+                    return {
+                        "status": "mismatch",
+                        "reason": "source_metadata_changed",
+                        "path": relative,
+                    }
+                if verification == "full" and sha256_file(path) != expected_sha:
+                    return {
+                        "status": "mismatch",
+                        "reason": "source_checksum_changed",
+                        "path": relative,
+                    }
+            for (relative,) in connection.execute(
+                "SELECT DISTINCT expected_source_path FROM function_materializations "
+                "WHERE extraction_status='missing' ORDER BY expected_source_path"
+            ):
+                path = (bce_dir / relative).resolve()
+                if not path.is_relative_to(bce_dir) or path.exists():
+                    return {
+                        "status": "mismatch",
+                        "reason": "previously_missing_source_changed",
+                        "path": relative,
+                    }
     if verification == "full":
         if sha256_file(database) != upstream["database"]["sha256"]:
             return {"status": "mismatch", "reason": "database_checksum_changed"}
@@ -1194,6 +1220,7 @@ def record_compiled_dataset(
     *,
     data_root: Path,
     compile_scope: Mapping[str, Any],
+    bce_dir: Path | None = None,
 ) -> None:
     """Update the small mutable lookup index after immutable publication."""
 
@@ -1209,7 +1236,20 @@ def record_compiled_dataset(
         ):
             raise ValueError(f"invalid compiled dataset index: {index_path}")
         index = value
-    index["entries"][compile_request_id(compile_scope)] = compiled.dataset_id
+    entry: str | dict[str, Any] = compiled.dataset_id
+    if bce_dir is not None:
+        upstream = compiled.manifest["upstream"]
+        resolved_bce = bce_dir.expanduser().resolve()
+        entry = {
+            "dataset_id": compiled.dataset_id,
+            "quick_identity": {
+                name: _portable_quick_identity(
+                    resolved_bce / upstream[name]["relative_path"]
+                )
+                for name in ("database", "h2_jar")
+            },
+        }
+    index["entries"][compile_request_id(compile_scope)] = entry
     write_json_atomic(index_path, index)
 
 
@@ -1278,6 +1318,8 @@ def find_reusable_compiled_dataset(
     data_root: Path,
     bce_dir: Path,
     compile_scope: Mapping[str, Any],
+    diagnostic_callback: Callable[[Mapping[str, Any]], None] | None = None,
+    verify_upstream: bool = True,
 ) -> VerifiedCompiledDataset | None:
     """Return a catalog whose saved upstream file metadata still matches."""
 
@@ -1285,6 +1327,7 @@ def find_reusable_compiled_dataset(
     compiled_root = data_root / "bigclonebench" / "compiled"
     index_path = compiled_root / "index.json"
     candidate_ids: list[str] = []
+    quick_identities: dict[str, Mapping[str, Mapping[str, Any]]] = {}
     if index_path.is_file():
         value = json.loads(index_path.read_text(encoding="utf-8"))
         if (
@@ -1296,6 +1339,14 @@ def find_reusable_compiled_dataset(
         indexed = value["entries"].get(compile_request_id(compile_scope))
         if isinstance(indexed, str):
             candidate_ids.append(indexed)
+        elif (
+            isinstance(indexed, dict)
+            and isinstance(indexed.get("dataset_id"), str)
+            and isinstance(indexed.get("quick_identity"), dict)
+        ):
+            dataset_id = indexed["dataset_id"]
+            candidate_ids.append(dataset_id)
+            quick_identities[dataset_id] = indexed["quick_identity"]
     if compiled_root.is_dir():
         candidate_ids.extend(
             path.name
@@ -1304,24 +1355,121 @@ def find_reusable_compiled_dataset(
         )
     for dataset_id in candidate_ids:
         try:
-            compiled = _load_for_reuse(compiled_root / dataset_id)
-        except (OSError, ValueError, sqlite3.Error):
+            compiled = _load_for_reuse(
+                compiled_root / dataset_id, portable=True
+            )
+        except (OSError, ValueError, sqlite3.Error) as error:
+            if diagnostic_callback is not None:
+                diagnostic_callback(
+                    {
+                        "status": "rejected",
+                        "dataset_id": dataset_id,
+                        "reason": "compiled_catalog_invalid",
+                        "detail": str(error),
+                    }
+                )
             continue
         if compiled.manifest.get("compile_scope") != dict(compile_scope):
+            if diagnostic_callback is not None:
+                diagnostic_callback(
+                    {
+                        "status": "rejected",
+                        "dataset_id": dataset_id,
+                        "reason": "compile_scope_changed",
+                    }
+                )
             continue
-        try:
-            observation = verify_upstream_sources(
-                compiled,
-                bce_dir=bce_dir,
-                verification="metadata",
-            )
-        except (KeyError, TypeError, ValueError, sqlite3.Error):
-            continue
-        if observation.get("status") == "metadata_match":
+        if not verify_upstream:
             record_compiled_dataset(
                 compiled,
                 data_root=data_root,
                 compile_scope=compile_scope,
             )
+            if diagnostic_callback is not None:
+                diagnostic_callback(
+                    {
+                        "status": "reused",
+                        "dataset_id": dataset_id,
+                        "reason": "sealed_catalog_identity",
+                    }
+                )
             return compiled
+        baselines = dict(quick_identities.get(dataset_id, {}))
+        try:
+            observation = verify_upstream_sources(
+                compiled,
+                bce_dir=bce_dir,
+                verification="metadata",
+                quick_identity_override=baselines or None,
+            )
+        except (KeyError, TypeError, ValueError, sqlite3.Error) as error:
+            if diagnostic_callback is not None:
+                diagnostic_callback(
+                    {
+                        "status": "rejected",
+                        "dataset_id": dataset_id,
+                        "reason": "upstream_validation_failed",
+                        "detail": str(error),
+                    }
+                )
+            continue
+        verified_drift: set[str] = set()
+        while observation.get("reason") in {
+            "database_metadata_changed",
+            "h2_metadata_changed",
+        }:
+            reason = str(observation["reason"])
+            upstream_name = "database" if reason.startswith("database") else "h2_jar"
+            if upstream_name in verified_drift:
+                break
+            upstream = compiled.manifest["upstream"][upstream_name]
+            upstream_path = bce_dir.expanduser().resolve() / upstream["relative_path"]
+            if diagnostic_callback is not None:
+                diagnostic_callback(
+                    {
+                        "status": "verifying",
+                        "dataset_id": dataset_id,
+                        "reason": reason,
+                        "detail": f"checksumming {upstream_name} after metadata drift",
+                    }
+                )
+            if (
+                upstream_path.is_file()
+                and upstream_path.stat().st_size == upstream["size_bytes"]
+                and sha256_file(upstream_path) == upstream["sha256"]
+            ):
+                baselines[upstream_name] = _portable_quick_identity(upstream_path)
+                verified_drift.add(upstream_name)
+                observation = verify_upstream_sources(
+                    compiled,
+                    bce_dir=bce_dir,
+                    verification="metadata",
+                    quick_identity_override=baselines,
+                )
+                continue
+            break
+        if observation.get("status") == "metadata_match":
+            record_compiled_dataset(
+                compiled,
+                data_root=data_root,
+                compile_scope=compile_scope,
+                bce_dir=bce_dir,
+            )
+            if diagnostic_callback is not None:
+                diagnostic_callback(
+                    {
+                        "status": "reused",
+                        "dataset_id": dataset_id,
+                        "reason": "metadata_match",
+                    }
+                )
+            return compiled
+        if diagnostic_callback is not None:
+            diagnostic_callback(
+                {
+                    "dataset_id": dataset_id,
+                    **dict(observation),
+                    "status": "rejected",
+                }
+            )
     return None
