@@ -22,11 +22,13 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
         sys.path.insert(0, str(import_root))
 
 from benchmarks.bigclonebench.compiled import (
+    VerifiedCompiledDataset,
     compile_exports,
     compile_request_id,
     find_reusable_compiled_dataset,
     load_compiled_dataset,
     record_compiled_dataset,
+    verify_upstream_sources,
 )
 from benchmarks.bigclonebench.generate import BCE_DIR, java_identity, preflight
 from benchmarks.process import write_json_atomic
@@ -328,6 +330,93 @@ class CatalogProgress:
             self.active = None
 
 
+def ensure_compiled_dataset(
+    *,
+    data_root: Path,
+    bce_dir: Path = BCE_DIR,
+    limit_per_kind: int | None = None,
+    verify_source: bool = False,
+) -> tuple[VerifiedCompiledDataset, bool]:
+    """Return the requested compiled dataset, building it only when necessary."""
+
+    data_root = data_root.expanduser().resolve()
+    bce_dir = bce_dir.expanduser().resolve()
+    failures = preflight() if bce_dir == BCE_DIR.resolve() else []
+    required = (
+        bce_dir / "bigclonebenchdb" / "bcb.h2.db",
+        bce_dir / "libs" / "h2-1.3.176.jar",
+        bce_dir / "ijadataset",
+    )
+    failures.extend(
+        f"BigCloneBench compile prerequisite not found: {path}"
+        for path in required
+        if not path.exists()
+    )
+    if failures:
+        raise ValueError("\n  - ".join(failures))
+    scope = {
+        "pair_tables": ["clones", "false_positives"],
+        "external_only": True,
+        "limit_per_kind": limit_per_kind,
+        "ordering": "syntactic_type_functionality_function_ids",
+    }
+    reusable = find_reusable_compiled_dataset(
+        data_root=data_root,
+        bce_dir=bce_dir,
+        compile_scope=scope,
+    )
+    if reusable is not None and verify_source:
+        verification = verify_upstream_sources(
+            reusable, bce_dir=bce_dir, verification="full"
+        )
+        if verification.get("status") != "verified":
+            reusable = None
+    if reusable is not None:
+        return reusable, True
+
+    with ProgressDisplay(
+        "compile/export", detail="checking for reusable exports"
+    ) as progress:
+        exports, export_cache, export_reused = cached_or_export_h2(
+            data_root=data_root,
+            bce_dir=bce_dir,
+            compile_scope=scope,
+            limit_per_kind=limit_per_kind,
+            activity_callback=lambda detail: progress.update(detail=detail),
+        )
+        progress.finish(
+            "reused checked exports"
+            if export_reused
+            else "exported positive and known-false-positive rows"
+        )
+    catalog_progress = CatalogProgress()
+    try:
+        compiled = compile_exports(
+            bce_dir=bce_dir,
+            data_root=data_root,
+            exports=exports,
+            compile_scope=scope,
+            java=java_identity(),
+            progress_callback=catalog_progress,
+        )
+    except BaseException as error:
+        catalog_progress.fail(error)
+        raise
+    record_compiled_dataset(
+        compiled,
+        data_root=data_root,
+        compile_scope=scope,
+    )
+    export_work_root = data_root / "bigclonebench" / "work"
+    if (
+        export_cache.parent == export_work_root
+        and not export_cache.is_symlink()
+        and export_cache.is_dir()
+    ):
+        shutil.rmtree(export_cache)
+    return compiled, False
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
@@ -363,25 +452,6 @@ def main() -> int:
             print(f"verification={args.verification}")
             return 0
 
-        failures = preflight() if args.bce_dir.resolve() == BCE_DIR.resolve() else []
-        required = (
-            args.bce_dir / "bigclonebenchdb" / "bcb.h2.db",
-            args.bce_dir / "libs" / "h2-1.3.176.jar",
-            args.bce_dir / "ijadataset",
-        )
-        failures.extend(
-            f"BigCloneBench compile prerequisite not found: {path}"
-            for path in required
-            if not path.exists()
-        )
-        if failures:
-            raise ValueError("\n  - ".join(failures))
-        scope = {
-            "pair_tables": ["clones", "false_positives"],
-            "external_only": True,
-            "limit_per_kind": args.limit_per_kind,
-            "ordering": "syntactic_type_functionality_function_ids",
-        }
         scope_label = (
             "full external pair frame"
             if args.limit_per_kind is None
@@ -389,58 +459,16 @@ def main() -> int:
         )
         print(f"BigCloneBench compile: {scope_label}", flush=True)
         print(f"data_root={args.data_root.expanduser().resolve()}", flush=True)
-        reusable = find_reusable_compiled_dataset(
+        compiled, reused = ensure_compiled_dataset(
             data_root=args.data_root,
             bce_dir=args.bce_dir,
-            compile_scope=scope,
+            limit_per_kind=args.limit_per_kind,
         )
-        if reusable is not None:
+        if reused:
             print("Compiled BigCloneBench dataset: reused")
-            print(f"dataset_id={reusable.dataset_id}")
-            print(f"directory={reusable.directory}")
+            print(f"dataset_id={compiled.dataset_id}")
+            print(f"directory={compiled.directory}")
             return 0
-        with ProgressDisplay(
-            "compile/export", detail="checking for reusable exports"
-        ) as progress:
-            exports, export_cache, export_reused = cached_or_export_h2(
-                data_root=args.data_root,
-                bce_dir=args.bce_dir,
-                compile_scope=scope,
-                limit_per_kind=args.limit_per_kind,
-                activity_callback=lambda detail: progress.update(detail=detail),
-            )
-            progress.finish(
-                "reused checked exports"
-                if export_reused
-                else "exported positive and known-false-positive rows"
-            )
-        catalog_progress = CatalogProgress()
-        try:
-            compiled = compile_exports(
-                bce_dir=args.bce_dir,
-                data_root=args.data_root,
-                exports=exports,
-                compile_scope=scope,
-                java=java_identity(),
-                progress_callback=catalog_progress,
-            )
-        except BaseException as error:
-            catalog_progress.fail(error)
-            raise
-        record_compiled_dataset(
-            compiled,
-            data_root=args.data_root,
-            compile_scope=scope,
-        )
-        export_work_root = (
-            args.data_root.expanduser().resolve() / "bigclonebench" / "work"
-        )
-        if (
-            export_cache.parent == export_work_root
-            and not export_cache.is_symlink()
-            and export_cache.is_dir()
-        ):
-            shutil.rmtree(export_cache)
         print(f"dataset_id={compiled.dataset_id}")
         print(f"directory={compiled.directory}")
         print(json.dumps(compiled.manifest["counts"], indent=2, sort_keys=True))

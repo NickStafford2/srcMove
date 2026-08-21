@@ -32,7 +32,9 @@ class BigCloneBenchSnapshotTests(unittest.TestCase):
         type_two["syntactic_type"] = 2
         type_two["pair_type"] = "type-2"
         write_export(exports / "positive.csv", [type_one, type_two])
-        write_export(exports / "false.csv", [])
+        false_positive = pair_row(reverse=True, pair_type="false")
+        false_positive["syntactic_type"] = 3
+        write_export(exports / "false.csv", [false_positive])
         compiled = compile_exports(
             bce_dir=bce,
             data_root=root / "data",
@@ -119,6 +121,22 @@ class BigCloneBenchSnapshotTests(unittest.TestCase):
             self.assertEqual(metadata["clone_type"], "type2")
             self.assertEqual(metadata["syntactic_type"], 2)
             self.assertEqual(metadata["expected"]["move_count"], 1)
+
+    def test_known_false_positive_uses_negative_oracle_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            _, selection, snapshot = self.materialize(
+                Path(temporary), "known-false-positive"
+            )
+            metadata = snapshot.manifest["cases"][0]["metadata"]
+            self.assertEqual(metadata["case_kind"], "known_false_positive")
+            self.assertEqual(metadata["clone_type"], "known_false_positive")
+            self.assertEqual(metadata["syntactic_type"], 3)
+            self.assertEqual(metadata["syntactic_types"], [3])
+            self.assertEqual(metadata["expected"]["move_count"], 0)
+            self.assertEqual(
+                snapshot.manifest["source"]["selection"]["selection"]["id"],
+                selection["selection_id"],
+            )
 
     def test_selected_fragment_corruption_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -237,8 +237,8 @@ snapshots without H2 or mutable case directories.
 3. **Complete for Type 1 and Type 2:** materialize BigCloneBench inputs directly
    into content-addressed snapshots without repeated extraction or mutable case
    directories. Known false positives join this path with Phase 4 orchestration.
-4. Add `bigclonebench-suite` orchestration for Type 1, Type 2, and known false
-   positives, with sample and census modes.
+4. **Complete:** `bigclonebench-suite` orchestrates Type 1, Type 2, and known
+   false positives in sample or census mode without requiring artifact IDs.
 5. Add stratified Type-3 and weak/semantic observational reports without
    pretending current srcMove supports strict Type-3/Type-4 classification.
 6. Version and enable the strict Type-3 oracle when srcMove exposes a stable

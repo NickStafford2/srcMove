@@ -89,7 +89,8 @@ No token, judgment, or confidence minimum is applied. The manifest reports
 sub-50-token coverage explicitly. Reverse-direction rows remain attached to the
 selected frame with their multiplicity and are marked as execution exclusions.
 Reusing a selection validates all artifact checksums. Phase 3 materializes a
-Type-1 or Type-2 selection directly from the compiled fragment store:
+Type-1, Type-2, or known-false-positive selection directly from the compiled
+fragment store:
 
 ```bash
 make bigclonebench-snapshot \
@@ -101,9 +102,31 @@ verifies each selected fragment object, and writes generated old/new Java files
 straight into the shared content-addressed input snapshot. Synthetic class names
 derive from fragment-content identity, and all contributing rows remain in each
 case's snapshot metadata. The mutable `benchmarks/bigclonebench/cases/` tree is
-not read or written. Known-false-positive snapshots and
-`make bigclonebench-suite` remain subsequent phases in the
-[suite plan](../../doc/plans/benchmarks/README.md).
+not read or written.
+
+## Combined Suite
+
+Run every currently supported pair set without copying any dataset, selection,
+snapshot, or corpus identifier:
+
+```bash
+make bigclonebench-suite MODE=sample
+make bigclonebench-suite MODE=census
+```
+
+The command compiles or reuses the dataset, publishes or reuses a deterministic
+selection for Type 1, Type 2, and known false positives, reuses immutable
+snapshots and srcDiff corpora when their inputs and tool identity are unchanged,
+then creates a separate srcMove evaluation for each pair set. Results are never
+blended into one accuracy percentage. Combined run metadata is saved below
+`benchmark-data/bigclonebench/suite-runs/` and links to each append-only
+evaluation run.
+
+Use `ROLE=tuning|evaluation`, `SEED=<integer>`, `SAMPLE_SIZE=<count>`, and
+`VERIFY_SOURCE=1` as needed. Full source verification rehashes the original H2
+database, H2 driver, and selected Java sources before accepting a compiled
+cache. The compile, select, snapshot, corpus, and evaluate commands remain
+available as debugging interfaces.
 
 The workflow keeps generated sources, reusable srcDiff XML, and srcMove runs
 separate. Generate a deterministic tuning slice:

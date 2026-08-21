@@ -71,7 +71,7 @@ class CompiledBigCloneBenchAdapter:
     """Materialize Phase 2 selections directly from the compiled fragment store."""
 
     name = "bigclonebench"
-    version = 3
+    version = 4
 
     def __init__(
         self,
@@ -92,12 +92,22 @@ class CompiledBigCloneBenchAdapter:
 
         request = self.selection_manifest["request"]
         pair_set = request.get("pair_set")
-        if pair_set not in {"type1", "type2"}:
+        if pair_set not in {"type1", "type2", "known-false-positive"}:
             raise ValueError(
-                "compiled snapshot materialization currently supports only "
-                "Type 1 and Type 2 selections"
+                "compiled snapshot materialization supports only Type 1, "
+                "Type 2, and known-false-positive selections"
             )
-        self.syntactic_type = int(str(pair_set).removeprefix("type"))
+        self.pair_set = str(pair_set)
+        self.case_kind = (
+            "known_false_positive"
+            if pair_set == "known-false-positive"
+            else "positive"
+        )
+        self.syntactic_type = (
+            None
+            if self.case_kind == "known_false_positive"
+            else int(str(pair_set).removeprefix("type"))
+        )
         self.compiled = load_compiled_dataset(
             request["compiled_dataset_id"],
             data_root=self.data_root,
@@ -208,18 +218,68 @@ class CompiledBigCloneBenchAdapter:
         rows = frame.get("rows")
         if not isinstance(rows, list) or not rows:
             raise ValueError("selection frame contains no contributing rows")
+        expected_pair_kind = (
+            "known_false_positive"
+            if self.case_kind == "known_false_positive"
+            else "positive"
+        )
         if any(
             not isinstance(row, Mapping)
-            or row.get("syntactic_type") != self.syntactic_type
-            or row.get("pair_kind") != "positive"
+            or row.get("pair_kind") != expected_pair_kind
+            or (
+                self.syntactic_type is not None
+                and row.get("syntactic_type") != self.syntactic_type
+            )
             for row in rows
         ):
             raise ValueError("selection frame rows do not match the selected pair set")
+        syntactic_types = sorted(
+            {
+                int(row["syntactic_type"])
+                for row in rows
+                if isinstance(row.get("syntactic_type"), int)
+            }
+        )
+        representative_type = (
+            self.syntactic_type
+            if self.syntactic_type is not None
+            else syntactic_types[0] if syntactic_types else None
+        )
+        min_tokens = [
+            row.get("tokens", {}).get("min")
+            for row in rows
+            if isinstance(row.get("tokens"), Mapping)
+            and isinstance(row.get("tokens", {}).get("min"), int)
+        ]
+        functionality_ids = frame.get("functionality_ids", [])
+        function_ids = frame.get("function_ids", [])
         metadata = {
             "source": "BigCloneBench compiled selection",
-            "case_kind": "positive",
-            "clone_type": f"type{self.syntactic_type}",
-            "syntactic_type": self.syntactic_type,
+            "case_kind": self.case_kind,
+            "clone_type": (
+                "known_false_positive"
+                if self.case_kind == "known_false_positive"
+                else f"type{self.syntactic_type}"
+            ),
+            "syntactic_type": representative_type,
+            "syntactic_types": syntactic_types,
+            "min_tokens": min(min_tokens) if min_tokens else None,
+            "functionality_id": (
+                functionality_ids[0]
+                if isinstance(functionality_ids, list)
+                and len(functionality_ids) == 1
+                else None
+            ),
+            "function_id_one": (
+                function_ids[0]
+                if isinstance(function_ids, list) and function_ids
+                else None
+            ),
+            "function_id_two": (
+                function_ids[1]
+                if isinstance(function_ids, list) and len(function_ids) > 1
+                else None
+            ),
             "compiled_dataset_id": self.compiled.dataset_id,
             "selection_id": self.selection_manifest["selection_id"],
             "frame_id": frame.get("frame_id"),
@@ -237,7 +297,9 @@ class CompiledBigCloneBenchAdapter:
                 original_fragment, modified_fragment
             ),
             "expected": {
-                "move_count": 1,
+                "move_count": (
+                    0 if self.case_kind == "known_false_positive" else 1
+                ),
                 "from_raw_text": original_fragment,
                 "to_raw_text": modified_fragment,
                 "from_generated_text": generated_original,
@@ -280,6 +342,8 @@ class CompiledBigCloneBenchAdapter:
         return validate_srcdiff_semantics(case, srcdiff_xml)
 
     def source_manifest(self) -> dict[str, Any]:
+        request = self.selection_manifest["request"]
+        counts = self.selection_manifest["counts"]
         return {
             "dataset": "BigCloneBench",
             "compiled_dataset_id": self.compiled.dataset_id,
@@ -288,8 +352,36 @@ class CompiledBigCloneBenchAdapter:
             "selection_manifest_sha256": sha256_file(
                 self.selection_directory / "manifest.json"
             ),
-            "pair_set": self.selection_manifest["request"]["pair_set"],
+            "pair_set": request["pair_set"],
             "synthetic_wrapper_version": SYNTHETIC_WRAPPER_VERSION,
+            "selection": {
+                "clone_type": (
+                    "known_false_positive"
+                    if self.case_kind == "known_false_positive"
+                    else self.pair_set
+                ),
+                "case_kind": self.case_kind,
+                "dedupe": request["dedupe"],
+                "text_change": "any",
+                "min_tokens": None,
+                "min_judges": None,
+                "min_confidence": None,
+                "row_count_before_deduplication": counts[
+                    "eligible_source_rows"
+                ],
+                "distinct_raw_text_pair_count": counts["eligible_frames"],
+                "functionality_group_count": None,
+                "selection": {
+                    "id": self.selection_manifest["selection_id"],
+                    "role": request["role"],
+                    "method": request["mode"],
+                    "seed": (
+                        request["sample"]["seed"]
+                        if isinstance(request.get("sample"), Mapping)
+                        else None
+                    ),
+                },
+            },
         }
 
 
