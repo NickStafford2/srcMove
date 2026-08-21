@@ -23,6 +23,39 @@ without fetching or modifying anything:
 make bigclonebench-preflight
 ```
 
+## Compiled Dataset Cache
+
+Phase 1 of the combined suite compiles the external H2 data and referenced Java
+ranges into a srcMove-owned SQLite catalog plus a content-addressed fragment
+store. From `srcMove/`, compile the complete external pair frame once:
+
+```bash
+make bigclonebench-compile
+```
+
+The immutable dataset is stored below
+`benchmark-data/bigclonebench/compiled/<dataset-id>/`. A small lookup index lets
+later invocations reuse it after checking the database and selected source-file
+metadata. Reuse does not reopen H2, extract Java, or walk and hash every fragment.
+Publication verification can validate the full fragment store explicitly:
+
+```bash
+python3 benchmarks/bigclonebench/compile.py validate DATASET_ID \
+  --verification full
+```
+
+For a developer smoke test of the compiler itself, limit each source table:
+
+```bash
+make bigclonebench-compile COMPILE_LIMIT=10
+```
+
+The limit is part of dataset identity, so a smoke catalog cannot be mistaken for
+the complete frame. The compiled catalog is not yet consumed by the existing
+per-type case generator; direct snapshot materialization and
+`make bigclonebench-suite` are subsequent phases in the
+[suite plan](../../doc/plans/benchmarks/README.md).
+
 The workflow keeps generated sources, reusable srcDiff XML, and srcMove runs
 separate. Generate a deterministic tuning slice:
 

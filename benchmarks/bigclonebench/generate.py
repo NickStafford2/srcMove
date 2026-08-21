@@ -20,6 +20,10 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
         sys.path.insert(0, str(import_root))
 
 from benchmarks.progress import ProgressDisplay
+from benchmarks.bigclonebench.dataset import (
+    extract_lines,
+    source_path as resolve_source_path,
+)
 from support.tooling import format_process_failure, run_command
 
 BCE_DIR = SCRIPT_DIR / "data" / "BigCloneEval"
@@ -324,16 +328,6 @@ def load_clone_rows(
     ]
 
 
-def extract_lines(path: Path, startline: int, endline: int) -> str:
-    # BigCloneBench line ranges are LF-based. Some IJaDataset files contain
-    # standalone CR characters inside comments; splitlines() would count those
-    # as extra source lines and shift later fragments.
-    with path.open("r", encoding="utf-8", errors="replace", newline="") as source:
-        lines = source.read().split("\n")
-    fragment = [line.removesuffix("\r") for line in lines[startline - 1 : endline]]
-    return "\n".join(fragment).rstrip() + "\n"
-
-
 def indent_fragment(fragment: str) -> str:
     return "\n".join(f"  {line}" if line else "" for line in fragment.splitlines()) + "\n"
 
@@ -476,15 +470,7 @@ def append_block(lines: list[str], block: str) -> tuple[int, int]:
 
 
 def source_path(kind: str, name: str, functionality_id: int) -> Path:
-    ijadataset = BCE_DIR / "ijadataset"
-    flat = ijadataset / kind / name
-    if flat.is_file():
-        return flat
-
-    reduced = ijadataset / "bcb_reduced" / str(functionality_id) / kind / name
-    if reduced.is_file() or (ijadataset / "bcb_reduced").is_dir():
-        return reduced
-    return flat
+    return resolve_source_path(BCE_DIR, kind, name, functionality_id)
 
 
 def build_synthetic_move_sources(
