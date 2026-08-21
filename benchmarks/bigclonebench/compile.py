@@ -224,6 +224,13 @@ def main() -> int:
                     exports=exports,
                     compile_scope=scope,
                     java=java_identity(),
+                    progress_callback=lambda completed, total, fragments: (
+                        progress.set_total(total, completed=completed),
+                        progress.update(
+                            completed,
+                            detail=f"{fragments:,} unique fragments",
+                        ),
+                    ),
                 )
                 progress.finish(
                     f"{compiled.manifest['counts']['catalog_pair_rows']:,} catalog rows, "

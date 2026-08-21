@@ -12,7 +12,7 @@ import uuid
 from contextlib import closing
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 
 from benchmarks.bigclonebench.dataset import (
     EXTRACTION_POLICY_VERSION,
@@ -291,17 +291,31 @@ def _materialize_fragments(
     *,
     bce_dir: Path,
     staging: Path,
+    progress_callback: Callable[[int, int, int], None] | None = None,
 ) -> None:
     source_records: dict[Path, dict[str, Any]] = {}
     last_path: Path | None = None
     last_source_bytes = b""
+    total = int(
+        connection.execute("SELECT COUNT(*) FROM function_materializations").fetchone()[0]
+    )
+    unique_fragments = 0
+    if progress_callback is not None:
+        progress_callback(0, total, unique_fragments)
     rows = connection.execute(
         "SELECT m.functionality_id, f.function_id, f.source_type, f.source_name, "
         "f.start_line, f.end_line FROM function_materializations m "
         "JOIN functions f ON f.function_id = m.function_id "
         "ORDER BY f.source_type, f.source_name, m.functionality_id, f.function_id"
     )
-    for functionality_id, function_id, source_type, name, startline, endline in rows:
+    for completed, (
+        functionality_id,
+        function_id,
+        source_type,
+        name,
+        startline,
+        endline,
+    ) in enumerate(rows, start=1):
         path = source_path(bce_dir, source_type, name, functionality_id).resolve()
         source_root = (bce_dir / "ijadataset").resolve()
         expected_relative = (
@@ -320,6 +334,10 @@ def _materialize_fragments(
                 "extraction_error=? WHERE functionality_id=? AND function_id=?",
                 ("source file not found", functionality_id, function_id),
             )
+            if progress_callback is not None and (
+                completed % 1000 == 0 or completed == total
+            ):
+                progress_callback(completed, total, unique_fragments)
             continue
         if path == last_path:
             source_bytes = last_source_bytes
@@ -381,6 +399,10 @@ def _materialize_fragments(
                     function_id,
                 ),
             )
+            if progress_callback is not None and (
+                completed % 1000 == 0 or completed == total
+            ):
+                progress_callback(completed, total, unique_fragments)
             continue
         fragment_bytes = fragment.encode("utf-8")
         fragment_sha256 = hashlib.sha256(fragment_bytes).hexdigest()
@@ -396,6 +418,7 @@ def _materialize_fragments(
             ),
         ).rowcount
         if inserted:
+            unique_fragments += 1
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(fragment_bytes)
         else:
@@ -404,7 +427,10 @@ def _materialize_fragments(
                 "WHERE fragment_sha256=?",
                 (fragment_sha256,),
             ).fetchone()
-            if existing != (len(fragment_bytes), object_path.as_posix()):
+            if existing is None or tuple(existing) != (
+                len(fragment_bytes),
+                object_path.as_posix(),
+            ):
                 raise ValueError(f"fragment hash collision: {fragment_sha256}")
         connection.execute(
             "UPDATE function_materializations SET source_path=?, fragment_sha256=?, "
@@ -417,6 +443,11 @@ def _materialize_fragments(
                 function_id,
             ),
         )
+        if progress_callback is not None and (completed % 1000 == 0 or completed == total):
+            progress_callback(completed, total, unique_fragments)
+
+    if progress_callback is not None:
+        progress_callback(total, total, unique_fragments)
 
     # A global function should materialize to the same canonical fragment in
     # every functionality-specific reduced-corpus location where it appears.
@@ -554,6 +585,7 @@ def compile_exports(
     exports: Mapping[str, Path],
     compile_scope: Mapping[str, Any],
     java: Mapping[str, Any] | None = None,
+    progress_callback: Callable[[int, int, int], None] | None = None,
 ) -> VerifiedCompiledDataset:
     """Compile deterministic CSV exports into an immutable local dataset."""
 
@@ -582,7 +614,12 @@ def compile_exports(
                     "known_false_positive",
                 ),
             }
-            _materialize_fragments(connection, bce_dir=bce_dir, staging=staging)
+            _materialize_fragments(
+                connection,
+                bce_dir=bce_dir,
+                staging=staging,
+                progress_callback=progress_callback,
+            )
             counts = _counts(connection, imported)
             source_inventory_sha256 = _logical_inventory_sha256(
                 connection,

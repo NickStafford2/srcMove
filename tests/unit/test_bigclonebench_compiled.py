@@ -138,8 +138,14 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
         *,
         reverse_exports: bool = False,
         distinct_rows: bool = False,
+        identical_fragments: bool = False,
+        progress_callback=None,
     ):
         bce = self.create_bce(root)
+        if identical_fragments:
+            (bce / "ijadataset/bcb_reduced/7/sample/B.java").write_text(
+                "class B {\n  void alpha() {\n    callA();\n  }\n}\n"
+            )
         exports = root / "exports"
         exports.mkdir()
         positive_rows = [pair_row(), pair_row()]
@@ -161,6 +167,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             },
             compile_scope={"fixture": True, "external_only": True},
             java={"version": "fixture"},
+            progress_callback=progress_callback,
         )
         return bce, compiled
 
@@ -235,6 +242,21 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             load_compiled_dataset(compiled.directory, verification="catalog")
             with self.assertRaisesRegex(ValueError, "fragment checksum"):
                 load_compiled_dataset(compiled.directory, verification="full")
+
+    def test_distinct_functions_can_share_one_fragment_object(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            progress = []
+            _, compiled = self.compile_fixture(
+                Path(temporary),
+                identical_fragments=True,
+                progress_callback=lambda completed, total, fragments: progress.append(
+                    (completed, total, fragments)
+                ),
+            )
+            self.assertEqual(compiled.manifest["counts"]["unique_fragments"], 1)
+            self.assertEqual(compiled.manifest["counts"]["extracted_functions"], 2)
+            self.assertEqual(progress[0], (0, 2, 0))
+            self.assertEqual(progress[-1], (2, 2, 1))
 
     def test_full_upstream_verification_accepts_identical_copy(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
