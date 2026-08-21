@@ -12,8 +12,11 @@ int main(int argc, char **argv) {
     const srcmove::cli_options opts = srcmove::parse_cli(argc, argv);
 
     srcmove::profile_report profile;
+    srcmove::pipeline_options pipeline_options;
+    pipeline_options.verbose = opts.verbose;
+
     const srcmove::summary summ =
-        srcmove::run_pipeline(opts.input_path, opts.output_path,
+        srcmove::run_pipeline(opts.input_path, opts.output_path, pipeline_options,
                               opts.profile ? &profile : nullptr);
 
     if (!opts.results_path.empty()) {

@@ -17,8 +17,13 @@ namespace srcmove {
 
 class profile_report;
 
+struct pipeline_options {
+  bool verbose = false;
+};
+
 summary run_pipeline(const std::string &srcdiff_in_filename,
                      const std::string &srcdiff_out_filename,
+                     const pipeline_options &options = {},
                      profile_report    *profile = nullptr);
 
 } // namespace srcmove

@@ -30,6 +30,11 @@ In short: improve documentation when you learn something useful, but write each
 durable fact once in the correct place. Link to the canonical doc instead of
 repeating the same information.
 
+This checkout is normally developed inside the parent `srcMLBuildTemplate`
+workspace, not as a standalone tree. The canonical workspace layout,
+dependency order, and Docker/macOS workflow are documented in the parent
+workspace at `../docs/workspace.md`.
+
 ## Testing
 
 - Use `make build` and `make test` as the public developer entry points.
