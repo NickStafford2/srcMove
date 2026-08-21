@@ -31,17 +31,19 @@ bin/srcmove-history run --pairs 500
 bin/srcmove-history status
 bin/srcmove-history list --failed
 bin/srcmove-history show 1
+bin/srcmove-history compare COMMIT --save all
 bin/srcmove-history compare OLD NEW --save all
 ```
 
 `run` creates, resumes, or extends the same analysis. There are no public
 `start`, `resume`, or `continue-older` state machines.
 
-`compare` runs the same changed-path inventory and pair executor for any two
-explicit commits, but does not publish an invocation, pair outcome, coverage,
-or move evidence to SQLite. It uses the analysis's frozen configuration and
-admitted executables. `--save all` copies `srcdiff.xml`, `srcmove.xml`, and
-`results.json` to
+`compare COMMIT` analyzes the commit against its first parent. Supplying
+`compare OLD NEW` instead analyzes any explicit pair. Both forms run the same
+changed-path inventory and pair executor without publishing an invocation,
+pair outcome, coverage, or move evidence to SQLite. They use the analysis's
+frozen configuration and admitted executables. `--save all` copies
+`srcdiff.xml`, `srcmove.xml`, and `results.json` to
 `.srcmove/comparisons/<old-object-id>-to-<new-object-id>/`; `srcdiff` and
 `srcmove` copy only their respective artifact families. The selection controls
 retention, not execution: srcMove still runs after a successful srcDiff

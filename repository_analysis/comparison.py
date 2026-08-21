@@ -36,7 +36,7 @@ def compare_commits(
     analysis_root: Path,
     repository: Path,
     old_revision: str,
-    new_revision: str,
+    new_revision: str | None,
     save: str,
 ) -> ComparisonResult:
     """Execute and save one pair while leaving SQLite and coverage untouched."""
@@ -65,8 +65,17 @@ def compare_commits(
             srcdiff=observe_executable(frozen.srcdiff.resolved_path),
             srcmove=observe_executable(frozen.srcmove.resolved_path),
         )
-        old_commit = resolve_commit(requested_repository, old_revision)
-        new_commit = resolve_commit(requested_repository, new_revision)
+        if new_revision is None:
+            new_commit = resolve_commit(requested_repository, old_revision)
+            try:
+                old_commit = resolve_commit(requested_repository, f"{new_commit}^1")
+            except RuntimeError as error:
+                raise ValueError(
+                    f"commit has no first parent: {new_commit}"
+                ) from error
+        else:
+            old_commit = resolve_commit(requested_repository, old_revision)
+            new_commit = resolve_commit(requested_repository, new_revision)
         item = _comparison_item(manifest, old_commit, new_commit)
         scratch = root / "scratch" / f"compare-{operation.invocation_id}"
         executor = PairExecutor(scratch)

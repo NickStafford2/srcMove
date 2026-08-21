@@ -183,6 +183,88 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                     expected,
                 )
 
+    def test_compare_single_commit_uses_its_first_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 3)
+            self._init(repository, excluded_suffixes=())
+            commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
+            self.assertEqual(
+                self._main(
+                    [
+                        "-C",
+                        str(repository),
+                        "run",
+                        "--pairs",
+                        "1",
+                        "--srcdiff",
+                        str(fake_executable(root / "srcdiff")),
+                        "--srcmove",
+                        str(fake_executable(root / "srcmove")),
+                        "--progress",
+                        "never",
+                    ]
+                )[0],
+                0,
+            )
+
+            status, output, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "compare",
+                    commits[1],
+                    "--save",
+                    "all",
+                    "--format",
+                    "json",
+                ]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            comparison = json.loads(output)["comparison"]
+            self.assertEqual(comparison["old_commit"], commits[0])
+            self.assertEqual(comparison["new_commit"], commits[1])
+
+    def test_compare_rejects_a_root_commit_without_a_first_parent(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 2)
+            self._init(repository, excluded_suffixes=())
+            commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
+            self.assertEqual(
+                self._main(
+                    [
+                        "-C",
+                        str(repository),
+                        "run",
+                        "--pairs",
+                        "1",
+                        "--srcdiff",
+                        str(fake_executable(root / "srcdiff")),
+                        "--srcmove",
+                        str(fake_executable(root / "srcmove")),
+                        "--progress",
+                        "never",
+                    ]
+                )[0],
+                0,
+            )
+
+            status, _, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "compare",
+                    commits[0],
+                    "--save",
+                    "all",
+                ]
+            )
+
+            self.assertEqual(status, 2)
+            self.assertIn("commit has no first parent", error)
+
     def test_run_status_list_and_show_use_one_idempotent_interface(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

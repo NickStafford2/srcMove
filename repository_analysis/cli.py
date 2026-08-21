@@ -138,8 +138,17 @@ def build_parser() -> argparse.ArgumentParser:
             "coverage or canonical results."
         ),
     )
-    compare.add_argument("old", metavar="OLD")
-    compare.add_argument("new", metavar="NEW")
+    compare.add_argument(
+        "old",
+        metavar="COMMIT_OR_OLD",
+        help="commit to inspect, or the old revision when NEW is supplied",
+    )
+    compare.add_argument(
+        "new",
+        nargs="?",
+        metavar="NEW",
+        help="optional new revision; defaults to COMMIT_OR_OLD with its first parent",
+    )
     compare.add_argument(
         "--save",
         choices=("all", "srcdiff", "srcmove"),
