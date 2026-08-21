@@ -29,6 +29,8 @@ QUERY_SCHEMA_VERSION = 1
 PAIR_IDENTITY_VERSION = 1
 SQLITE_APPLICATION_ID = 0x42434231
 SQLITE_USER_VERSION = 2
+IMPORT_BATCH_SIZE = 10_000
+CompileProgressCallback = Callable[[str, str, int, int | None, str], None]
 
 
 @dataclass(frozen=True)
@@ -156,7 +158,15 @@ CREATE TABLE pair_rows (
     CHECK (source_status IN ('pending', 'available', 'unavailable')),
   UNIQUE (pair_kind, source_row_hash)
 ) STRICT;
+"""
+    )
 
+
+def _create_indexes(connection: sqlite3.Connection) -> None:
+    """Build read indexes after bulk loading and finalization."""
+
+    connection.executescript(
+        """
 CREATE INDEX pair_selection_idx
   ON pair_rows(pair_kind, syntactic_type, min_tokens, min_judges, min_confidence);
 CREATE INDEX pair_functionality_idx ON pair_rows(functionality_id);
@@ -168,6 +178,18 @@ CREATE INDEX materialization_fragment_idx
   ON function_materializations(fragment_sha256);
 """
     )
+
+
+def _report_progress(
+    callback: CompileProgressCallback | None,
+    event: str,
+    phase: str,
+    completed: int,
+    total: int | None,
+    detail: str,
+) -> None:
+    if callback is not None:
+        callback(event, phase, completed, total, detail)
 
 
 def _function_value(row: Mapping[str, str], side: str) -> tuple[Any, ...]:
@@ -182,33 +204,20 @@ def _function_value(row: Mapping[str, str], side: str) -> tuple[Any, ...]:
     )
 
 
-def _upsert_function(
-    connection: sqlite3.Connection,
+def _remember_function(
+    functions: dict[int, tuple[Any, ...]],
+    materializations: set[tuple[int, int]],
     row: Mapping[str, str],
     side: str,
     functionality_id: int,
 ) -> None:
     function_id = int(row[f"function_id_{side}"])
     values = _function_value(row, side)
-    existing = connection.execute(
-        "SELECT source_type, source_name, start_line, end_line, project, tokens, internal "
-        "FROM functions WHERE function_id = ?",
-        (function_id,),
-    ).fetchone()
-    if existing is not None and tuple(existing) != values:
+    existing = functions.get(function_id)
+    if existing is not None and existing != values:
         raise ValueError(f"conflicting metadata for BigCloneBench function {function_id}")
-    connection.execute(
-        "INSERT OR IGNORE INTO functions "
-        "(function_id, source_type, source_name, start_line, end_line, project, tokens, internal) "
-        "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-        (function_id, *values),
-    )
-    connection.execute(
-        "INSERT OR IGNORE INTO function_materializations "
-        "(functionality_id, function_id, expected_source_path, extraction_status) "
-        "VALUES (?, ?, '', 'pending')",
-        (functionality_id, function_id),
-    )
+    functions[function_id] = values
+    materializations.add((functionality_id, function_id))
 
 
 def _pair_values(row: Mapping[str, str], pair_kind: str) -> tuple[Any, ...]:
@@ -246,8 +255,32 @@ def _import_export(
     connection: sqlite3.Connection,
     export_path: Path,
     pair_kind: str,
+    *,
+    functions: dict[int, tuple[Any, ...]],
+    materializations: set[tuple[int, int]],
+    progress_callback: CompileProgressCallback | None,
+    imported_before: int,
 ) -> int:
     imported = 0
+    pair_batch: list[tuple[Any, ...]] = []
+
+    def flush_pairs() -> None:
+        if not pair_batch:
+            return
+        connection.executemany(
+            "INSERT INTO pair_rows "
+            "(pair_kind, source_row_hash, source_row_multiplicity, functionality_id, "
+            "function_id_one, function_id_two, pair_type, syntactic_type, similarity_line, "
+            "similarity_token, min_size, max_size, min_pretty_size, max_pretty_size, "
+            "min_tokens, max_tokens, min_judges, min_confidence, pair_internal) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+            "ON CONFLICT(pair_kind, source_row_hash) DO UPDATE SET "
+            "source_row_multiplicity = source_row_multiplicity + "
+            "excluded.source_row_multiplicity",
+            pair_batch,
+        )
+        pair_batch.clear()
+
     with export_path.open(encoding="utf-8", newline="") as stream:
         reader = csv.DictReader(stream)
         if reader.fieldnames is None:
@@ -255,8 +288,12 @@ def _import_export(
         for raw_row in reader:
             row = _normalized_row(raw_row)
             functionality_id = int(row["functionality_id"])
-            _upsert_function(connection, row, "one", functionality_id)
-            _upsert_function(connection, row, "two", functionality_id)
+            _remember_function(
+                functions, materializations, row, "one", functionality_id
+            )
+            _remember_function(
+                functions, materializations, row, "two", functionality_id
+            )
             values = _pair_values(row, pair_kind)
             row_hash = hashlib.sha256(
                 canonical_json(
@@ -266,19 +303,20 @@ def _import_export(
                     }
                 )
             ).hexdigest()
-            connection.execute(
-                "INSERT INTO pair_rows "
-                "(pair_kind, source_row_hash, functionality_id, function_id_one, "
-                "function_id_two, pair_type, syntactic_type, similarity_line, "
-                "similarity_token, min_size, max_size, min_pretty_size, "
-                "max_pretty_size, min_tokens, max_tokens, min_judges, "
-                "min_confidence, pair_internal) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
-                "ON CONFLICT(pair_kind, source_row_hash) DO UPDATE SET "
-                "source_row_multiplicity = source_row_multiplicity + 1",
-                (pair_kind, row_hash, *values),
-            )
+            pair_batch.append((pair_kind, row_hash, 1, *values))
             imported += 1
+            if len(pair_batch) >= IMPORT_BATCH_SIZE:
+                flush_pairs()
+                _report_progress(
+                    progress_callback,
+                    "update",
+                    "import",
+                    imported_before + imported,
+                    None,
+                    f"{pair_kind.replace('_', '-')}: "
+                    f"{imported:,} rows ({imported_before + imported:,} total)",
+                )
+    flush_pairs()
     return imported
 
 
@@ -291,7 +329,7 @@ def _materialize_fragments(
     *,
     bce_dir: Path,
     staging: Path,
-    progress_callback: Callable[[int, int, int], None] | None = None,
+    progress_callback: CompileProgressCallback | None = None,
 ) -> None:
     source_records: dict[Path, dict[str, Any]] = {}
     last_path: Path | None = None
@@ -300,8 +338,10 @@ def _materialize_fragments(
         connection.execute("SELECT COUNT(*) FROM function_materializations").fetchone()[0]
     )
     unique_fragments = 0
-    if progress_callback is not None:
-        progress_callback(0, total, unique_fragments)
+    fragment_records: dict[str, tuple[int, str]] = {}
+    _report_progress(
+        progress_callback, "start", "fragments", 0, total, "0 unique fragments"
+    )
     rows = connection.execute(
         "SELECT m.functionality_id, f.function_id, f.source_type, f.source_name, "
         "f.start_line, f.end_line FROM function_materializations m "
@@ -334,10 +374,15 @@ def _materialize_fragments(
                 "extraction_error=? WHERE functionality_id=? AND function_id=?",
                 ("source file not found", functionality_id, function_id),
             )
-            if progress_callback is not None and (
-                completed % 1000 == 0 or completed == total
-            ):
-                progress_callback(completed, total, unique_fragments)
+            if completed % 1000 == 0 or completed == total:
+                _report_progress(
+                    progress_callback,
+                    "update",
+                    "fragments",
+                    completed,
+                    total,
+                    f"{unique_fragments:,} unique fragments",
+                )
             continue
         if path == last_path:
             source_bytes = last_source_bytes
@@ -399,39 +444,38 @@ def _materialize_fragments(
                     function_id,
                 ),
             )
-            if progress_callback is not None and (
-                completed % 1000 == 0 or completed == total
-            ):
-                progress_callback(completed, total, unique_fragments)
+            if completed % 1000 == 0 or completed == total:
+                _report_progress(
+                    progress_callback,
+                    "update",
+                    "fragments",
+                    completed,
+                    total,
+                    f"{unique_fragments:,} unique fragments",
+                )
             continue
         fragment_bytes = fragment.encode("utf-8")
         fragment_sha256 = hashlib.sha256(fragment_bytes).hexdigest()
         object_path = _fragment_object_path(fragment_sha256)
         target = staging / object_path
-        inserted = connection.execute(
-            "INSERT OR IGNORE INTO fragments VALUES (?, ?, ?, ?)",
-            (
-                fragment_sha256,
-                len(fragment_bytes),
-                len(fragment.splitlines()),
-                object_path.as_posix(),
-            ),
-        ).rowcount
-        if inserted:
+        metadata = (len(fragment_bytes), object_path.as_posix())
+        existing = fragment_records.get(fragment_sha256)
+        if existing is None:
+            fragment_records[fragment_sha256] = metadata
             unique_fragments += 1
+            connection.execute(
+                "INSERT INTO fragments VALUES (?, ?, ?, ?)",
+                (
+                    fragment_sha256,
+                    len(fragment_bytes),
+                    len(fragment.splitlines()),
+                    object_path.as_posix(),
+                ),
+            )
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(fragment_bytes)
-        else:
-            existing = connection.execute(
-                "SELECT size_bytes, object_path FROM fragments "
-                "WHERE fragment_sha256=?",
-                (fragment_sha256,),
-            ).fetchone()
-            if existing is None or tuple(existing) != (
-                len(fragment_bytes),
-                object_path.as_posix(),
-            ):
-                raise ValueError(f"fragment hash collision: {fragment_sha256}")
+        elif existing != metadata:
+            raise ValueError(f"fragment hash collision: {fragment_sha256}")
         connection.execute(
             "UPDATE function_materializations SET source_path=?, fragment_sha256=?, "
             "extraction_status='success', extraction_error=NULL "
@@ -443,11 +487,24 @@ def _materialize_fragments(
                 function_id,
             ),
         )
-        if progress_callback is not None and (completed % 1000 == 0 or completed == total):
-            progress_callback(completed, total, unique_fragments)
+        if completed % 1000 == 0 or completed == total:
+            _report_progress(
+                progress_callback,
+                "update",
+                "fragments",
+                completed,
+                total,
+                f"{unique_fragments:,} unique fragments",
+            )
 
-    if progress_callback is not None:
-        progress_callback(total, total, unique_fragments)
+    _report_progress(
+        progress_callback,
+        "finish",
+        "fragments",
+        total,
+        total,
+        f"{unique_fragments:,} unique fragments",
+    )
 
     # A global function should materialize to the same canonical fragment in
     # every functionality-specific reduced-corpus location where it appears.
@@ -461,41 +518,52 @@ def _materialize_fragments(
             f"function {conflicts[0]} materialized to conflicting source fragments"
         )
 
-    pair_rows = connection.execute(
-        "SELECT p.pair_id, m1.fragment_sha256, m2.fragment_sha256 "
-        "FROM pair_rows p "
-        "LEFT JOIN function_materializations m1 ON "
-        "m1.functionality_id=p.functionality_id AND m1.function_id=p.function_id_one "
-        "LEFT JOIN function_materializations m2 ON "
-        "m2.functionality_id=p.functionality_id AND m2.function_id=p.function_id_two"
+    pair_total = int(connection.execute("SELECT COUNT(*) FROM pair_rows").fetchone()[0])
+    _report_progress(
+        progress_callback, "start", "pairs", 0, pair_total, "assigning identities"
     )
-    for pair_id, fragment_one, fragment_two in pair_rows:
-        if fragment_one is None or fragment_two is None:
-            connection.execute(
-                "UPDATE pair_rows SET source_status='unavailable' WHERE pair_id=?",
-                (pair_id,),
-            )
-            continue
-        ordered = content_identifier(
-            "bcb-ordered-pair", {"one": fragment_one, "two": fragment_two}
-        )
-        low, high = sorted((fragment_one, fragment_two))
-        unordered = content_identifier(
-            "bcb-unordered-pair", {"low": low, "high": high}
-        )
-        direction = (
-            "equal"
-            if fragment_one == fragment_two
-            else "forward"
-            if fragment_one == low
-            else "reverse"
-        )
-        connection.execute(
-            "UPDATE pair_rows SET fragment_one_sha256=?, fragment_two_sha256=?, "
-            "ordered_pair_id=?, unordered_pair_id=?, canonical_direction=?, "
-            "source_status='available' WHERE pair_id=?",
-            (fragment_one, fragment_two, ordered, unordered, direction, pair_id),
-        )
+    connection.create_function(
+        "bcb_ordered_pair_id",
+        2,
+        lambda one, two: content_identifier(
+            "bcb-ordered-pair", {"one": one, "two": two}
+        ),
+        deterministic=True,
+    )
+    connection.create_function(
+        "bcb_unordered_pair_id",
+        2,
+        lambda one, two: content_identifier(
+            "bcb-unordered-pair", {"low": min(one, two), "high": max(one, two)}
+        ),
+        deterministic=True,
+    )
+    connection.execute("UPDATE pair_rows SET source_status='unavailable'")
+    connection.execute(
+        "UPDATE pair_rows AS p SET "
+        "fragment_one_sha256=m1.fragment_sha256, "
+        "fragment_two_sha256=m2.fragment_sha256, "
+        "ordered_pair_id=bcb_ordered_pair_id(m1.fragment_sha256, m2.fragment_sha256), "
+        "unordered_pair_id=bcb_unordered_pair_id(m1.fragment_sha256, m2.fragment_sha256), "
+        "canonical_direction=CASE "
+        "WHEN m1.fragment_sha256=m2.fragment_sha256 THEN 'equal' "
+        "WHEN m1.fragment_sha256<m2.fragment_sha256 THEN 'forward' ELSE 'reverse' END, "
+        "source_status='available' "
+        "FROM function_materializations AS m1, function_materializations AS m2 "
+        "WHERE m1.functionality_id=p.functionality_id "
+        "AND m1.function_id=p.function_id_one "
+        "AND m2.functionality_id=p.functionality_id "
+        "AND m2.function_id=p.function_id_two "
+        "AND m1.fragment_sha256 IS NOT NULL AND m2.fragment_sha256 IS NOT NULL"
+    )
+    _report_progress(
+        progress_callback,
+        "finish",
+        "pairs",
+        pair_total,
+        pair_total,
+        "identities assigned",
+    )
 
 
 def _logical_inventory_sha256(
@@ -585,7 +653,7 @@ def compile_exports(
     exports: Mapping[str, Path],
     compile_scope: Mapping[str, Any],
     java: Mapping[str, Any] | None = None,
-    progress_callback: Callable[[int, int, int], None] | None = None,
+    progress_callback: CompileProgressCallback | None = None,
 ) -> VerifiedCompiledDataset:
     """Compile deterministic CSV exports into an immutable local dataset."""
 
@@ -606,19 +674,88 @@ def compile_exports(
         connection.row_factory = sqlite3.Row
         try:
             _schema(connection)
+            # Pair rows arrive before the deduplicated function inventory is
+            # complete. Defer FK enforcement during this single staging
+            # transaction, then verify the finished catalog before publishing.
+            connection.execute("PRAGMA foreign_keys = OFF")
+            functions: dict[int, tuple[Any, ...]] = {}
+            materializations: set[tuple[int, int]] = set()
+            _report_progress(
+                progress_callback, "start", "import", 0, None, "importing positive pairs"
+            )
+            positive_imported = _import_export(
+                connection,
+                exports["positive"],
+                "positive",
+                functions=functions,
+                materializations=materializations,
+                progress_callback=progress_callback,
+                imported_before=0,
+            )
+            _report_progress(
+                progress_callback,
+                "update",
+                "import",
+                positive_imported,
+                None,
+                f"positive: {positive_imported:,} rows; importing known-false-positive pairs",
+            )
+            false_positive_imported = _import_export(
+                connection,
+                exports["known_false_positive"],
+                "known_false_positive",
+                functions=functions,
+                materializations=materializations,
+                progress_callback=progress_callback,
+                imported_before=positive_imported,
+            )
             imported = {
-                "positive": _import_export(connection, exports["positive"], "positive"),
-                "known_false_positive": _import_export(
-                    connection,
-                    exports["known_false_positive"],
-                    "known_false_positive",
-                ),
+                "positive": positive_imported,
+                "known_false_positive": false_positive_imported,
             }
+            connection.executemany(
+                "INSERT INTO functions "
+                "(function_id, source_type, source_name, start_line, end_line, "
+                "project, tokens, internal) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                ((function_id, *values) for function_id, values in functions.items()),
+            )
+            connection.executemany(
+                "INSERT INTO function_materializations "
+                "(functionality_id, function_id, expected_source_path, extraction_status) "
+                "VALUES (?, ?, '', 'pending')",
+                sorted(materializations),
+            )
+            total_imported = sum(imported.values())
+            _report_progress(
+                progress_callback,
+                "finish",
+                "import",
+                total_imported,
+                total_imported,
+                f"{positive_imported:,} positive, "
+                f"{false_positive_imported:,} known false positive, "
+                f"{len(functions):,} functions",
+            )
             _materialize_fragments(
                 connection,
                 bce_dir=bce_dir,
                 staging=staging,
                 progress_callback=progress_callback,
+            )
+            _report_progress(
+                progress_callback, "start", "index", 0, None, "building read indexes"
+            )
+            _create_indexes(connection)
+            _report_progress(
+                progress_callback, "finish", "index", 1, 1, "read indexes built"
+            )
+            _report_progress(
+                progress_callback,
+                "start",
+                "finalize",
+                0,
+                None,
+                "hashing and validating publication",
             )
             counts = _counts(connection, imported)
             source_inventory_sha256 = _logical_inventory_sha256(
@@ -736,6 +873,14 @@ def compile_exports(
         if final.exists():
             verified = load_compiled_dataset(final, verification="full")
             shutil.rmtree(staging)
+            _report_progress(
+                progress_callback,
+                "finish",
+                "finalize",
+                1,
+                1,
+                "validated existing publication",
+            )
             return verified
         try:
             os.replace(staging, final)
@@ -745,8 +890,26 @@ def compile_exports(
             if not final.is_dir():
                 raise
             shutil.rmtree(staging)
-            return load_compiled_dataset(final, verification="full")
-        return load_compiled_dataset(final, verification="full")
+            verified = load_compiled_dataset(final, verification="full")
+            _report_progress(
+                progress_callback,
+                "finish",
+                "finalize",
+                1,
+                1,
+                "validated concurrent publication",
+            )
+            return verified
+        verified = load_compiled_dataset(final, verification="full")
+        _report_progress(
+            progress_callback,
+            "finish",
+            "finalize",
+            1,
+            1,
+            "published and fully validated",
+        )
+        return verified
     except BaseException:
         if staging.exists():
             shutil.rmtree(staging)

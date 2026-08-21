@@ -9,8 +9,14 @@ import tempfile
 import unittest
 from contextlib import closing
 from pathlib import Path
+from unittest.mock import patch
 
 
+from benchmarks.bigclonebench.compile import (
+    _false_positive_query,
+    _positive_query,
+    cached_or_export_h2,
+)
 from benchmarks.bigclonebench.compiled import (
     compile_exports,
     find_reusable_compiled_dataset,
@@ -249,14 +255,25 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             _, compiled = self.compile_fixture(
                 Path(temporary),
                 identical_fragments=True,
-                progress_callback=lambda completed, total, fragments: progress.append(
-                    (completed, total, fragments)
+                progress_callback=lambda event, phase, completed, total, detail: progress.append(
+                    (event, phase, completed, total, detail)
                 ),
             )
             self.assertEqual(compiled.manifest["counts"]["unique_fragments"], 1)
             self.assertEqual(compiled.manifest["counts"]["extracted_functions"], 2)
-            self.assertEqual(progress[0], (0, 2, 0))
-            self.assertEqual(progress[-1], (2, 2, 1))
+            phases = [(event, phase) for event, phase, *_ in progress]
+            self.assertIn(("start", "import"), phases)
+            self.assertIn(("finish", "fragments"), phases)
+            self.assertIn(("finish", "pairs"), phases)
+            self.assertIn(("finish", "index"), phases)
+            self.assertIn(("finish", "finalize"), phases)
+            fragment_finish = next(
+                item
+                for item in progress
+                if item[0:2] == ("finish", "fragments")
+            )
+            self.assertEqual(fragment_finish[2:4], (2, 2))
+            self.assertEqual(fragment_finish[4], "1 unique fragments")
 
     def test_full_upstream_verification_accepts_identical_copy(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -345,6 +362,61 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
                 Path(right_temporary), reverse_exports=True, distinct_rows=True
             )
             self.assertEqual(left.dataset_id, right.dataset_id)
+
+    def test_full_exports_skip_unneeded_global_ordering(self) -> None:
+        self.assertNotIn("ORDER BY", _positive_query(None))
+        self.assertNotIn("ORDER BY", _false_positive_query(None))
+        self.assertIn("ORDER BY", _positive_query(10))
+        self.assertIn("LIMIT 10", _false_positive_query(10))
+
+    def test_checked_exports_survive_catalog_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            bce = self.create_bce(root)
+            data_root = root / "data"
+            scope = {"fixture": True, "limit_per_kind": None}
+            activity = []
+
+            def fake_export(export_dir, *, bce_dir, limit_per_kind):
+                self.assertEqual(bce_dir, bce)
+                self.assertIsNone(limit_per_kind)
+                export_dir.mkdir(parents=True, exist_ok=True)
+                positive = export_dir / "positive.csv"
+                false_positive = export_dir / "known_false_positive.csv"
+                positive.write_text("positive\n")
+                false_positive.write_text("false\n")
+                return {
+                    "positive": positive,
+                    "known_false_positive": false_positive,
+                }
+
+            with patch(
+                "benchmarks.bigclonebench.compile.export_h2",
+                side_effect=fake_export,
+            ) as export:
+                first, cache, reused = cached_or_export_h2(
+                    data_root=data_root,
+                    bce_dir=bce,
+                    compile_scope=scope,
+                    limit_per_kind=None,
+                    activity_callback=activity.append,
+                )
+                second, second_cache, second_reused = cached_or_export_h2(
+                    data_root=data_root,
+                    bce_dir=bce,
+                    compile_scope=scope,
+                    limit_per_kind=None,
+                    activity_callback=activity.append,
+                )
+
+            self.assertFalse(reused)
+            self.assertTrue(second_reused)
+            self.assertEqual(cache, second_cache)
+            self.assertEqual(first, second)
+            self.assertEqual(export.call_count, 1)
+            self.assertIn("querying H2 serially", activity)
+            self.assertIn("checksumming positive export", activity)
+            self.assertIn("verifying saved positive export", activity)
 
 
 if __name__ == "__main__":

@@ -37,6 +37,11 @@ The immutable dataset is stored below
 `benchmark-data/bigclonebench/compiled/<dataset-id>/`. A small lookup index lets
 later invocations reuse it after checking the database and selected source-file
 metadata. Reuse does not reopen H2, extract Java, or walk and hash every fragment.
+If catalog compilation fails or is interrupted after H2 export, checked exports
+remain below `benchmark-data/bigclonebench/work/`; the next identical compile
+reuses them. Successful publication removes that temporary work cache. Progress
+is reported separately for import, fragment extraction, pair identity, and index
+construction, followed by publication validation.
 Publication verification can validate the full fragment store explicitly:
 
 ```bash
