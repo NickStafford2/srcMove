@@ -15,7 +15,7 @@ VERIFY_SOURCE ?= 0
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 BIGCLONEBENCH_SELECTION = $(if $(filter 1 yes true,$(KNOWN_FALSE_POSITIVES))$(filter known-false-positive,$(CLONE_TYPE)),--known-false-positives,--clone-type "$(CLONE_TYPE)")
 
-.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source test-policy benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-compile bigclonebench-select bigclonebench-snapshot bigclonebench-suite bigclonebench-cases bigclonebench
+.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source test-policy benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-compile bigclonebench-conflicts bigclonebench-select bigclonebench-snapshot bigclonebench-suite bigclonebench-cases bigclonebench
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -32,6 +32,7 @@ help:
 	@printf '  %-28s %s\n' 'make history-results' 'Show moves from the latest repository history'
 	@printf '  %-28s %s\n' 'make bigclonebench-preflight' 'Check the local BigCloneBench installation'
 	@printf '  %-28s %s\n' 'make bigclonebench-compile' 'Compile or reuse the local BigCloneBench catalog'
+	@printf '  %-28s %s\n' 'make bigclonebench-conflicts' 'Explain content identities excluded for conflicting labels'
 	@printf '  %-28s %s\n' 'make bigclonebench-select' 'Publish a selection from the compiled catalog'
 	@printf '  %-28s %s\n' 'make bigclonebench-snapshot' 'Materialize an immutable compiled-selection snapshot'
 	@printf '  %-28s %s\n' 'make bigclonebench-suite' 'Run Type 1, Type 2, and known-false-positive pair sets'
@@ -115,6 +116,12 @@ bigclonebench-compile:
 	@$(PYTHON) benchmarks/bigclonebench/compile.py \
 		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" compile \
 		$(if $(COMPILE_LIMIT),--limit-per-kind "$(COMPILE_LIMIT)")
+
+bigclonebench-conflicts:
+	@$(PYTHON) benchmarks/bigclonebench/conflicts.py \
+		$(if $(BIGCLONEBENCH_DATASET),"$(BIGCLONEBENCH_DATASET)") \
+		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" \
+		$(if $(CONFLICT_LIMIT),--limit "$(CONFLICT_LIMIT)")
 
 bigclonebench-select:
 	@test -n "$(BIGCLONEBENCH_DATASET)" || { echo 'error: BIGCLONEBENCH_DATASET is required'; exit 2; }

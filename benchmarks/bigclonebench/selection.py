@@ -33,7 +33,7 @@ from benchmarks.provenance import sha256_file, utc_now
 
 
 SELECTION_SCHEMA_VERSION = 1
-SELECTOR_VERSION = 1
+SELECTOR_VERSION = 2
 GENERATED_INPUT_IDENTITY_VERSION = 1
 DEFAULT_SAMPLE_SIZE = 100
 PAIR_SETS = {
@@ -45,6 +45,7 @@ PAIR_SETS = {
     },
 }
 DEDUPE_POLICIES = ("exact-unordered-fragment-pair", "none")
+_CONTENT_LABEL_CONFLICT_CACHE: dict[str, tuple[str, ...]] = {}
 
 
 def _catalog_connection(compiled: VerifiedCompiledDataset) -> sqlite3.Connection:
@@ -273,21 +274,40 @@ def _available_frame_query(pair_set: str, dedupe: str) -> tuple[str, list[Any]]:
     )
 
 
+def _content_conflict_clause(
+    conflict_ids: Sequence[str], *, include: bool
+) -> tuple[str, list[str]]:
+    if not conflict_ids:
+        return "", []
+    operator = "IN" if include else "NOT IN"
+    placeholders = ",".join("?" * len(conflict_ids))
+    return f" AND p.unordered_pair_id {operator} ({placeholders})", list(conflict_ids)
+
+
 def _frame_inventory(
-    connection: sqlite3.Connection, pair_set: str, dedupe: str
+    connection: sqlite3.Connection,
+    pair_set: str,
+    dedupe: str,
+    conflict_ids: Sequence[str],
 ) -> Iterator[tuple[str, int, int]]:
     predicate, parameters = _pair_predicate(pair_set)
+    conflict_clause, conflict_parameters = _content_conflict_clause(
+        conflict_ids, include=False
+    )
+    parameters.extend(conflict_parameters)
     if dedupe == "exact-unordered-fragment-pair":
         query = (
             "SELECT unordered_pair_id, COUNT(*), SUM(source_row_multiplicity) "
             f"FROM pair_rows p WHERE {predicate} AND source_status='available' "
+            f"{conflict_clause} "
             "GROUP BY unordered_pair_id ORDER BY unordered_pair_id"
         )
         yield from connection.execute(query, parameters)
         return
     query = (
         "SELECT source_row_hash, 1, source_row_multiplicity FROM pair_rows p "
-        f"WHERE {predicate} AND source_status='available' ORDER BY source_row_hash"
+        f"WHERE {predicate} AND source_status='available' {conflict_clause} "
+        "ORDER BY source_row_hash"
     )
     yield from connection.execute(query, parameters)
 
@@ -328,9 +348,18 @@ def _selected_frame_ids(
 
 
 def _scalar_counts(
-    connection: sqlite3.Connection, pair_set: str, dedupe: str
+    connection: sqlite3.Connection,
+    pair_set: str,
+    dedupe: str,
+    conflict_ids: Sequence[str],
 ) -> dict[str, int]:
     predicate, parameters = _pair_predicate(pair_set)
+    eligible_conflict_clause, eligible_conflict_parameters = _content_conflict_clause(
+        conflict_ids, include=False
+    )
+    conflict_clause, conflict_parameters = _content_conflict_clause(
+        conflict_ids, include=True
+    )
     frame_expression = (
         "COUNT(DISTINCT unordered_pair_id)"
         if dedupe == "exact-unordered-fragment-pair"
@@ -340,8 +369,15 @@ def _scalar_counts(
         f"SELECT {frame_expression}, COUNT(*), "
         "COALESCE(SUM(source_row_multiplicity),0), "
         "COALESCE(SUM(CASE WHEN min_tokens<50 THEN source_row_multiplicity ELSE 0 END),0) "
-        f"FROM pair_rows p WHERE {predicate} AND source_status='available'",
-        parameters,
+        f"FROM pair_rows p WHERE {predicate} AND source_status='available' "
+        f"{eligible_conflict_clause}",
+        [*parameters, *eligible_conflict_parameters],
+    ).fetchone()
+    conflict_row = connection.execute(
+        f"SELECT {frame_expression}, COUNT(*), "
+        "COALESCE(SUM(source_row_multiplicity),0) FROM pair_rows p "
+        f"WHERE {predicate} AND source_status='available' {conflict_clause}",
+        [*parameters, *conflict_parameters],
     ).fetchone()
     unavailable = connection.execute(
         f"SELECT COUNT(*), COALESCE(SUM(source_row_multiplicity),0) FROM pair_rows p "
@@ -353,13 +389,22 @@ def _scalar_counts(
         "eligible_catalog_rows": int(row[1]),
         "eligible_source_rows": int(row[2]),
         "eligible_source_rows_below_50_tokens": int(row[3]),
+        "content_label_conflict_excluded_frames": int(conflict_row[0]),
+        "content_label_conflict_excluded_catalog_rows": int(conflict_row[1]),
+        "content_label_conflict_excluded_source_rows": int(conflict_row[2]),
         "unavailable_catalog_rows": int(unavailable[0]),
         "unavailable_source_rows": int(unavailable[1]),
     }
 
 
-def _conflict_ids(connection: sqlite3.Connection) -> list[str]:
-    return [
+def content_label_conflict_ids(connection: sqlite3.Connection) -> list[str]:
+    database_path = str(connection.execute("PRAGMA database_list").fetchone()[2])
+    database_stat = Path(database_path).stat()
+    cache_key = f"{database_path}:{database_stat.st_size}:{database_stat.st_mtime_ns}"
+    cached = _CONTENT_LABEL_CONFLICT_CACHE.get(cache_key)
+    if cached is not None:
+        return list(cached)
+    identifiers = [
         str(row[0])
         for row in connection.execute(
             "SELECT DISTINCT fp.unordered_pair_id FROM pair_rows AS fp "
@@ -372,44 +417,51 @@ def _conflict_ids(connection: sqlite3.Connection) -> list[str]:
             "AND positive.source_status='available') ORDER BY fp.unordered_pair_id"
         )
     ]
+    _CONTENT_LABEL_CONFLICT_CACHE[cache_key] = tuple(identifiers)
+    return identifiers
+
+
+def content_label_conflicts(
+    connection: sqlite3.Connection, identifiers: Sequence[str]
+) -> Iterator[dict[str, Any]]:
+    """Yield complete evidence for content identities carrying both label kinds."""
+
+    if not identifiers:
+        return
+    placeholders = ",".join("?" * len(identifiers))
+    rows = connection.execute(
+        _indexed_row_query("pair_unordered_idx")
+        + f" WHERE p.unordered_pair_id IN ({placeholders}) "
+        "ORDER BY p.unordered_pair_id, p.pair_kind, p.source_row_hash",
+        identifiers,
+    )
+    for frame_id, group in _grouped_rows(rows, "unordered_pair_id"):
+        records = [_row_record(row) for row in group]
+        yield {
+            "unordered_pair_id": frame_id,
+            "labels": sorted({item["pair_kind"] for item in records}),
+            "reason": (
+                "positive_and_known_false_positive_rows_share_an_"
+                "unordered_fragment_content_pair"
+            ),
+            "disposition": "excluded_from_scored_selections",
+            "catalog_row_count": len(records),
+            "source_row_multiplicity": sum(
+                item["source_row_multiplicity"] for item in records
+            ),
+            "rows": records,
+        }
 
 
 def _write_conflicts(
-    connection: sqlite3.Connection, path: Path, expected_count: int
+    connection: sqlite3.Connection, path: Path, identifiers: Sequence[str]
 ) -> dict[str, int]:
-    identifiers = _conflict_ids(connection)
-    if len(identifiers) != expected_count:
-        raise ValueError(
-            "compiled label-conflict count does not match catalog: "
-            f"{expected_count} declared, {len(identifiers)} observed"
-        )
     row_count = source_rows = 0
     with path.open("wb") as stream:
-        if not identifiers:
-            return {"frames": 0, "catalog_rows": 0, "source_rows": 0}
-        placeholders = ",".join("?" * len(identifiers))
-        rows = connection.execute(
-            _indexed_row_query("pair_unordered_idx")
-            + f" WHERE p.unordered_pair_id IN ({placeholders}) "
-            "ORDER BY p.unordered_pair_id, p.pair_kind, p.source_row_hash",
-            identifiers,
-        )
-        for frame_id, group in _grouped_rows(rows, "unordered_pair_id"):
-            records = [_row_record(row) for row in group]
-            row_count += len(records)
-            source_rows += sum(item["source_row_multiplicity"] for item in records)
-            _write_jsonl(
-                stream,
-                {
-                    "unordered_pair_id": frame_id,
-                    "labels": sorted({item["pair_kind"] for item in records}),
-                    "catalog_row_count": len(records),
-                    "source_row_multiplicity": sum(
-                        item["source_row_multiplicity"] for item in records
-                    ),
-                    "rows": records,
-                },
-            )
+        for conflict in content_label_conflicts(connection, identifiers):
+            row_count += int(conflict["catalog_row_count"])
+            source_rows += int(conflict["source_row_multiplicity"])
+            _write_jsonl(stream, conflict)
     return {
         "frames": len(identifiers),
         "catalog_rows": row_count,
@@ -470,6 +522,7 @@ def create_selection(
         ),
         "eligibility": {
             "source_status": "available",
+            "content_label_conflicts": "excluded",
             "minimum_tokens": None,
             "minimum_judges": None,
             "minimum_confidence": None,
@@ -494,9 +547,21 @@ def create_selection(
     conflicts_path = staging / "label-conflicts.jsonl"
     try:
         with closing(_catalog_connection(compiled)) as connection:
-            counts = _scalar_counts(connection, pair_set, dedupe)
+            if progress is not None:
+                progress.update(detail="checking content-label conflicts")
+            conflict_ids = content_label_conflict_ids(connection)
+            expected_conflicts = int(
+                compiled.manifest["counts"]["positive_negative_label_conflicts"]
+            )
+            if len(conflict_ids) != expected_conflicts:
+                raise ValueError(
+                    "compiled content-label-conflict count does not match catalog: "
+                    f"{expected_conflicts} declared, {len(conflict_ids)} observed"
+                )
+            conflict_id_set = set(conflict_ids)
+            counts = _scalar_counts(connection, pair_set, dedupe, conflict_ids)
             selected_ids, inventory_counts = _selected_frame_ids(
-                _frame_inventory(connection, pair_set, dedupe),
+                _frame_inventory(connection, pair_set, dedupe, conflict_ids),
                 mode=mode,
                 sample_size=sample_size,
                 seed=seed,
@@ -504,8 +569,12 @@ def create_selection(
             counts.update(inventory_counts)
             selected_frames = selected_catalog_rows = selected_source_rows = 0
             reverse_catalog_rows = reverse_source_rows = 0
+            candidate_frames = (
+                counts["eligible_frames"]
+                + counts["content_label_conflict_excluded_frames"]
+            )
             if progress is not None:
-                progress.set_total(counts["eligible_frames"], completed=0)
+                progress.set_total(candidate_frames, completed=0)
                 progress.update(detail=f"writing {pair_set} {mode} frames")
             query, parameters = _available_frame_query(pair_set, dedupe)
             group_key = (
@@ -518,7 +587,21 @@ def create_selection(
                     _grouped_rows(connection.execute(query, parameters), group_key),
                     start=1,
                 ):
-                    if selected_ids is not None and frame_key not in selected_ids:
+                    unordered_pair_id = str(rows[0]["unordered_pair_id"])
+                    if unordered_pair_id in conflict_id_set:
+                        _write_jsonl(
+                            exclusions,
+                            {
+                                "frame_id": frame_key,
+                                "unordered_pair_id": unordered_pair_id,
+                                "reason": "positive_negative_content_label_conflict",
+                                "catalog_row_count": len(rows),
+                                "source_row_multiplicity": sum(
+                                    row["source_row_multiplicity"] for row in rows
+                                ),
+                            },
+                        )
+                    elif selected_ids is not None and frame_key not in selected_ids:
                         _write_jsonl(
                             exclusions,
                             {
@@ -542,7 +625,7 @@ def create_selection(
                             for item in frame["reverse_direction_exclusions"]
                         )
                     if progress is not None and (
-                        completed % 1000 == 0 or completed == counts["eligible_frames"]
+                        completed % 1000 == 0 or completed == candidate_frames
                     ):
                         progress.update(completed)
 
@@ -565,7 +648,7 @@ def create_selection(
             conflict_counts = _write_conflicts(
                 connection,
                 conflicts_path,
-                int(compiled.manifest["counts"]["positive_negative_label_conflicts"]),
+                conflict_ids,
             )
 
         counts.update(
@@ -705,8 +788,10 @@ def main() -> int:
             f"source_rows={counts['selected_source_rows']}"
         )
         print(
-            "label_conflicts="
+            "content_label_conflicts="
             f"{manifest['label_conflicts']['frames']} "
+            "excluded_from_pair_set="
+            f"{counts['content_label_conflict_excluded_frames']} "
             f"below_50_token_rows={counts['eligible_source_rows_below_50_tokens']}"
         )
         return 0

@@ -15,6 +15,7 @@ from benchmarks.bigclonebench.selection import create_selection
 from benchmarks.corpus import create_input_snapshot, load_input_snapshot
 from tests.unit.test_bigclonebench_compiled import (
     BigCloneBenchCompiledDatasetTests,
+    distinct_false_positive_row,
     pair_row,
     write_export,
 )
@@ -33,7 +34,7 @@ class BigCloneBenchSnapshotTests(unittest.TestCase):
         type_two["syntactic_type"] = 2
         type_two["pair_type"] = "type-2"
         write_export(exports / "positive.csv", [type_one, type_two])
-        false_positive = pair_row(reverse=True, pair_type="false")
+        false_positive = distinct_false_positive_row(bce)
         false_positive["syntactic_type"] = 3
         write_export(exports / "false.csv", [false_positive])
         compiled = compile_exports(

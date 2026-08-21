@@ -123,6 +123,39 @@ def pair_row(*, reverse: bool = False, pair_type: str = "positive") -> dict[str,
     }
 
 
+def distinct_false_positive_row(bce: Path) -> dict[str, object]:
+    """Add a negative fixture whose extracted content does not overlap pair_row()."""
+
+    reduced = bce / "ijadataset" / "bcb_reduced" / "8"
+    (reduced / "default").mkdir(parents=True)
+    (reduced / "sample").mkdir()
+    (reduced / "default" / "C.java").write_text(
+        "class C {\n  void gamma() {\n    callC();\n  }\n}\n"
+    )
+    (reduced / "sample" / "D.java").write_text(
+        "class D {\n  void delta() {\n    callD();\n  }\n}\n"
+    )
+    row = pair_row(pair_type="false")
+    row.update(
+        {
+            "functionality_id": 8,
+            "function_id_one": 33,
+            "typeone": "default",
+            "nameone": "C.java",
+            "projectone": "gamma",
+            "tokensone": 80,
+            "function_id_two": 44,
+            "typetwo": "sample",
+            "nametwo": "D.java",
+            "projecttwo": "delta",
+            "tokenstwo": 90,
+            "min_tokens": 80,
+            "max_tokens": 90,
+        }
+    )
+    return row
+
+
 class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
     def test_ensure_reuses_sealed_catalog_without_upstream_prerequisites(self) -> None:
         compiled = mock.sentinel.compiled

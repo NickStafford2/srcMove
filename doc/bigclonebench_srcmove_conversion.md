@@ -223,6 +223,38 @@ separate from positive Type-1/Type-2 detection-and-classification results. The
 `syntactic_type` on a false-positive row is retained only as dataset metadata;
 it does not enable Type-3 move matching or create a positive expectation.
 
+## Content-Label Conflict Exclusion
+
+Conflict eligibility is keyed by the unordered SHA-256 pair of the two extracted
+fragment contents. Under the default dedupe policy this is also the execution
+frame identity and deliberately collapses repeated BigCloneBench rows that would
+produce the same synthetic old/new payloads. Row-audit mode retains separate
+execution frames but applies the same content-conflict exclusion.
+
+That content-only identity is less specific than BigCloneBench's function-pair
+identity. Distinct BigCloneBench function pairs can extract to the same two
+fragment contents while one row is a positive clone and another is a known false
+positive. This does not by itself prove that BigCloneBench assigned contradictory
+labels to the same function pair: project, file, function, and functionality
+context can differ even when the extracted payload bytes are equal. The synthetic
+wrapper discards that context, however, so it cannot defensibly give the resulting
+content-identical test both a positive and a negative oracle.
+
+The selector therefore treats every unordered fragment-content identity carrying
+both label kinds as audit-only. It excludes those identities before census
+eligibility counting and deterministic sample ranking for every pair set and
+dedupe mode. This preserves requested sample sizes when enough unambiguous frames
+exist and prevents the same generated input from entering scored selections with
+incompatible expectations.
+
+Each selection preserves the complete evidence in `label-conflicts.jsonl`, writes
+pair-set-specific exclusions to `exclusions.jsonl` with reason
+`positive_negative_content_label_conflict`, and records excluded frame,
+catalog-row, and source-row counts in its manifest. Run
+`make bigclonebench-conflicts` to inspect the compiled catalog directly. The
+report includes contributing BigCloneBench function IDs and separately counts
+cases where the exact same function pair carries both labels.
+
 ## Important Caveats
 
 - BigCloneBench labels clones, not historical edits. The generated suite measures

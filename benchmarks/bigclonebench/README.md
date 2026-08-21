@@ -83,11 +83,29 @@ Every selection directory contains:
   functionality metadata
 - `exclusions.jsonl`: unavailable inputs and deterministic sample exclusions
 - `label-conflicts.jsonl`: the catalog's complete positive/negative conflict
-  registry
+  registry, including every contributing BigCloneBench function pair
 
 No token, judgment, or confidence minimum is applied. The manifest reports
 sub-50-token coverage explicitly. Reverse-direction rows remain attached to the
 selected frame with their multiplicity and are marked as execution exclusions.
+An extracted-content pair found under both positive and known-false-positive
+labels is excluded before census counting or sample ranking. The manifest reports
+the pair-set-specific excluded frame, catalog-row, and source-row counts, while
+`exclusions.jsonl` records the reason
+`positive_negative_content_label_conflict`. This is a conflict introduced at the
+local content-only abstraction boundary, not necessarily two labels on the same
+BigCloneBench function pair; see the
+[methodology explanation](../../doc/bigclonebench_srcmove_conversion.md#content-label-conflict-exclusion).
+Inspect the complete evidence from the compiled catalog with:
+
+```bash
+make bigclonebench-conflicts
+```
+
+Pass `BIGCLONEBENCH_DATASET=<dataset-id>` if the local compiled index contains
+more than one dataset. The report shows the contributing labels, syntactic types,
+and function IDs and confirms how many conflicts reuse the same BigCloneBench
+function pair.
 Reusing a selection validates all artifact checksums. Phase 3 materializes a
 Type-1, Type-2, or known-false-positive selection directly from the compiled
 fragment store:
