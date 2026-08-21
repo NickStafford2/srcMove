@@ -122,6 +122,17 @@ blended into one accuracy percentage. Combined run metadata is saved below
 `benchmark-data/bigclonebench/suite-runs/` and links to each append-only
 evaluation run.
 
+Compiled snapshots use `input.java` as the relative filename on both sides.
+This is required in archive mode: srcDiff pairs files by relative path and would
+treat differently named old/new files as a whole-file deletion and insertion.
+
+The live `srcMove execution` counter reports completed cases, while its suffix
+reports oracle passes. The final digest leads with `PASS` or `FAIL` and
+`passed X/Y` for each pair set; whole-fragment detection, wrong classification,
+misses, errors, false acceptances, and incidental moves are secondary
+diagnostics. Exit status 0 means every selected case in every pair set passed;
+status 1 means the benchmark completed but at least one oracle case failed.
+
 Use `ROLE=tuning|evaluation`, `SEED=<integer>`, `SAMPLE_SIZE=<count>`, and
 `VERIFY_SOURCE=1` as needed. Normal development runs trust artifacts when they
 were sealed: they validate manifest identities and hash `srcdiff` and `srcMove`

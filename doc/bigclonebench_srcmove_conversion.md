@@ -55,6 +55,11 @@ For each selected clone pair:
 9. Score whether srcMove reports one delete/insert move whose annotated positions
    overlap the generated line ranges for the two benchmark fragments.
 
+The compiled suite supplies each revision to srcDiff as a one-file directory in
+archive mode. Both directories use the same relative filename, `input.java`, so
+srcDiff compares them as revisions of one file. Different relative filenames
+would instead encode an unrelated whole-file deletion and insertion.
+
 The current evaluation uses a strict detection-and-classification oracle:
 Type-1 cases must report the intended whole-fragment move as `exact`, and Type-2
 cases must report it as `type2`. Position and per-side text validation must also

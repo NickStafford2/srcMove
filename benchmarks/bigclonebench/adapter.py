@@ -29,7 +29,8 @@ from benchmarks.provenance import sha256_file
 
 
 SEMANTIC_ORACLE_VERSION = 1
-SYNTHETIC_WRAPPER_VERSION = 1
+SYNTHETIC_WRAPPER_VERSION = 2
+SYNTHETIC_SOURCE_FILENAME = "input.java"
 SRCDIFF_NAMESPACES = {
     "http://www.srcML.org/srcDiff",
     "http://www.srcML.org/srcDiff/diff",
@@ -125,7 +126,7 @@ class CompiledBigCloneBenchAdapter:
     """Materialize Phase 2 selections directly from the compiled fragment store."""
 
     name = "bigclonebench"
-    version = 4
+    version = 5
 
     def __init__(
         self,
@@ -264,8 +265,11 @@ class CompiledBigCloneBenchAdapter:
         modified_directory = case_root / "modified"
         original_directory.mkdir(parents=True, exist_ok=False)
         modified_directory.mkdir(parents=True, exist_ok=False)
-        original_path = original_directory / "original.java"
-        modified_path = modified_directory / "modified.java"
+        # Archive-mode srcDiff pairs files by relative path. Both revisions
+        # must therefore use the same filename or srcDiff correctly treats
+        # them as an unrelated whole-file deletion and insertion.
+        original_path = original_directory / SYNTHETIC_SOURCE_FILENAME
+        modified_path = modified_directory / SYNTHETIC_SOURCE_FILENAME
         original_path.write_bytes(original_bytes)
         modified_path.write_bytes(modified_bytes)
         original_path.chmod(0o444)

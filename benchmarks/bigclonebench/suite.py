@@ -220,7 +220,9 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
             )
 
         eligible = corpus.manifest["counts"]["semantic_eligible"]
-        with ProgressDisplay("srcMove", total=eligible, detail=label) as progress:
+        with ProgressDisplay(
+            "srcMove execution", total=eligible, detail=label
+        ) as progress:
             callback, _ = _activity(progress)
             (evaluation, evaluation_seconds) = _timed(
                 lambda: evaluate_corpus(
@@ -234,8 +236,22 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                 )
             )
             run_dir, run_manifest, summary = evaluation
+            counts = summary["counts"]
+            passed = counts["oracle_pass"]
+            selected = counts["selected"]
+            if pair_set == "known-false-positive":
+                outcome_detail = (
+                    f"passed {passed:,}/{selected:,} selected; "
+                    f"false acceptances {counts['srcmove_false_positive']:,}"
+                )
+            else:
+                outcome_detail = (
+                    f"passed {passed:,}/{selected:,} selected; "
+                    f"missed {counts['srcmove_miss']:,}"
+                )
             progress.finish(
-                f"{summary['counts']['oracle_pass']:,}/{summary['counts']['selected']:,} oracle passes"
+                outcome_detail,
+                success=passed == selected,
             )
 
         pair_results.append(
@@ -299,8 +315,16 @@ def _seconds(value: float) -> str:
 
 def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
     dataset = suite["compiled_dataset"]
+    pair_sets_passed = sum(
+        result["counts"]["oracle_pass"] == result["counts"]["selected"]
+        for result in suite["pair_sets"]
+    )
+    suite_passed = pair_sets_passed == len(suite["pair_sets"])
     print()
-    print("BigCloneBench suite")
+    print(
+        f"BigCloneBench suite: {'PASS' if suite_passed else 'FAIL'} "
+        f"({pair_sets_passed}/{len(suite['pair_sets'])} pair sets passed)"
+    )
     print(
         f"  dataset: {dataset['dataset_id']} "
         f"({dataset['disposition']}; {_seconds(dataset['seconds'])})"
@@ -310,17 +334,47 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
         counts = result["counts"]
         metrics = result["metrics"]
         elapsed = result["timings"]["process_seconds"]
+        selected = counts["selected"]
+        passed = counts["oracle_pass"]
+        pass_rate = passed / selected if selected else 0.0
+        status = "PASS" if passed == selected else "FAIL"
+        print(
+            f"  {result['label']:<22} {status:<4}  passed {passed:,}/{selected:,} "
+            f"({pass_rate:.1%})   srcMove {_seconds(elapsed)}"
+        )
         if result["pair_set"] == "known-false-positive":
-            measurement = (
-                f"rejected {metrics['rejected']:,}/{counts['selected']:,}; "
-                f"accepted {metrics['accepted']:,}; incidental {metrics['incidental']:,}"
+            errors = sum(
+                counts[name]
+                for name in (
+                    "upstream_failure",
+                    "srcdiff_semantic_ineligible",
+                    "srcmove_tool_failure",
+                    "oracle_failure",
+                )
+            )
+            diagnostic = (
+                f"rejected {metrics['rejected']:,}/{selected:,} whole pairs; "
+                f"false acceptances {metrics['accepted']:,}; "
+                f"incidental moves {metrics['incidental']:,}; errors {errors:,}"
             )
         else:
-            measurement = (
-                f"detected {metrics['whole_fragment_detected']:,}/{counts['selected']:,}; "
-                f"classified {metrics['strictly_classified']:,}/{counts['selected']:,}"
+            expected_kind = "exact" if result["pair_set"] == "type1" else "type2"
+            errors = sum(
+                counts[name]
+                for name in (
+                    "upstream_failure",
+                    "srcdiff_semantic_ineligible",
+                    "srcmove_tool_failure",
+                    "oracle_failure",
+                )
             )
-        print(f"  {result['label']:<22} {measurement}   srcMove {_seconds(elapsed)}")
+            diagnostic = (
+                f"whole-fragment detections {metrics['whole_fragment_detected']:,}/"
+                f"{selected:,}; expected class {expected_kind}; "
+                f"wrong class {counts['wrong_classification']:,}; "
+                f"misses {counts['srcmove_miss']:,}; errors {errors:,}"
+            )
+        print(" " * 26 + diagnostic)
         timings = result["timings"]
         print(
             " " * 26
@@ -350,7 +404,7 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
     peak = max(peak_values) if peak_values else None
     print()
     print(
-        f"  unique tests {unique_tests:,}   source rows {source_rows:,}   "
+        f"  selected cases {unique_tests:,}   source rows {source_rows:,}   "
         f"srcDiff eligible {eligible:,}"
     )
     print(

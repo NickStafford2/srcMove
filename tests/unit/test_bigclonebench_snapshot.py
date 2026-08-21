@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from benchmarks.bigclonebench.adapter import (
+    SYNTHETIC_SOURCE_FILENAME,
     SYNTHETIC_WRAPPER_VERSION,
     CompiledBigCloneBenchAdapter,
 )
@@ -83,8 +84,22 @@ class BigCloneBenchSnapshotTests(unittest.TestCase):
             )
             self.assertEqual(len(metadata["selection_frame"]["rows"]), 1)
 
-            original = snapshot.directory / case["original_path"] / "original.java"
-            modified = snapshot.directory / case["modified_path"] / "modified.java"
+            original = (
+                snapshot.directory
+                / case["original_path"]
+                / SYNTHETIC_SOURCE_FILENAME
+            )
+            modified = (
+                snapshot.directory
+                / case["modified_path"]
+                / SYNTHETIC_SOURCE_FILENAME
+            )
+            self.assertEqual(
+                case["original"]["files"][0]["path"], SYNTHETIC_SOURCE_FILENAME
+            )
+            self.assertEqual(
+                case["modified"]["files"][0]["path"], SYNTHETIC_SOURCE_FILENAME
+            )
             self.assertIn("public class BCBMove", original.read_text())
             self.assertIn(
                 metadata["expected"]["from_generated_text"].strip(),

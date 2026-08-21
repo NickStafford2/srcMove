@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from contextlib import redirect_stdout
+from contextlib import redirect_stderr, redirect_stdout
 from io import StringIO
 from pathlib import Path
 from types import SimpleNamespace
@@ -30,9 +30,8 @@ output = Path(sys.argv[sys.argv.index('-o') + 1])
 output.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
     "xmlns:diff='http://www.srcML.org/srcDiff/diff' "
     "xmlns:pos='http://www.srcML.org/srcML/position'>"
-    "<unit language='Java' filename='original.java|'>"
+    "<unit language='Java' filename='input.java'>"
     "<diff:delete><name pos:start='1:1|1:1' pos:end='1000:1|1000:1'/></diff:delete>"
-    "</unit><unit language='Java' filename='|modified.java'>"
     "<diff:insert><name pos:start='1:1|1:1' pos:end='1000:1|1000:1'/></diff:insert>"
     "</unit>"
     "</unit>")
@@ -65,10 +64,11 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 srcmove_timeout=2.0,
             )
 
+            progress_output = StringIO()
             with mock.patch(
                 "benchmarks.bigclonebench.suite.ensure_compiled_dataset",
                 return_value=(compiled, True),
-            ), redirect_stdout(StringIO()):
+            ), redirect_stdout(StringIO()), redirect_stderr(progress_output):
                 first_dir, first, first_passed = run_suite(args)
 
             from benchmarks import corpus as corpus_module
@@ -122,14 +122,31 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 if item["pair_set"] == "known-false-positive"
             )
             self.assertEqual(negative["metrics"]["rejected"], 1)
+            progress_report = progress_output.getvalue()
+            self.assertIn("[srcMove execution] failed: 1/1 100%", progress_report)
+            self.assertIn("passed 0/1 selected; missed 1", progress_report)
+            self.assertIn("passed 1/1 selected; false acceptances 0", progress_report)
             output = StringIO()
             with redirect_stdout(output):
                 _print_report(first_dir, first)
             report = output.getvalue()
+            self.assertIn("BigCloneBench suite: FAIL (1/3 pair sets passed)", report)
+            self.assertIn("Type 1                 FAIL  passed 0/1 (0.0%)", report)
+            self.assertIn("Type 2                 FAIL  passed 0/1 (0.0%)", report)
+            self.assertIn(
+                "Known false positives  PASS  passed 1/1 (100.0%)", report
+            )
+            self.assertIn("whole-fragment detections 0/1", report)
+            self.assertIn("expected class exact", report)
+            self.assertIn("expected class type2", report)
+            self.assertIn("wrong class 0", report)
+            self.assertIn("misses 1", report)
+            self.assertIn("rejected 1/1 whole pairs", report)
+            self.assertIn("false acceptances 0", report)
             self.assertIn("Type 1", report)
             self.assertIn("Type 2", report)
             self.assertIn("Known false positives", report)
-            self.assertIn("unique tests 3", report)
+            self.assertIn("selected cases 3", report)
 
 
 if __name__ == "__main__":
