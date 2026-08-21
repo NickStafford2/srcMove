@@ -144,6 +144,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   content_groups groups;
   {
     scoped_profile_timer timer(profile, "pipeline.content_groups");
+    // potential hook point for new clone detection.
     groups = build_content_groups(registry, content_grouping_mode::refined,
                                   profile);
   }
