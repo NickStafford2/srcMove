@@ -131,12 +131,21 @@ def validate_srcdiff_semantics(
 
 class BigCloneBenchAdapter:
     name = "bigclonebench"
-    version = 1
+    version = 2
 
-    def __init__(self, cases_dir: Path, syntactic_type: int) -> None:
+    def __init__(self, cases_dir: Path, selection: int | str) -> None:
         self.cases_dir = cases_dir.expanduser().resolve()
-        self.syntactic_type = syntactic_type
-        manifest_path = self.cases_dir / f"bcb_t{syntactic_type}_manifest.json"
+        if selection == "known_false_positive":
+            self.syntactic_type: int | None = None
+            self.case_kind = "known_false_positive"
+            manifest_name = "bcb_fp_manifest.json"
+        elif isinstance(selection, int) and selection in (1, 2):
+            self.syntactic_type = selection
+            self.case_kind = "positive"
+            manifest_name = f"bcb_t{selection}_manifest.json"
+        else:
+            raise ValueError(f"unsupported BigCloneBench selection: {selection!r}")
+        manifest_path = self.cases_dir / manifest_name
         value = json.loads(manifest_path.read_text(encoding="utf-8"))
         if not isinstance(value, dict):
             raise ValueError(f"invalid generated selection manifest: {manifest_path}")
@@ -164,11 +173,38 @@ class BigCloneBenchAdapter:
             "functionality_group_count": int,
             "selected_source_files": list,
         }
+        query_parameters = (
+            selection.get("query_parameters")
+            if isinstance(selection, Mapping)
+            else None
+        )
+        selection_kind_valid = (
+            isinstance(query_parameters, Mapping)
+            and query_parameters.get("source_table")
+            == (
+                "false_positives"
+                if self.case_kind == "known_false_positive"
+                else "clones"
+            )
+            and (
+                self.case_kind != "known_false_positive"
+                or (
+                    isinstance(value.get("min_judges"), int)
+                    and isinstance(value.get("min_confidence"), int)
+                )
+            )
+        )
         valid = (
-            value.get("schema_version") == 2
+            value.get("schema_version") == 3
             and value.get("dataset") == "BigCloneBench"
+            and value.get("case_kind") == self.case_kind
             and value.get("syntactic_type") == self.syntactic_type
-            and value.get("clone_type") == f"type{self.syntactic_type}"
+            and value.get("clone_type")
+            == (
+                "known_false_positive"
+                if self.case_kind == "known_false_positive"
+                else f"type{self.syntactic_type}"
+            )
             and isinstance(cases, list)
             and bool(cases)
             and all(isinstance(case_id, str) for case_id in cases)
@@ -191,7 +227,7 @@ class BigCloneBenchAdapter:
                     "ordered_selected_row_ids",
                 )
             )
-            and isinstance(selection.get("query_parameters"), Mapping)
+            and selection_kind_valid
             and isinstance(selected_rows, list)
             and len(selected_rows) == len(cases)
             and all(
@@ -205,7 +241,7 @@ class BigCloneBenchAdapter:
                 isinstance(versions.get(field), str)
                 for field in (
                     "generator_sha256",
-                    "position_text_oracle_sha256",
+                    "scoring_oracle_sha256",
                     "semantic_oracle_sha256",
                 )
             )
@@ -229,10 +265,26 @@ class BigCloneBenchAdapter:
             )
             if not isinstance(metadata, dict):
                 raise ValueError(f"invalid case metadata: {directory / 'metadata.json'}")
-            if metadata.get("syntactic_type") != self.syntactic_type:
+            if metadata.get("case_kind") != self.case_kind:
+                raise ValueError(
+                    f"case kind does not match selection manifest: {case_id}"
+                )
+            if self.syntactic_type is not None and metadata.get(
+                "syntactic_type"
+            ) != self.syntactic_type:
                 raise ValueError(
                     f"case syntactic_type does not match selection manifest: {case_id}"
                 )
+            if self.case_kind == "known_false_positive":
+                expected = metadata.get("expected")
+                if not isinstance(metadata.get("syntactic_type"), int):
+                    raise ValueError(
+                        f"case syntactic_type is missing or invalid: {case_id}"
+                    )
+                if not isinstance(expected, Mapping) or expected.get("move_count") != 0:
+                    raise ValueError(
+                        f"case negative oracle does not match selection manifest: {case_id}"
+                    )
             if [
                 metadata.get("function_id_one"),
                 metadata.get("function_id_two"),

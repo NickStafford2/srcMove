@@ -1,17 +1,17 @@
 # BigCloneBench Benchmark
 
-This suite currently generates synthetic positive move cases from BigCloneBench
-clone pairs. It supports both quick smoke runs and large Type-1/Type-2 batches.
+This suite generates synthetic positive move cases from BigCloneBench clone
+pairs and negative cases from its known false-positive pairs. It supports both
+quick smoke runs and large batches.
 The resulting pass rate is a strict synthetic detection-and-classification rate
 for the selected cases: Type-1 must report `exact`, Type-2 must report `type2`,
 and the position/text oracle must pass. It is not general accuracy, recall, or
 precision. The generated case directories live under
 `benchmarks/bigclonebench/cases/` and are ignored by git.
 
-BigCloneBench's known false-positive clone pairs are an optional future source of
-negative cases; they are not required for this positive-case benchmark's declared
-purpose. Any such extension needs its own srcMove-specific conversion and oracle.
-See the [conversion methodology](../../doc/bigclonebench_srcmove_conversion.md).
+Known-false-positive results use a separate whole-fragment rejection metric and
+are never combined with the Type-1/Type-2 positive rate. See the
+[conversion methodology](../../doc/bigclonebench_srcmove_conversion.md).
 
 BigCloneBench is an external manual prerequisite. Both the full IJaDataset and
 the smaller BigCloneEval reduced layout are supported; see the
@@ -116,6 +116,29 @@ Run a smaller Type-2 sample:
 python3 benchmarks/bigclonebench/pipeline.py cases --clone-type type2 --limit 10
 ```
 
+Generate and run known false positives as negative cases:
+
+```bash
+make bigclonebench CLONE_TYPE=known-false-positive LIMIT=10
+```
+
+The equivalent direct commands are:
+
+```bash
+python3 benchmarks/bigclonebench/pipeline.py cases \
+  --known-false-positives --limit 10
+python3 benchmarks/bigclonebench/pipeline.py benchmark \
+  --known-false-positives --cases-dir benchmarks/bigclonebench/cases \
+  --srcdiff /workspace/srcDiff/build/bin/srcdiff \
+  --srcmove /workspace/srcMove/build/srcMove
+```
+
+The negative selection reads `false_positives`, derives its token threshold
+from the joined `functions` rows, and defaults to at least one judge and one
+confidence point. Use `--min-judges` and `--min-confidence` when generating a
+stricter slice. Its manifest is `bcb_fp_manifest.json`; cases use the `bcb_fp_`
+prefix, so they cannot collide with positive Type-1/Type-2 selections.
+
 The legacy coupled `run.py` remains as an exploratory reference only. It has no
 compatibility guarantee and may be removed after the staged pipeline replaces
 its remaining diagnostic uses. Thesis and cross-build results should use
@@ -136,6 +159,10 @@ builds without rerunning BigCloneBench or srcDiff.
 
 - Type-1 expects one `exact` move.
 - Type-2 expects one `type2` move.
+- A known-false-positive case expects no single reported move to link the full
+  generated source and target fragments. Zero moves passes. Smaller incidental
+  child moves also pass and are reported separately; requiring zero moves would
+  incorrectly treat every shared child subtree as a whole-pair false positive.
 - The reported delete and insert move positions must overlap the synthetic line
   ranges for the BigCloneBench fragments stored in `metadata.json`.
 - The reported delete and insert raw texts must match their own expected
@@ -182,4 +209,5 @@ string formatting differences introduced by the synthetic wrapper.
 Type-2 is a strict test mode. If current srcMove does not detect a generated
 BigCloneBench Type-2 pair, the command exits nonzero and reports the missed move.
 
-Type-3 and Type-4 moves are not supported.
+Type-3 and Type-4 moves are not supported. The syntactic type stored on a known
+false-positive row is descriptive metadata, not a positive move expectation.

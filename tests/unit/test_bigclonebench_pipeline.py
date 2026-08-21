@@ -39,6 +39,7 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
                 "srcdiff_semantic_ineligible": 0,
                 "srcmove_tool_failure": 0,
                 "srcmove_miss": 1,
+                "srcmove_false_positive": 0,
                 "wrong_classification": 0,
                 "oracle_failure": 0,
             },
@@ -155,6 +156,65 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
                     )
                     self.assertEqual(outcome, expected_outcome)
 
+    def test_known_false_positive_scoring_rejects_only_whole_fragment_move(self) -> None:
+        metadata = {
+            "case_kind": "known_false_positive",
+            # Descriptive dataset taxonomy only; it is not a positive oracle.
+            "syntactic_type": 2,
+            "expected": {
+                "from_generated_text": "void fromWhole() {\n  child();\n}\n",
+                "to_generated_text": "void toWhole() {\n  child();\n}\n",
+            },
+        }
+        cases = (
+            (
+                {"move_count": 0, "match_kinds": {}, "moves": []},
+                "oracle_pass",
+            ),
+            (
+                {
+                    "move_count": 1,
+                    "match_kinds": {"exact": 1},
+                    "moves": [
+                        {
+                            "match_kind": "exact",
+                            "from_raw_texts": ["child();"],
+                            "to_raw_texts": ["child();"],
+                        }
+                    ],
+                },
+                "oracle_pass",
+            ),
+            (
+                {
+                    "move_count": 1,
+                    "match_kinds": {"type2": 1},
+                    "moves": [
+                        {
+                            "match_kind": "type2",
+                            "from_raw_texts": ["void fromWhole() {\n  child();\n}\n"],
+                            "to_raw_texts": ["void toWhole() {\n  child();\n}\n"],
+                        }
+                    ],
+                },
+                "srcmove_false_positive",
+            ),
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            results_path = root / "results.json"
+            srcmove_xml = root / "srcmove.xml"
+            srcmove_xml.write_text("<unit/>")
+            for results, expected_outcome in cases:
+                results_path.write_text(json.dumps(results))
+                with self.subTest(expected_outcome=expected_outcome, results=results):
+                    outcome, _, _, _ = _score_completed_case(
+                        metadata=metadata,
+                        results_path=results_path,
+                        srcmove_xml=srcmove_xml,
+                    )
+                    self.assertEqual(outcome, expected_outcome)
+
     def test_fixture_corpus_replays_across_builds_and_reconciles_outcomes(self) -> None:
         fixture = json.loads(FIXTURE.read_text(encoding="utf-8"))
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -162,8 +222,9 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
             cases_dir = root / "cases"
             cases_dir.mkdir()
             manifest = {
-                "schema_version": 2,
+                "schema_version": 3,
                 "dataset": "BigCloneBench",
+                "case_kind": "positive",
                 "dataset_identity": {"database_sha256": "fixture"},
                 "syntactic_type": 1,
                 "clone_type": "type1",
@@ -181,7 +242,7 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
                     "method": "fixture_census",
                     "population_claim": "fixture_only",
                     "eligibility_query": "fixture",
-                    "query_parameters": {},
+                    "query_parameters": {"source_table": "clones"},
                     "pair_direction": "fragment_one_deleted_fragment_two_inserted",
                     "ordered_selected_row_ids": [
                         [index, index + 100]
@@ -190,7 +251,7 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
                 },
                 "versions": {
                     "generator_sha256": "fixture-generator",
-                    "position_text_oracle_sha256": "fixture-position-oracle",
+                    "scoring_oracle_sha256": "fixture-scoring-oracle",
                     "semantic_oracle_sha256": "fixture-semantic-oracle",
                 },
             }
@@ -202,6 +263,7 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
                 (case_dir / "modified.java").write_text(f"// {case_id}\nclass New {{}}\n")
                 metadata = {
                     "source": "BigCloneBench fixture",
+                    "case_kind": "positive",
                     "syntactic_type": fixture["syntactic_type"],
                     "function_id_one": index,
                     "function_id_two": index + 100,
@@ -318,6 +380,7 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
                 "srcdiff_semantic_ineligible": 1,
                 "srcmove_tool_failure": 1,
                 "srcmove_miss": 1,
+                "srcmove_false_positive": 0,
                 "wrong_classification": 1,
                 "oracle_failure": 0,
                 "oracle_pass": 1,
@@ -339,8 +402,9 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
         with tempfile.TemporaryDirectory() as temporary_directory:
             cases_dir = Path(temporary_directory)
             manifest = {
-                "schema_version": 2,
+                "schema_version": 3,
                 "dataset": "BigCloneBench",
+                "case_kind": "positive",
                 "dataset_identity": {},
                 "syntactic_type": 2,
                 "clone_type": "type2",
@@ -358,13 +422,13 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
                     "method": "fixture",
                     "population_claim": "none",
                     "eligibility_query": "fixture",
-                    "query_parameters": {},
+                    "query_parameters": {"source_table": "clones"},
                     "pair_direction": "fragment_one_deleted_fragment_two_inserted",
                     "ordered_selected_row_ids": [[1, 2]],
                 },
                 "versions": {
                     "generator_sha256": "generator",
-                    "position_text_oracle_sha256": "position",
+                    "scoring_oracle_sha256": "scoring",
                     "semantic_oracle_sha256": "semantic",
                 },
             }
@@ -381,6 +445,7 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
                 json.dumps(
                     {
                         "syntactic_type": 1,
+                        "case_kind": "positive",
                         "function_id_one": 1,
                         "function_id_two": 2,
                     }
@@ -393,6 +458,7 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
                 json.dumps(
                     {
                         "syntactic_type": 2,
+                        "case_kind": "positive",
                         "function_id_one": 9,
                         "function_id_two": 10,
                     }
@@ -400,6 +466,43 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
             )
             with self.assertRaisesRegex(ValueError, "row identity"):
                 BigCloneBenchAdapter(cases_dir, 2).input_pairs()
+
+            manifest.update(
+                {
+                    "case_kind": "known_false_positive",
+                    "syntactic_type": None,
+                    "clone_type": "known_false_positive",
+                    "min_judges": 1,
+                    "min_confidence": 1,
+                }
+            )
+            manifest["selection"]["query_parameters"] = {
+                "source_table": "false_positives"
+            }
+            (cases_dir / "bcb_fp_manifest.json").write_text(json.dumps(manifest))
+            (case_dir / "metadata.json").write_text(
+                json.dumps(
+                    {
+                        "case_kind": "known_false_positive",
+                        "syntactic_type": 3,
+                        "function_id_one": 1,
+                        "function_id_two": 2,
+                        "expected": {"move_count": 0},
+                    }
+                )
+            )
+            pairs = BigCloneBenchAdapter(
+                cases_dir, "known_false_positive"
+            ).input_pairs()
+            self.assertEqual(len(pairs), 1)
+
+            metadata = json.loads((case_dir / "metadata.json").read_text())
+            metadata["expected"]["move_count"] = 1
+            (case_dir / "metadata.json").write_text(json.dumps(metadata))
+            with self.assertRaisesRegex(ValueError, "negative oracle"):
+                BigCloneBenchAdapter(
+                    cases_dir, "known_false_positive"
+                ).input_pairs()
 
 
 if __name__ == "__main__":

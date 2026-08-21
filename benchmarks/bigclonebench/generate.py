@@ -110,11 +110,16 @@ class CloneRow:
     similarity_line: float
     similarity_token: float
     min_tokens: int
+    min_judges: int | None
+    min_confidence: int | None
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate synthetic srcMove cases from BigCloneBench clone pairs."
+        description=(
+            "Generate synthetic srcMove cases from BigCloneBench clone or "
+            "known-false-positive pairs."
+        )
     )
     parser.add_argument("--limit", type=int, default=25)
     parser.add_argument(
@@ -122,11 +127,20 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help=(
             "Maximum BigCloneBench rows to scan before dedupe. "
-            "Defaults to all eligible Type-1/Type-2 rows and 10000 Type-3 rows."
+            "Defaults to all eligible Type-1/Type-2 or known-false-positive rows "
+            "and 10000 Type-3 positive rows."
         ),
     )
-    parser.add_argument("--syntactic-type", type=int, choices=(1, 2, 3), default=2)
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--syntactic-type", type=int, choices=(1, 2, 3))
+    selection.add_argument(
+        "--known-false-positives",
+        action="store_true",
+        help="Generate negative cases from BigCloneBench's false_positives table.",
+    )
     parser.add_argument("--min-tokens", type=int, default=50)
+    parser.add_argument("--min-judges", type=int, default=1)
+    parser.add_argument("--min-confidence", type=int, default=1)
     parser.add_argument(
         "--dedupe",
         choices=("none", "raw-text-pair", "trimmed-text-pair"),
@@ -153,7 +167,10 @@ def parse_args() -> argparse.Namespace:
         default="tuning",
         help="Label selected cases as tuning or frozen evaluation data.",
     )
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.syntactic_type is None and not args.known_false_positives:
+        args.syntactic_type = 2
+    return args
 
 
 def h2_shell(sql: str) -> str:
@@ -196,7 +213,41 @@ def parse_h2_table(output: str) -> list[dict[str, str]]:
     return rows
 
 
-def selection_query(limit: int, syntactic_type: int, min_tokens: int) -> str:
+def selection_query(
+    limit: int,
+    syntactic_type: int | None,
+    min_tokens: int,
+    known_false_positives: bool = False,
+    min_judges: int = 1,
+    min_confidence: int = 1,
+) -> str:
+    if known_false_positives:
+        return f"""
+SELECT
+  fp.functionality_id,
+  fp.function_id_one,
+  f1.type AS type1, f1.name AS name1, f1.startline AS startline1, f1.endline AS endline1,
+  f1.project AS project1,
+  fp.function_id_two,
+  f2.type AS type2, f2.name AS name2, f2.startline AS startline2, f2.endline AS endline2,
+  f2.project AS project2,
+  fp.syntactic_type, fp.similarity_line, fp.similarity_token,
+  fp.min_judges, fp.min_confidence,
+  CASE WHEN f1.tokens < f2.tokens THEN f1.tokens ELSE f2.tokens END AS min_tokens
+FROM false_positives fp
+JOIN functions f1 ON f1.id = fp.function_id_one
+JOIN functions f2 ON f2.id = fp.function_id_two
+WHERE f1.tokens >= {min_tokens}
+  AND f2.tokens >= {min_tokens}
+  AND f1.internal = FALSE
+  AND f2.internal = FALSE
+  AND fp.min_judges >= {min_judges}
+  AND fp.min_confidence >= {min_confidence}
+ORDER BY fp.functionality_id, fp.function_id_one, fp.function_id_two
+LIMIT {limit}
+"""
+    if syntactic_type is None:
+        raise ValueError("syntactic_type is required for positive clone selection")
     return f"""
 SELECT
   c.functionality_id,
@@ -206,7 +257,8 @@ SELECT
   c.function_id_two,
   f2.type AS type2, f2.name AS name2, f2.startline AS startline2, f2.endline AS endline2,
   f2.project AS project2,
-  c.syntactic_type, c.similarity_line, c.similarity_token, c.min_tokens
+  c.syntactic_type, c.similarity_line, c.similarity_token, c.min_tokens,
+  c.min_judges, c.min_confidence
 FROM clones c
 JOIN functions f1 ON f1.id = c.function_id_one
 JOIN functions f2 ON f2.id = c.function_id_two
@@ -218,8 +270,26 @@ LIMIT {limit}
 """
 
 
-def load_clone_rows(limit: int, syntactic_type: int, min_tokens: int) -> list[CloneRow]:
-    rows = parse_h2_table(h2_shell(selection_query(limit, syntactic_type, min_tokens)))
+def load_clone_rows(
+    limit: int,
+    syntactic_type: int | None,
+    min_tokens: int,
+    known_false_positives: bool = False,
+    min_judges: int = 1,
+    min_confidence: int = 1,
+) -> list[CloneRow]:
+    rows = parse_h2_table(
+        h2_shell(
+            selection_query(
+                limit,
+                syntactic_type,
+                min_tokens,
+                known_false_positives,
+                min_judges,
+                min_confidence,
+            )
+        )
+    )
     return [
         CloneRow(
             functionality_id=int(row["functionality_id"]),
@@ -239,6 +309,16 @@ def load_clone_rows(limit: int, syntactic_type: int, min_tokens: int) -> list[Cl
             similarity_line=float(row["similarity_line"]),
             similarity_token=float(row["similarity_token"]),
             min_tokens=int(row["min_tokens"]),
+            min_judges=(
+                int(row["min_judges"])
+                if row.get("min_judges") not in (None, "", "NULL")
+                else None
+            ),
+            min_confidence=(
+                int(row["min_confidence"])
+                if row.get("min_confidence") not in (None, "", "NULL")
+                else None
+            ),
         )
         for row in rows
     ]
@@ -378,7 +458,11 @@ def select_rows(
     return selected
 
 
-def default_candidate_limit(limit: int, syntactic_type: int) -> int:
+def default_candidate_limit(
+    limit: int, syntactic_type: int | None, known_false_positives: bool = False
+) -> int:
+    if known_false_positives:
+        return 1_000_000
     if syntactic_type in (1, 2):
         return 1_000_000
     return max(limit, 10_000)
@@ -433,7 +517,7 @@ def build_synthetic_move_sources(
     return original, modified, original_range, modified_range
 
 
-def write_case(case_dir: Path, row: CloneRow) -> None:
+def write_case(case_dir: Path, row: CloneRow, case_kind: str = "positive") -> None:
     src1 = source_path(row.type1, row.name1, row.functionality_id)
     src2 = source_path(row.type2, row.name2, row.functionality_id)
     fragment1 = extract_lines(src1, row.startline1, row.endline1)
@@ -453,6 +537,7 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
     (case_dir / "modified.java").write_text(modified, encoding="utf-8")
     metadata = {
         "source": "BigCloneBench",
+        "case_kind": case_kind,
         "function_id_one": row.function_id_one,
         "function_id_two": row.function_id_two,
         "functionality_id": row.functionality_id,
@@ -474,11 +559,13 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
         "similarity_line": row.similarity_line,
         "similarity_token": row.similarity_token,
         "min_tokens": row.min_tokens,
+        "min_judges": row.min_judges,
+        "min_confidence": row.min_confidence,
         "dedupe_key": stable_key(fragment1, fragment2),
         "dedupe": dedupe_metadata(fragment1, fragment2),
         "fragment_relation": fragment_relation(fragment1, fragment2),
         "expected": {
-            "move_count": 1,
+            "move_count": 0 if case_kind == "known_false_positive" else 1,
             "from_raw_text": fragment1,
             "to_raw_text": fragment2,
             "from_generated_text": generated_fragment1,
@@ -496,16 +583,20 @@ def write_case(case_dir: Path, row: CloneRow) -> None:
 
 def write_manifest(
     out_dir: Path,
-    syntactic_type: int,
+    syntactic_type: int | None,
+    case_kind: str,
     dedupe: str,
     text_change: str,
     min_tokens: int,
+    min_judges: int,
+    min_confidence: int,
     limit: int,
     candidate_count: int,
     case_names: list[str],
     candidate_limit: int,
     rows: list[CloneRow],
     selection_role: str,
+    known_false_positives: bool = False,
     activity_callback: Callable[[str], None] | None = None,
 ) -> int:
     database = BCE_DIR / "bigclonebenchdb" / "bcb.h2.db"
@@ -539,18 +630,28 @@ def write_manifest(
         for path in source_files
     ]
     manifest = {
-        "schema_version": 2,
+        "schema_version": 3,
         "dataset": "BigCloneBench",
+        "case_kind": case_kind,
         "dataset_identity": {
             "database_sha256": database_sha256,
             "h2_jar_sha256": h2_jar_sha256,
             "java": java,
         },
         "syntactic_type": syntactic_type,
-        "clone_type": f"type{syntactic_type}",
+        "clone_type": (
+            "known_false_positive"
+            if known_false_positives
+            else f"type{syntactic_type}"
+        ),
         "dedupe": dedupe,
         "text_change": text_change,
         "min_tokens": min_tokens,
+        **(
+            {"min_judges": min_judges, "min_confidence": min_confidence}
+            if known_false_positives
+            else {}
+        ),
         "requested_limit": limit,
         "candidate_count": candidate_count,
         "candidate_limit": candidate_limit,
@@ -566,11 +667,27 @@ def write_manifest(
             "method": "ordered_deterministic_convenience_slice",
             "population_claim": "none",
             "eligibility_query": selection_query(
-                candidate_limit, syntactic_type, min_tokens
+                candidate_limit,
+                syntactic_type,
+                min_tokens,
+                known_false_positives,
+                min_judges,
+                min_confidence,
             ).strip(),
             "query_parameters": {
                 "syntactic_type": syntactic_type,
+                "source_table": (
+                    "false_positives" if known_false_positives else "clones"
+                ),
                 "min_tokens": min_tokens,
+                **(
+                    {
+                        "min_judges": min_judges,
+                        "min_confidence": min_confidence,
+                    }
+                    if known_false_positives
+                    else {}
+                ),
                 "internal": False,
                 "candidate_limit": candidate_limit,
             },
@@ -582,11 +699,16 @@ def write_manifest(
         "selected_source_files": selected_source_files,
         "versions": {
             "generator_sha256": sha256_file(Path(__file__)),
-            "position_text_oracle_sha256": sha256_file(SCRIPT_DIR / "run.py"),
+            "scoring_oracle_sha256": sha256_file(SCRIPT_DIR / "evaluate.py"),
             "semantic_oracle_sha256": sha256_file(SCRIPT_DIR / "adapter.py"),
         },
     }
-    manifest_path = out_dir / f"bcb_t{syntactic_type}_manifest.json"
+    manifest_name = (
+        "bcb_fp_manifest.json"
+        if known_false_positives
+        else f"bcb_t{syntactic_type}_manifest.json"
+    )
+    manifest_path = out_dir / manifest_name
     if activity_callback is not None:
         activity_callback("writing selection manifest")
     manifest_path.write_text(
@@ -605,14 +727,21 @@ def main() -> int:
     args.out_dir.mkdir(parents=True, exist_ok=True)
     candidate_limit = args.candidate_limit
     if candidate_limit is None:
-        candidate_limit = default_candidate_limit(args.limit, args.syntactic_type)
+        candidate_limit = default_candidate_limit(
+            args.limit, args.syntactic_type, args.known_false_positives
+        )
 
     with ProgressDisplay(
         "cases/query",
         detail=f"scanning up to {candidate_limit:,} eligible rows",
     ) as progress:
         candidates = load_clone_rows(
-            candidate_limit, args.syntactic_type, args.min_tokens
+            candidate_limit,
+            args.syntactic_type,
+            args.min_tokens,
+            args.known_false_positives,
+            args.min_judges,
+            args.min_confidence,
         )
         progress.finish(f"found {len(candidates):,} candidates")
     with ProgressDisplay(
@@ -634,7 +763,10 @@ def main() -> int:
 
     written = 0
     skipped = 0
-    prefix = f"bcb_t{args.syntactic_type}"
+    case_kind = (
+        "known_false_positive" if args.known_false_positives else "positive"
+    )
+    prefix = "bcb_fp" if args.known_false_positives else f"bcb_t{args.syntactic_type}"
     case_names: list[str] = []
     with ProgressDisplay("cases/write", total=len(rows)) as progress:
         for index, row in enumerate(rows, start=1):
@@ -644,7 +776,7 @@ def main() -> int:
             if case_dir.exists() and not args.overwrite:
                 skipped += 1
             else:
-                write_case(case_dir, row)
+                write_case(case_dir, row, case_kind)
                 written += 1
             progress.update(index, detail=case_dir.name)
         progress.finish(f"wrote {written}, reused {skipped}")
@@ -658,15 +790,19 @@ def main() -> int:
         source_file_count = write_manifest(
             args.out_dir,
             args.syntactic_type,
+            case_kind,
             args.dedupe,
             args.text_change,
             args.min_tokens,
+            args.min_judges,
+            args.min_confidence,
             args.limit,
             len(candidates),
             case_names,
             candidate_limit,
             rows,
             args.selection_role,
+            args.known_false_positives,
             activity_callback=lambda detail: progress.update(detail=detail),
         )
         progress.finish(

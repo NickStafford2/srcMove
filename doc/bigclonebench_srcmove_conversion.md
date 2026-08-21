@@ -217,14 +217,38 @@ directories. The runner consumes that manifest instead of scanning all old
 ignored case directories, so a deduped run cannot be polluted by stale generated
 cases from a previous larger run.
 
+## Known False-Positive Conversion
+
+Known false positives are selected from `false_positives` and joined to
+`functions` for source locations, token counts, and the external/internal flag.
+The table has no `min_tokens` or `internal` columns of its own. Selection keeps
+only pairs whose two functions meet the token threshold and are external, then
+applies the configured minimum judge and confidence thresholds. The ordered
+table direction is preserved as fragment one deleted and fragment two inserted.
+
+Generation reuses the positive cases' extraction and asymmetric wrapper so the
+srcDiff semantic oracle can first establish that both complete payloads were
+exposed as candidates. The srcMove negative oracle then rejects only a reported
+move that links the complete generated fragment-one text to the complete
+fragment-two text. A result with no moves passes. A result containing only
+smaller matching child fragments also passes with an incidental-move diagnostic:
+BigCloneBench's pair label concerns the whole pair and does not assert that the
+fragments contain no shared subtrees.
+
+This is a whole-fragment rejection experiment, not general precision or a
+population false-positive rate. Its manifests, summaries, and rates remain
+separate from positive Type-1/Type-2 detection-and-classification results. The
+`syntactic_type` on a false-positive row is retained only as dataset metadata;
+it does not enable Type-3 move matching or create a positive expectation.
+
 ## Important Caveats
 
 - BigCloneBench labels clones, not historical edits. The generated suite measures
   whether srcMove can recognize a synthetic move whose payload is drawn from a
   known clone pair.
-- The current generator uses positive clone rows only. BigCloneBench's known
-  false-positive pairs are a future negative-case source, not part of the current
-  metric.
+- The generator keeps positive clone rows and known-false-positive rows in
+  separate selections and reports. Negative cases measure rejection of the
+  complete synthetic fragment pair; they are not part of the positive metric.
 - BigCloneBench pair rows can heavily repeat the same fragment texts. Report both
   row counts and distinct raw-text-pair counts when using these cases as a metric.
 - H2 embedded database access is single-process. Run BigCloneBench generator or

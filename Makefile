@@ -5,6 +5,7 @@ LIMIT ?= 100
 SELECTION_ROLE ?= tuning
 CASES_DIR ?= benchmarks/bigclonebench/cases
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
+BIGCLONEBENCH_SELECTION = $(if $(filter 1 yes true,$(KNOWN_FALSE_POSITIVES))$(filter known-false-positive,$(CLONE_TYPE)),--known-false-positives,--clone-type "$(CLONE_TYPE)")
 
 .PHONY: help configure build test test-unit test-repository-analysis test-xml test-source test-policy benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-cases bigclonebench
 
@@ -100,12 +101,12 @@ bigclonebench-preflight:
 
 bigclonebench-cases:
 	@$(PYTHON) benchmarks/bigclonebench/pipeline.py cases \
-		--clone-type "$(CLONE_TYPE)" --limit "$(LIMIT)" \
+		$(BIGCLONEBENCH_SELECTION) --limit "$(LIMIT)" \
 		--selection-role "$(SELECTION_ROLE)" $(BIGCLONEBENCH_CASE_OPTIONS) \
 		--out-dir "$(CASES_DIR)"
 
 bigclonebench: bigclonebench-cases
 	@$(PYTHON) benchmarks/bigclonebench/pipeline.py benchmark \
-		--clone-type "$(CLONE_TYPE)" --cases-dir "$(CASES_DIR)" \
+		$(BIGCLONEBENCH_SELECTION) --cases-dir "$(CASES_DIR)" \
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
 		--srcmove /workspace/srcMove/build/srcMove

@@ -64,6 +64,29 @@ def load_generator_module():
 
 
 class BigCloneBenchGeneratorTests(unittest.TestCase):
+    def test_known_false_positive_query_uses_function_metadata_and_judgments(self) -> None:
+        generator = load_generator_module()
+
+        query = generator.selection_query(
+            25,
+            None,
+            50,
+            known_false_positives=True,
+            min_judges=2,
+            min_confidence=3,
+        )
+
+        self.assertIn("FROM false_positives fp", query)
+        self.assertIn("f1.tokens >= 50", query)
+        self.assertIn("f2.tokens >= 50", query)
+        self.assertIn("f1.internal = FALSE", query)
+        self.assertIn("f2.internal = FALSE", query)
+        self.assertIn("fp.min_judges >= 2", query)
+        self.assertIn("fp.min_confidence >= 3", query)
+        self.assertIn("AS min_tokens", query)
+        self.assertNotIn("fp.min_tokens", query)
+        self.assertNotIn("fp.internal", query)
+
     def test_preflight_reports_manual_prerequisites_without_downloading(self) -> None:
         generator = load_generator_module()
 

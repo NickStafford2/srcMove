@@ -42,6 +42,16 @@ DEFAULT_DATA_ROOT = REPO_ROOT / "benchmark-data"
 DEFAULT_CASES_ROOT = SCRIPT_DIR / "cases"
 
 
+def _add_selection_arguments(parser: argparse.ArgumentParser) -> None:
+    selection = parser.add_mutually_exclusive_group()
+    selection.add_argument("--clone-type", choices=("type1", "type2"))
+    selection.add_argument(
+        "--known-false-positives",
+        action="store_true",
+        help="Use BigCloneBench's known false-positive pairs as negative cases.",
+    )
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
@@ -50,10 +60,12 @@ def parse_args() -> argparse.Namespace:
     stages.add_parser("preflight")
 
     cases = stages.add_parser("cases", help="Generate synthetic source cases.")
-    cases.add_argument("--clone-type", choices=("type1", "type2"), default="type1")
+    _add_selection_arguments(cases)
     cases.add_argument("--limit", type=int, default=1)
     cases.add_argument("--candidate-limit", type=int)
     cases.add_argument("--min-tokens", type=int, default=50)
+    cases.add_argument("--min-judges", type=int, default=1)
+    cases.add_argument("--min-confidence", type=int, default=1)
     cases.add_argument(
         "--dedupe",
         choices=("none", "raw-text-pair", "trimmed-text-pair"),
@@ -73,9 +85,7 @@ def parse_args() -> argparse.Namespace:
         "snapshot",
         help="Freeze and checksum generated old/new source pairs.",
     )
-    snapshot.add_argument(
-        "--clone-type", choices=("type1", "type2"), default="type1"
-    )
+    _add_selection_arguments(snapshot)
     snapshot.add_argument("--cases-dir", type=Path, default=DEFAULT_CASES_ROOT)
 
     corpus = stages.add_parser("corpus", help="Generate immutable srcDiff XML.")
@@ -100,9 +110,7 @@ def parse_args() -> argparse.Namespace:
         "benchmark",
         help="Snapshot generated cases, build the corpus, and evaluate srcMove.",
     )
-    benchmark.add_argument(
-        "--clone-type", choices=("type1", "type2"), default="type1"
-    )
+    _add_selection_arguments(benchmark)
     benchmark.add_argument("--cases-dir", type=Path, default=DEFAULT_CASES_ROOT)
     benchmark.add_argument("--srcdiff", type=Path)
     benchmark.add_argument("--srcmove", type=Path)
@@ -119,6 +127,12 @@ def parse_args() -> argparse.Namespace:
 
 def _syntactic_type(clone_type: str) -> int:
     return int(clone_type.removeprefix("type"))
+
+
+def _selection(args: argparse.Namespace) -> int | str:
+    if args.known_false_positives:
+        return "known_false_positive"
+    return _syntactic_type(args.clone_type or "type1")
 
 
 def build_corpus(
@@ -227,6 +241,7 @@ _OUTCOME_LABELS = {
     "srcdiff_semantic_ineligible": "srcDiff semantic rejection",
     "srcmove_tool_failure": "srcMove tool failure",
     "srcmove_miss": "srcMove miss",
+    "srcmove_false_positive": "whole-fragment false positive",
     "wrong_classification": "wrong classification",
     "oracle_failure": "oracle validation failure",
 }
@@ -255,6 +270,7 @@ def _report_benchmark_result(directory: Path, summary: dict) -> bool:
     declared_slice = summary.get("declared_slice", {})
     selection = declared_slice.get("selection", {}) or {}
     clone_type = str(declared_slice.get("clone_type", "unknown"))
+    case_kind = declared_slice.get("case_kind", "positive")
     clone_type_label = (
         f"Type-{clone_type.removeprefix('type')}"
         if clone_type.startswith("type")
@@ -267,13 +283,24 @@ def _report_benchmark_result(directory: Path, summary: dict) -> bool:
     print()
     print(f"BigCloneBench result: {'PASS' if failure_count == 0 else 'FAIL'}")
     print()
+    oracle_label = (
+        "Whole-pair rejection"
+        if case_kind == "known_false_positive"
+        else "Strict oracle"
+    )
     print(
-        f"  Strict oracle:  {counts['oracle_pass']:,}/{selected:,} passed "
+        f"  {oracle_label}:  {counts['oracle_pass']:,}/{selected:,} passed "
         f"({pass_rate:.1%})"
     )
     print(f"  Failed cases:   {failure_count:,}")
+    if case_kind == "known_false_positive":
+        print(
+            "  Rejections:     "
+            f"{counts.get('negative_zero_move_passes', 0):,} with no moves; "
+            f"{counts.get('negative_incidental_move_passes', 0):,} with incidental moves"
+        )
     print()
-    print(f"  Clone type:     {clone_type_label}")
+    print(f"  Pair set:       {clone_type_label}")
     print(f"  Selection role: {selection.get('role', 'unknown')}")
     print(
         f"  Selection:      {selected:,} cases from "
@@ -288,6 +315,11 @@ def _report_benchmark_result(directory: Path, summary: dict) -> bool:
         f"{declared_slice.get('dedupe', 'unknown')} dedupe; "
         f"text change: {declared_slice.get('text_change', 'unknown')}"
     )
+    if case_kind == "known_false_positive":
+        print(
+            f"  Judgments:      min {declared_slice.get('min_judges', 'unknown')} judges; "
+            f"min confidence {declared_slice.get('min_confidence', 'unknown')}"
+        )
 
     if failure_count:
         categories = [
@@ -359,12 +391,14 @@ def main() -> int:
             command = [
                 sys.executable,
                 str(SCRIPT_DIR / "generate.py"),
-                "--syntactic-type",
-                str(_syntactic_type(args.clone_type)),
                 "--limit",
                 str(args.limit),
                 "--min-tokens",
                 str(args.min_tokens),
+                "--min-judges",
+                str(args.min_judges),
+                "--min-confidence",
+                str(args.min_confidence),
                 "--dedupe",
                 args.dedupe,
                 "--text-change",
@@ -375,14 +409,18 @@ def main() -> int:
                 str(args.out_dir),
                 "--overwrite",
             ]
+            if args.known_false_positives:
+                command.append("--known-false-positives")
+            else:
+                command.extend(
+                    ["--syntactic-type", str(_selection(args))]
+                )
             if args.candidate_limit is not None:
                 command.extend(["--candidate-limit", str(args.candidate_limit)])
             return subprocess.run(command, cwd=REPO_ROOT, check=False).returncode
 
         if args.stage == "snapshot":
-            adapter = BigCloneBenchAdapter(
-                args.cases_dir, _syntactic_type(args.clone_type)
-            )
+            adapter = BigCloneBenchAdapter(args.cases_dir, _selection(args))
             directory, manifest = _prepare_snapshot(
                 data_root=data_root, adapter=adapter
             )
@@ -446,9 +484,7 @@ def main() -> int:
                 raise ValueError("srcdiff not found; pass --srcdiff")
             if srcmove is None:
                 raise ValueError("srcMove not found; pass --srcmove")
-            adapter = BigCloneBenchAdapter(
-                args.cases_dir, _syntactic_type(args.clone_type)
-            )
+            adapter = BigCloneBenchAdapter(args.cases_dir, _selection(args))
             snapshot = _prepare_snapshot(
                 data_root=data_root, adapter=adapter
             )
