@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -14,6 +15,7 @@ from support.cases import (
     CaseDefinitionError,
     discover_source_cases,
     discover_xml_cases,
+    discover_policy_cases,
 )
 
 
@@ -88,6 +90,120 @@ class SourceCaseDiscoveryTests(unittest.TestCase):
                 CaseDefinitionError, "exactly one original.* and one modified.*"
             ):
                 discover_source_cases(root)
+
+
+class PolicyCaseDiscoveryTests(unittest.TestCase):
+    def _write_contextual_catalogs(self, root: Path) -> None:
+        negative = {
+            "schema_version": 1,
+            "cases": [
+                {
+                    "id": "context_negative",
+                    "language": "C",
+                    "extension": ".c",
+                    "rationale": "context fixture",
+                    "scenario": "transfer",
+                    "from_lines": ["37"],
+                    "to_lines": ["37"],
+                }
+            ],
+        }
+        positive_case = dict(negative["cases"][0])
+        positive_case["id"] = "context_positive"
+        positive_case.update(
+            {
+                "expected_match_kind": "exact",
+                "expected_from_lines": ["37"],
+                "expected_to_lines": ["37"],
+            }
+        )
+        (root / "contextual_false_positive.json").write_text(json.dumps(negative))
+        (root / "contextual_real_move.json").write_text(
+            json.dumps({"schema_version": 1, "cases": [positive_case]})
+        )
+
+    def test_catalog_cases_are_discovered_and_classified(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            root = Path(temp_name)
+            negative = {
+                "schema_version": 1,
+                "cases": [
+                    {
+                        "id": "literal_fragment",
+                        "language": "C",
+                        "extension": ".c",
+                        "rationale": "not a complete statement",
+                        "scenario": "transfer",
+                        "from_lines": ["37"],
+                        "to_lines": ["37"],
+                    }
+                ],
+            }
+            positive = {
+                "schema_version": 1,
+                "cases": [
+                    {
+                        "id": "function_move",
+                        "language": "C",
+                        "extension": ".c",
+                        "rationale": "complete function",
+                        "scenario": "transfer",
+                        "from_lines": ["void moved(void) {}"],
+                        "to_lines": ["void moved(void) {}"],
+                        "expected_match_kind": "exact",
+                        "expected_from_lines": ["void moved(void) {}"],
+                        "expected_to_lines": ["void moved(void) {}"],
+                    }
+                ],
+            }
+            (root / "false_positive.json").write_text(json.dumps(negative))
+            (root / "real_move.json").write_text(json.dumps(positive))
+            self._write_contextual_catalogs(root)
+
+            cases = discover_policy_cases(root)
+
+            self.assertEqual(
+                [case.name for case in cases],
+                [
+                    "literal_fragment",
+                    "function_move",
+                    "context_negative",
+                    "context_positive",
+                ],
+            )
+            self.assertFalse(cases[0].expect_move)
+            self.assertTrue(cases[1].expect_move)
+
+    def test_duplicate_ids_across_catalogs_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_name:
+            root = Path(temp_name)
+            shared = {
+                "id": "duplicate",
+                "language": "C",
+                "extension": ".c",
+                "rationale": "duplicate fixture",
+                "scenario": "transfer",
+                "from_lines": ["void moved(void) {}"],
+                "to_lines": ["void moved(void) {}"],
+            }
+            (root / "false_positive.json").write_text(
+                json.dumps({"schema_version": 1, "cases": [shared]})
+            )
+            positive = dict(shared)
+            positive.update(
+                {
+                    "expected_match_kind": "exact",
+                    "expected_from_lines": ["void moved(void) {}"],
+                    "expected_to_lines": ["void moved(void) {}"],
+                }
+            )
+            (root / "real_move.json").write_text(
+                json.dumps({"schema_version": 1, "cases": [positive]})
+            )
+            self._write_contextual_catalogs(root)
+
+            with self.assertRaisesRegex(CaseDefinitionError, "duplicate policy"):
+                discover_policy_cases(root)
 
 
 if __name__ == "__main__":

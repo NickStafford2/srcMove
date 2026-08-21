@@ -23,9 +23,10 @@ SUITE_DESCRIPTIONS = {
     "repository-analysis": "focused repository-analysis unit tests",
     "xml": "checked-in srcDiff XML regression fixtures",
     "source": "checked-in source pairs regenerated through srcdiff",
+    "policy": "reviewer-editable move and not-move catalogs regenerated through srcdiff",
 }
 
-DEFAULT_SUITES = ("unit", "xml", "source")
+DEFAULT_SUITES = ("unit", "xml", "source", "policy")
 
 
 @dataclass(frozen=True)
@@ -193,6 +194,21 @@ def test_steps(
             command.extend(["--case", case_name])
         steps.append(TestStep("source regression", command))
 
+    if "policy" in suites and (not args.cases or "policy" in selected_cases):
+        assert srcmove is not None
+        assert srcdiff is not None
+        command = [
+            sys.executable,
+            "tests/regression/policy/run.py",
+            "--srcmove",
+            str(srcmove),
+            "--srcdiff",
+            str(srcdiff),
+        ]
+        for case_name in selected_cases.get("policy", []):
+            command.extend(["--case", case_name])
+        steps.append(TestStep("policy regression", command))
+
     return steps
 
 
@@ -220,8 +236,8 @@ def main() -> int:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
-    needs_srcmove = any(suite in suites for suite in ("xml", "source"))
-    needs_srcdiff = "source" in suites
+    needs_srcmove = any(suite in suites for suite in ("xml", "source", "policy"))
+    needs_srcdiff = any(suite in suites for suite in ("source", "policy"))
 
     srcmove: Path | None = None
     if needs_srcmove:

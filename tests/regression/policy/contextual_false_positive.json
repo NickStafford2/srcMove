@@ -1,0 +1,306 @@
+{
+  "schema_version": 1,
+  "description": "Contextual replacements whose nested fragments srcMove must not report as moves.",
+  "cases": [
+    {
+      "id": "c_two_digit_numeric_fragment",
+      "language": "C",
+      "extension": ".c",
+      "scenario": "archive",
+      "rationale": "A renumbered numeric literal is data, not a moved code unit.",
+      "original_files": {
+        "source.c": ["int source(void) { return 35; }"],
+        "destination.c": ["int destination(void) { return 37; }"]
+      },
+      "modified_files": {
+        "source.c": ["int source(void) { return 37; }"],
+        "destination.c": ["int destination(void) { return 39; }"]
+      }
+    },
+    {
+      "id": "cpp_three_digit_numeric_fragment",
+      "language": "C++",
+      "extension": ".cpp",
+      "scenario": "archive",
+      "rationale": "Swapped numeric values do not constitute moved statements.",
+      "original_files": {
+        "source.cpp": ["int source() { return 100; }"],
+        "destination.cpp": ["int destination() { return 123; }"]
+      },
+      "modified_files": {
+        "source.cpp": ["int source() { return 123; }"],
+        "destination.cpp": ["int destination() { return 200; }"]
+      }
+    },
+    {
+      "id": "c_identifier_fragment",
+      "language": "C",
+      "extension": ".c",
+      "scenario": "archive",
+      "rationale": "An identifier reused across replacements is not independently movable.",
+      "original_files": {
+        "source.c": ["int source(void) { return first_value; }"],
+        "destination.c": ["int destination(void) { return middle_value; }"]
+      },
+      "modified_files": {
+        "source.c": ["int source(void) { return middle_value; }"],
+        "destination.c": ["int destination(void) { return final_value; }"]
+      }
+    },
+    {
+      "id": "cpp_type_keyword_fragment",
+      "language": "C++",
+      "extension": ".cpp",
+      "scenario": "archive",
+      "rationale": "A type keyword produced by reordered declarations is not a move.",
+      "original_files": {
+        "source.cpp": ["char source_value;"],
+        "destination.cpp": ["int destination_value;"]
+      },
+      "modified_files": {
+        "source.cpp": ["int source_value;"],
+        "destination.cpp": ["long destination_value;"]
+      }
+    },
+    {
+      "id": "c_type_specifier_fragment",
+      "language": "C",
+      "extension": ".c",
+      "scenario": "archive",
+      "rationale": "A shared signed specifier is not a moved declaration.",
+      "original_files": {
+        "source.c": ["unsigned int source_value;"],
+        "destination.c": ["signed int destination_value;"]
+      },
+      "modified_files": {
+        "source.c": ["signed int source_value;"],
+        "destination.c": ["long int destination_value;"]
+      }
+    },
+    {
+      "id": "cpp_string_literal_fragment",
+      "language": "C++",
+      "extension": ".cpp",
+      "scenario": "archive",
+      "rationale": "A repeated diagnostic string is not independently movable code.",
+      "original_files": {
+        "source.cpp": ["const char* source() { return \"ready\"; }"],
+        "destination.cpp": ["const char* destination() { return \"error\"; }"]
+      },
+      "modified_files": {
+        "source.cpp": ["const char* source() { return \"error\"; }"],
+        "destination.cpp": ["const char* destination() { return \"done\"; }"]
+      }
+    },
+    {
+      "id": "java_boolean_literal_fragment",
+      "language": "Java",
+      "extension": ".java",
+      "scenario": "archive",
+      "rationale": "A boolean value reused by two edits is not a moved statement.",
+      "original_files": {
+        "SourceCase.java": ["class SourceCase { boolean value() { return false; } }"],
+        "DestinationCase.java": ["class DestinationCase { boolean value() { return true; } }"]
+      },
+      "modified_files": {
+        "SourceCase.java": ["class SourceCase { boolean value() { return true; } }"],
+        "DestinationCase.java": ["class DestinationCase { boolean value() { return false; } }"]
+      }
+    },
+    {
+      "id": "java_null_literal_fragment",
+      "language": "Java",
+      "extension": ".java",
+      "scenario": "archive",
+      "rationale": "The null literal has no useful move identity by itself.",
+      "original_files": {
+        "SourceCase.java": ["class SourceCase { Object value() { return current; } }"],
+        "DestinationCase.java": ["class DestinationCase { Object value() { return null; } }"]
+      },
+      "modified_files": {
+        "SourceCase.java": ["class SourceCase { Object value() { return null; } }"],
+        "DestinationCase.java": ["class DestinationCase { Object value() { return replacement; } }"]
+      }
+    },
+    {
+      "id": "csharp_identifier_fragment",
+      "language": "C#",
+      "extension": ".cs",
+      "scenario": "archive",
+      "rationale": "A property or variable name is below statement granularity.",
+      "original_files": {
+        "SourceCase.cs": ["class SourceCase { int Value() { return total; } }"],
+        "DestinationCase.cs": ["class DestinationCase { int Value() { return count; } }"]
+      },
+      "modified_files": {
+        "SourceCase.cs": ["class SourceCase { int Value() { return count; } }"],
+        "DestinationCase.cs": ["class DestinationCase { int Value() { return result; } }"]
+      }
+    },
+    {
+      "id": "csharp_string_literal_fragment",
+      "language": "C#",
+      "extension": ".cs",
+      "scenario": "archive",
+      "rationale": "A repeated string value is not a moved construct.",
+      "original_files": {
+        "SourceCase.cs": ["class SourceCase { string Value() { return \"old\"; } }"],
+        "DestinationCase.cs": ["class DestinationCase { string Value() { return \"shared\"; } }"]
+      },
+      "modified_files": {
+        "SourceCase.cs": ["class SourceCase { string Value() { return \"shared\"; } }"],
+        "DestinationCase.cs": ["class DestinationCase { string Value() { return \"new\"; } }"]
+      }
+    },
+    {
+      "id": "c_comparison_operator_fragment",
+      "language": "C",
+      "extension": ".c",
+      "scenario": "archive",
+      "rationale": "A two-character operator is not a movable code unit.",
+      "original_files": {
+        "source.c": ["int source(int a, int b) { return a != b; }"],
+        "destination.c": ["int destination(int a, int b) { return a == b; }"]
+      },
+      "modified_files": {
+        "source.c": ["int source(int a, int b) { return a == b; }"],
+        "destination.c": ["int destination(int a, int b) { return a <= b; }"]
+      }
+    },
+    {
+      "id": "cpp_member_name_fragment",
+      "language": "C++",
+      "extension": ".cpp",
+      "scenario": "archive",
+      "rationale": "A member name reused during API edits is not a move.",
+      "original_files": {
+        "source.cpp": ["int source(const Box& box) { return box.size; }"],
+        "destination.cpp": ["int destination(const Box& box) { return box.length; }"]
+      },
+      "modified_files": {
+        "source.cpp": ["int source(const Box& box) { return box.length; }"],
+        "destination.cpp": ["int destination(const Box& box) { return box.capacity; }"]
+      }
+    },
+    {
+      "id": "java_array_index_fragment",
+      "language": "Java",
+      "extension": ".java",
+      "scenario": "archive",
+      "rationale": "An array index literal is data rather than moved behavior.",
+      "original_files": {
+        "SourceCase.java": ["class SourceCase { int value(int[] a) { return a[8]; } }"],
+        "DestinationCase.java": ["class DestinationCase { int value(int[] a) { return a[10]; } }"]
+      },
+      "modified_files": {
+        "SourceCase.java": ["class SourceCase { int value(int[] a) { return a[10]; } }"],
+        "DestinationCase.java": ["class DestinationCase { int value(int[] a) { return a[12]; } }"]
+      }
+    },
+    {
+      "id": "csharp_type_name_fragment",
+      "language": "C#",
+      "extension": ".cs",
+      "scenario": "archive",
+      "rationale": "A built-in type name is not independently movable.",
+      "original_files": {
+        "SourceCase.cs": ["class SourceCase { object value; }"],
+        "DestinationCase.cs": ["class DestinationCase { string value; }"]
+      },
+      "modified_files": {
+        "SourceCase.cs": ["class SourceCase { string value; }"],
+        "DestinationCase.cs": ["class DestinationCase { int value; }"]
+      }
+    },
+    {
+      "id": "c_enum_member_fragment",
+      "language": "C",
+      "extension": ".c",
+      "scenario": "archive",
+      "rationale": "An enum member name crossing two replacements is not a move.",
+      "original_files": {
+        "source.c": ["enum Source { FIRST };"],
+        "destination.c": ["enum Destination { SHARED };"]
+      },
+      "modified_files": {
+        "source.c": ["enum Source { SHARED };"],
+        "destination.c": ["enum Destination { FINAL };"]
+      }
+    },
+    {
+      "id": "cpp_template_argument_fragment",
+      "language": "C++",
+      "extension": ".cpp",
+      "scenario": "archive",
+      "rationale": "A template type argument is not a complete moved construct.",
+      "original_files": {
+        "source.cpp": ["Container<OldValue> source_value;"],
+        "destination.cpp": ["Container<SharedValue> destination_value;"]
+      },
+      "modified_files": {
+        "source.cpp": ["Container<SharedValue> source_value;"],
+        "destination.cpp": ["Container<NewValue> destination_value;"]
+      }
+    },
+    {
+      "id": "java_method_name_fragment",
+      "language": "Java",
+      "extension": ".java",
+      "scenario": "archive",
+      "rationale": "A method name alone is below statement granularity.",
+      "original_files": {
+        "SourceCase.java": ["class SourceCase { void value(Service s) { s.start(); } }"],
+        "DestinationCase.java": ["class DestinationCase { void value(Service s) { s.run(); } }"]
+      },
+      "modified_files": {
+        "SourceCase.java": ["class SourceCase { void value(Service s) { s.run(); } }"],
+        "DestinationCase.java": ["class DestinationCase { void value(Service s) { s.stop(); } }"]
+      }
+    },
+    {
+      "id": "csharp_property_name_fragment",
+      "language": "C#",
+      "extension": ".cs",
+      "scenario": "archive",
+      "rationale": "A property name alone is not a moved statement.",
+      "original_files": {
+        "SourceCase.cs": ["class SourceCase { int Value(Box box) { return box.Size; } }"],
+        "DestinationCase.cs": ["class DestinationCase { int Value(Box box) { return box.Count; } }"]
+      },
+      "modified_files": {
+        "SourceCase.cs": ["class SourceCase { int Value(Box box) { return box.Count; } }"],
+        "DestinationCase.cs": ["class DestinationCase { int Value(Box box) { return box.Capacity; } }"]
+      }
+    },
+    {
+      "id": "c_character_literal_fragment",
+      "language": "C",
+      "extension": ".c",
+      "scenario": "archive",
+      "rationale": "A character literal is not independently movable code.",
+      "original_files": {
+        "source.c": ["char source(void) { return 'a'; }"],
+        "destination.c": ["char destination(void) { return 'x'; }"]
+      },
+      "modified_files": {
+        "source.c": ["char source(void) { return 'x'; }"],
+        "destination.c": ["char destination(void) { return 'z'; }"]
+      }
+    },
+    {
+      "id": "cpp_boolean_literal_fragment",
+      "language": "C++",
+      "extension": ".cpp",
+      "scenario": "archive",
+      "rationale": "A boolean literal reused by replacements is not a move.",
+      "original_files": {
+        "source.cpp": ["bool source() { return true; }"],
+        "destination.cpp": ["bool destination() { return false; }"]
+      },
+      "modified_files": {
+        "source.cpp": ["bool source() { return false; }"],
+        "destination.cpp": ["bool destination() { return true; }"]
+      }
+    }
+  ]
+}

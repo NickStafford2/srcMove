@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "description": "Complete statements moved between existing source contexts.",
+  "cases": [
+    {
+      "id": "context_c_expression_statement", "language": "C", "extension": ".c", "scenario": "archive", "rationale": "A complete call statement moves between functions.",
+      "original_files": {"source.c": ["void source(Item item) { source_anchor(); process(item); }"], "destination.c": ["void destination(Item item) { destination_anchor(); }"]},
+      "modified_files": {"source.c": ["void source(Item item) { source_anchor(); }"], "destination.c": ["void destination(Item item) { destination_anchor(); process(item); }"]},
+      "expected_match_kind": "exact", "expected_from_lines": ["process(item);"], "expected_to_lines": ["process(item);"]
+    },
+    {
+      "id": "context_cpp_declaration_statement", "language": "C++", "extension": ".cpp", "scenario": "archive", "rationale": "A complete declaration moves between functions.",
+      "original_files": {"source.cpp": ["void source() { source_anchor(); int total = compute(); }"], "destination.cpp": ["void destination() { destination_anchor(); }"]},
+      "modified_files": {"source.cpp": ["void source() { source_anchor(); }"], "destination.cpp": ["void destination() { destination_anchor(); int total = compute(); }"]},
+      "expected_match_kind": "exact", "expected_from_lines": ["int total = compute();"], "expected_to_lines": ["int total = compute();"]
+    },
+    {
+      "id": "context_java_if_statement", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "A complete conditional moves between methods.",
+      "original_files": {"SourceCase.java": ["class SourceCase { void value(boolean ready) { sourceAnchor(); if (ready) { process(); } } }"], "DestinationCase.java": ["class DestinationCase { void value(boolean ready) { destinationAnchor(); } }"]},
+      "modified_files": {"SourceCase.java": ["class SourceCase { void value(boolean ready) { sourceAnchor(); } }"], "DestinationCase.java": ["class DestinationCase { void value(boolean ready) { destinationAnchor(); if (ready) { process(); } } }"]},
+      "expected_match_kind": "exact", "expected_from_lines": ["if (ready) { process(); }"], "expected_to_lines": ["if (ready) { process(); }"]
+    },
+    {
+      "id": "context_csharp_expression_statement", "language": "C#", "extension": ".cs", "scenario": "archive", "rationale": "A complete invocation moves between methods.",
+      "original_files": {"SourceCase.cs": ["class SourceCase { void Value(Service service) { SourceAnchor(); service.Flush(); } }"], "DestinationCase.cs": ["class DestinationCase { void Value(Service service) { DestinationAnchor(); } }"]},
+      "modified_files": {"SourceCase.cs": ["class SourceCase { void Value(Service service) { SourceAnchor(); } }"], "DestinationCase.cs": ["class DestinationCase { void Value(Service service) { DestinationAnchor(); service.Flush(); } }"]},
+      "expected_match_kind": "exact", "expected_from_lines": ["service.Flush();"], "expected_to_lines": ["service.Flush();"]
+    }
+  ]
+}

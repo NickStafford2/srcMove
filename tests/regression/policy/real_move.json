@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "description": "Simple complete constructs transferred from one file to another.",
+  "cases": [
+    {
+      "id": "direct_c_function", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A complete function is a real move.",
+      "from_lines": ["int calculate(int value) {", "  return value * 2;", "}"], "to_lines": ["int calculate(int value) {", "  return value * 2;", "}"],
+      "expected_match_kind": "exact", "expected_from_lines": ["int calculate(int value) {", "  return value * 2;", "}"], "expected_to_lines": ["int calculate(int value) {", "  return value * 2;", "}"]
+    },
+    {
+      "id": "direct_c_struct", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A complete struct is a real move.",
+      "from_lines": ["struct Point {", "  int x;", "  int y;", "};"], "to_lines": ["struct Point {", "  int x;", "  int y;", "};"],
+      "expected_match_kind": "exact", "expected_from_lines": ["struct Point {", "  int x;", "  int y;", "};"], "expected_to_lines": ["struct Point {", "  int x;", "  int y;", "};"]
+    },
+    {
+      "id": "direct_cpp_class", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A complete class is a real move.",
+      "from_lines": ["class Counter {", "public:", "  void increment() { ++value; }", "private:", "  int value = 0;", "};"], "to_lines": ["class Counter {", "public:", "  void increment() { ++value; }", "private:", "  int value = 0;", "};"],
+      "expected_match_kind": "exact", "expected_from_lines": ["class Counter {", "public:", "  void increment() { ++value; }", "private:", "  int value = 0;", "};"], "expected_to_lines": ["class Counter {", "public:", "  void increment() { ++value; }", "private:", "  int value = 0;", "};"]
+    },
+    {
+      "id": "direct_java_class", "language": "Java", "extension": ".java", "scenario": "transfer", "rationale": "A complete Java class is a real move.",
+      "from_lines": ["class Formatter {", "  String format(int value) { return Integer.toString(value); }", "}"], "to_lines": ["class Formatter {", "  String format(int value) { return Integer.toString(value); }", "}"],
+      "expected_match_kind": "exact", "expected_from_lines": ["class Formatter {", "  String format(int value) { return Integer.toString(value); }", "}"], "expected_to_lines": ["class Formatter {", "  String format(int value) { return Integer.toString(value); }", "}"]
+    },
+    {
+      "id": "direct_csharp_class", "language": "C#", "extension": ".cs", "scenario": "transfer", "rationale": "A complete C# class is a real move.",
+      "from_lines": ["class Formatter {", "  string Format(int value) { return value.ToString(); }", "}"], "to_lines": ["class Formatter {", "  string Format(int value) { return value.ToString(); }", "}"],
+      "expected_match_kind": "exact", "expected_from_lines": ["class Formatter {", "  string Format(int value) { return value.ToString(); }", "}"], "expected_to_lines": ["class Formatter {", "  string Format(int value) { return value.ToString(); }", "}"]
+    },
+    {
+      "id": "direct_type2_c_function", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A complete function with consistent renaming is Type-2.",
+      "from_lines": ["int double_value(int value) {", "  int result = value * 2;", "  return result;", "}"], "to_lines": ["int double_number(int number) {", "  int answer = number * 2;", "  return answer;", "}"],
+      "expected_match_kind": "type2", "expected_from_lines": ["int double_value(int value) {", "  int result = value * 2;", "  return result;", "}"], "expected_to_lines": ["int double_number(int number) {", "  int answer = number * 2;", "  return answer;", "}"]
+    }
+  ]
+}

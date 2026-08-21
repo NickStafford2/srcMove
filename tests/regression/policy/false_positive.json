@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "description": "Simple transferred fragments that are too small to count as moves.",
+  "cases": [
+    {"id": "direct_numeric_literal", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A numeric literal is not a complete statement.", "from_lines": ["37"], "to_lines": ["37"]},
+    {"id": "direct_identifier", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "An identifier alone is below statement granularity.", "from_lines": ["middle_value"], "to_lines": ["middle_value"]},
+    {"id": "direct_type_keyword", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A type keyword alone is not a declaration.", "from_lines": ["int"], "to_lines": ["int"]},
+    {"id": "direct_type_specifier", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A type specifier alone is not movable code.", "from_lines": ["signed"], "to_lines": ["signed"]},
+    {"id": "direct_string_literal", "language": "Java", "extension": ".java", "scenario": "transfer", "rationale": "A string literal alone is not a statement.", "from_lines": ["\"error\""], "to_lines": ["\"error\""]},
+    {"id": "direct_boolean_literal", "language": "C#", "extension": ".cs", "scenario": "transfer", "rationale": "A boolean literal alone is not a statement.", "from_lines": ["false"], "to_lines": ["false"]},
+    {"id": "direct_operator", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "An operator alone is not a statement.", "from_lines": ["=="], "to_lines": ["=="]},
+    {"id": "direct_template_argument", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A template argument alone is not a complete construct.", "from_lines": ["SharedValue"], "to_lines": ["SharedValue"]},
+    {"id": "direct_member_name", "language": "Java", "extension": ".java", "scenario": "transfer", "rationale": "A member name alone is below statement granularity.", "from_lines": ["length"], "to_lines": ["length"]},
+    {"id": "direct_array_index", "language": "C#", "extension": ".cs", "scenario": "transfer", "rationale": "An array index alone is not a statement.", "from_lines": ["[10]"], "to_lines": ["[10]"]}
+  ]
+}

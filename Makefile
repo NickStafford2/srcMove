@@ -6,7 +6,7 @@ SELECTION_ROLE ?= tuning
 CASES_DIR ?= benchmarks/bigclonebench/cases
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 
-.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-cases bigclonebench
+.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source test-policy benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-cases bigclonebench
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -16,6 +16,7 @@ help:
 	@printf '  %-28s %s\n' 'make test-repository-analysis' 'Run repository-analysis unit tests'
 	@printf '  %-28s %s\n' 'make test-xml' 'Build and run XML regression tests'
 	@printf '  %-28s %s\n' 'make test-source' 'Build and run source-pair regression tests'
+	@printf '  %-28s %s\n' 'make test-policy' 'Build and run reviewer-editable move-policy tests'
 	@printf '  %-28s %s\n' 'make benchmark-repo' 'Run and save CASE repository benchmark'
 	@printf '  %-28s %s\n' 'make benchmark-repos' 'Run the explicit standard repository suite'
 	@printf '  %-28s %s\n' 'make history-scaling' 'Measure history throughput across JOBS'
@@ -44,6 +45,9 @@ test-xml: build
 
 test-source: build
 	$(PYTHON) tests/run.py --suite source
+
+test-policy: build
+	$(PYTHON) tests/run.py --suite policy
 
 benchmark-repo:
 	@test -n "$(CASE)" || { echo 'error: CASE is required'; exit 2; }

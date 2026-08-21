@@ -19,14 +19,19 @@ class TestInventoryTests(unittest.TestCase):
     def test_expected_regression_cases_are_discoverable(self) -> None:
         self.assertIn("1x1_basic", regression_case_names("xml"))
         self.assertIn("blocks_swapped", regression_case_names("source"))
+        self.assertIn(
+            "direct_numeric_literal", regression_case_names("policy")
+        )
 
     def test_case_selection_routes_to_owning_suite(self) -> None:
         selected = run.select_regression_cases(
-            ["xml", "source"], ["1x1_basic", "blocks_swapped"]
+            ["xml", "source", "policy"],
+            ["1x1_basic", "blocks_swapped", "direct_numeric_literal"],
         )
 
         self.assertEqual(selected["xml"], ["1x1_basic"])
         self.assertEqual(selected["source"], ["blocks_swapped"])
+        self.assertEqual(selected["policy"], ["direct_numeric_literal"])
 
     def test_unknown_case_is_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "case not found"):

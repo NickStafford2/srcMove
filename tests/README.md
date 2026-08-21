@@ -8,6 +8,7 @@ make test-unit                    # all Python unit tests
 make test-repository-analysis     # repository-analysis unit tests only
 make test-xml                     # build, then run XML regressions
 make test-source                  # build, then run source-pair regressions
+make test-policy                  # build, then run move-policy catalogs
 ```
 
 `tests/run.py` is the underlying test selector and expects an existing build.
@@ -17,10 +18,14 @@ Use it directly for case-level selection and inventory:
 python3 tests/run.py --list
 python3 tests/run.py --case 1x1_basic
 python3 tests/run.py --case 1x1_basic --case blocks_swapped
+python3 tests/run.py --suite policy --case direct_numeric_literal
+python3 tests/regression/policy/list.py
+python3 tests/regression/policy/list.py --catalog false-positive
+python3 tests/regression/policy/list.py --catalog contextual
 ```
 
 `--case` finds the owning regression suite automatically. Combine it with
-`--suite` if the same case name ever exists in both regression suites.
+`--suite` if the same case name ever exists in multiple regression suites.
 
 ## Suites
 
@@ -31,6 +36,10 @@ python3 tests/run.py --case 1x1_basic --case blocks_swapped
 - `xml`: checked-in srcDiff XML fixtures run directly through `srcMove`.
 - `source`: checked-in source pairs regenerated with `srcdiff`, then run through
   `srcMove`.
+- `policy`: reviewer-owned main and contextual move-policy catalogs.
+  Every entry generates an isolated before/after archive, then runs through
+  `srcdiff` and `srcMove`. Negative cases require zero moves; positive cases
+  require exactly one move with the declared raw text and match kind.
 
 Fixture discovery and layout validation are defined once in
 `tests/support/cases.py`. XML cases contain `input.xml`, `expected.xml`, and
@@ -39,9 +48,19 @@ Fixture discovery and layout validation are defined once in
 archive comparisons. Malformed case directories are errors rather than being
 silently ignored.
 
-Generated artifacts never live beside checked-in fixtures. Both regression
+Generated artifacts never live beside checked-in fixtures. Regression
 suites write to `build/test-results/<suite>/<case>/`, using `srcdiff.xml`,
 `srcmove.xml`, and `results.json` where applicable.
+
+Policy catalog entries support `transfer` for compact whole-file relocations and
+`archive` for explicit multi-file before/after examples. Each entry includes a
+stable ID, language, extension, and reviewer rationale. Keep cases isolated:
+combining the catalog into one srcDiff archive would allow unrelated examples
+to cross-match.
+
+`list.py` shows only the simple `false_positive.json` and `real_move.json`
+catalogs by default. Use `--catalog contextual` for multi-file replacement and
+within-context statement cases, or `--catalog all` for everything.
 
 The unit suite also exercises benchmark attempts and corpus replay entirely
 offline with fake executables. These cases cover termination and XML failures,
