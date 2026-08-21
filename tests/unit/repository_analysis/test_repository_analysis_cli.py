@@ -38,7 +38,151 @@ def executable(path: Path) -> Path:
     return path
 
 
+FAKE_TOOL = (
+    Path(__file__).resolve().parents[2]
+    / "fixtures"
+    / "benchmark"
+    / "fake_tool.py"
+)
+
+
+def fake_executable(path: Path, outcome: str = "valid-archive") -> Path:
+    content = FAKE_TOOL.read_text(encoding="utf-8").replace(
+        'return "success", arguments', f'return "{outcome}", arguments'
+    )
+    path.write_text(content, encoding="utf-8")
+    path.chmod(0o755)
+    return path
+
+
 class RepositoryAnalysisCliTests(unittest.TestCase):
+    def test_compare_requires_canonical_analysis_without_creating_state(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repository = self._history(Path(temporary_directory), 2)
+            commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
+
+            status, _, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "compare",
+                    *commits,
+                    "--save",
+                    "all",
+                ]
+            )
+
+            self.assertEqual(status, 2)
+            self.assertIn("run srcmove-history init first", error)
+            self.assertFalse((repository / ".srcmove").exists())
+
+    def test_compare_does_not_change_canonical_results(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 5)
+            self._init(repository, excluded_suffixes=())
+            commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
+            creation = [
+                "-C",
+                str(repository),
+                "run",
+                "--pairs",
+                "1",
+                "--srcdiff",
+                str(fake_executable(root / "srcdiff")),
+                "--srcmove",
+                str(fake_executable(root / "srcmove")),
+                "--progress",
+                "never",
+            ]
+            self.assertEqual(self._main(creation)[0], 0)
+            database = repository / ".srcmove" / "analysis.sqlite3"
+            before = database.read_bytes()
+
+            status, output, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "compare",
+                    commits[0],
+                    commits[1],
+                    "--save",
+                    "all",
+                    "--format",
+                    "json",
+                ]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            comparison = json.loads(output)["comparison"]
+            self.assertEqual(comparison["status"], "completed")
+            self.assertEqual(comparison["changed_path_count"], 1)
+            self.assertEqual(comparison["analyzable_path_count"], 1)
+            self.assertEqual(
+                {Path(path).name for path in comparison["saved_paths"]},
+                {"srcdiff.xml", "srcmove.xml", "results.json"},
+            )
+            self.assertTrue(
+                all(Path(path).is_file() for path in comparison["saved_paths"])
+            )
+            self.assertEqual(database.read_bytes(), before)
+            status_output = json.loads(
+                self._main(
+                    ["-C", str(repository), "status", "--format", "json"]
+                )[1]
+            )
+            self.assertEqual(status_output["coverage"]["durable"], 1)
+
+    def test_compare_can_save_only_one_tool_artifact_family(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 4)
+            self._init(repository, excluded_suffixes=())
+            commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
+            self.assertEqual(
+                self._main(
+                    [
+                        "-C",
+                        str(repository),
+                        "run",
+                        "--pairs",
+                        "1",
+                        "--srcdiff",
+                        str(fake_executable(root / "srcdiff")),
+                        "--srcmove",
+                        str(fake_executable(root / "srcmove")),
+                        "--progress",
+                        "never",
+                    ]
+                )[0],
+                0,
+            )
+
+            for selection, pair, expected in (
+                ("srcdiff", commits[:2], {"srcdiff.xml"}),
+                ("srcmove", commits[1:3], {"srcmove.xml", "results.json"}),
+            ):
+                status, output, error = self._main(
+                    [
+                        "-C",
+                        str(repository),
+                        "compare",
+                        *pair,
+                        "--save",
+                        selection,
+                        "--format",
+                        "json",
+                    ]
+                )
+                self.assertEqual((status, error), (0, ""))
+                self.assertEqual(
+                    {
+                        Path(path).name
+                        for path in json.loads(output)["comparison"]["saved_paths"]
+                    },
+                    expected,
+                )
+
     def test_run_status_list_and_show_use_one_idempotent_interface(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

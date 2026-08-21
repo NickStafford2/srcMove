@@ -24,6 +24,7 @@ from .configuration import (
     create_history_configuration,
     load_history_configuration,
 )
+from .comparison import ComparisonResult, compare_commits, comparison_succeeded
 from .database import AnalysisDatabase, analysis_database_exists
 from .git import find_repository_root
 from .inputs import AnalysisConfiguration, RepositoryIdentity
@@ -127,6 +128,25 @@ def build_parser() -> argparse.ArgumentParser:
     show = commands.add_parser("show", help="show evidence for one durable pair")
     show.add_argument("pair", type=int, metavar="PAIR")
     _add_format(show)
+
+    compare = commands.add_parser(
+        "compare",
+        help="save artifacts for one explicit commit pair",
+        description=(
+            "Analyze one explicit commit pair with the frozen analysis tools and "
+            "configuration, saving selected artifacts without changing history "
+            "coverage or canonical results."
+        ),
+    )
+    compare.add_argument("old", metavar="OLD")
+    compare.add_argument("new", metavar="NEW")
+    compare.add_argument(
+        "--save",
+        choices=("all", "srcdiff", "srcmove"),
+        required=True,
+        help="artifacts to retain under the analysis state directory",
+    )
+    _add_format(compare)
     return parser
 
 
@@ -419,6 +439,46 @@ def _json(value: Mapping[str, Any]) -> str:
     return json.dumps(value, sort_keys=True, separators=(",", ":"))
 
 
+def _comparison_document(result: ComparisonResult) -> dict[str, Any]:
+    outcome = result.outcome
+    return {
+        "schema_version": 1,
+        "comparison": {
+            "old_commit": outcome.work_item.old_commit,
+            "new_commit": outcome.work_item.new_commit,
+            "status": outcome.status.value,
+            "changed_path_count": len(outcome.changed_paths),
+            "analyzable_path_count": len(outcome.analyzable_paths),
+            "metrics": dict(outcome.metrics),
+            "timings": dict(outcome.timings),
+            "error": outcome.error,
+            "saved_paths": [str(path) for path in result.saved_paths],
+        },
+    }
+
+
+def _render_comparison(result: ComparisonResult) -> str:
+    comparison = _comparison_document(result)["comparison"]
+    status = str(comparison["status"]).replace("_", " ")
+    lines = [
+        f"Comparison — {status}",
+        "",
+        f"Commits    {str(comparison['old_commit'])[:12]} → "
+        f"{str(comparison['new_commit'])[:12]}",
+        f"Paths      {comparison['analyzable_path_count']} analyzable / "
+        f"{comparison['changed_path_count']} changed",
+    ]
+    if comparison["error"]:
+        lines.extend(("", f"Failure: {comparison['error']}"))
+    paths = comparison["saved_paths"]
+    if paths:
+        lines.extend(("", "Saved"))
+        lines.extend(f"  {path}" for path in paths)
+    else:
+        lines.extend(("", "No artifacts saved."))
+    return "\n".join(lines)
+
+
 def _pair_page_document(
     identity: Mapping[str, str], page: Mapping[str, Any]
 ) -> dict[str, Any]:
@@ -479,7 +539,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 else _json(_pair_page_document(identity, page))
             )
             exit_status = 0
-        else:
+        elif arguments.command == "show":
             detail = analysis_pair_details(analysis, arguments.pair - 1)
             identity = analysis_identity(analysis)
             output = (
@@ -494,6 +554,20 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             )
             exit_status = 0
+        else:
+            result = compare_commits(
+                analysis_root=analysis,
+                repository=repository,
+                old_revision=arguments.old,
+                new_revision=arguments.new,
+                save=arguments.save,
+            )
+            output = (
+                _render_comparison(result)
+                if arguments.output_format == "human"
+                else _json(_comparison_document(result))
+            )
+            exit_status = 0 if comparison_succeeded(result) else 1
     except KeyboardInterrupt:
         if arguments.command != "run" or not _progress_enabled(arguments):
             print("interrupted", file=sys.stderr)
