@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:cpp="http://www.srcML.org/srcML/cpp" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C" filename="numeric_replacements.c">
+
+  <cpp:define>#<cpp:directive>define</cpp:directive> <cpp:macro><name>FIRST</name></cpp:macro> <cpp:value>entries[<diff:delete type="replace">35</diff:delete><diff:insert type="replace">37</diff:insert>]</cpp:value></cpp:define>
+  <cpp:define>#<cpp:directive>define</cpp:directive> <cpp:macro><name>SECOND</name></cpp:macro> <cpp:value>entries[<diff:delete type="replace">37</diff:delete><diff:insert type="replace">39</diff:insert>]</cpp:value></cpp:define>
+
+</unit>
