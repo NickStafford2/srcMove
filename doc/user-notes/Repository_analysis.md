@@ -14,7 +14,11 @@ This tool walks backward in time and identifies the moves that occur between eac
 
 High level overview: 
 
-1) clone a git repository.
+1) $ git clone <repository>
+2) $ srcmove-history init
+  - generates a .srcmove/ directory alongside .git/
+2) $ srcmove-history run  
+  - generates a .srcmove/ directory alongside .git/
 2) checkout commit where you want analysis to start at.
   a) use git to generate two archives of repository state. before and after commit. (original, modified)
   b) generate srcDiff.xml based on original and modified. 
