@@ -186,10 +186,12 @@ They are useful for srcMove sampling and future similarity experiments, but they
 are not byte-for-byte raw source comparisons. Do not use them directly as the
 srcMove `exact` vs `type2` oracle.
 
-### Size And Judgment Filters
+### Size Metadata And Judgment Filters
 
 - `min_tokens`: the smaller token count of the two fragments. BigCloneEval's
-  recommended settings include `min_tokens >= 50`.
+  recommended settings include `min_tokens >= 50`, but srcMove deliberately
+  includes every available fragment size. The value remains useful for size
+  strata and diagnostics; it is not an eligibility filter.
 - `min_size` / `min_pretty_size`: smaller fragment size in original lines and
   pretty-printed lines. `min_size` counts the original source line span.
   `min_pretty_size` counts the same fragment after BigCloneBench's
@@ -218,16 +220,8 @@ inter-project: f1.project != f2.project
 intra-project: f1.project == f2.project
 ```
 
-In the local database, Type-1 rows with `min_tokens >= 50` show this distinction:
-
-```text
-INTERNAL | ROWS  | SAME_FILE | SAME_PROJECT
-FALSE    | 35802 | 0         | 30267
-TRUE     | 969   | 0         | 965
-```
-
-So `internal = FALSE` is best understood as "use BigCloneEval's default reference
-clone set" rather than "use only inter-project examples."
+Thus, `internal = FALSE` is best understood as "use BigCloneEval's default
+reference clone set" rather than "use only inter-project examples."
 
 ## Similarity And Clone Types
 

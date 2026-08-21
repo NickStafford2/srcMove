@@ -47,7 +47,6 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
                 "clone_type": "type1",
                 "dedupe": "raw-text-pair",
                 "text_change": "any",
-                "min_tokens": 50,
                 "row_count_before_deduplication": 35_802,
                 "distinct_raw_text_pair_count": 200,
                 "functionality_group_count": 3,
@@ -222,7 +221,7 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
             cases_dir = root / "cases"
             cases_dir.mkdir()
             manifest = {
-                "schema_version": 3,
+                "schema_version": 4,
                 "dataset": "BigCloneBench",
                 "case_kind": "positive",
                 "dataset_identity": {"database_sha256": "fixture"},
@@ -230,7 +229,6 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
                 "clone_type": "type1",
                 "dedupe": "raw-text-pair",
                 "text_change": "any",
-                "min_tokens": 1,
                 "row_count_before_deduplication": len(fixture["cases"]),
                 "distinct_raw_text_pair_count": len(fixture["cases"]),
                 "functionality_group_count": 1,
@@ -402,7 +400,7 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
         with tempfile.TemporaryDirectory() as temporary_directory:
             cases_dir = Path(temporary_directory)
             manifest = {
-                "schema_version": 3,
+                "schema_version": 4,
                 "dataset": "BigCloneBench",
                 "case_kind": "positive",
                 "dataset_identity": {},
@@ -410,7 +408,6 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
                 "clone_type": "type2",
                 "dedupe": "raw-text-pair",
                 "text_change": "any",
-                "min_tokens": 50,
                 "row_count_before_deduplication": 1,
                 "distinct_raw_text_pair_count": 1,
                 "functionality_group_count": 1,

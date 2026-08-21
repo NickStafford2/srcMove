@@ -171,11 +171,12 @@ python3 benchmarks/bigclonebench/pipeline.py benchmark \
   --srcmove /workspace/srcMove/build/srcMove
 ```
 
-The negative selection reads `false_positives`, derives its token threshold
-from the joined `functions` rows, and defaults to at least one judge and one
-confidence point. Use `--min-judges` and `--min-confidence` when generating a
-stricter slice. Its manifest is `bcb_fp_manifest.json`; cases use the `bcb_fp_`
-prefix, so they cannot collide with positive Type-1/Type-2 selections.
+The negative selection reads `false_positives`, retains the smaller joined
+function token count as reporting metadata without filtering on it, and defaults
+to at least one judge and one confidence point. Use `--min-judges` and
+`--min-confidence` when generating a stricter slice. Its manifest is
+`bcb_fp_manifest.json`; cases use the `bcb_fp_` prefix, so they cannot collide
+with positive Type-1/Type-2 selections.
 
 The legacy coupled `run.py` remains as an exploratory reference only. It has no
 compatibility guarantee and may be removed after the staged pipeline replaces

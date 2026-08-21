@@ -142,7 +142,6 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Generate negative cases from BigCloneBench's false_positives table.",
     )
-    parser.add_argument("--min-tokens", type=int, default=50)
     parser.add_argument("--min-judges", type=int, default=1)
     parser.add_argument("--min-confidence", type=int, default=1)
     parser.add_argument(
@@ -220,7 +219,6 @@ def parse_h2_table(output: str) -> list[dict[str, str]]:
 def selection_query(
     limit: int,
     syntactic_type: int | None,
-    min_tokens: int,
     known_false_positives: bool = False,
     min_judges: int = 1,
     min_confidence: int = 1,
@@ -241,9 +239,7 @@ SELECT
 FROM false_positives fp
 JOIN functions f1 ON f1.id = fp.function_id_one
 JOIN functions f2 ON f2.id = fp.function_id_two
-WHERE f1.tokens >= {min_tokens}
-  AND f2.tokens >= {min_tokens}
-  AND f1.internal = FALSE
+WHERE f1.internal = FALSE
   AND f2.internal = FALSE
   AND fp.min_judges >= {min_judges}
   AND fp.min_confidence >= {min_confidence}
@@ -267,7 +263,6 @@ FROM clones c
 JOIN functions f1 ON f1.id = c.function_id_one
 JOIN functions f2 ON f2.id = c.function_id_two
 WHERE c.syntactic_type = {syntactic_type}
-  AND c.min_tokens >= {min_tokens}
   AND c.internal = FALSE
 ORDER BY c.syntactic_type, c.functionality_id, c.function_id_one, c.function_id_two
 LIMIT {limit}
@@ -277,7 +272,6 @@ LIMIT {limit}
 def load_clone_rows(
     limit: int,
     syntactic_type: int | None,
-    min_tokens: int,
     known_false_positives: bool = False,
     min_judges: int = 1,
     min_confidence: int = 1,
@@ -287,7 +281,6 @@ def load_clone_rows(
             selection_query(
                 limit,
                 syntactic_type,
-                min_tokens,
                 known_false_positives,
                 min_judges,
                 min_confidence,
@@ -573,7 +566,6 @@ def write_manifest(
     case_kind: str,
     dedupe: str,
     text_change: str,
-    min_tokens: int,
     min_judges: int,
     min_confidence: int,
     limit: int,
@@ -616,7 +608,7 @@ def write_manifest(
         for path in source_files
     ]
     manifest = {
-        "schema_version": 3,
+        "schema_version": 4,
         "dataset": "BigCloneBench",
         "case_kind": case_kind,
         "dataset_identity": {
@@ -632,7 +624,6 @@ def write_manifest(
         ),
         "dedupe": dedupe,
         "text_change": text_change,
-        "min_tokens": min_tokens,
         **(
             {"min_judges": min_judges, "min_confidence": min_confidence}
             if known_false_positives
@@ -655,7 +646,6 @@ def write_manifest(
             "eligibility_query": selection_query(
                 candidate_limit,
                 syntactic_type,
-                min_tokens,
                 known_false_positives,
                 min_judges,
                 min_confidence,
@@ -665,7 +655,6 @@ def write_manifest(
                 "source_table": (
                     "false_positives" if known_false_positives else "clones"
                 ),
-                "min_tokens": min_tokens,
                 **(
                     {
                         "min_judges": min_judges,
@@ -724,7 +713,6 @@ def main() -> int:
         candidates = load_clone_rows(
             candidate_limit,
             args.syntactic_type,
-            args.min_tokens,
             args.known_false_positives,
             args.min_judges,
             args.min_confidence,
@@ -779,7 +767,6 @@ def main() -> int:
             case_kind,
             args.dedupe,
             args.text_change,
-            args.min_tokens,
             args.min_judges,
             args.min_confidence,
             args.limit,

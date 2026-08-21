@@ -57,6 +57,10 @@ reported move linking the complete generated source and target fragments counts
 as acceptance of the false-positive pair. No move passes. Smaller incidental
 child moves also pass but receive their own count.
 
+No pair set has a minimum token-count eligibility requirement. Preserve
+`min_tokens` as metadata and report size strata, but include fragments below 50
+tokens in both sample frames and census denominators.
+
 ## Deduplication Policy
 
 Deduplication is the default and is required for headline results. Repeated

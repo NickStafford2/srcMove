@@ -113,7 +113,6 @@ FROM clones c
 JOIN functions f1 ON f1.id = c.function_id_one
 JOIN functions f2 ON f2.id = c.function_id_two
 WHERE c.syntactic_type IN (1, 2)
-  AND c.min_tokens >= 50
   AND c.internal = FALSE
 ORDER BY c.syntactic_type, c.functionality_id, c.function_id_one, c.function_id_two
 LIMIT 100;
@@ -180,13 +179,14 @@ still be tested against those differences. `--dedupe none` is available for
 row-based BigCloneBench coverage, and `--dedupe trimmed-text-pair` is available
 only for auditing near-identical extracted text.
 
-Do not assume the current filtered BigCloneBench Type-1 slice contains thousands
-of formatting-only variants. With `syntactic_type = 1`, `min_tokens >= 50`, and
-`internal = FALSE`, the local database has many duplicate rows and most distinct
-raw text pairs still contain identical extracted fragment text on both sides. Use
-`--text-change raw-different` when reviewing the small subset whose extracted
-fragments differ, and keep hand-authored whitespace/comment fixtures for
-targeted Type-1 whitespace behavior.
+Do not assume the BigCloneBench Type-1 frame contains thousands of
+formatting-only variants. With `syntactic_type = 1`, no token-size threshold,
+and `internal = FALSE`, the compiled catalog has 47,146 available rows but only
+951 unique unordered raw-fragment pairs. Most distinct pairs still contain
+identical extracted fragment text on both sides. Use `--text-change
+raw-different` when reviewing the small subset whose extracted fragments differ,
+and keep hand-authored whitespace/comment fixtures for targeted Type-1
+whitespace behavior.
 
 Each generator run writes a per-type manifest listing the selected case
 directories. The runner consumes that manifest instead of scanning all old
@@ -198,9 +198,10 @@ cases from a previous larger run.
 Known false positives are selected from `false_positives` and joined to
 `functions` for source locations, token counts, and the external/internal flag.
 The table has no `min_tokens` or `internal` columns of its own. Selection keeps
-only pairs whose two functions meet the token threshold and are external, then
-applies the configured minimum judge and confidence thresholds. The ordered
-table direction is preserved as fragment one deleted and fragment two inserted.
+only pairs whose two functions are external, then applies the configured minimum
+judge and confidence thresholds. Token size is retained as reporting metadata
+but does not determine eligibility. The ordered table direction is preserved as
+fragment one deleted and fragment two inserted.
 
 Generation reuses the positive cases' extraction and asymmetric wrapper so the
 srcDiff semantic oracle can first establish that both complete payloads were

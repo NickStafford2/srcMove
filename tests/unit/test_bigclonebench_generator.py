@@ -70,15 +70,14 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
         query = generator.selection_query(
             25,
             None,
-            50,
             known_false_positives=True,
             min_judges=2,
             min_confidence=3,
         )
 
         self.assertIn("FROM false_positives fp", query)
-        self.assertIn("f1.tokens >= 50", query)
-        self.assertIn("f2.tokens >= 50", query)
+        self.assertNotIn("f1.tokens >=", query)
+        self.assertNotIn("f2.tokens >=", query)
         self.assertIn("f1.internal = FALSE", query)
         self.assertIn("f2.internal = FALSE", query)
         self.assertIn("fp.min_judges >= 2", query)
@@ -86,6 +85,15 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
         self.assertIn("AS min_tokens", query)
         self.assertNotIn("fp.min_tokens", query)
         self.assertNotIn("fp.internal", query)
+
+    def test_positive_query_has_no_token_threshold(self) -> None:
+        generator = load_generator_module()
+
+        query = generator.selection_query(25, 1)
+
+        self.assertIn("c.syntactic_type = 1", query)
+        self.assertIn("c.internal = FALSE", query)
+        self.assertNotIn("c.min_tokens >=", query)
 
     def test_preflight_reports_manual_prerequisites_without_downloading(self) -> None:
         generator = load_generator_module()

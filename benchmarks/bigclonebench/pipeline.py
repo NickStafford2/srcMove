@@ -63,7 +63,6 @@ def parse_args() -> argparse.Namespace:
     _add_selection_arguments(cases)
     cases.add_argument("--limit", type=int, default=1)
     cases.add_argument("--candidate-limit", type=int)
-    cases.add_argument("--min-tokens", type=int, default=50)
     cases.add_argument("--min-judges", type=int, default=1)
     cases.add_argument("--min-confidence", type=int, default=1)
     cases.add_argument(
@@ -311,8 +310,7 @@ def _report_benchmark_result(directory: Path, summary: dict) -> bool:
         f"{functionality_groups:,} functionality groups"
     )
     print(
-        f"  Filters:        min {declared_slice.get('min_tokens', 'unknown')} tokens; "
-        f"{declared_slice.get('dedupe', 'unknown')} dedupe; "
+        f"  Filters:        {declared_slice.get('dedupe', 'unknown')} dedupe; "
         f"text change: {declared_slice.get('text_change', 'unknown')}"
     )
     if case_kind == "known_false_positive":
@@ -393,8 +391,6 @@ def main() -> int:
                 str(SCRIPT_DIR / "generate.py"),
                 "--limit",
                 str(args.limit),
-                "--min-tokens",
-                str(args.min_tokens),
                 "--min-judges",
                 str(args.min_judges),
                 "--min-confidence",

@@ -167,7 +167,6 @@ class BigCloneBenchAdapter:
             "dataset_identity": Mapping,
             "dedupe": str,
             "text_change": str,
-            "min_tokens": int,
             "row_count_before_deduplication": int,
             "distinct_raw_text_pair_count": int,
             "functionality_group_count": int,
@@ -195,7 +194,7 @@ class BigCloneBenchAdapter:
             )
         )
         valid = (
-            value.get("schema_version") == 3
+            value.get("schema_version") == 4
             and value.get("dataset") == "BigCloneBench"
             and value.get("case_kind") == self.case_kind
             and value.get("syntactic_type") == self.syntactic_type

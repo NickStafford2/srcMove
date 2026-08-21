@@ -44,7 +44,6 @@ def parse_args() -> argparse.Namespace:
         help="BigCloneBench syntactic_type to generate. Alias for --clone-type.",
     )
     parser.add_argument("--limit", type=int, default=1)
-    parser.add_argument("--min-tokens", type=int, default=50)
     parser.add_argument(
         "--candidate-limit",
         type=int,
@@ -459,8 +458,6 @@ def generate_cases(args: argparse.Namespace) -> bool:
         str(args.limit),
         "--syntactic-type",
         str(args.syntactic_type),
-        "--min-tokens",
-        str(args.min_tokens),
         "--out-dir",
         str(args.out_dir),
         "--dedupe",
