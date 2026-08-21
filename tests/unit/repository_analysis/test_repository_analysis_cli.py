@@ -226,6 +226,73 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             self.assertEqual(comparison["old_commit"], commits[0])
             self.assertEqual(comparison["new_commit"], commits[1])
 
+    def test_compare_accepts_a_stable_pair_number(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 4)
+            self._init(repository, excluded_suffixes=())
+            commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
+            self.assertEqual(
+                self._main(
+                    [
+                        "-C",
+                        str(repository),
+                        "run",
+                        "--pairs",
+                        "3",
+                        "--srcdiff",
+                        str(fake_executable(root / "srcdiff")),
+                        "--srcmove",
+                        str(fake_executable(root / "srcmove")),
+                        "--progress",
+                        "never",
+                    ]
+                )[0],
+                0,
+            )
+            database = repository / ".srcmove" / "analysis.sqlite3"
+            before = database.read_bytes()
+
+            status, output, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "compare",
+                    "--pair",
+                    "2",
+                    "--save",
+                    "all",
+                    "--format",
+                    "json",
+                ]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            comparison = json.loads(output)["comparison"]
+            self.assertEqual(comparison["old_commit"], commits[1])
+            self.assertEqual(comparison["new_commit"], commits[2])
+            self.assertEqual(database.read_bytes(), before)
+
+    def test_compare_rejects_pair_number_with_commit_revisions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repository = self._history(Path(temporary_directory), 2)
+
+            status, _, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "compare",
+                    "HEAD",
+                    "--pair",
+                    "1",
+                    "--save",
+                    "all",
+                ]
+            )
+
+            self.assertEqual(status, 2)
+            self.assertIn("either --pair or commit revisions", error)
+
     def test_compare_rejects_a_root_commit_without_a_first_parent(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

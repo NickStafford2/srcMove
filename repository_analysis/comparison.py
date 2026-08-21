@@ -35,14 +35,22 @@ def compare_commits(
     *,
     analysis_root: Path,
     repository: Path,
-    old_revision: str,
+    old_revision: str | None,
     new_revision: str | None,
     save: str,
+    pair_number: int | None = None,
 ) -> ComparisonResult:
     """Execute and save one pair while leaving SQLite and coverage untouched."""
 
     if save not in {"all", "srcdiff", "srcmove"}:
         raise ValueError(f"unsupported comparison artifact selection: {save!r}")
+    if pair_number is not None:
+        if old_revision is not None or new_revision is not None:
+            raise ValueError("use either a pair number or commit revisions, not both")
+        if pair_number <= 0:
+            raise ValueError("comparison pair number must be positive")
+    elif old_revision is None:
+        raise ValueError("comparison requires at least one commit revision")
 
     root = analysis_root.expanduser().absolute()
     requested_repository = repository.expanduser().resolve(strict=True)
@@ -55,6 +63,11 @@ def compare_commits(
     with AnalysisOperationLock(root, command="compare") as operation:
         with AnalysisDatabase.open(root, read_only=True) as database:
             frozen = database.initial_manifest()
+            pair = (
+                None
+                if pair_number is None
+                else database.pair_details(pair_number - 1)
+            )
         if frozen.repository != requested_repository:
             raise ValueError("repository path drift from existing analysis")
 
@@ -65,7 +78,11 @@ def compare_commits(
             srcdiff=observe_executable(frozen.srcdiff.resolved_path),
             srcmove=observe_executable(frozen.srcmove.resolved_path),
         )
-        if new_revision is None:
+        if pair is not None:
+            old_commit = str(pair["old_commit"])
+            new_commit = str(pair["new_commit"])
+        elif new_revision is None:
+            assert old_revision is not None
             new_commit = resolve_commit(requested_repository, old_revision)
             try:
                 old_commit = resolve_commit(requested_repository, f"{new_commit}^1")
@@ -74,6 +91,7 @@ def compare_commits(
                     f"commit has no first parent: {new_commit}"
                 ) from error
         else:
+            assert old_revision is not None
             old_commit = resolve_commit(requested_repository, old_revision)
             new_commit = resolve_commit(requested_repository, new_revision)
         item = _comparison_item(manifest, old_commit, new_commit)

@@ -33,6 +33,7 @@ bin/srcmove-history list --failed
 bin/srcmove-history show 1
 bin/srcmove-history compare COMMIT --save all
 bin/srcmove-history compare OLD NEW --save all
+bin/srcmove-history compare --pair PAIR --save all
 ```
 
 `run` creates, resumes, or extends the same analysis. There are no public
@@ -49,6 +50,11 @@ frozen configuration and admitted executables. `--save all` copies
 retention, not execution: srcMove still runs after a successful srcDiff
 comparison. As with history analysis, srcDiff receives materialized trees
 containing only changed, analyzable paths rather than whole revisions.
+
+`compare --pair PAIR` resolves the stable number printed by `list` from the
+canonical database, then regenerates artifacts for that pair without changing
+its stored outcome. This provides the direct workflow `list --moves`, followed
+by `show PAIR` or `compare --pair PAIR --save all`.
 
 Exactly one target is required:
 

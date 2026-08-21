@@ -140,6 +140,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     compare.add_argument(
         "old",
+        nargs="?",
         metavar="COMMIT_OR_OLD",
         help="commit to inspect, or the old revision when NEW is supplied",
     )
@@ -148,6 +149,12 @@ def build_parser() -> argparse.ArgumentParser:
         nargs="?",
         metavar="NEW",
         help="optional new revision; defaults to COMMIT_OR_OLD with its first parent",
+    )
+    compare.add_argument(
+        "--pair",
+        type=int,
+        metavar="N",
+        help="compare one durable analysis pair by its displayed number",
     )
     compare.add_argument(
         "--save",
@@ -564,11 +571,16 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
             exit_status = 0
         else:
+            if arguments.pair is not None and arguments.old is not None:
+                raise ValueError("use either --pair or commit revisions, not both")
+            if arguments.pair is None and arguments.old is None:
+                raise ValueError("compare requires COMMIT, OLD NEW, or --pair N")
             result = compare_commits(
                 analysis_root=analysis,
                 repository=repository,
                 old_revision=arguments.old,
                 new_revision=arguments.new,
+                pair_number=arguments.pair,
                 save=arguments.save,
             )
             output = (
