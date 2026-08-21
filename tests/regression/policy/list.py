@@ -44,10 +44,16 @@ def render_case(case: PolicyCaseSpec) -> str:
     definition = case.definition
     lines = [case.name]
     if case.scenario == "transfer":
-        lines.append("original:")
-        lines.extend(_indent(definition["from_lines"]))
-        lines.append("modified:")
-        lines.extend(_indent(definition["to_lines"]))
+        from_lines = definition["from_lines"]
+        to_lines = definition["to_lines"]
+        if len(from_lines) == 1 and len(to_lines) == 1:
+            lines.append(f"original:  {from_lines[0]}")
+            lines.append(f"modified:  {to_lines[0]}")
+        else:
+            lines.append("original:")
+            lines.extend(_indent(from_lines))
+            lines.append("modified:")
+            lines.extend(_indent(to_lines))
     else:
         lines.append("original:")
         lines.extend(_render_file_map(definition["original_files"]))
