@@ -95,30 +95,6 @@ cases and the conditional srcMove detection-and-classification rate over
 srcDiff-eligible cases. The eligibility and scoring oracle versions are recorded
 in the corpus and run artifacts.
 
-## Future Negative Cases From Known False Positives
-
-BigCloneBench also provides known false-positive clone pairs. They are an
-optional future source of negative cases: similar-looking regions that srcMove
-must not annotate as moves. Their absence does not make the current positive-case
-detection-and-classification evaluation incomplete for its declared purpose.
-
-This work is intentionally deferred until the positive-case pipeline is
-reproducible. A BigCloneBench clone-detector false positive is not automatically
-a valid srcMove negative case. The future extension must define:
-
-- how each pair is converted into a before/after source edit without introducing
-  an accidental real move through the synthetic wrapper
-- why the expected srcMove result is no move
-- how to verify that srcDiff exposed comparable candidate regions
-- which judgment, confidence, size, and deduplication filters define eligibility
-- whether the metric describes the selected negative slice or supports a broader
-  false-positive-rate or precision claim
-
-Keep those negative results separate from the current positive-case detection
-rate. Once the conversion and oracle are defensible, useful failures can be
-minimized into small checked-in regression tests while the generated suite
-continues to provide breadth.
-
 ## Exploratory Query and Thesis Selection
 
 The following ordered query is useful for smoke tests and debugging, beginning

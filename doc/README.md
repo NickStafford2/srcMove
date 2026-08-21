@@ -41,6 +41,9 @@ summaries or diagrams disagree with current behavior.
 
 ## Planning and non-authoritative notes
 
+- [BigCloneBench suite plan](plans/benchmarks/README.md): deduplicated Type-1,
+  Type-2, Type-3-strength, weak/semantic, and known-false-positive evaluation
+  over a compiled reusable dataset
 - [Benchmarking upgrade plan](benchmarking_upgrade_plan.md): staged design for
   reproducible accuracy, performance, reliability, and thesis data runs
 - [Parallel programming upgrade plan](parallel_programming_upgrade_plan.md):
