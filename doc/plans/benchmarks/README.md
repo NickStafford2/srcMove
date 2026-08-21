@@ -221,18 +221,22 @@ same immutable corpus and excludes BigCloneBench and srcDiff preparation.
 
 ## Implementation Order
 
-Phases 1 and 2 are implemented. `benchmarks/bigclonebench/compile.py` and
+Phases 1 through 3 are implemented for Type 1 and Type 2.
+`benchmarks/bigclonebench/compile.py` and
 `compiled.py` provide serial H2 export and the immutable SQLite/fragment
 dataset. `selection.py` reads that catalog in immutable read-only mode and
 publishes separate deterministic sample or census selections for Type 1, Type
-2, and known false positives. Snapshot materialization remains the next phase.
+2, and known false positives. `snapshot.py` materializes Type-1 and Type-2
+selections directly from the fragment store into shared content-addressed input
+snapshots without H2 or mutable case directories.
 
 1. **Complete:** add a read-only compile command, SQLite catalog schema,
    fragment store, and manifest validation.
 2. **Complete:** move exact generated-input dedupe into selection and retain
    row multiplicity, exclusions, complete metadata, and label conflicts.
-3. Materialize BigCloneBench inputs directly into content-addressed snapshots;
-   remove repeated extraction and mutable case-directory dependence.
+3. **Complete for Type 1 and Type 2:** materialize BigCloneBench inputs directly
+   into content-addressed snapshots without repeated extraction or mutable case
+   directories. Known false positives join this path with Phase 4 orchestration.
 4. Add `bigclonebench-suite` orchestration for Type 1, Type 2, and known false
    positives, with sample and census modes.
 5. Add stratified Type-3 and weak/semantic observational reports without

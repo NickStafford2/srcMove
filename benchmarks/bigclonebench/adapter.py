@@ -2,19 +2,295 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from benchmarks.contracts import InputPair, SemanticResult, SemanticStatus
+from benchmarks.bigclonebench.compiled import load_compiled_dataset
+from benchmarks.bigclonebench.generate import (
+    build_synthetic_move_sources,
+    dedent_fragment,
+    indent_fragment,
+)
+from benchmarks.bigclonebench.selection import (
+    GENERATED_INPUT_IDENTITY_VERSION,
+    load_selection,
+)
+from benchmarks.contracts import (
+    InputPair,
+    MaterializedInputPair,
+    SemanticResult,
+    SemanticStatus,
+    content_identifier,
+)
+from benchmarks.provenance import sha256_file
 
 
 SEMANTIC_ORACLE_VERSION = 1
+SYNTHETIC_WRAPPER_VERSION = 1
 SRCDIFF_NAMESPACES = {
     "http://www.srcML.org/srcDiff",
     "http://www.srcML.org/srcDiff/diff",
 }
+
+
+def _fragment_relation(fragment_one: str, fragment_two: str) -> dict[str, bool]:
+    return {
+        "raw_text_identical": fragment_one == fragment_two,
+        "trimmed_text_identical": fragment_one.strip() == fragment_two.strip(),
+    }
+
+
+def _file_identity(path: Path, contents: bytes) -> dict[str, Any]:
+    return {
+        "kind": "directory",
+        "files": [
+            {
+                "path": path.name,
+                "size_bytes": len(contents),
+                "sha256": hashlib.sha256(contents).hexdigest(),
+            }
+        ],
+        "excluded": [],
+    }
+
+
+def _safe_fragment_sha256(value: Any) -> str:
+    if (
+        not isinstance(value, str)
+        or len(value) != 64
+        or any(character not in "0123456789abcdef" for character in value)
+    ):
+        raise ValueError("selection frame contains an invalid fragment SHA-256")
+    return value
+
+
+class CompiledBigCloneBenchAdapter:
+    """Materialize Phase 2 selections directly from the compiled fragment store."""
+
+    name = "bigclonebench"
+    version = 3
+
+    def __init__(
+        self,
+        *,
+        data_root: Path,
+        selection: str | Path,
+    ) -> None:
+        self.data_root = data_root.expanduser().resolve()
+        supplied = Path(selection)
+        if supplied.is_absolute() or supplied.exists():
+            selection_directory = supplied.expanduser().resolve()
+        else:
+            selection_directory = (
+                self.data_root / "bigclonebench" / "selections" / str(selection)
+            )
+        self.selection_manifest = load_selection(selection_directory)
+        self.selection_directory = selection_directory
+
+        request = self.selection_manifest["request"]
+        pair_set = request.get("pair_set")
+        if pair_set not in {"type1", "type2"}:
+            raise ValueError(
+                "compiled snapshot materialization currently supports only "
+                "Type 1 and Type 2 selections"
+            )
+        self.syntactic_type = int(str(pair_set).removeprefix("type"))
+        self.compiled = load_compiled_dataset(
+            request["compiled_dataset_id"],
+            data_root=self.data_root,
+            verification="catalog",
+        )
+        compiled_declaration = self.selection_manifest.get("compiled_dataset", {})
+        if (
+            compiled_declaration.get("manifest_sha256")
+            != self.compiled.manifest_sha256
+            or compiled_declaration.get("catalog_sha256")
+            != self.compiled.manifest["artifacts"]["catalog"]["sha256"]
+        ):
+            raise ValueError("selection compiled-dataset checksums do not match")
+
+    def _fragment(self, fragment_sha256: str) -> str:
+        fragment_sha256 = _safe_fragment_sha256(fragment_sha256)
+        path = (
+            self.compiled.directory
+            / "fragments"
+            / fragment_sha256[:2]
+            / f"{fragment_sha256}.java"
+        )
+        if path.is_symlink() or not path.is_file():
+            raise ValueError(f"compiled fragment is unavailable: {fragment_sha256}")
+        contents = path.read_bytes()
+        if hashlib.sha256(contents).hexdigest() != fragment_sha256:
+            raise ValueError(f"compiled fragment checksum mismatch: {fragment_sha256}")
+        return contents.decode("utf-8")
+
+    def _frames(self) -> list[Mapping[str, Any]]:
+        artifact = self.selection_manifest["artifacts"]["frames"]
+        path = self.selection_directory / artifact["path"]
+        frames: list[Mapping[str, Any]] = []
+        with path.open(encoding="utf-8") as stream:
+            for line_number, line in enumerate(stream, start=1):
+                try:
+                    frame = json.loads(line)
+                except json.JSONDecodeError as error:
+                    raise ValueError(
+                        f"invalid selection frame at line {line_number}: {error}"
+                    ) from error
+                if not isinstance(frame, dict):
+                    raise ValueError(
+                        f"invalid selection frame at line {line_number}: expected object"
+                    )
+                frames.append(frame)
+        expected_count = self.selection_manifest["counts"]["selected_frames"]
+        if len(frames) != expected_count:
+            raise ValueError(
+                "selection frame count does not match manifest: "
+                f"{len(frames)} observed, {expected_count} declared"
+            )
+        return frames
+
+    @staticmethod
+    def _case_id(frame: Mapping[str, Any]) -> str:
+        generated_input_id = frame.get("generated_input_id")
+        if not isinstance(generated_input_id, str):
+            raise ValueError("selection frame is missing generated_input_id")
+        return generated_input_id
+
+    def _materialize_frame(
+        self, frame: Mapping[str, Any], case_root: Path
+    ) -> MaterializedInputPair:
+        direction = frame.get("direction")
+        if not isinstance(direction, Mapping):
+            raise ValueError("selection frame is missing direction metadata")
+        original_sha = _safe_fragment_sha256(
+            direction.get("original_fragment_sha256")
+        )
+        modified_sha = _safe_fragment_sha256(
+            direction.get("modified_fragment_sha256")
+        )
+        expected_generated_id = content_identifier(
+            "bcb-generated-input",
+            {
+                "version": GENERATED_INPUT_IDENTITY_VERSION,
+                "original_fragment_sha256": original_sha,
+                "modified_fragment_sha256": modified_sha,
+            },
+        )
+        if frame.get("generated_input_id") != expected_generated_id:
+            raise ValueError("selection frame generated-input identity does not match")
+
+        original_fragment = self._fragment(original_sha)
+        modified_fragment = self._fragment(modified_sha)
+        generated_original = indent_fragment(original_fragment)
+        generated_modified = dedent_fragment(modified_fragment)
+        digest = expected_generated_id.rsplit("-", 1)[-1]
+        original_source, modified_source, original_range, modified_range = (
+            build_synthetic_move_sources(
+                f"BCBMove{digest}", generated_original, generated_modified
+            )
+        )
+        original_bytes = original_source.encode("utf-8")
+        modified_bytes = modified_source.encode("utf-8")
+        original_directory = case_root / "original"
+        modified_directory = case_root / "modified"
+        original_directory.mkdir(parents=True, exist_ok=False)
+        modified_directory.mkdir(parents=True, exist_ok=False)
+        original_path = original_directory / "original.java"
+        modified_path = modified_directory / "modified.java"
+        original_path.write_bytes(original_bytes)
+        modified_path.write_bytes(modified_bytes)
+        original_path.chmod(0o444)
+        modified_path.chmod(0o444)
+
+        rows = frame.get("rows")
+        if not isinstance(rows, list) or not rows:
+            raise ValueError("selection frame contains no contributing rows")
+        if any(
+            not isinstance(row, Mapping)
+            or row.get("syntactic_type") != self.syntactic_type
+            or row.get("pair_kind") != "positive"
+            for row in rows
+        ):
+            raise ValueError("selection frame rows do not match the selected pair set")
+        metadata = {
+            "source": "BigCloneBench compiled selection",
+            "case_kind": "positive",
+            "clone_type": f"type{self.syntactic_type}",
+            "syntactic_type": self.syntactic_type,
+            "compiled_dataset_id": self.compiled.dataset_id,
+            "selection_id": self.selection_manifest["selection_id"],
+            "frame_id": frame.get("frame_id"),
+            "generated_input_id": expected_generated_id,
+            "synthetic_wrapper_version": SYNTHETIC_WRAPPER_VERSION,
+            "fragment_one": {
+                "sha256": original_sha,
+                "text": original_fragment,
+            },
+            "fragment_two": {
+                "sha256": modified_sha,
+                "text": modified_fragment,
+            },
+            "fragment_relation": _fragment_relation(
+                original_fragment, modified_fragment
+            ),
+            "expected": {
+                "move_count": 1,
+                "from_raw_text": original_fragment,
+                "to_raw_text": modified_fragment,
+                "from_generated_text": generated_original,
+                "to_generated_text": generated_modified,
+                "from_start_line": original_range[0],
+                "from_end_line": original_range[1],
+                "to_start_line": modified_range[0],
+                "to_end_line": modified_range[1],
+            },
+            "selection_frame": dict(frame),
+        }
+        return MaterializedInputPair(
+            case_id=expected_generated_id,
+            original=_file_identity(original_path, original_bytes),
+            modified=_file_identity(modified_path, modified_bytes),
+            metadata=metadata,
+        )
+
+    def materialize_input_pairs(
+        self, sources_root: Path, excluded_suffixes: Sequence[str]
+    ) -> Sequence[MaterializedInputPair]:
+        if ".java" in excluded_suffixes:
+            raise ValueError("BigCloneBench Java inputs cannot be excluded")
+        materialized: list[MaterializedInputPair] = []
+        seen_case_ids: set[str] = set()
+        for frame in self._frames():
+            case_id = self._case_id(frame)
+            if case_id in seen_case_ids:
+                raise ValueError(f"duplicate generated input in selection: {case_id}")
+            seen_case_ids.add(case_id)
+            materialized.append(
+                self._materialize_frame(frame, sources_root / case_id)
+            )
+        return materialized
+
+    @staticmethod
+    def validate_semantics(
+        case: InputPair, srcdiff_xml: Path
+    ) -> SemanticResult:
+        return validate_srcdiff_semantics(case, srcdiff_xml)
+
+    def source_manifest(self) -> dict[str, Any]:
+        return {
+            "dataset": "BigCloneBench",
+            "compiled_dataset_id": self.compiled.dataset_id,
+            "compiled_manifest_sha256": self.compiled.manifest_sha256,
+            "selection_id": self.selection_manifest["selection_id"],
+            "selection_manifest_sha256": sha256_file(
+                self.selection_directory / "manifest.json"
+            ),
+            "pair_set": self.selection_manifest["request"]["pair_set"],
+            "synthetic_wrapper_version": SYNTHETIC_WRAPPER_VERSION,
+        }
 
 
 def _local_name(value: str) -> str:

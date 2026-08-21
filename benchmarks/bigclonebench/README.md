@@ -88,8 +88,21 @@ Every selection directory contains:
 No token, judgment, or confidence minimum is applied. The manifest reports
 sub-50-token coverage explicitly. Reverse-direction rows remain attached to the
 selected frame with their multiplicity and are marked as execution exclusions.
-Reusing a selection validates all artifact checksums. Direct snapshot
-materialization and `make bigclonebench-suite` remain subsequent phases in the
+Reusing a selection validates all artifact checksums. Phase 3 materializes a
+Type-1 or Type-2 selection directly from the compiled fragment store:
+
+```bash
+make bigclonebench-snapshot \
+  BIGCLONEBENCH_SELECTION_ID=<selection-id>
+```
+
+The command validates the selection and compiled catalog without opening H2,
+verifies each selected fragment object, and writes generated old/new Java files
+straight into the shared content-addressed input snapshot. Synthetic class names
+derive from fragment-content identity, and all contributing rows remain in each
+case's snapshot metadata. The mutable `benchmarks/bigclonebench/cases/` tree is
+not read or written. Known-false-positive snapshots and
+`make bigclonebench-suite` remain subsequent phases in the
 [suite plan](../../doc/plans/benchmarks/README.md).
 
 The workflow keeps generated sources, reusable srcDiff XML, and srcMove runs

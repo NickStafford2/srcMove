@@ -6,13 +6,14 @@ SELECTION_ROLE ?= tuning
 CASES_DIR ?= benchmarks/bigclonebench/cases
 BIGCLONEBENCH_DATA_ROOT ?= benchmark-data
 BIGCLONEBENCH_DATASET ?=
+BIGCLONEBENCH_SELECTION_ID ?=
 MODE ?= sample
 SEED ?= 0
 SAMPLE_SIZE ?= 100
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 BIGCLONEBENCH_SELECTION = $(if $(filter 1 yes true,$(KNOWN_FALSE_POSITIVES))$(filter known-false-positive,$(CLONE_TYPE)),--known-false-positives,--clone-type "$(CLONE_TYPE)")
 
-.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source test-policy benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-compile bigclonebench-select bigclonebench-cases bigclonebench
+.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source test-policy benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-compile bigclonebench-select bigclonebench-snapshot bigclonebench-cases bigclonebench
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -30,6 +31,7 @@ help:
 	@printf '  %-28s %s\n' 'make bigclonebench-preflight' 'Check the local BigCloneBench installation'
 	@printf '  %-28s %s\n' 'make bigclonebench-compile' 'Compile or reuse the local BigCloneBench catalog'
 	@printf '  %-28s %s\n' 'make bigclonebench-select' 'Publish a selection from the compiled catalog'
+	@printf '  %-28s %s\n' 'make bigclonebench-snapshot' 'Materialize an immutable compiled-selection snapshot'
 	@printf '  %-28s %s\n' 'make bigclonebench-cases' 'Generate a configurable BigCloneBench case slice'
 	@printf '  %-28s %s\n' 'make bigclonebench' 'Generate cases and run the staged BigCloneBench pipeline'
 
@@ -119,6 +121,11 @@ bigclonebench-select:
 		--role "$(SELECTION_ROLE)" --seed "$(SEED)" \
 		--sample-size "$(SAMPLE_SIZE)" \
 		$(if $(DEDUPE),--dedupe "$(DEDUPE)")
+
+bigclonebench-snapshot:
+	@test -n "$(BIGCLONEBENCH_SELECTION_ID)" || { echo 'error: BIGCLONEBENCH_SELECTION_ID is required'; exit 2; }
+	@$(PYTHON) benchmarks/bigclonebench/snapshot.py "$(BIGCLONEBENCH_SELECTION_ID)" \
+		--data-root "$(BIGCLONEBENCH_DATA_ROOT)"
 
 bigclonebench-cases:
 	@$(PYTHON) benchmarks/bigclonebench/pipeline.py cases \
