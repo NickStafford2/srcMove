@@ -56,9 +56,40 @@ make bigclonebench-compile COMPILE_LIMIT=10
 ```
 
 The limit is part of dataset identity, so a smoke catalog cannot be mistaken for
-the complete frame. The compiled catalog is not yet consumed by the existing
-per-type case generator; direct snapshot materialization and
-`make bigclonebench-suite` are subsequent phases in the
+the complete frame.
+
+Phase 2 selects directly from this SQLite catalog and never accesses H2. It
+publishes each content-identified selection under
+`benchmark-data/bigclonebench/selections/<selection-id>/`. Create the complete
+deduplicated Type-1 frame with:
+
+```bash
+make bigclonebench-select \
+  BIGCLONEBENCH_DATASET=<dataset-id> CLONE_TYPE=type1 MODE=census \
+  SELECTION_ROLE=evaluation
+```
+
+Use `CLONE_TYPE=type2` or `CLONE_TYPE=known-false-positive` for the other pair
+sets. `MODE=sample SAMPLE_SIZE=100 SEED=0` selects the lowest seeded SHA-256
+ranks from the complete eligible frame. The seed, role, sample size, pair set,
+and dedupe policy are part of selection identity. The default
+`DEDUPE=exact-unordered-fragment-pair` retains one direction chosen by ascending
+fragment SHA-256; `DEDUPE=none` is the row-based audit mode.
+
+Every selection directory contains:
+
+- `manifest.json`: request, source catalog identity, counts, and artifact hashes
+- `frames.jsonl`: selected frames and all contributing row, function, and
+  functionality metadata
+- `exclusions.jsonl`: unavailable inputs and deterministic sample exclusions
+- `label-conflicts.jsonl`: the catalog's complete positive/negative conflict
+  registry
+
+No token, judgment, or confidence minimum is applied. The manifest reports
+sub-50-token coverage explicitly. Reverse-direction rows remain attached to the
+selected frame with their multiplicity and are marked as execution exclusions.
+Reusing a selection validates all artifact checksums. Direct snapshot
+materialization and `make bigclonebench-suite` remain subsequent phases in the
 [suite plan](../../doc/plans/benchmarks/README.md).
 
 The workflow keeps generated sources, reusable srcDiff XML, and srcMove runs

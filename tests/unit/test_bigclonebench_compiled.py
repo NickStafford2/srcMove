@@ -207,6 +207,10 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
                 verify_upstream_sources(compiled, bce_dir=bce)["status"],
                 "metadata_match",
             )
+            identity_loaded = load_compiled_dataset(
+                compiled.directory, verification="identity"
+            )
+            self.assertEqual(identity_loaded.dataset_id, compiled.dataset_id)
             self.assertEqual(
                 verify_upstream_sources(
                     compiled, bce_dir=bce, verification="full"

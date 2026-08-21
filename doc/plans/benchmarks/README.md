@@ -221,17 +221,16 @@ same immutable corpus and excludes BigCloneBench and srcDiff preparation.
 
 ## Implementation Order
 
-Phase 1 is implemented by `benchmarks/bigclonebench/compile.py` and
-`compiled.py`: serial H2 bulk export, a versioned SQLite catalog, exact fragment
-objects, atomic publication, catalog/full validation, and metadata-based reuse.
-The compiler has fixture coverage and a real-data smoke check. The compiled
-catalog is not yet consumed by case selection or snapshot materialization;
-those remain the next phases.
+Phases 1 and 2 are implemented. `benchmarks/bigclonebench/compile.py` and
+`compiled.py` provide serial H2 export and the immutable SQLite/fragment
+dataset. `selection.py` reads that catalog in immutable read-only mode and
+publishes separate deterministic sample or census selections for Type 1, Type
+2, and known false positives. Snapshot materialization remains the next phase.
 
-1. Add a read-only compile command, SQLite catalog schema, fragment store, and
-   manifest validation.
-2. Move exact generated-input dedupe into compilation/selection and retain row
-   multiplicity metadata.
+1. **Complete:** add a read-only compile command, SQLite catalog schema,
+   fragment store, and manifest validation.
+2. **Complete:** move exact generated-input dedupe into selection and retain
+   row multiplicity, exclusions, complete metadata, and label conflicts.
 3. Materialize BigCloneBench inputs directly into content-addressed snapshots;
    remove repeated extraction and mutable case-directory dependence.
 4. Add `bigclonebench-suite` orchestration for Type 1, Type 2, and known false

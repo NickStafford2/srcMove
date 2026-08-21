@@ -5,10 +5,14 @@ LIMIT ?= 100
 SELECTION_ROLE ?= tuning
 CASES_DIR ?= benchmarks/bigclonebench/cases
 BIGCLONEBENCH_DATA_ROOT ?= benchmark-data
+BIGCLONEBENCH_DATASET ?=
+MODE ?= sample
+SEED ?= 0
+SAMPLE_SIZE ?= 100
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 BIGCLONEBENCH_SELECTION = $(if $(filter 1 yes true,$(KNOWN_FALSE_POSITIVES))$(filter known-false-positive,$(CLONE_TYPE)),--known-false-positives,--clone-type "$(CLONE_TYPE)")
 
-.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source test-policy benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-compile bigclonebench-cases bigclonebench
+.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source test-policy benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-compile bigclonebench-select bigclonebench-cases bigclonebench
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -25,6 +29,7 @@ help:
 	@printf '  %-28s %s\n' 'make history-results' 'Show moves from the latest repository history'
 	@printf '  %-28s %s\n' 'make bigclonebench-preflight' 'Check the local BigCloneBench installation'
 	@printf '  %-28s %s\n' 'make bigclonebench-compile' 'Compile or reuse the local BigCloneBench catalog'
+	@printf '  %-28s %s\n' 'make bigclonebench-select' 'Publish a selection from the compiled catalog'
 	@printf '  %-28s %s\n' 'make bigclonebench-cases' 'Generate a configurable BigCloneBench case slice'
 	@printf '  %-28s %s\n' 'make bigclonebench' 'Generate cases and run the staged BigCloneBench pipeline'
 
@@ -105,6 +110,15 @@ bigclonebench-compile:
 	@$(PYTHON) benchmarks/bigclonebench/compile.py \
 		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" compile \
 		$(if $(COMPILE_LIMIT),--limit-per-kind "$(COMPILE_LIMIT)")
+
+bigclonebench-select:
+	@test -n "$(BIGCLONEBENCH_DATASET)" || { echo 'error: BIGCLONEBENCH_DATASET is required'; exit 2; }
+	@$(PYTHON) benchmarks/bigclonebench/selection.py "$(BIGCLONEBENCH_DATASET)" \
+		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" \
+		--pair-set "$(CLONE_TYPE)" --mode "$(MODE)" \
+		--role "$(SELECTION_ROLE)" --seed "$(SEED)" \
+		--sample-size "$(SAMPLE_SIZE)" \
+		$(if $(DEDUPE),--dedupe "$(DEDUPE)")
 
 bigclonebench-cases:
 	@$(PYTHON) benchmarks/bigclonebench/pipeline.py cases \

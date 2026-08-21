@@ -957,9 +957,9 @@ def load_compiled_dataset(
     data_root: Path | None = None,
     verification: str = "catalog",
 ) -> VerifiedCompiledDataset:
-    """Load an immutable compiled dataset with catalog or full CAS verification."""
+    """Load a compiled dataset with identity, catalog, or full CAS verification."""
 
-    if verification not in {"catalog", "full"}:
+    if verification not in {"identity", "catalog", "full"}:
         raise ValueError(f"unsupported compiled dataset verification: {verification}")
     candidate = Path(identifier_or_path)
     if candidate.is_absolute() or candidate.exists():
@@ -973,6 +973,8 @@ def load_compiled_dataset(
         )
     else:
         directory = candidate.expanduser().resolve()
+    if verification == "identity":
+        return _load_for_reuse(directory, portable=True)
     if directory.is_symlink() or not directory.is_dir():
         raise ValueError(f"compiled dataset directory is unavailable: {directory}")
     manifest_path = directory / "manifest.json"
@@ -1211,7 +1213,9 @@ def record_compiled_dataset(
     write_json_atomic(index_path, index)
 
 
-def _load_for_reuse(directory: Path) -> VerifiedCompiledDataset:
+def _load_for_reuse(
+    directory: Path, *, portable: bool = False
+) -> VerifiedCompiledDataset:
     """Load only the immutable identity needed by the development fast path."""
 
     directory = directory.resolve()
@@ -1235,9 +1239,19 @@ def _load_for_reuse(directory: Path) -> VerifiedCompiledDataset:
     if directory.name != manifest.get("dataset_id"):
         raise ValueError("compiled reuse directory does not match dataset id")
     catalog = manifest.get("artifacts", {}).get("catalog", {})
-    if catalog.get("path") != "catalog.sqlite" or catalog.get(
-        "quick_identity"
-    ) != _database_quick_identity(catalog_path):
+    declared_quick_identity = catalog.get("quick_identity")
+    observed_quick_identity = _database_quick_identity(catalog_path)
+    comparable_fields = ("size_bytes", "mtime_ns") if portable else tuple(
+        observed_quick_identity
+    )
+    if (
+        catalog.get("path") != "catalog.sqlite"
+        or not isinstance(declared_quick_identity, dict)
+        or any(
+            declared_quick_identity.get(field) != observed_quick_identity[field]
+            for field in comparable_fields
+        )
+    ):
         raise ValueError("compiled reuse catalog metadata changed")
     with closing(sqlite3.connect(f"file:{catalog_path}?mode=ro", uri=True)) as connection:
         if connection.execute("PRAGMA application_id").fetchone()[0] != SQLITE_APPLICATION_ID:
