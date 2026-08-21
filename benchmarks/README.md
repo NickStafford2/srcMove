@@ -7,8 +7,9 @@ correctness tests in `tests/`.
   Type-2 detection workloads generated from BigCloneBench clone pairs.
 - [Repository benchmarks](repositories/README.md): end-to-end `srcdiff` and
   `srcMove` runs across configured revisions of real repositories.
-- `profile.py`: paired/interleaved internal and external performance measurements
-  over immutable srcDiff XML.
+- `run_performance.py`: paired/interleaved performance measurements over
+  immutable srcDiff XML that capture both external process timings and
+  `srcMove --profile` stage timings.
 
 Generated benchmark data is ignored by Git but saved automatically below
 `benchmark-data/`. Repository invocations create append-only run records and a
@@ -43,8 +44,8 @@ compatibility contracts:
   Its case-local `work/` directory is only a checkout/export cache; authoritative
   input snapshots, attempts, corpora, runs, and series indexes are stored under
   `benchmark-data/`.
-- `benchmarks/profile.py` reads existing XML inputs and writes ignored local
-  profiles unless an explicit output is selected.
+- `benchmarks/run_performance.py` reads existing XML inputs and writes ignored
+  local performance runs unless an explicit output is selected.
 
 Previously archived thesis results are historical evidence, not regression
 expectations for the refactored implementation.
@@ -130,13 +131,20 @@ candidate subsets and every attempt below `benchmark-data/investigations/`.
 
 ## Performance measurements
 
-`profile.py` compares one or more named srcMove builds on identical checksummed
-inputs. The first `--variant` is the comparison baseline. The recorded schedule
-keeps builds adjacent for each case/repetition, rotates their order, and uses the
-declared seed to make the schedule reproducible:
+Use `srcMove --profile` directly when you want a quick view of which internal
+pipeline stages are slow in one run. It writes coarse
+`profile.<stage>_ms=<milliseconds>` lines to standard error.
+
+Use `run_performance.py` when you need repeatable performance evidence. It
+compares one or more named srcMove builds on identical checksummed inputs,
+captures the internal `--profile` lines, and records external wall time, CPU
+time, memory, provenance, and run artifacts. The first `--variant` is the
+comparison baseline. The recorded schedule keeps builds adjacent for each
+case/repetition, rotates their order, and uses the declared seed to make the
+schedule reproducible:
 
 ```bash
-python3 benchmarks/profile.py \
+python3 benchmarks/run_performance.py \
   --variant baseline=/path/to/baseline/srcMove \
   --variant candidate=/path/to/candidate/srcMove \
   --corpus CORPUS_ID \
