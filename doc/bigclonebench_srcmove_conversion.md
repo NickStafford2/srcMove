@@ -44,16 +44,18 @@ For each selected clone pair:
 1. Join `CLONES` to `FUNCTIONS` twice.
 2. Extract `function_id_one` lines from its source file.
 3. Extract `function_id_two` lines from its source file.
-4. Build a synthetic old file containing fragment one inside a stable wrapper
-   class.
-5. Build a synthetic new file containing the paired fragment after that class,
-   at top-level srcML scope.
+4. Build a synthetic old file containing fragment one directly in a stable
+   wrapper class and an empty nested destination class.
+5. Build a synthetic new file containing fragment two inside that nested class.
+   Both revisions remain structurally valid Java while presenting the payloads
+   under different parent shapes.
 6. Run `srcDiff original.java modified.java --position`.
 7. Verify that srcDiff exposed the intended synthetic payload as usable
    delete/insert regions.
 8. Run `srcMove` over eligible srcDiff XML.
-9. Score whether srcMove reports one delete/insert move whose annotated positions
-   overlap the generated line ranges for the two benchmark fragments.
+9. Score whether any single reported move links both complete generated fragment
+   texts and that same move's XML delete/insert annotations overlap the expected
+   line ranges. Other reported moves are incidental evidence, not a rejection.
 
 The compiled suite supplies each revision to srcDiff as a one-file directory in
 archive mode. Both directories use the same relative filename, `input.java`, so
@@ -61,11 +63,13 @@ srcDiff compares them as revisions of one file. Different relative filenames
 would instead encode an unrelated whole-file deletion and insertion.
 
 The current evaluation uses a strict detection-and-classification oracle:
-Type-1 cases must report the intended whole-fragment move as `exact`, and Type-2
-cases must report it as `type2`. Position and per-side text validation must also
-pass. Detecting the intended payload with the wrong match kind is useful failure
-evidence, but it is not counted as a pass. The benchmark deliberately uses
-BigCloneBench as the best available large labeled source; questionable labels,
+Type-1 cases must classify the intended whole-fragment move as `exact`, Type-2
+as `type2`, and Type-3 as `type3`. Position and per-side text validation are
+correlated to that move by its result `move_id` and XML `mv:id`/link attributes.
+Detecting the intended payload with the wrong match kind is useful failure
+evidence, but it is not counted as a pass. Type-3 recall is observational. The
+benchmark deliberately uses BigCloneBench as the best available large labeled
+source; questionable labels,
 unsupported variations, extraction problems, or conversion artifacts discovered
 in the failure set should be analyzed and reported rather than silently removed.
 
@@ -277,7 +281,7 @@ cases where the exact same function pair carries both labels.
 - Many BigCloneBench fragments depend on imports or surrounding class members.
   srcDiff/srcML parsing generally does not require compilation, but malformed
   extracted fragments should be filtered out.
-- Type-3 and Type-4 pairs should not be marked as required positives unless
-  srcMove grows a similarity matcher designed for them.
+- Type-3 strict classification remains observational until srcMove grows a
+  similarity matcher designed for it. Type-4 is not a required positive.
 - Keep the generator deterministic. A stable SQL `ORDER BY` makes failures
   reproducible and lets you compare recall across srcMove versions.

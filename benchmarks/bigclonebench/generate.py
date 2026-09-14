@@ -469,8 +469,9 @@ def source_path(kind: str, name: str, functionality_id: int) -> Path:
 def build_synthetic_move_sources(
     class_name: str, generated_fragment1: str, generated_fragment2: str
 ) -> tuple[str, str, tuple[int, int], tuple[int, int]]:
-    # Put the payload under different parent shapes so srcDiff exposes it as
-    # delete/insert content instead of aligning two synthetic wrappers.
+    # Keep both inputs as valid Java while putting the payload under different
+    # parent shapes. The stable nested-class anchor lets srcDiff expose the
+    # direct member as deleted and the nested member as inserted.
     original_lines: list[str] = []
     append_block(
         original_lines,
@@ -479,17 +480,27 @@ def build_synthetic_move_sources(
 """,
     )
     original_range = append_block(original_lines, generated_fragment1)
-    append_block(original_lines, "}")
+    append_block(
+        original_lines,
+        """  private static class MoveDestination {
+  }
+}""",
+    )
 
     modified_lines: list[str] = []
     append_block(
         modified_lines,
         f"""public class {class_name} {{
   private static final int SOURCE_CONTEXT = 100;
-}}
+  private static class MoveDestination {{
 """,
     )
     modified_range = append_block(modified_lines, generated_fragment2)
+    append_block(
+        modified_lines,
+        """  }
+}""",
+    )
 
     original = "\n".join(original_lines) + "\n"
     modified = "\n".join(modified_lines) + "\n"

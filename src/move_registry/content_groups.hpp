@@ -44,7 +44,8 @@ enum class group_kind : std::uint8_t {
 enum class match_kind : std::uint8_t {
   exact,
   type2,
-  unmatched
+  unmatched,
+  type3
 };
 
 struct content_group {

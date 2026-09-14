@@ -28,6 +28,7 @@ struct group_kind_counts {
 struct match_kind_counts {
   std::size_t exact = 0;
   std::size_t type2 = 0;
+  std::size_t type3 = 0;
 };
 
 struct summary {

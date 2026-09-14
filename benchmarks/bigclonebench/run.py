@@ -7,6 +7,7 @@ import hashlib
 import json
 import sys
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -24,23 +25,36 @@ from support.tooling import find_srcdiff, find_srcmove, print_process_failure, r
 
 SummaryRow = dict[str, str | int | bool]
 TextValidation = dict[str, str]
+MV_NAMESPACE = "http://www.srcML.org/srcMove"
+
+
+@dataclass(frozen=True)
+class PositiveOracleAssessment:
+    detected: bool
+    correctly_classified: bool
+    operational_failures: list[str]
+    detection_failures: list[str]
+    classification_failures: list[str]
+    text_validation: TextValidation
+    detected_move_id: str | None = None
+    observed_match_kind: str | None = None
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
-        description="Run generated BigCloneBench Type-1 or Type-2 srcMove tests."
+        description="Run generated BigCloneBench Type-1, Type-2, or Type-3 srcMove tests."
     )
     type_group = parser.add_mutually_exclusive_group()
     type_group.add_argument(
         "--clone-type",
-        choices=("type1", "type2"),
+        choices=("type1", "type2", "type3"),
         default="type1",
         help="BigCloneBench clone type to generate. Default: type1.",
     )
     type_group.add_argument(
         "--syntactic-type",
         type=int,
-        choices=(1, 2),
+        choices=(1, 2, 3),
         help="BigCloneBench syntactic_type to generate. Alias for --clone-type.",
     )
     parser.add_argument("--limit", type=int, default=1)
@@ -49,7 +63,7 @@ def parse_args() -> argparse.Namespace:
         type=int,
         help=(
             "Maximum BigCloneBench rows for the generator to scan before dedupe. "
-            "By default the generator scans all eligible Type-1/Type-2 rows."
+            "By default the generator scans all eligible rows for the selected type."
         ),
     )
     parser.add_argument(
@@ -152,33 +166,44 @@ def parse_pos_line(value: str, kind: str) -> int | None:
         return None
 
 
-def moved_position_ranges(srcmove_xml: Path) -> dict[str, list[tuple[int, int]]]:
+def moved_position_ranges(
+    srcmove_xml: Path,
+) -> dict[str, dict[str, list[tuple[int, int]]]]:
     tree = ET.parse(srcmove_xml)
-    ranges: dict[str, list[tuple[int, int]]] = {"delete": [], "insert": []}
+    ranges: dict[str, dict[str, list[tuple[int, int]]]] = {}
 
     for node in tree.iter():
-        move_id = attr_by_local_name(node, "id")
+        move_id = node.attrib.get(f"{{{MV_NAMESPACE}}}id")
         if move_id is None:
             continue
 
-        if attr_by_local_name(node, "to") is not None:
+        to_link = node.attrib.get(f"{{{MV_NAMESPACE}}}to")
+        from_link = node.attrib.get(f"{{{MV_NAMESPACE}}}from")
+        if to_link is not None and from_link is not None:
+            raise ValueError(f"move annotation {move_id!r} has both mv:to and mv:from")
+        if to_link:
             kind = "delete"
-        elif attr_by_local_name(node, "from") is not None:
+        elif from_link:
             kind = "insert"
+        elif to_link is not None or from_link is not None:
+            raise ValueError(f"move annotation {move_id!r} has an empty link attribute")
         else:
             continue
 
         pos_start = attr_by_local_name(node, "start")
         pos_end = attr_by_local_name(node, "end")
         if pos_start is None or pos_end is None:
-            continue
+            raise ValueError(f"move annotation {move_id!r} is missing a position range")
 
         start_line = parse_pos_line(pos_start, kind)
         end_line = parse_pos_line(pos_end, kind)
         if start_line is None or end_line is None:
-            continue
+            raise ValueError(f"move annotation {move_id!r} has an invalid position range")
 
-        ranges[kind].append((min(start_line, end_line), max(start_line, end_line)))
+        move_ranges = ranges.setdefault(move_id, {"delete": [], "insert": []})
+        move_ranges[kind].append(
+            (min(start_line, end_line), max(start_line, end_line))
+        )
 
     return ranges
 
@@ -259,87 +284,97 @@ def validate_reported_text(
     text_validation[side] = status
 
 
-def validate_case(
-    case_dir: Path,
-    results_json: Path,
+def _validate_results_schema(results: Any) -> list[str]:
+    failures: list[str] = []
+    if not isinstance(results, dict):
+        return ["results.json root must be an object"]
+
+    moves = results.get("moves")
+    move_count = results.get("move_count")
+    if not isinstance(moves, list):
+        failures.append("moves: expected a list")
+        return failures
+    if not isinstance(move_count, int) or isinstance(move_count, bool) or move_count < 0:
+        failures.append("move_count: expected a nonnegative integer")
+    elif move_count != len(moves):
+        failures.append("move_count does not match the moves list")
+
+    observed_counts = {"exact": 0, "type2": 0, "type3": 0}
+    move_ids: set[str] = set()
+    for index, move in enumerate(moves):
+        prefix = f"moves[{index}]"
+        if not isinstance(move, dict):
+            failures.append(f"{prefix}: expected an object")
+            continue
+        move_id = move.get("move_id")
+        if not isinstance(move_id, str) or not move_id:
+            failures.append(f"{prefix}.move_id: expected a nonempty string")
+        elif move_id in move_ids:
+            failures.append(f"{prefix}.move_id: duplicate move id {move_id!r}")
+        else:
+            move_ids.add(move_id)
+        match_kind = move.get("match_kind")
+        if match_kind not in observed_counts:
+            failures.append(f"{prefix}.match_kind: invalid value {match_kind!r}")
+        else:
+            observed_counts[match_kind] += 1
+        for field in ("from_raw_texts", "to_raw_texts"):
+            values = move.get(field)
+            if not isinstance(values, list) or not all(
+                isinstance(value, str) for value in values
+            ):
+                failures.append(f"{prefix}.{field}: expected a list of strings")
+
+    match_kinds = results.get("match_kinds")
+    if not isinstance(match_kinds, dict):
+        failures.append("match_kinds: expected an object")
+    else:
+        for kind, observed in observed_counts.items():
+            count = match_kinds.get(kind, 0)
+            if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+                failures.append(f"match_kinds.{kind}: expected a nonnegative integer")
+            elif count != observed:
+                failures.append(
+                    f"match_kinds.{kind}: expected {observed} from the moves list, got {count}"
+                )
+    return failures
+
+
+def assess_positive_case(
+    *,
+    metadata: dict[str, Any],
+    results: Any,
     srcmove_xml: Path,
     syntactic_type: int,
-    metadata: dict[str, Any] | None = None,
-) -> tuple[list[str], TextValidation]:
-    failures: list[str] = []
+) -> PositiveOracleAssessment:
+    operational_failures = _validate_results_schema(results)
+    detection_failures: list[str] = []
+    classification_failures: list[str] = []
     text_validation: TextValidation = {"from": "not_checked", "to": "not_checked"}
-    if metadata is None:
-        metadata = load_json(case_dir / "metadata.json")
-    results = load_json(results_json)
-    expected_match_kind = "exact" if syntactic_type == 1 else "type2"
+    expected_match_kinds = {1: "exact", 2: "type2", 3: "type3"}
+    if syntactic_type not in expected_match_kinds:
+        raise ValueError(f"unsupported BigCloneBench syntactic type: {syntactic_type}")
+    expected_match_kind = expected_match_kinds[syntactic_type]
 
     if metadata.get("syntactic_type") != syntactic_type:
-        failures.append(
+        operational_failures.append(
             f"metadata syntactic_type: expected {syntactic_type}, "
             f"got {metadata.get('syntactic_type')!r}"
         )
-
-    if results.get("move_count") != 1:
-        failures.append(f"move_count: expected 1, got {results.get('move_count')!r}")
-
-    match_kinds = results.get("match_kinds")
-    if not isinstance(match_kinds, dict) or match_kinds.get(expected_match_kind) != 1:
-        failures.append(f"match_kinds.{expected_match_kind}: expected 1")
-
-    moves = results.get("moves")
-    if not isinstance(moves, list) or len(moves) != 1:
-        failures.append("moves: expected exactly one move")
-        return failures, text_validation
-
-    move = moves[0]
-    if move.get("match_kind") != expected_match_kind:
-        failures.append(
-            f"match_kind: expected {expected_match_kind!r}, "
-            f"got {move.get('match_kind')!r}"
-        )
-
-    from_texts = move.get("from_raw_texts")
-    to_texts = move.get("to_raw_texts")
-    if not isinstance(from_texts, list) or len(from_texts) != 1:
-        failures.append("from_raw_texts: expected one text")
-    if not isinstance(to_texts, list) or len(to_texts) != 1:
-        failures.append("to_raw_texts: expected one text")
-
-    if isinstance(from_texts, list) and len(from_texts) == 1 and isinstance(
-        to_texts, list
-    ) and len(to_texts) == 1:
-        expected = metadata.get("expected")
-
-        if not isinstance(expected, dict):
-            failures.append("metadata expected field is missing or invalid")
-            return failures, text_validation
-
-        expected_from_raw = expected.get("from_raw_text")
-        expected_to_raw = expected.get("to_raw_text")
-        if not isinstance(expected_from_raw, str):
-            failures.append("metadata expected.from_raw_text is missing or invalid")
-        if not isinstance(expected_to_raw, str):
-            failures.append("metadata expected.to_raw_text is missing or invalid")
-        if isinstance(from_texts[0], str):
-            validate_reported_text(
-                failures, text_validation, from_texts[0], expected, "from"
-            )
-        else:
-            failures.append("from_raw_texts[0]: expected string text")
-            text_validation["from"] = "failed"
-        if isinstance(to_texts[0], str):
-            validate_reported_text(
-                failures, text_validation, to_texts[0], expected, "to"
-            )
-        else:
-            failures.append("to_raw_texts[0]: expected string text")
-            text_validation["to"] = "failed"
-
     expected = metadata.get("expected")
     if not isinstance(expected, dict):
-        failures.append("metadata expected field is missing or invalid")
-        return failures, text_validation
-
+        operational_failures.append("metadata expected field is missing or invalid")
+        expected = {}
+    expected_from = expected_generated_text(expected, "from")
+    expected_to = expected_generated_text(expected, "to")
+    if expected_from is None:
+        operational_failures.append(
+            "metadata expected.from_generated_text is missing or invalid"
+        )
+    if expected_to is None:
+        operational_failures.append(
+            "metadata expected.to_generated_text is missing or invalid"
+        )
     try:
         expected_from_range = (
             int(expected["from_start_line"]),
@@ -350,26 +385,137 @@ def validate_case(
             int(expected["to_end_line"]),
         )
     except (KeyError, TypeError, ValueError):
-        failures.append("metadata expected synthetic line ranges are missing or invalid")
-        return failures, text_validation
+        operational_failures.append(
+            "metadata expected synthetic line ranges are missing or invalid"
+        )
+        expected_from_range = expected_to_range = (0, -1)
 
-    try:
-        observed_ranges = moved_position_ranges(srcmove_xml)
-    except ET.ParseError as e:
-        failures.append(f"srcmove.xml parse error: {e}")
-        return failures, text_validation
+    ranges_by_move: dict[str, dict[str, list[tuple[int, int]]]] = {}
+    # The corpus runner intentionally discards a validated XML artifact when
+    # srcMove reports zero moves. A present artifact must still be well formed.
+    if results.get("move_count") != 0 or srcmove_xml.exists():
+        try:
+            ranges_by_move = moved_position_ranges(srcmove_xml)
+        except (OSError, ET.ParseError, ValueError) as error:
+            operational_failures.append(f"srcmove.xml parse error: {error}")
 
-    if not any(ranges_overlap(found, expected_from_range) for found in observed_ranges["delete"]):
-        failures.append(
-            "reported delete move does not overlap the expected BigCloneBench source line range"
+    if operational_failures:
+        return PositiveOracleAssessment(
+            False,
+            False,
+            operational_failures,
+            detection_failures,
+            classification_failures,
+            text_validation,
         )
 
-    if not any(ranges_overlap(found, expected_to_range) for found in observed_ranges["insert"]):
-        failures.append(
-            "reported insert move does not overlap the expected BigCloneBench target line range"
+    detected: list[tuple[dict[str, Any], str, str]] = []
+    text_link_found = False
+    from_position_found = False
+    to_position_found = False
+    for move in results["moves"]:
+        from_status = next(
+            (
+                status
+                for value in move["from_raw_texts"]
+                if (status := text_matches_with_status(value, expected_from)) is not None
+            ),
+            None,
+        )
+        to_status = next(
+            (
+                status
+                for value in move["to_raw_texts"]
+                if (status := text_matches_with_status(value, expected_to)) is not None
+            ),
+            None,
+        )
+        if from_status is None or to_status is None:
+            continue
+        text_link_found = True
+        move_ranges = ranges_by_move.get(move["move_id"], {})
+        from_overlaps = any(
+            ranges_overlap(found, expected_from_range)
+            for found in move_ranges.get("delete", [])
+        )
+        to_overlaps = any(
+            ranges_overlap(found, expected_to_range)
+            for found in move_ranges.get("insert", [])
+        )
+        from_position_found |= from_overlaps
+        to_position_found |= to_overlaps
+        if from_overlaps and to_overlaps:
+            detected.append((move, from_status, to_status))
+
+    if not detected:
+        if not text_link_found:
+            detection_failures.append(
+                "no single reported move links both complete expected generated fragment texts"
+            )
+            text_validation = {"from": "failed", "to": "failed"}
+        else:
+            if not from_position_found:
+                detection_failures.append(
+                    "the text-linked move's delete annotation does not overlap the expected source range"
+                )
+            if not to_position_found:
+                detection_failures.append(
+                    "the text-linked move's insert annotation does not overlap the expected target range"
+                )
+        return PositiveOracleAssessment(
+            False,
+            False,
+            [],
+            detection_failures,
+            [],
+            text_validation,
         )
 
-    return failures, text_validation
+    correctly_classified = next(
+        (candidate for candidate in detected if candidate[0]["match_kind"] == expected_match_kind),
+        None,
+    )
+    selected = correctly_classified or detected[0]
+    move, from_status, to_status = selected
+    text_validation = {"from": from_status, "to": to_status}
+    if correctly_classified is None:
+        classification_failures.append(
+            f"match_kind: expected {expected_match_kind!r}, got {move['match_kind']!r}"
+        )
+    return PositiveOracleAssessment(
+        True,
+        correctly_classified is not None,
+        [],
+        [],
+        classification_failures,
+        text_validation,
+        move["move_id"],
+        move["match_kind"],
+    )
+
+
+def validate_case(
+    case_dir: Path,
+    results_json: Path,
+    srcmove_xml: Path,
+    syntactic_type: int,
+    metadata: dict[str, Any] | None = None,
+) -> tuple[list[str], TextValidation]:
+    if metadata is None:
+        metadata = load_json(case_dir / "metadata.json")
+    results = load_json(results_json)
+    assessment = assess_positive_case(
+        metadata=metadata,
+        results=results,
+        srcmove_xml=srcmove_xml,
+        syntactic_type=syntactic_type,
+    )
+    failures = (
+        assessment.operational_failures
+        + assessment.detection_failures
+        + assessment.classification_failures
+    )
+    return failures, assessment.text_validation
 
 
 def move_points_to_anchor(move: dict[str, Any]) -> bool:
@@ -431,6 +577,18 @@ def classify_result(
 
     if any(status == "failed" for status in text_validation.values()):
         return "text_mismatch"
+
+    operational_prefixes = (
+        "results.json",
+        "moves:",
+        "moves[",
+        "move_count:",
+        "match_kinds",
+        "metadata ",
+        "srcmove.xml parse error:",
+    )
+    if any(failure.startswith(operational_prefixes) for failure in failures):
+        return "oracle_failure"
 
     if all(isinstance(move, dict) and move_points_to_anchor(move) for move in moves):
         return "anchor_only_false_positive"
@@ -549,6 +707,7 @@ def build_summary_row(
         "move_count": results.get("move_count", "") if isinstance(results, dict) else "",
         "exact_count": match_kinds.get("exact", ""),
         "type2_count": match_kinds.get("type2", ""),
+        "type3_count": match_kinds.get("type3", ""),
         "from_text_validation": text_validation.get("from", ""),
         "to_text_validation": text_validation.get("to", ""),
         "failures": " | ".join(failures),
@@ -597,6 +756,7 @@ def write_summary(path: Path, rows: list[SummaryRow]) -> None:
         "move_count",
         "exact_count",
         "type2_count",
+        "type3_count",
         "from_text_validation",
         "to_text_validation",
         "failures",
@@ -670,6 +830,14 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> tuple[bool, Summar
     )
 
 
+def benchmark_exit_code(
+    syntactic_type: int, failures: int, operational_failures: int
+) -> int:
+    """Keep Type-3 recall observational without concealing broken executions."""
+    relevant_failures = operational_failures if syntactic_type == 3 else failures
+    return 1 if relevant_failures else 0
+
+
 def main() -> int:
     args = parse_args()
     args.out_dir = args.out_dir.resolve()
@@ -704,12 +872,19 @@ def main() -> int:
         return 2
 
     failures = 0
+    operational_failures = 0
     summary_rows: list[SummaryRow] = []
     for case_dir in case_dirs:
         passed, summary_row = run_case(case_dir, srcdiff, srcmove)
         summary_rows.append(summary_row)
         if not passed:
             failures += 1
+            if summary_row.get("failure_class") in {
+                "tool_failure",
+                "invalid_results",
+                "oracle_failure",
+            }:
+                operational_failures += 1
 
     summary_path = args.out_dir / "summary.csv"
     write_summary(summary_path, summary_rows)
@@ -720,7 +895,7 @@ def main() -> int:
         f"passed={len(case_dirs) - failures} failed={failures}"
     )
     print(f"summary={summary_path}")
-    return 1 if failures else 0
+    return benchmark_exit_code(args.syntactic_type, failures, operational_failures)
 
 
 if __name__ == "__main__":

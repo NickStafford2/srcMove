@@ -75,6 +75,9 @@ match_kind_counts count_match_kinds(const content_groups &groups) {
     case match_kind::type2:
       ++counts.type2;
       break;
+    case match_kind::type3:
+      ++counts.type3;
+      break;
     case match_kind::unmatched:
       break;
     }

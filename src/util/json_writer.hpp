@@ -126,7 +126,8 @@ inline void write_summary(std::ostream &out, const summary &summ) {
   out << "  },\n";
   out << "  \"match_kinds\": {\n";
   out << "    \"exact\": " << summ.match_kinds.exact << ",\n";
-  out << "    \"type2\": " << summ.match_kinds.type2 << "\n";
+  out << "    \"type2\": " << summ.match_kinds.type2 << ",\n";
+  out << "    \"type3\": " << summ.match_kinds.type3 << "\n";
   out << "  }\n";
   out << "}\n";
 }

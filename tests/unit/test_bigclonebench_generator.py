@@ -39,9 +39,12 @@ generator must not let Python's universal newline splitting shift those ranges.
 from __future__ import annotations
 
 import importlib.util
+import shutil
+import subprocess
 import sys
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest import mock
 
@@ -193,7 +196,7 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
                 "  void target() {\n    call();\n  }\n",
             )
 
-    def test_synthetic_sources_do_not_emit_method_anchors(self) -> None:
+    def test_synthetic_sources_use_valid_nested_class_destination(self) -> None:
         generator = load_generator_module()
 
         top_level_fragment = generator.dedent_fragment(
@@ -216,9 +219,10 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
             self.assertNotIn("afterAnchor", source)
             self.assertIn("public class BCBMove1_2", source)
             self.assertIn("SOURCE_CONTEXT = 100", source)
+            self.assertEqual(source.count("class MoveDestination"), 1)
 
         self.assertIn("void movedFrom()", original)
-        self.assertIn("}\nvoid movedTo()", modified)
+        self.assertIn("class MoveDestination {\nvoid movedTo()", modified)
         self.assertNotIn("}\n      void movedTo()", modified)
         self.assertNotIn("void movedTo()", original)
         self.assertNotIn("void movedFrom()", modified)
@@ -233,6 +237,133 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
             "\n".join(modified_lines[modified_range[0] - 1 : modified_range[1]]),
             "void movedTo() {\n    call();\n}",
         )
+
+        self.assertEqual(original.count("{"), original.count("}"))
+        self.assertEqual(modified.count("{"), modified.count("}"))
+
+    def test_srcml_parses_synthetic_payloads_under_distinct_class_parents(self) -> None:
+        generator = load_generator_module()
+        srcml = REPO_ROOT.parent / "srcML-install" / "bin" / "srcml"
+        if not srcml.is_file():
+            discovered = shutil.which("srcml")
+            if discovered is None:
+                self.skipTest("srcml executable is unavailable")
+            srcml = Path(discovered)
+
+        original, modified, _, _ = generator.build_synthetic_move_sources(
+            "BCBMove1_2",
+            "  void movedFrom() {\n    call();\n  }\n",
+            "void movedTo() {\n    call();\n}\n",
+        )
+
+        parsed = []
+        for source in (original, modified):
+            try:
+                result = subprocess.run(
+                    [str(srcml), "--language", "Java"],
+                    input=source,
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+            except OSError as error:
+                self.skipTest(f"srcml executable cannot run here: {error}")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            parsed.append(ET.fromstring(result.stdout))
+
+        def local_name(tag: str) -> str:
+            return tag.rsplit("}", 1)[-1]
+
+        def function_parent_names(root: ET.Element, function_name: str) -> list[str]:
+            parents = {child: parent for parent in root.iter() for child in parent}
+            function = next(
+                node
+                for node in root.iter()
+                if local_name(node.tag) == "function"
+                and any(
+                    local_name(child.tag) == "name"
+                    and "".join(child.itertext()) == function_name
+                    for child in node
+                )
+            )
+            ancestors = []
+            current = parents[function]
+            while current is not root:
+                if local_name(current.tag) == "class":
+                    name = next(
+                        "".join(child.itertext())
+                        for child in current
+                        if local_name(child.tag) == "name"
+                    )
+                    ancestors.append(name)
+                current = parents[current]
+            return ancestors
+
+        self.assertEqual(
+            function_parent_names(parsed[0], "movedFrom"), ["BCBMove1_2"]
+        )
+        self.assertEqual(
+            function_parent_names(parsed[1], "movedTo"),
+            ["MoveDestination", "BCBMove1_2"],
+        )
+
+    def test_srcdiff_exposes_synthetic_payloads_as_delete_and_insert(self) -> None:
+        generator = load_generator_module()
+        srcdiff = REPO_ROOT.parent / "srcDiff" / "build" / "bin" / "srcdiff"
+        if not srcdiff.is_file():
+            discovered = shutil.which("srcdiff")
+            if discovered is None:
+                self.skipTest("srcdiff executable is unavailable")
+            srcdiff = Path(discovered)
+
+        original, modified, _, _ = generator.build_synthetic_move_sources(
+            "BCBMove1_2",
+            "  void moved() {\n    call();\n  }\n",
+            "void moved() {\n    call();\n}\n",
+        )
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            original_path = root / "original.java"
+            modified_path = root / "modified.java"
+            output_path = root / "diff.xml"
+            original_path.write_text(original, encoding="utf-8")
+            modified_path.write_text(modified, encoding="utf-8")
+            try:
+                result = subprocess.run(
+                    [
+                        str(srcdiff),
+                        str(original_path),
+                        str(modified_path),
+                        "-o",
+                        str(output_path),
+                    ],
+                    text=True,
+                    capture_output=True,
+                    check=False,
+                )
+            except OSError as error:
+                self.skipTest(f"srcdiff executable cannot run here: {error}")
+            self.assertEqual(result.returncode, 0, result.stderr)
+            diff_root = ET.parse(output_path).getroot()
+
+        def local_name(tag: str) -> str:
+            return tag.rsplit("}", 1)[-1]
+
+        regions = {
+            side: [
+                node
+                for node in diff_root.iter()
+                if local_name(node.tag) == side
+            ]
+            for side in ("delete", "insert")
+        }
+        for side in ("delete", "insert"):
+            self.assertTrue(regions[side], f"srcDiff emitted no {side} region")
+            self.assertTrue(
+                any("moved" in "".join(region.itertext()) for region in regions[side]),
+                f"srcDiff {side} regions do not contain the moved payload",
+            )
 
 
 if __name__ == "__main__":

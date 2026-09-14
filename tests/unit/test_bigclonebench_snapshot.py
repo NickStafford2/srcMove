@@ -9,6 +9,7 @@ from benchmarks.bigclonebench.adapter import (
     SYNTHETIC_SOURCE_FILENAME,
     SYNTHETIC_WRAPPER_VERSION,
     CompiledBigCloneBenchAdapter,
+    _type3_frame_strength,
 )
 from benchmarks.bigclonebench.compiled import compile_exports
 from benchmarks.bigclonebench.selection import create_selection
@@ -22,6 +23,16 @@ from tests.unit.test_bigclonebench_compiled import (
 
 
 class BigCloneBenchSnapshotTests(unittest.TestCase):
+    def test_type_three_frame_strength_is_conservative_across_rows(self) -> None:
+        strength, stratum = _type3_frame_strength(
+            [
+                {"similarity": {"line": 0.96, "token": 0.94}},
+                {"similarity": {"line": 0.89, "token": 0.91}},
+            ]
+        )
+        self.assertEqual(strength, 0.89)
+        self.assertEqual(stratum, "strong")
+
     def compile_fixture(self, root: Path):
         fixture = BigCloneBenchCompiledDatasetTests(
             methodName="test_full_exports_skip_unneeded_global_ordering"
@@ -33,7 +44,10 @@ class BigCloneBenchSnapshotTests(unittest.TestCase):
         type_two = pair_row()
         type_two["syntactic_type"] = 2
         type_two["pair_type"] = "type-2"
-        write_export(exports / "positive.csv", [type_one, type_two])
+        type_three = pair_row()
+        type_three["syntactic_type"] = 3
+        type_three["pair_type"] = "type-3"
+        write_export(exports / "positive.csv", [type_one, type_two, type_three])
         false_positive = distinct_false_positive_row(bce)
         false_positive["syntactic_type"] = 3
         write_export(exports / "false.csv", [false_positive])
@@ -55,7 +69,7 @@ class BigCloneBenchSnapshotTests(unittest.TestCase):
             data_root=root / "data",
             pair_set=pair_set,
             mode="census",
-            role="evaluation",
+            role="tuning" if pair_set == "type3" else "evaluation",
         )
         # Phase 3 must need neither the original H2 database nor generated cases.
         (bce / "bigclonebenchdb" / "bcb.h2.db").unlink()
@@ -137,6 +151,18 @@ class BigCloneBenchSnapshotTests(unittest.TestCase):
             self.assertEqual(metadata["clone_type"], "type2")
             self.assertEqual(metadata["syntactic_type"], 2)
             self.assertEqual(metadata["expected"]["move_count"], 1)
+
+    def test_type_three_materializes_as_a_positive_case(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            _, _, snapshot = self.materialize(Path(temporary), "type3")
+            metadata = snapshot.manifest["cases"][0]["metadata"]
+            self.assertEqual(metadata["case_kind"], "positive")
+            self.assertEqual(metadata["clone_type"], "type3")
+            self.assertEqual(metadata["syntactic_type"], 3)
+            self.assertEqual(metadata["syntactic_types"], [3])
+            self.assertEqual(metadata["expected"]["move_count"], 1)
+            self.assertEqual(metadata["type3_both_similarity"], 1.0)
+            self.assertEqual(metadata["type3_strength_stratum"], "very_strong")
 
     def test_known_false_positive_uses_negative_oracle_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

@@ -150,6 +150,24 @@ class BenchmarkContractTests(unittest.TestCase):
         failures = self._validate_bigclonebench_case(runner, 2, "exact")
         self.assertTrue(any("expected 'type2'" in failure for failure in failures))
 
+    def test_bigclonebench_type_three_requires_type3_classification(self) -> None:
+        runner = load_bigclonebench_runner()
+        self.assertEqual(self._validate_bigclonebench_case(runner, 3, "type3"), [])
+        failures = self._validate_bigclonebench_case(runner, 3, "type2")
+        self.assertTrue(any("expected 'type3'" in failure for failure in failures))
+
+    def test_legacy_type_three_exit_status_is_observational_only(self) -> None:
+        runner = load_bigclonebench_runner()
+        self.assertEqual(
+            runner.benchmark_exit_code(3, failures=4, operational_failures=0), 0
+        )
+        self.assertEqual(
+            runner.benchmark_exit_code(3, failures=4, operational_failures=1), 1
+        )
+        self.assertEqual(
+            runner.benchmark_exit_code(2, failures=1, operational_failures=0), 1
+        )
+
     def _validate_bigclonebench_case(
         self, runner, syntactic_type: int, match_kind: str
     ) -> list[str]:
@@ -173,6 +191,7 @@ class BenchmarkContractTests(unittest.TestCase):
                 "match_kinds": {match_kind: 1},
                 "moves": [
                     {
+                        "move_id": "m1",
                         "match_kind": match_kind,
                         "from_raw_texts": ["void moved() {}"],
                         "to_raw_texts": ["void moved() {}"],
@@ -186,9 +205,10 @@ class BenchmarkContractTests(unittest.TestCase):
             results_path.write_text(json.dumps(results), encoding="utf-8")
             srcmove_path = case_dir / "srcmove.xml"
             srcmove_path.write_text(
-                "<unit xmlns:diff='urn:diff' xmlns:pos='urn:pos'>"
-                "<delete diff:id='1' diff:to='2' pos:start='3:1|3:1' pos:end='3:9|3:9'/>"
-                "<insert diff:id='2' diff:from='1' pos:start='7:1|7:1' pos:end='7:9|7:9'/>"
+                "<unit xmlns:diff='urn:diff' xmlns:pos='urn:pos' "
+                "xmlns:mv='http://www.srcML.org/srcMove'>"
+                "<delete mv:id='m1' mv:to='target' pos:start='3:1|3:1' pos:end='3:9|3:9'/>"
+                "<insert mv:id='m1' mv:from='source' pos:start='7:1|7:1' pos:end='7:9|7:9'/>"
                 "</unit>",
                 encoding="utf-8",
             )

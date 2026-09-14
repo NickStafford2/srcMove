@@ -7,6 +7,7 @@ from pathlib import Path
 
 from benchmarks.bigclonebench.compiled import compile_exports
 from benchmarks.bigclonebench.selection import (
+    _equal_type3_allocation,
     _sample_rank,
     create_selection,
     load_selection,
@@ -21,6 +22,57 @@ from tests.unit.test_bigclonebench_compiled import (
 
 
 class BigCloneBenchSelectionTests(unittest.TestCase):
+    def compile_type3_fixture(self, root: Path):
+        fixture = BigCloneBenchCompiledDatasetTests(
+            methodName="test_full_exports_skip_unneeded_global_ordering"
+        )
+        bce = fixture.create_bce(root)
+        exports = root / "exports"
+        exports.mkdir()
+        similarities = (0.96, 0.94, 0.92, 0.82, 0.62, 0.42)
+        rows = []
+        for index, similarity in enumerate(similarities, start=1):
+            functionality = 100 + index
+            first_id = 1000 + index * 2
+            second_id = first_id + 1
+            reduced = bce / "ijadataset" / "bcb_reduced" / str(functionality)
+            (reduced / "default").mkdir(parents=True)
+            (reduced / "sample").mkdir()
+            (reduced / "default" / f"A{index}.java").write_text(
+                f"class A{index} {{\n  void a() {{\n    callA{index}();\n  }}\n}}\n"
+            )
+            (reduced / "sample" / f"B{index}.java").write_text(
+                f"class B{index} {{\n  void b() {{\n    callB{index}();\n  }}\n}}\n"
+            )
+            row = pair_row()
+            row.update(
+                {
+                    "functionality_id": functionality,
+                    "function_id_one": first_id,
+                    "nameone": f"A{index}.java",
+                    "function_id_two": second_id,
+                    "nametwo": f"B{index}.java",
+                    "syntactic_type": 3,
+                    "pair_type": "type-3",
+                    "similarity_line": similarity,
+                    "similarity_token": similarity + 0.01,
+                }
+            )
+            rows.append(row)
+        conflicting_negative = dict(rows[0])
+        conflicting_negative["pair_type"] = "false"
+        write_export(exports / "positive.csv", rows)
+        write_export(exports / "false.csv", [conflicting_negative])
+        return compile_exports(
+            bce_dir=bce,
+            data_root=root / "data",
+            exports={
+                "positive": exports / "positive.csv",
+                "known_false_positive": exports / "false.csv",
+            },
+            compile_scope={"fixture": "type3-strata"},
+        )
+
     def compile_fixture(self, root: Path):
         fixture = BigCloneBenchCompiledDatasetTests(
             methodName="test_full_exports_skip_unneeded_global_ordering"
@@ -34,10 +86,13 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
         type2["syntactic_type"] = 2
         type2["pair_type"] = "type-2"
         type2["min_tokens"] = 40
+        type3 = pair_row()
+        type3["syntactic_type"] = 3
+        type3["pair_type"] = "type-3"
         false_positive = distinct_false_positive_row(bce)
         write_export(
             exports / "positive.csv",
-            [type1_forward, type1_forward, type1_reverse, type2],
+            [type1_forward, type1_forward, type1_reverse, type2, type3],
         )
         write_export(exports / "false.csv", [false_positive])
         return compile_exports(
@@ -224,6 +279,13 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 mode="census",
                 role="tuning",
             )
+            type3_dir, type3, _ = create_selection(
+                compiled,
+                data_root=root / "data",
+                pair_set="type3",
+                mode="census",
+                role="tuning",
+            )
             negative_dir, negative, _ = create_selection(
                 compiled,
                 data_root=root / "data",
@@ -232,9 +294,13 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 role="tuning",
             )
 
-            self.assertEqual(len({type1_dir.name, type2_dir.name, negative_dir.name}), 3)
+            self.assertEqual(
+                len({type1_dir.name, type2_dir.name, type3_dir.name, negative_dir.name}),
+                4,
+            )
             self.assertEqual(type1["request"]["sample"]["seed"], 17)
             self.assertEqual(type2["counts"]["selected_frames"], 1)
+            self.assertEqual(type3["counts"]["selected_frames"], 1)
             self.assertEqual(negative["counts"]["selected_frames"], 1)
             self.assertEqual(type2["counts"]["eligible_source_rows_below_50_tokens"], 1)
             self.assertNotEqual(_sample_rank(1, "frame"), _sample_rank(2, "frame"))
@@ -255,6 +321,91 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
             self.assertEqual(
                 manifest["counts"]["reverse_direction_excluded_catalog_rows"], 0
             )
+
+    def test_type3_sample_is_stratified_reproducible_and_compact(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            compiled = self.compile_type3_fixture(root)
+            first_dir, first, _ = create_selection(
+                compiled,
+                data_root=root / "publication-one",
+                pair_set="type3",
+                mode="sample",
+                role="tuning",
+                sample_size=4,
+                seed=73,
+            )
+            second_dir, second, _ = create_selection(
+                compiled,
+                data_root=root / "publication-two",
+                pair_set="type3",
+                mode="sample",
+                role="tuning",
+                sample_size=4,
+                seed=73,
+            )
+
+            self.assertEqual(first["selection_id"], second["selection_id"])
+            self.assertEqual(
+                (first_dir / "frames.jsonl").read_bytes(),
+                (second_dir / "frames.jsonl").read_bytes(),
+            )
+            self.assertEqual(first["counts"]["eligible_frames"], 5)
+            self.assertEqual(first["counts"]["selected_frames"], 4)
+            self.assertEqual(first["counts"]["sample_excluded_frames"], 1)
+            self.assertEqual(
+                {name: values["selected_frames"] for name, values in first["strata"].items()},
+                {"very_strong": 1, "strong": 1, "moderate": 1, "weak": 1},
+            )
+            self.assertTrue(
+                all(values["allocated_frames"] > 0 for values in first["strata"].values())
+            )
+            exclusions = [
+                json.loads(line)
+                for line in (first_dir / "exclusions.jsonl").read_text().splitlines()
+            ]
+            self.assertEqual(
+                {item["reason"] for item in exclusions},
+                {"positive_negative_content_label_conflict"},
+            )
+            self.assertEqual(
+                first["counts"]["content_label_conflict_excluded_frames"], 1
+            )
+
+    def test_type3_small_sample_and_evaluation_role_are_rejected(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            compiled = self.compile_type3_fixture(root)
+            with self.assertRaisesRegex(ValueError, "at least 4"):
+                create_selection(
+                    compiled,
+                    data_root=root / "small",
+                    pair_set="type3",
+                    mode="sample",
+                    role="tuning",
+                    sample_size=3,
+                )
+            with self.assertRaisesRegex(ValueError, "held-out partition"):
+                create_selection(
+                    compiled,
+                    data_root=root / "evaluation",
+                    pair_set="type3",
+                    mode="sample",
+                    role="evaluation",
+                    sample_size=4,
+                )
+
+    def test_type3_allocation_rejects_empty_strata_and_redistributes_caps(self) -> None:
+        with self.assertRaisesRegex(ValueError, "empty: weak"):
+            _equal_type3_allocation(
+                {"very_strong": 2, "strong": 2, "moderate": 2, "weak": 0}, 4
+            )
+        self.assertEqual(
+            _equal_type3_allocation(
+                {"very_strong": 1, "strong": 2, "moderate": 5, "weak": 5}, 8
+            ),
+            {"very_strong": 1, "strong": 2, "moderate": 3, "weak": 2},
+        )
 
 
 if __name__ == "__main__":

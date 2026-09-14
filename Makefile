@@ -8,6 +8,7 @@ BIGCLONEBENCH_DATA_ROOT ?= benchmark-data
 BIGCLONEBENCH_DATASET ?=
 BIGCLONEBENCH_SELECTION_ID ?=
 MODE ?= sample
+PROFILE ?= small
 SEED ?= 0
 SAMPLE_SIZE ?= 100
 ROLE ?= tuning
@@ -35,7 +36,7 @@ help:
 	@printf '  %-28s %s\n' 'make bigclonebench-conflicts' 'Explain content identities excluded for conflicting labels'
 	@printf '  %-28s %s\n' 'make bigclonebench-select' 'Publish a selection from the compiled catalog'
 	@printf '  %-28s %s\n' 'make bigclonebench-snapshot' 'Materialize an immutable compiled-selection snapshot'
-	@printf '  %-28s %s\n' 'make bigclonebench-suite' 'Run Type 1, Type 2, and known-false-positive pair sets'
+	@printf '  %-28s %s\n' 'make bigclonebench-suite' 'Run frozen BCB PROFILE=small|medium (full is slow)'
 	@printf '  %-28s %s\n' 'make bigclonebench-cases' 'Generate a configurable BigCloneBench case slice'
 	@printf '  %-28s %s\n' 'make bigclonebench' 'Generate cases and run the staged BigCloneBench pipeline'
 
@@ -140,8 +141,9 @@ bigclonebench-snapshot:
 bigclonebench-suite:
 	@$(PYTHON) benchmarks/bigclonebench/suite.py \
 		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" \
-		--mode "$(MODE)" --role "$(ROLE)" --seed "$(SEED)" \
+		--profile "$(PROFILE)" --role "$(ROLE)" --seed "$(SEED)" \
 		--sample-size "$(SAMPLE_SIZE)" \
+		$(if $(PAIR_SET),--pair-set "$(PAIR_SET)") \
 		$(if $(filter 1 yes true,$(VERIFY_SOURCE)),--verify-source) \
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
 		--srcmove /workspace/srcMove/build/srcMove

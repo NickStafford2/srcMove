@@ -17,6 +17,7 @@ from benchmarks.bigclonebench.generate import (
 from benchmarks.bigclonebench.selection import (
     GENERATED_INPUT_IDENTITY_VERSION,
     load_selection,
+    type3_stratum,
 )
 from benchmarks.contracts import (
     InputPair,
@@ -29,7 +30,7 @@ from benchmarks.provenance import sha256_file
 
 
 SEMANTIC_ORACLE_VERSION = 1
-SYNTHETIC_WRAPPER_VERSION = 2
+SYNTHETIC_WRAPPER_VERSION = 3
 SYNTHETIC_SOURCE_FILENAME = "input.java"
 SRCDIFF_NAMESPACES = {
     "http://www.srcML.org/srcDiff",
@@ -66,6 +67,21 @@ def _safe_fragment_sha256(value: Any) -> str:
     ):
         raise ValueError("selection frame contains an invalid fragment SHA-256")
     return value
+
+
+def _type3_frame_strength(rows: Sequence[Mapping[str, Any]]) -> tuple[float, str]:
+    similarities: list[float] = []
+    for row in rows:
+        similarity = row.get("similarity")
+        if not isinstance(similarity, Mapping):
+            raise ValueError("Type-3 selection row is missing similarity")
+        line = similarity.get("line")
+        token = similarity.get("token")
+        if not isinstance(line, (int, float)) or not isinstance(token, (int, float)):
+            raise ValueError("Type-3 selection row has invalid similarity")
+        similarities.append(min(float(line), float(token)))
+    strength = min(similarities)
+    return strength, type3_stratum(strength)
 
 
 def compiled_selection_source_manifest(
@@ -126,7 +142,7 @@ class CompiledBigCloneBenchAdapter:
     """Materialize Phase 2 selections directly from the compiled fragment store."""
 
     name = "bigclonebench"
-    version = 5
+    version = 6
 
     def __init__(
         self,
@@ -149,10 +165,10 @@ class CompiledBigCloneBenchAdapter:
 
         request = self.selection_manifest["request"]
         pair_set = request.get("pair_set")
-        if pair_set not in {"type1", "type2", "known-false-positive"}:
+        if pair_set not in {"type1", "type2", "type3", "known-false-positive"}:
             raise ValueError(
                 "compiled snapshot materialization supports only Type 1, "
-                "Type 2, and known-false-positive selections"
+                "Type 2, Type 3, and known-false-positive selections"
             )
         self.pair_set = str(pair_set)
         self.case_kind = (
@@ -311,6 +327,12 @@ class CompiledBigCloneBenchAdapter:
             if isinstance(row.get("tokens"), Mapping)
             and isinstance(row.get("tokens", {}).get("min"), int)
         ]
+        type3_both_similarity = None
+        type3_strength_stratum = None
+        if self.syntactic_type == 3:
+            type3_both_similarity, type3_strength_stratum = (
+                _type3_frame_strength(rows)
+            )
         functionality_ids = frame.get("functionality_ids", [])
         function_ids = frame.get("function_ids", [])
         metadata = {
@@ -323,6 +345,8 @@ class CompiledBigCloneBenchAdapter:
             ),
             "syntactic_type": representative_type,
             "syntactic_types": syntactic_types,
+            "type3_both_similarity": type3_both_similarity,
+            "type3_strength_stratum": type3_strength_stratum,
             "min_tokens": min(min_tokens) if min_tokens else None,
             "functionality_id": (
                 functionality_ids[0]
