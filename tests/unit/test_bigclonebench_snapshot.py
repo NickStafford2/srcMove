@@ -6,10 +6,13 @@ import unittest
 from pathlib import Path
 
 from benchmarks.bigclonebench.adapter import (
-    SYNTHETIC_SOURCE_FILENAME,
     SYNTHETIC_WRAPPER_VERSION,
     CompiledBigCloneBenchAdapter,
     _type3_frame_strength,
+)
+from benchmarks.bigclonebench.generate import (
+    SYNTHETIC_DESTINATION_PATH,
+    SYNTHETIC_SOURCE_PATH,
 )
 from benchmarks.bigclonebench.compiled import compile_exports
 from benchmarks.bigclonebench.selection import create_selection
@@ -99,36 +102,44 @@ class BigCloneBenchSnapshotTests(unittest.TestCase):
             )
             self.assertEqual(len(metadata["selection_frame"]["rows"]), 1)
 
-            original = (
+            original_source = (
                 snapshot.directory
                 / case["original_path"]
-                / SYNTHETIC_SOURCE_FILENAME
+                / SYNTHETIC_SOURCE_PATH
             )
-            modified = (
+            modified_destination = (
                 snapshot.directory
                 / case["modified_path"]
-                / SYNTHETIC_SOURCE_FILENAME
+                / SYNTHETIC_DESTINATION_PATH
             )
             self.assertEqual(
-                case["original"]["files"][0]["path"], SYNTHETIC_SOURCE_FILENAME
+                {value["path"] for value in case["original"]["files"]},
+                {
+                    SYNTHETIC_SOURCE_PATH.as_posix(),
+                    SYNTHETIC_DESTINATION_PATH.as_posix(),
+                },
             )
             self.assertEqual(
-                case["modified"]["files"][0]["path"], SYNTHETIC_SOURCE_FILENAME
+                {value["path"] for value in case["modified"]["files"]},
+                {
+                    SYNTHETIC_SOURCE_PATH.as_posix(),
+                    SYNTHETIC_DESTINATION_PATH.as_posix(),
+                },
             )
-            self.assertIn("public class BCBMove", original.read_text())
+            self.assertIn("class BCBMove", original_source.read_text())
             self.assertIn(
                 metadata["expected"]["from_generated_text"].strip(),
-                original.read_text(),
+                original_source.read_text(),
             )
             self.assertIn(
                 metadata["expected"]["to_generated_text"].strip(),
-                modified.read_text(),
+                modified_destination.read_text(),
             )
             self.assertNotEqual(
                 metadata["fragment_one"]["sha256"],
                 metadata["fragment_two"]["sha256"],
             )
-            self.assertFalse(original.stat().st_mode & 0o222)
+            self.assertFalse(original_source.stat().st_mode & 0o222)
             load_input_snapshot(root / "data", snapshot.snapshot_id)
 
             adapter = CompiledBigCloneBenchAdapter(

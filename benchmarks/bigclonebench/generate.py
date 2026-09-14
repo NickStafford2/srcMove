@@ -6,7 +6,6 @@ import hashlib
 import json
 import shutil
 import sys
-import textwrap
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
@@ -28,6 +27,8 @@ from support.tooling import format_process_failure, run_command
 
 BCE_DIR = SCRIPT_DIR / "data" / "BigCloneEval"
 DEFAULT_OUT = SCRIPT_DIR / "cases"
+SYNTHETIC_SOURCE_PATH = Path("source/input.java")
+SYNTHETIC_DESTINATION_PATH = Path("destination/input.java")
 
 
 def sha256_file(path: Path) -> str:
@@ -325,10 +326,6 @@ def indent_fragment(fragment: str) -> str:
     return "\n".join(f"  {line}" if line else "" for line in fragment.splitlines()) + "\n"
 
 
-def dedent_fragment(fragment: str) -> str:
-    return textwrap.dedent(fragment).rstrip() + "\n"
-
-
 def trimmed_text(value: str) -> str:
     # This is only a local reporting key. It is not BigCloneBench's Type-1/Type-2
     # normalization, and it must not be the default Type-1 dedupe criterion.
@@ -466,45 +463,72 @@ def source_path(kind: str, name: str, functionality_id: int) -> Path:
     return resolve_source_path(BCE_DIR, kind, name, functionality_id)
 
 
-def build_synthetic_move_sources(
+def _build_archive_unit(
+    class_name: str,
+    context_name: str,
+    context_value: int,
+    fragment: str | None,
+) -> tuple[str, tuple[int, int] | None]:
+    lines: list[str] = []
+    append_block(
+        lines,
+        f"""class {class_name} {{
+  private static final int {context_name} = {context_value};""",
+    )
+    fragment_range = append_block(lines, fragment) if fragment is not None else None
+    append_block(lines, "}")
+    return "\n".join(lines) + "\n", fragment_range
+
+
+def build_synthetic_move_archive(
     class_name: str, generated_fragment1: str, generated_fragment2: str
-) -> tuple[str, str, tuple[int, int], tuple[int, int]]:
-    # Keep both inputs as valid Java while putting the payload under different
-    # parent shapes. The stable nested-class anchor lets srcDiff expose the
-    # direct member as deleted and the nested member as inserted.
-    original_lines: list[str] = []
-    append_block(
-        original_lines,
-        f"""public class {class_name} {{
-  private static final int SOURCE_CONTEXT = 100;
-""",
+) -> tuple[
+    dict[Path, str],
+    dict[Path, str],
+    tuple[int, int],
+    tuple[int, int],
+]:
+    """Build one isolated two-file archive containing a cross-file move."""
+
+    original_source, original_range = _build_archive_unit(
+        f"{class_name}Source",
+        "SOURCE_CONTEXT",
+        100,
+        generated_fragment1,
     )
-    original_range = append_block(original_lines, generated_fragment1)
-    append_block(
-        original_lines,
-        """  private static class MoveDestination {
-  }
-}""",
+    modified_source, _ = _build_archive_unit(
+        f"{class_name}Source", "SOURCE_CONTEXT", 100, None
+    )
+    original_destination, _ = _build_archive_unit(
+        f"{class_name}Destination", "DESTINATION_CONTEXT", 200, None
+    )
+    modified_destination, modified_range = _build_archive_unit(
+        f"{class_name}Destination",
+        "DESTINATION_CONTEXT",
+        200,
+        generated_fragment2,
+    )
+    assert original_range is not None
+    assert modified_range is not None
+    return (
+        {
+            SYNTHETIC_SOURCE_PATH: original_source,
+            SYNTHETIC_DESTINATION_PATH: original_destination,
+        },
+        {
+            SYNTHETIC_SOURCE_PATH: modified_source,
+            SYNTHETIC_DESTINATION_PATH: modified_destination,
+        },
+        original_range,
+        modified_range,
     )
 
-    modified_lines: list[str] = []
-    append_block(
-        modified_lines,
-        f"""public class {class_name} {{
-  private static final int SOURCE_CONTEXT = 100;
-  private static class MoveDestination {{
-""",
-    )
-    modified_range = append_block(modified_lines, generated_fragment2)
-    append_block(
-        modified_lines,
-        """  }
-}""",
-    )
 
-    original = "\n".join(original_lines) + "\n"
-    modified = "\n".join(modified_lines) + "\n"
-    return original, modified, original_range, modified_range
+def _write_archive(root: Path, sources: dict[Path, str]) -> None:
+    for relative, source in sources.items():
+        path = root / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(source, encoding="utf-8")
 
 
 def write_case(case_dir: Path, row: CloneRow, case_kind: str = "positive") -> None:
@@ -513,18 +537,18 @@ def write_case(case_dir: Path, row: CloneRow, case_kind: str = "positive") -> No
     fragment1 = extract_lines(src1, row.startline1, row.endline1)
     fragment2 = extract_lines(src2, row.startline2, row.endline2)
     generated_fragment1 = indent_fragment(fragment1)
-    generated_fragment2 = dedent_fragment(fragment2)
+    generated_fragment2 = indent_fragment(fragment2)
 
     class_name = f"BCBMove{row.function_id_one}_{row.function_id_two}"
-    original, modified, original_range, modified_range = build_synthetic_move_sources(
+    original, modified, original_range, modified_range = build_synthetic_move_archive(
         class_name, generated_fragment1, generated_fragment2
     )
     original_start, original_end = original_range
     modified_start, modified_end = modified_range
 
     case_dir.mkdir(parents=True, exist_ok=True)
-    (case_dir / "original.java").write_text(original, encoding="utf-8")
-    (case_dir / "modified.java").write_text(modified, encoding="utf-8")
+    _write_archive(case_dir / "original", original)
+    _write_archive(case_dir / "modified", modified)
     metadata = {
         "source": "BigCloneBench",
         "case_kind": case_kind,

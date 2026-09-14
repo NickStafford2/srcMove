@@ -44,12 +44,12 @@ For each selected clone pair:
 1. Join `CLONES` to `FUNCTIONS` twice.
 2. Extract `function_id_one` lines from its source file.
 3. Extract `function_id_two` lines from its source file.
-4. Build a synthetic old file containing fragment one directly in a stable
-   wrapper class and an empty nested destination class.
-5. Build a synthetic new file containing fragment two inside that nested class.
-   Both revisions remain structurally valid Java while presenting the payloads
-   under different parent shapes.
-6. Run `srcDiff original.java modified.java --position`.
+4. Build an old two-file archive containing fragment one in a stable source
+   class and an empty destination class.
+5. Build a new archive with the source class empty and fragment two in the
+   destination class. Both relative files and their distinct classes remain
+   present across revisions.
+6. Run `srcDiff original/ modified/ --position` in archive mode.
 7. Verify that srcDiff exposed the intended synthetic payload as usable
    delete/insert regions.
 8. Run `srcMove` over eligible srcDiff XML.
@@ -57,10 +57,12 @@ For each selected clone pair:
    texts and that same move's XML delete/insert annotations overlap the expected
    line ranges. Other reported moves are incidental evidence, not a rejection.
 
-The compiled suite supplies each revision to srcDiff as a one-file directory in
-archive mode. Both directories use the same relative filename, `input.java`, so
-srcDiff compares them as revisions of one file. Different relative filenames
-would instead encode an unrelated whole-file deletion and insertion.
+Each generated revision contains the same two relative paths,
+`source/input.java` and `destination/input.java`. srcDiff therefore compares the
+stable source file across revisions and exposes the removed payload there, then
+compares the stable destination file and exposes the inserted payload there.
+The two distinct container classes prevent the wrappers themselves from looking
+like a cross-file move.
 
 The current evaluation uses a strict detection-and-classification oracle:
 Type-1 cases must classify the intended whole-fragment move as `exact`, Type-2
@@ -169,9 +171,13 @@ hand-authored e2e fixtures:
 benchmarks/bigclonebench/
   cases/
     bcb_t2_000001/
-      original.java
-      modified.java
       metadata.json
+      original/
+        source/input.java
+        destination/input.java
+      modified/
+        source/input.java
+        destination/input.java
 ```
 
 `metadata.json` should record BigCloneBench IDs, source file locations, original
@@ -212,7 +218,7 @@ judge and confidence thresholds. Token size is retained as reporting metadata
 but does not determine eligibility. The ordered table direction is preserved as
 fragment one deleted and fragment two inserted.
 
-Generation reuses the positive cases' extraction and asymmetric wrapper so the
+Generation reuses the positive cases' extraction and two-file archive so the
 srcDiff semantic oracle can first establish that both complete payloads were
 exposed as candidates. The srcMove negative oracle then rejects only a reported
 move that links the complete generated fragment-one text to the complete
@@ -274,10 +280,10 @@ cases where the exact same function pair carries both labels.
 - Interpret BigCloneBench source ranges as LF-delimited line numbers. Some
   IJaDataset files contain standalone carriage-return characters inside comments,
   and treating those as line breaks shifts later extracted fragments.
-- The synthetic old/new payloads intentionally sit under different parent
-  shapes. If both sides use comparable wrapper blocks, srcDiff can align those
-  wrappers and treat the payload as common code instead of exposing it as
-  delete/insert content for srcMove.
+- Each synthetic archive retains distinct source and destination container
+  classes at stable relative paths. The payload is removed from the source file
+  and added to the destination file, so srcDiff cannot align the two payloads as
+  unchanged content within one corresponding file.
 - Many BigCloneBench fragments depend on imports or surrounding class members.
   srcDiff/srcML parsing generally does not require compilation, but malformed
   extracted fragments should be filtered out.

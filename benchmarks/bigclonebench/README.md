@@ -138,8 +138,8 @@ Run every currently supported pair set without copying any dataset, selection,
 snapshot, or corpus identifier:
 
 ```bash
-make bigclonebench-suite MODE=sample
-make bigclonebench-suite MODE=census
+make bigclonebench-suite PROFILE=small
+make bigclonebench-suite PROFILE=medium
 ```
 
 The command compiles or reuses the dataset, publishes or reuses a deterministic
@@ -150,9 +150,11 @@ blended into one accuracy percentage. Combined run metadata is saved below
 `benchmark-data/bigclonebench/suite-runs/` and links to each append-only
 evaluation run.
 
-Compiled snapshots use `input.java` as the relative filename on both sides.
-This is required in archive mode: srcDiff pairs files by relative path and would
-treat differently named old/new files as a whole-file deletion and insertion.
+Every compiled case is an isolated two-file archive. Both revisions retain
+`source/input.java` and `destination/input.java`; the payload is removed from a
+stable source class and added to a distinct stable destination class. This
+forces srcDiff to expose the cross-file delete and insert without making either
+container or whole file appear moved.
 
 Run Type-3 alone with `make bigclonebench-suite PAIR_SET=type3`. The live
 `srcMove execution` counter reports completed cases, while its suffix

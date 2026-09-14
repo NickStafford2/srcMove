@@ -196,50 +196,49 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
                 "  void target() {\n    call();\n  }\n",
             )
 
-    def test_synthetic_sources_use_valid_nested_class_destination(self) -> None:
+    def test_synthetic_archive_moves_between_stable_files(self) -> None:
         generator = load_generator_module()
 
-        top_level_fragment = generator.dedent_fragment(
-            "      void movedTo() {\n"
-            "          call();\n"
-            "      }\n"
-        )
         original, modified, original_range, modified_range = (
-            generator.build_synthetic_move_sources(
+            generator.build_synthetic_move_archive(
                 "BCBMove1_2",
-                "      void movedFrom() {\n      }\n",
-                top_level_fragment,
+                "  void movedFrom() {\n  }\n",
+                "  void movedTo() {\n    call();\n  }\n",
             )
         )
 
-        for source in (original, modified):
-            self.assertNotIn("beforeAnchor", source)
-            self.assertNotIn("middleAnchor", source)
-            self.assertNotIn("targetAnchor", source)
-            self.assertNotIn("afterAnchor", source)
-            self.assertIn("public class BCBMove1_2", source)
-            self.assertIn("SOURCE_CONTEXT = 100", source)
-            self.assertEqual(source.count("class MoveDestination"), 1)
+        self.assertEqual(
+            set(original),
+            {generator.SYNTHETIC_SOURCE_PATH, generator.SYNTHETIC_DESTINATION_PATH},
+        )
+        self.assertEqual(set(modified), set(original))
+        original_source = original[generator.SYNTHETIC_SOURCE_PATH]
+        original_destination = original[generator.SYNTHETIC_DESTINATION_PATH]
+        modified_source = modified[generator.SYNTHETIC_SOURCE_PATH]
+        modified_destination = modified[generator.SYNTHETIC_DESTINATION_PATH]
 
-        self.assertIn("void movedFrom()", original)
-        self.assertIn("class MoveDestination {\nvoid movedTo()", modified)
-        self.assertNotIn("}\n      void movedTo()", modified)
-        self.assertNotIn("void movedTo()", original)
-        self.assertNotIn("void movedFrom()", modified)
+        self.assertIn("class BCBMove1_2Source", original_source)
+        self.assertIn("SOURCE_CONTEXT = 100", original_source)
+        self.assertIn("void movedFrom()", original_source)
+        self.assertNotIn("void movedFrom()", modified_source)
+        self.assertIn("class BCBMove1_2Destination", modified_destination)
+        self.assertIn("DESTINATION_CONTEXT = 200", modified_destination)
+        self.assertIn("void movedTo()", modified_destination)
+        self.assertNotIn("void movedTo()", original_destination)
 
-        original_lines = original.splitlines()
-        modified_lines = modified.splitlines()
+        original_lines = original_source.splitlines()
+        modified_lines = modified_destination.splitlines()
         self.assertEqual(
             "\n".join(original_lines[original_range[0] - 1 : original_range[1]]),
-            "      void movedFrom() {\n      }",
+            "  void movedFrom() {\n  }",
         )
         self.assertEqual(
             "\n".join(modified_lines[modified_range[0] - 1 : modified_range[1]]),
-            "void movedTo() {\n    call();\n}",
+            "  void movedTo() {\n    call();\n  }",
         )
 
-        self.assertEqual(original.count("{"), original.count("}"))
-        self.assertEqual(modified.count("{"), modified.count("}"))
+        for source in (*original.values(), *modified.values()):
+            self.assertEqual(source.count("{"), source.count("}"))
 
     def test_srcml_parses_synthetic_payloads_under_distinct_class_parents(self) -> None:
         generator = load_generator_module()
@@ -250,14 +249,18 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
                 self.skipTest("srcml executable is unavailable")
             srcml = Path(discovered)
 
-        original, modified, _, _ = generator.build_synthetic_move_sources(
+        original, modified, _, _ = generator.build_synthetic_move_archive(
             "BCBMove1_2",
             "  void movedFrom() {\n    call();\n  }\n",
-            "void movedTo() {\n    call();\n}\n",
+            "  void movedTo() {\n    call();\n  }\n",
         )
 
-        parsed = []
-        for source in (original, modified):
+        parsed = {}
+        payload_sources = {
+            "movedFrom": original[generator.SYNTHETIC_SOURCE_PATH],
+            "movedTo": modified[generator.SYNTHETIC_DESTINATION_PATH],
+        }
+        for function_name, source in payload_sources.items():
             try:
                 result = subprocess.run(
                     [str(srcml), "--language", "Java"],
@@ -269,7 +272,7 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
             except OSError as error:
                 self.skipTest(f"srcml executable cannot run here: {error}")
             self.assertEqual(result.returncode, 0, result.stderr)
-            parsed.append(ET.fromstring(result.stdout))
+            parsed[function_name] = ET.fromstring(result.stdout)
 
         def local_name(tag: str) -> str:
             return tag.rsplit("}", 1)[-1]
@@ -300,11 +303,12 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
             return ancestors
 
         self.assertEqual(
-            function_parent_names(parsed[0], "movedFrom"), ["BCBMove1_2"]
+            function_parent_names(parsed["movedFrom"], "movedFrom"),
+            ["BCBMove1_2Source"],
         )
         self.assertEqual(
-            function_parent_names(parsed[1], "movedTo"),
-            ["MoveDestination", "BCBMove1_2"],
+            function_parent_names(parsed["movedTo"], "movedTo"),
+            ["BCBMove1_2Destination"],
         )
 
     def test_srcdiff_exposes_synthetic_payloads_as_delete_and_insert(self) -> None:
@@ -316,19 +320,19 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
                 self.skipTest("srcdiff executable is unavailable")
             srcdiff = Path(discovered)
 
-        original, modified, _, _ = generator.build_synthetic_move_sources(
+        original, modified, _, _ = generator.build_synthetic_move_archive(
             "BCBMove1_2",
             "  void moved() {\n    call();\n  }\n",
-            "void moved() {\n    call();\n}\n",
+            "  void moved() {\n    call();\n  }\n",
         )
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            original_path = root / "original.java"
-            modified_path = root / "modified.java"
+            original_path = root / "original"
+            modified_path = root / "modified"
             output_path = root / "diff.xml"
-            original_path.write_text(original, encoding="utf-8")
-            modified_path.write_text(modified, encoding="utf-8")
+            generator._write_archive(original_path, original)
+            generator._write_archive(modified_path, modified)
             try:
                 result = subprocess.run(
                     [

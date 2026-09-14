@@ -778,11 +778,17 @@ def run_case(case_dir: Path, srcdiff: Path, srcmove: Path) -> tuple[bool, Summar
         if path.exists():
             path.unlink()
 
+    original_input = (
+        "original" if (case_dir / "original").is_dir() else "original.java"
+    )
+    modified_input = (
+        "modified" if (case_dir / "modified").is_dir() else "modified.java"
+    )
     srcdiff_proc = run_command(
         [
             str(srcdiff),
-            "original.java",
-            "modified.java",
+            original_input,
+            modified_input,
             "-o",
             str(srcdiff_xml),
             "--position",
