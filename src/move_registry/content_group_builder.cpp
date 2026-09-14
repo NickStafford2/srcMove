@@ -8,9 +8,14 @@
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/content_groups.hpp"
 #include "move_registry/group_selection.hpp"
+#include "move_registry/sequence_similarity.hpp"
 #include "profile.hpp"
 
+#include <algorithm>
 #include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <string>
 #include <string_view>
 #include <unordered_map>
 #include <utility>
@@ -192,15 +197,15 @@ void add_selected_exact_groups(content_groups             &out,
   }
 }
 
-using type2_group_map =
+using normalized_group_map =
     std::unordered_map<std::string_view, pending_group, sv_hash>;
 
-type2_group_map
+std::vector<pending_group>
 build_type2_groups(const candidate_registry         &registry,
                    const std::vector<pending_group> &exact_groups,
                    const std::vector<std::size_t>   &order,
                    const group_selection            &selection) {
-  type2_group_map type2_groups;
+  normalized_group_map type2_groups;
   type2_groups.reserve(exact_groups.size());
 
   // O(unmatched exact-group ids). Type-2 candidates are grouped by their
@@ -244,22 +249,194 @@ build_type2_groups(const candidate_registry         &registry,
     }
   }
 
-  return type2_groups;
+  std::vector<pending_group> out;
+  out.reserve(type2_groups.size());
+  for (auto &entry : type2_groups) {
+    out.push_back(std::move(entry.second));
+  }
+  return out;
 }
 
 void add_selected_type2_groups(content_groups           &out,
                                const candidate_registry &registry,
-                               const type2_group_map    &type2_groups,
+                               const std::vector<pending_group> &type2_groups,
                                group_selection          &selection) {
-  for (const auto &entry : type2_groups) {
-    const pending_group &group = entry.second;
-    if (!is_one_to_one(group)) {
+  const std::vector<std::size_t> order =
+      group_selection_order(type2_groups, registry);
+  for (std::size_t group_index : order) {
+    const pending_group &group = type2_groups[group_index];
+    if (!has_both_sides(group) ||
+        group.del_ids.size() != group.ins_ids.size()) {
       continue;
     }
     if (selection.group_is_fully_suppressed(group, registry)) {
       continue;
     }
 
+    if (is_one_to_one(group)) {
+      add_selected_group(out, registry, group, selection);
+      continue;
+    }
+
+    for (std::size_t i = group.del_ids.size(); i-- > 0;) {
+      pending_group pair;
+      pair.content_hash = group.content_hash;
+      pair.match        = group.match;
+      pair.del_ids.push_back(group.del_ids[i]);
+      pair.ins_ids.push_back(group.ins_ids[i]);
+      if (!selection.group_is_fully_suppressed(pair, registry)) {
+        add_selected_group(out, registry, pair, selection);
+      }
+    }
+  }
+}
+
+struct type3_edge {
+  candidate_id del_id = 0;
+  candidate_id ins_id = 0;
+  std::size_t common_lines = 0;
+  std::size_t maximum_lines = 0;
+};
+
+bool type3_edge_better(const type3_edge &lhs, const type3_edge &rhs) {
+  const std::size_t lhs_scaled = lhs.common_lines * rhs.maximum_lines;
+  const std::size_t rhs_scaled = rhs.common_lines * lhs.maximum_lines;
+  if (lhs_scaled != rhs_scaled) {
+    return lhs_scaled > rhs_scaled;
+  }
+  if (lhs.maximum_lines != rhs.maximum_lines) {
+    return lhs.maximum_lines > rhs.maximum_lines;
+  }
+  if (lhs.del_id != rhs.del_id) {
+    return lhs.del_id < rhs.del_id;
+  }
+  return lhs.ins_id < rhs.ins_id;
+}
+
+std::vector<candidate_id>
+collect_type3_ids(const candidate_registry         &registry,
+                  const std::vector<pending_group> &exact_groups,
+                  const std::vector<std::size_t>   &order,
+                  const group_selection            &selection,
+                  move_candidate::Kind              kind) {
+  std::vector<candidate_id> ids;
+  for (std::size_t group_index : order) {
+    const pending_group &group = exact_groups[group_index];
+    const std::vector<candidate_id> &side =
+        kind == move_candidate::Kind::del ? group.del_ids : group.ins_ids;
+    for (candidate_id id : side) {
+      const move_candidate &candidate = registry.candidate(id);
+      if (selection.id_is_used(id) ||
+          selection.candidate_is_suppressed(candidate) ||
+          !candidate.type2_eligible ||
+          candidate.role != move_candidate::Role::structural_child ||
+          candidate.type2_normalized_lines.empty()) {
+        continue;
+      }
+      ids.push_back(id);
+    }
+  }
+  return ids;
+}
+
+std::vector<type3_edge>
+build_type3_edges(const candidate_registry         &registry,
+                  const std::vector<pending_group> &exact_groups,
+                  const std::vector<std::size_t>   &order,
+                  const group_selection            &selection) {
+  const std::vector<candidate_id> del_ids = collect_type3_ids(
+      registry, exact_groups, order, selection, move_candidate::Kind::del);
+  const std::vector<candidate_id> ins_ids = collect_type3_ids(
+      registry, exact_groups, order, selection, move_candidate::Kind::insert);
+
+  std::unordered_map<std::string_view, std::vector<candidate_id>, sv_hash>
+      insert_ids_by_element;
+  for (candidate_id id : ins_ids) {
+    insert_ids_by_element[registry.candidate(id).full_name].push_back(id);
+  }
+  const auto line_count = [&registry](candidate_id id) {
+    return registry.candidate(id).type2_normalized_lines.size();
+  };
+  for (auto &entry : insert_ids_by_element) {
+    std::sort(entry.second.begin(), entry.second.end(),
+              [&line_count](candidate_id lhs, candidate_id rhs) {
+                const std::size_t lhs_size = line_count(lhs);
+                const std::size_t rhs_size = line_count(rhs);
+                return lhs_size != rhs_size ? lhs_size < rhs_size : lhs < rhs;
+              });
+  }
+
+  std::vector<type3_edge> edges;
+  for (candidate_id del_id : del_ids) {
+    const move_candidate &del = registry.candidate(del_id);
+    const auto bucket = insert_ids_by_element.find(del.full_name);
+    if (bucket == insert_ids_by_element.end()) {
+      continue;
+    }
+
+    const std::size_t del_size = del.type2_normalized_lines.size();
+    const std::size_t minimum_size =
+        (del_size * kType3ThresholdNumerator +
+         kType3ThresholdDenominator - 1) /
+        kType3ThresholdDenominator;
+    const std::size_t maximum_size =
+        del_size * kType3ThresholdDenominator / kType3ThresholdNumerator;
+    const auto first = std::lower_bound(
+        bucket->second.begin(), bucket->second.end(), minimum_size,
+        [&line_count](candidate_id id, std::size_t size) {
+          return line_count(id) < size;
+        });
+    const auto last = std::upper_bound(
+        first, bucket->second.end(), maximum_size,
+        [&line_count](std::size_t size, candidate_id id) {
+          return size < line_count(id);
+        });
+
+    for (auto it = first; it != last; ++it) {
+      const candidate_id ins_id = *it;
+      const move_candidate &ins = registry.candidate(ins_id);
+      // An exact Type-2 identity that was rejected only because its group was
+      // ambiguous must not be relabeled as a weaker one-to-one Type-3 match.
+      if (del.type2_canonical_text == ins.type2_canonical_text) {
+        continue;
+      }
+      if (!can_reach_type3_threshold(del.type2_normalized_lines.size(),
+                                     ins.type2_normalized_lines.size())) {
+        continue;
+      }
+      const std::size_t common = type3_lcs_length(
+          del.type2_normalized_lines, ins.type2_normalized_lines);
+      if (common == 0) {
+        continue;
+      }
+      edges.push_back(type3_edge{
+          del_id, ins_id, common,
+          std::max(del.type2_normalized_lines.size(),
+                   ins.type2_normalized_lines.size())});
+    }
+  }
+
+  std::sort(edges.begin(), edges.end(), type3_edge_better);
+  return edges;
+}
+
+void add_selected_type3_groups(content_groups                  &out,
+                               const candidate_registry        &registry,
+                               const std::vector<type3_edge>   &edges,
+                               group_selection                 &selection) {
+  for (const type3_edge &edge : edges) {
+    if (selection.id_is_used(edge.del_id) ||
+        selection.id_is_used(edge.ins_id)) {
+      continue;
+    }
+    pending_group group;
+    group.content_hash = registry.candidate(edge.del_id).type2_hash;
+    group.match        = match_kind::type3;
+    group.del_ids.push_back(edge.del_id);
+    group.ins_ids.push_back(edge.ins_id);
+    if (selection.group_is_fully_suppressed(group, registry)) {
+      continue;
+    }
     add_selected_group(out, registry, group, selection);
   }
 }
@@ -325,7 +502,7 @@ content_groups build_content_groups(const candidate_registry &registry,
                               selection);
   }
 
-  type2_group_map type2_groups;
+  std::vector<pending_group> type2_groups;
   {
     scoped_profile_timer timer(profile, "content_groups.type2_build");
     type2_groups =
@@ -335,6 +512,18 @@ content_groups build_content_groups(const candidate_registry &registry,
   {
     scoped_profile_timer timer(profile, "content_groups.type2_select");
     add_selected_type2_groups(out, registry, type2_groups, selection);
+  }
+
+  std::vector<type3_edge> type3_edges;
+  {
+    scoped_profile_timer timer(profile, "content_groups.type3_build");
+    type3_edges = build_type3_edges(registry, exact_groups, exact_group_order,
+                                    selection);
+  }
+
+  {
+    scoped_profile_timer timer(profile, "content_groups.type3_select");
+    add_selected_type3_groups(out, registry, type3_edges, selection);
   }
 
   {

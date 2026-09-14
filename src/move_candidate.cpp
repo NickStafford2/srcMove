@@ -28,11 +28,13 @@ move_candidate::move_candidate(Kind        k,
                                std::string raw,
                                std::string canonical,
                                std::string type2_canonical,
+                               std::vector<std::uint64_t> type2_lines,
                                bool        type2_ok)
     : kind(k), filename(std::move(file)), xpath(), full_name(),
       sibling_index(0), start_index(0), start_idx(start), end_idx(0),
       raw_text(std::move(raw)), canonical_text(std::move(canonical)),
       type2_canonical_text(std::move(type2_canonical)),
+      type2_normalized_lines(std::move(type2_lines)),
       type2_eligible(type2_ok),
       hash(move_candidate::fast_hash_raw(canonical_text)),
       type2_hash(move_candidate::fast_hash_raw(type2_canonical_text)) {}

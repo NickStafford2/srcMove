@@ -54,9 +54,13 @@ overly broad surrounding diff wrapper when the structure supports it.
 ### 3. Canonicalize and group
 
 [`src/parse/canonical_subtree.cpp`](../src/parse/canonical_subtree.cpp) converts
-captured srcML events into a canonical structural string. The default form
-ignores the outer diff wrapper, `diff:ws` elements, and whitespace-only text
-while retaining element structure and meaningful text.
+captured srcML events into cached canonical representations. The Type-1 form
+ignores the outer diff wrapper, comments, `diff:ws` elements, and formatting-only
+text while retaining identifiers, literals, keywords, operators, and srcML
+structure. The Type-2 form additionally renames identifiers consistently by
+first occurrence and replaces literals with their category (`integer`,
+`floating`, `string`, `character`, `boolean`, or `null`). Language keywords,
+operators, and structural distinctions remain unchanged.
 
 Candidates are bucketed with 64-bit FNV-1a hashes of that canonical form. A hash
 is only an index: groups are split and confirmed using the full canonical text,
@@ -67,13 +71,28 @@ then:
 
 1. forms exact canonical-text groups
 2. selects exact groups while suppressing overlapping parent/child candidates
-3. considers unmatched eligible constructs for Type-2 matching
-4. accepts only one-delete/one-insert Type-2 groups
-5. emits remaining delete-only and insert-only groups for reporting
+3. groups unmatched eligible constructs by exact Type-2 representation
+4. selects unambiguous Type-2 pairs, including deterministic positional pairing
+   when both sides have the same multiplicity
+5. compares the remaining eligible structural candidates for Type-3 similarity
+6. emits remaining delete-only and insert-only groups for reporting
 
-Type-2 matching uses a second canonical form that consistently replaces
-identifier text inside `name` elements while retaining names used as types. It
-is intentionally limited to selected structural constructs and statements.
+Type-3 uses a NiCad-inspired sequence rule implemented directly in srcMove; no
+NiCad executable or runtime dependency is involved. During canonicalization,
+the Type-2-normalized token stream is divided at statement and block boundaries
+(`;`, `{`, and `}`), and each resulting segment is hashed to a 64-bit integer.
+For sequences `A` and `B` with longest common subsequence length `L`, a pair is
+accepted exactly when both `L / |A| >= 0.70` and `L / |B| >= 0.70`. This is
+equivalent to `L / max(|A|, |B|) >= 0.70`.
+
+The comparison first rejects impossible size ratios, then runs a two-row LCS
+that exits when the remaining rows cannot reach the required common length.
+Candidates are restricted to the same eligible srcML element kind and the 0.70
+size window, rather than forming an unrestricted delete-by-insert product.
+Accepted edges are ordered by similarity, then size and candidate ID, and are
+selected greedily one-to-one. This makes output deterministic. Type-1 and
+Type-2 selection always precede Type-3, and an ambiguous exact Type-2 identity
+is never relabeled as the weaker Type-3 kind.
 
 ### 4. Annotate the XML
 
@@ -92,12 +111,13 @@ classifications as JSON.
 
 ## Matching and group semantics
 
-The current matcher reports two match kinds:
+The matcher reports four classification outcomes:
 
-- `exact`: delete and insert candidates have identical canonical structure and
-  meaningful text
-- `type2`: one eligible delete and insert have identical identifier-normalized
-  canonical structure
+- `exact` (Type 1): identical comment- and formatting-insensitive canonical
+  structure and meaningful text
+- `type2`: identical identifier- and literal-normalized canonical structure
+- `type3`: eligible unmatched candidates satisfy the 0.70 bounded-LCS rule
+- none: no accepted pair is emitted; candidates remain unmatched
 
 Groups are classified by their delete/insert counts, including one-to-one,
 many-to-many, copy-or-repeat, delete-only, and insert-only cases. Groups with
@@ -108,8 +128,10 @@ does not yet infer a unique pairing within an ambiguous many-to-many group.
 
 Parsing and writing are streaming passes, while collected regions, candidates,
 and compact candidate-id groups remain in memory. Hash indexing and exact-text
-partitioning avoid constructing the full delete-by-insert Cartesian product.
-The implementation exposes coarse `--profile` timings for repeatable pipeline
+partitioning avoid constructing the full delete-by-insert Cartesian product for
+Type 1 and Type 2. Cached normalized segment hashes, element-kind partitioning,
+the size-ratio bound, and early-exit LCS constrain Type-3 work. The
+implementation exposes coarse `--profile` timings for repeatable pipeline
 measurements.
 
 This design is intended to scale more predictably than exhaustive pairwise tree
@@ -118,9 +140,9 @@ performance result for arbitrary projects.
 
 ## Current limitations
 
-- Type-3 and Type-4 moves are not supported.
-- Type-2 support is identifier normalization for eligible one-to-one constructs,
-  not general near-miss clone detection.
+- Type-4 moves are not supported.
+- Type-2 and Type-3 are limited to eligible structural constructs and selected
+  statement kinds; tiny fragments are not promoted into near-miss matches.
 - There is no probabilistic confidence score, locality model, behavioral model,
   or developer-intent reconstruction.
 - Many-to-many and unequal-count groups are classified but not fully paired or

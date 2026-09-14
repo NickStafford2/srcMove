@@ -179,18 +179,11 @@ by this pipeline.
 
 ## Matching scope
 
-The current matcher reports:
-
-- `exact`: identical canonical structure and meaningful text
-- `type2`: identical identifier-normalized canonical structure for an eligible
-  one-delete/one-insert construct
-
-Hash equality alone never establishes a match. Many-to-many and unequal-count
-groups may share a move identifier and partner set, but srcMove does not yet
-infer a unique pairing within those groups.
-
-For the complete implemented pipeline and its performance model, see
-[Architecture](doc/architecture.md).
+The deterministic classifier reports `exact` (Type 1), `type2`, and `type3`;
+pairs below the Type-3 threshold remain unmatched. Hash equality alone never
+establishes a match. The normalization rules, 0.70 similarity formula,
+ambiguity policy, and performance safeguards have one canonical description in
+[Architecture](doc/architecture.md#matching-and-group-semantics).
 
 ## Documentation and evaluation
 
