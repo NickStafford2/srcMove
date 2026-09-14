@@ -45,6 +45,17 @@
         "Source.java": ["class Source {}"],
         "Destination.java": ["class Destination {", "  String describe(boolean enabled) {", "    if (enabled) {", "      return \"ready\";", "    }", "    return \"stopped\";", "  }", "}"]
       }
+    },
+    {
+      "id": "classification_none_similar_java_method_shapes", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Similarly shaped methods with unrelated operations must not be classified as a move.",
+      "original_files": {
+        "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    int limited = Math.min(doubled, 100);", "    return limited;", "  }", "}"],
+        "Destination.java": ["class Destination {}"]
+      },
+      "modified_files": {
+        "Source.java": ["class Source {}"],
+        "Destination.java": ["class Destination {", "  String describe(String input) {", "    String trimmed = input.trim();", "    String message = trimmed.toUpperCase();", "    return message;", "  }", "}"]
+      }
     }
   ]
 }

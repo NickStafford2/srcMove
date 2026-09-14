@@ -68,9 +68,15 @@ test-policy: build
 test-classification: build
 	$(PYTHON) tests/run.py --suite policy \
 		--case classification_type1_java_method_whitespace \
+		--case classification_type1_java_method_comments \
 		--case classification_type2_java_method_identifiers \
+		--case classification_type2_java_method_literal \
+		--case classification_type2_java_method_identifiers_and_literal \
 		--case classification_type3_java_method_added_statement \
-		--case classification_none_unrelated_java_methods
+		--case classification_type3_java_method_removed_statement \
+		--case classification_type3_java_method_modified_statement \
+		--case classification_none_unrelated_java_methods \
+		--case classification_none_similar_java_method_shapes
 
 benchmark-repo:
 	@test -n "$(CASE)" || { echo 'error: CASE is required'; exit 2; }
