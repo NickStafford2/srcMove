@@ -31,6 +31,48 @@
       "id": "direct_type2_c_function", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A complete function with consistent renaming is Type-2.",
       "from_lines": ["int double_value(int value) {", "  int result = value * 2;", "  return result;", "}"], "to_lines": ["int double_number(int number) {", "  int answer = number * 2;", "  return answer;", "}"],
       "expected_match_kind": "type2", "expected_from_lines": ["int double_value(int value) {", "  int result = value * 2;", "  return result;", "}"], "expected_to_lines": ["int double_number(int number) {", "  int answer = number * 2;", "  return answer;", "}"]
+    },
+    {
+      "id": "classification_type1_java_method_whitespace", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Whitespace-only formatting changes preserve a Type-1 method move.",
+      "original_files": {
+        "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }", "}"],
+        "Destination.java": ["class Destination {}"]
+      },
+      "modified_files": {
+        "Source.java": ["class Source {}"],
+        "Destination.java": ["class Destination {", "", "    int calculate( int value )", "    {", "        int doubled = value * 2;", "        return doubled;", "    }", "}"]
+      },
+      "expected_match_kind": "exact",
+      "expected_from_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }"],
+      "expected_to_lines": ["int calculate( int value )", "    {", "        int doubled = value * 2;", "        return doubled;", "    }"]
+    },
+    {
+      "id": "classification_type2_java_method_identifiers", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Consistent identifier renaming preserves a Type-2 method move.",
+      "original_files": {
+        "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }", "}"],
+        "Destination.java": ["class Destination {}"]
+      },
+      "modified_files": {
+        "Source.java": ["class Source {}"],
+        "Destination.java": ["class Destination {", "  int compute(int number) {", "    int result = number * 2;", "    return result;", "  }", "}"]
+      },
+      "expected_match_kind": "type2",
+      "expected_from_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }"],
+      "expected_to_lines": ["int compute(int number) {", "    int result = number * 2;", "    return result;", "  }"]
+    },
+    {
+      "id": "classification_type3_java_method_added_statement", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "A moved method with one added statement is a Type-3 contract.",
+      "original_files": {
+        "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }", "}"],
+        "Destination.java": ["class Destination {}"]
+      },
+      "modified_files": {
+        "Source.java": ["class Source {}"],
+        "Destination.java": ["class Destination {", "  int calculate(int value) {", "    int doubled = value * 2;", "    System.out.println(doubled);", "    return doubled;", "  }", "}"]
+      },
+      "expected_match_kind": "type3",
+      "expected_from_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }"],
+      "expected_to_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    System.out.println(doubled);", "    return doubled;", "  }"]
     }
   ]
 }

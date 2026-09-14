@@ -34,6 +34,17 @@
     {"id": "direct_short_return_value", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A trivial return statement is not meaningful enough to count as a move.", "from_lines": ["return 0;"], "to_lines": ["return 0;"]},
     {"id": "direct_short_function_call", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A trivial function call is not meaningful enough to count as a move.", "from_lines": ["f();"], "to_lines": ["f();"]},
     {"id": "direct_short_increment", "language": "Java", "extension": ".java", "scenario": "transfer", "rationale": "A trivial increment is not meaningful enough to count as a move.", "from_lines": ["x++;"], "to_lines": ["x++;"]},
-    {"id": "direct_short_throw", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A short throw statement is not meaningful enough to count as a move.", "from_lines": ["throw error;"], "to_lines": ["throw error;"]}
+    {"id": "direct_short_throw", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A short throw statement is not meaningful enough to count as a move.", "from_lines": ["throw error;"], "to_lines": ["throw error;"]},
+    {
+      "id": "classification_none_unrelated_java_methods", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Unrelated deleted and inserted methods must not be classified as a move.",
+      "original_files": {
+        "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }", "}"],
+        "Destination.java": ["class Destination {}"]
+      },
+      "modified_files": {
+        "Source.java": ["class Source {}"],
+        "Destination.java": ["class Destination {", "  String describe(boolean enabled) {", "    if (enabled) {", "      return \"ready\";", "    }", "    return \"stopped\";", "  }", "}"]
+      }
+    }
   ]
 }

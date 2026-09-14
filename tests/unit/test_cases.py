@@ -136,7 +136,7 @@ class PolicyCaseDiscoveryTests(unittest.TestCase):
                         "scenario": "transfer",
                         "from_lines": ["37"],
                         "to_lines": ["37"],
-                    }
+                    },
                 ],
             }
             positive = {
@@ -153,7 +153,19 @@ class PolicyCaseDiscoveryTests(unittest.TestCase):
                         "expected_match_kind": "exact",
                         "expected_from_lines": ["void moved(void) {}"],
                         "expected_to_lines": ["void moved(void) {}"],
-                    }
+                    },
+                    {
+                        "id": "future_type3_move",
+                        "language": "C",
+                        "extension": ".c",
+                        "rationale": "classification contract",
+                        "scenario": "transfer",
+                        "from_lines": ["void moved(void) {}"],
+                        "to_lines": ["void moved(void) { changed(); }"],
+                        "expected_match_kind": "type3",
+                        "expected_from_lines": ["void moved(void) {}"],
+                        "expected_to_lines": ["void moved(void) { changed(); }"],
+                    },
                 ],
             }
             (root / "false_positive.json").write_text(json.dumps(negative))
@@ -167,6 +179,7 @@ class PolicyCaseDiscoveryTests(unittest.TestCase):
                 [
                     "literal_fragment",
                     "function_move",
+                    "future_type3_move",
                     "context_negative",
                     "context_positive",
                 ],
