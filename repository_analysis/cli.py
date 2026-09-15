@@ -31,6 +31,7 @@ from .inputs import AnalysisConfiguration, RepositoryIdentity
 from .locking import AnalysisOperationLock, is_analysis_writer_locked
 from .presentation import render_run, render_status
 from .progress import TerminalAnalysisObserver
+from .report import build_report, render_report
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -104,6 +105,15 @@ def build_parser() -> argparse.ArgumentParser:
 
     status = commands.add_parser("status", help="show durable coverage and state")
     _add_format(status)
+
+    commands.add_parser(
+        "report",
+        help="summarize historical move-analysis results",
+        description=(
+            "Generate a detailed plain-text report from committed analysis "
+            "results and the frozen first-parent Git history."
+        ),
+    )
 
     list_command = commands.add_parser("list", help="list durable pair outcomes")
     filters = list_command.add_mutually_exclusive_group()
@@ -546,6 +556,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if arguments.output_format == "human"
                 else _json(_status_document(summary))
             )
+            exit_status = 0
+        elif arguments.command == "report":
+            output = render_report(build_report(analysis))
             exit_status = 0
         elif arguments.command == "list":
             after_distance = None if arguments.after is None else arguments.after - 1

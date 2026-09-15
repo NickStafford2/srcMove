@@ -509,6 +509,44 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                     ]
                 )
 
+    def test_report_reads_committed_results_and_is_plain_text_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 4)
+            self._init(repository, excluded_suffixes=(".txt",))
+            status, _, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "run",
+                    "--pairs",
+                    "2",
+                    "--srcdiff",
+                    str(executable(root / "srcdiff")),
+                    "--srcmove",
+                    str(executable(root / "srcmove")),
+                    "--progress",
+                    "never",
+                ]
+            )
+            self.assertEqual((status, error), (0, ""))
+            database = repository / ".srcmove" / "analysis.sqlite3"
+            before = database.read_bytes()
+
+            status, output, error = self._main(
+                ["-C", str(repository), "report"]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            self.assertIn("Repository History Move Analysis", output)
+            self.assertIn("2 of 3 commit pairs (66.7%)", output)
+            self.assertIn("Commit pairs with ≥1 move   0 of 0 (n/a)", output)
+            self.assertEqual(database.read_bytes(), before)
+
+            with contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    build_parser().parse_args(["report", "--format", "json"])
+
     def test_more_extends_existing_coverage_without_counting_it_manually(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

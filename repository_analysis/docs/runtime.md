@@ -10,7 +10,7 @@ refactoring direction without claiming that unimplemented structure exists.
 commits. It is production analysis infrastructure; benchmarks may invoke it but
 do not own its state format or execution semantics.
 
-Each pair is materialized as two directory trees. srcDiff is therefore always
+Each commit pair is materialized as two directory trees. srcDiff is therefore always
 invoked with `--archive`, and its XML output is always validated as an archive.
 
 The public lifecycle is target-driven:
@@ -30,6 +30,7 @@ bin/srcmove-history run --pairs 500
 bin/srcmove-history run --more 100
 
 bin/srcmove-history status
+bin/srcmove-history report
 bin/srcmove-history list --failed
 bin/srcmove-history show 1
 bin/srcmove-history compare COMMIT --save all
@@ -111,15 +112,34 @@ being interpreted as an in-place update.
 Human-readable output is the default. `--format json` emits one versioned JSON
 document to stdout. Status derives live writer state by probing the operation
 lock; `activity.json` alone is never treated as proof that a run is active.
-The compact summary reports processed adjacent commit pairs, separates pairs
-successfully compared from pairs without analyzable changes and failures, and
-counts detected moves by match type. Its elapsed time is the sum of every
+The compact summary reports processed adjacent commit pairs, separates commit
+pairs successfully compared from commit pairs without analyzable changes and
+failures, and counts detected moves by match type. Its elapsed time is the sum of every
 recorded `run` wall duration; srcDiff and srcMove times are cumulative process
-durations across pairs and may exceed elapsed time when workers run in
+durations across commit pairs and may exceed elapsed time when workers run in
 parallel. The displayed range labels the frozen newest anchor and oldest
 covered commit explicitly. Internal move-group shape, annotated-region counts,
 state paths, and invocation details remain available through JSON and the
 `list` and `show` commands rather than the default summary.
+
+`report` produces a detailed, deterministic plain-text research summary from
+committed results. It has no `--format` option; redirect stdout to save it:
+
+```bash
+bin/srcmove-history report > history-report.txt
+```
+
+The report states first-parent history coverage against the total frozen
+history, commit pair outcomes, move prevalence, match classification, file
+location, move topology, distribution, cumulative performance, common path
+exclusions, and the frozen analysis definition. Its methodological notes call
+out partial coverage, result concentration, approximate Type 3 detections, and
+failed commit pairs when applicable. Distribution and prevalence percentages
+use successfully compared commit pairs as their denominator; commit pairs
+without analyzable changes and failed commit pairs are reported separately.
+Each detected move is one retained srcMove detection and may contain multiple
+source or destination regions. Within-file and cross-file classifications are
+derived from the filenames retained in those regions' XPath evidence.
 
 `run` reports progress to stderr immediately. On a terminal it renders a live
 spinner, durable coverage bar, outcome counters, elapsed time, and an ETA after
