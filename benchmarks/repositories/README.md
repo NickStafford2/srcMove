@@ -39,7 +39,7 @@ measuring bind-mounted I/O.
 Generated studies currently live below:
 
 ```text
-benchmark-data/history-scaling/<study-id>/
+benchmark-results/history-scaling/<study-id>/
   study.json
   trials.csv
   summary.json

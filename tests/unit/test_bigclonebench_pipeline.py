@@ -134,6 +134,8 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
         with mock.patch.object(sys, "argv", arguments):
             args = parse_args()
         self.assertEqual(args.stage, "benchmark")
+        self.assertEqual(args.cache_root.name, "benchmark-cache")
+        self.assertEqual(args.results_root.name, "benchmark-results")
         self.assertFalse(hasattr(args, "input_snapshot"))
         self.assertFalse(hasattr(args, "corpus"))
 
@@ -591,13 +593,16 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
                 root / "srcmove-build-b", srcmove_source + "\n# second build\n"
             )
 
-            data_root = root / "benchmark-data"
+            cache_root = root / "benchmark-cache"
+            results_root = root / "benchmark-results"
             adapter = BigCloneBenchAdapter(cases_dir, 1)
             _, input_snapshot = create_input_snapshot(
-                data_root=data_root, adapter=adapter, source=adapter.source_manifest()
+                data_root=cache_root,
+                adapter=adapter,
+                source=adapter.source_manifest(),
             )
             corpus_dir, corpus = generate_corpus(
-                data_root=data_root,
+                data_root=cache_root,
                 input_snapshot=input_snapshot["input_snapshot_id"],
                 srcdiff=srcdiff,
                 timeout_seconds=2.0,
@@ -612,7 +617,8 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
             runs = []
             for executable in (srcmove_a, srcmove_b):
                 run_dir, run = run_corpus(
-                    data_root=data_root,
+                    data_root=cache_root,
+                    results_root=results_root,
                     corpus=corpus_dir,
                     srcmove=executable,
                     timeout_seconds=2.0,
@@ -651,7 +657,7 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
             }
             for summary in summaries:
                 self.assertEqual(summary["counts"], expected_counts)
-                rows_path = data_root / "runs" / summary["run_id"] / "cases.csv"
+                rows_path = results_root / "runs" / summary["run_id"] / "cases.csv"
                 with rows_path.open(encoding="utf-8") as stream:
                     rows = list(csv.DictReader(stream))
                 wrong = next(row for row in rows if row["case_id"] == "wrong-classification")

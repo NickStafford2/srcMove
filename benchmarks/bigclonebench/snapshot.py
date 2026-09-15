@@ -19,7 +19,6 @@ from benchmarks.bigclonebench.adapter import (
     CompiledBigCloneBenchAdapter,
     compiled_selection_source_manifest,
 )
-from benchmarks.bigclonebench.compile import DEFAULT_DATA_ROOT
 from benchmarks.bigclonebench.selection import load_selection
 from benchmarks.corpus import (
     VerifiedSnapshot,
@@ -29,12 +28,13 @@ from benchmarks.corpus import (
 from benchmarks.contracts import content_identifier
 from benchmarks.process import write_json_atomic
 from benchmarks.progress import ProgressDisplay
+from benchmarks.paths import DEFAULT_CACHE_ROOT
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("selection", help="Selection ID or directory.")
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
     return parser.parse_args()
 
 
@@ -158,7 +158,7 @@ def main() -> int:
             "snapshot/validate", detail="checking selection and compiled catalog"
         ) as progress:
             adapter = CompiledBigCloneBenchAdapter(
-                data_root=args.data_root,
+                data_root=args.cache_root,
                 selection=args.selection,
             )
             progress.finish("selection and catalog validated")
@@ -168,7 +168,7 @@ def main() -> int:
             detail=adapter.selection_manifest["request"]["pair_set"],
         ) as progress:
             snapshot, disposition = materialize_compiled_selection(
-                data_root=args.data_root,
+                data_root=args.cache_root,
                 selection=args.selection,
             )
             progress.finish(

@@ -31,13 +31,13 @@ from benchmarks.bigclonebench.compiled import (
     verify_upstream_sources,
 )
 from benchmarks.bigclonebench.generate import BCE_DIR, java_identity, preflight
+from benchmarks.paths import DEFAULT_CACHE_ROOT
 from benchmarks.process import write_json_atomic
 from benchmarks.progress import ProgressDisplay
 from benchmarks.provenance import sha256_file
 from support.tooling import format_process_failure, run_command
 
 
-DEFAULT_DATA_ROOT = REPO_ROOT / "benchmark-data"
 EXPORT_CACHE_SCHEMA_VERSION = 1
 
 
@@ -439,7 +439,7 @@ def ensure_compiled_dataset(
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
     parser.add_argument("--bce-dir", type=Path, default=BCE_DIR)
     stages = parser.add_subparsers(dest="stage", required=True)
 
@@ -464,7 +464,7 @@ def main() -> int:
         if args.stage == "validate":
             compiled = load_compiled_dataset(
                 args.dataset,
-                data_root=args.data_root,
+                data_root=args.cache_root,
                 verification=args.verification,
             )
             print(f"dataset_id={compiled.dataset_id}")
@@ -478,9 +478,9 @@ def main() -> int:
             else f"developer sample, up to {args.limit_per_kind:,} rows per pair table"
         )
         print(f"BigCloneBench compile: {scope_label}", flush=True)
-        print(f"data_root={args.data_root.expanduser().resolve()}", flush=True)
+        print(f"cache_root={args.cache_root.expanduser().resolve()}", flush=True)
         compiled, reused = ensure_compiled_dataset(
-            data_root=args.data_root,
+            data_root=args.cache_root,
             bce_dir=args.bce_dir,
             limit_per_kind=args.limit_per_kind,
         )

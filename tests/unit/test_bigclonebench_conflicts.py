@@ -40,7 +40,7 @@ class BigCloneBenchConflictReportTests(unittest.TestCase):
             report = build_report(
                 SimpleNamespace(
                     dataset=compiled.directory,
-                    data_root=root / "data",
+                    cache_root=root / "data",
                     limit=1,
                 )
             )

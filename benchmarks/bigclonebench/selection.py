@@ -23,11 +23,11 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.bigclonebench.compile import DEFAULT_DATA_ROOT
 from benchmarks.bigclonebench.compiled import (
     VerifiedCompiledDataset,
     load_compiled_dataset,
 )
+from benchmarks.paths import DEFAULT_CACHE_ROOT
 from benchmarks.contracts import canonical_json, content_identifier
 from benchmarks.progress import ProgressDisplay
 from benchmarks.provenance import sha256_file, utc_now
@@ -1004,7 +1004,7 @@ def load_selection(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dataset", help="Compiled dataset ID or directory.")
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
     parser.add_argument("--pair-set", choices=tuple(PAIR_SETS), required=True)
     parser.add_argument("--mode", choices=("sample", "census"), default="sample")
     parser.add_argument("--role", choices=("tuning", "evaluation"), default="tuning")
@@ -1019,13 +1019,13 @@ def main() -> int:
     try:
         with ProgressDisplay("selection/validate", detail="checking compiled catalog") as progress:
             compiled = load_compiled_dataset(
-                args.dataset, data_root=args.data_root, verification="identity"
+                args.dataset, data_root=args.cache_root, verification="identity"
             )
             progress.finish("compiled catalog validated", completion="complete")
         with ProgressDisplay("selection/build", detail=f"{args.pair_set} {args.mode}") as progress:
             directory, manifest, reused = create_selection(
                 compiled,
-                data_root=args.data_root,
+                data_root=args.cache_root,
                 pair_set=args.pair_set,
                 mode=args.mode,
                 role=args.role,

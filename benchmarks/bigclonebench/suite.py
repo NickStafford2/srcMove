@@ -19,7 +19,7 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from benchmarks.bigclonebench.compile import DEFAULT_DATA_ROOT, ensure_compiled_dataset
+from benchmarks.bigclonebench.compile import ensure_compiled_dataset
 from benchmarks.bigclonebench.evaluate import SCORING_ORACLE_VERSION
 from benchmarks.bigclonebench.frozen_profiles import create_frozen_selection
 from benchmarks.bigclonebench.generate import BCE_DIR
@@ -29,6 +29,7 @@ from benchmarks.bigclonebench.snapshot import materialize_compiled_selection
 from benchmarks.contracts import RunMode
 from benchmarks.process import write_json_atomic
 from benchmarks.progress import ProgressDisplay
+from benchmarks.paths import DEFAULT_CACHE_ROOT, DEFAULT_RESULTS_ROOT
 from benchmarks.provenance import observe_executable, utc_now
 from support.tooling import find_srcdiff, find_srcmove
 
@@ -50,7 +51,8 @@ OPERATIONAL_FAILURES = (
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
+    parser.add_argument("--results-root", type=Path, default=DEFAULT_RESULTS_ROOT)
     parser.add_argument("--bce-dir", type=Path, default=BCE_DIR)
     parser.add_argument("--mode", choices=("sample", "census"), default="sample")
     parser.add_argument(
@@ -208,7 +210,8 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
             "Type-3 evaluation suite is unavailable: a held-out partition has "
             "not been implemented; use ROLE=tuning or exclude Type-3"
         )
-    data_root = args.data_root.expanduser().resolve()
+    cache_root = args.cache_root.expanduser().resolve()
+    results_root = args.results_root.expanduser().resolve()
     srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
     srcmove = find_srcmove(REPO_ROOT, args.srcmove)
     if srcdiff is None:
@@ -218,7 +221,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
 
     (compiled_result, compile_seconds) = _timed(
         lambda: ensure_compiled_dataset(
-            data_root=data_root,
+            data_root=cache_root,
             bce_dir=args.bce_dir,
             verify_source=args.verify_source,
         )
@@ -244,7 +247,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                 lambda pair_set=pair_set, progress=progress: (
                     create_selection(
                         compiled,
-                        data_root=data_root,
+                        data_root=cache_root,
                         pair_set=pair_set,
                         mode="census",
                         role=args.role,
@@ -255,7 +258,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                     if profile == "full"
                     else create_frozen_selection(
                         compiled,
-                        data_root=data_root,
+                        data_root=cache_root,
                         pair_set=pair_set,
                         profile=profile,
                         role=args.role,
@@ -270,7 +273,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
 
         (snapshot_result, snapshot_seconds) = _timed(
             lambda selection=selection_dir: materialize_compiled_selection(
-                data_root=data_root, selection=selection
+                data_root=cache_root, selection=selection
             )
         )
         snapshot, snapshot_disposition = snapshot_result
@@ -281,7 +284,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
             callback, activity = _activity(progress)
             (corpus, corpus_seconds) = _timed(
                 lambda: build_corpus(
-                    data_root=data_root,
+                    data_root=cache_root,
                     input_snapshot=snapshot,
                     srcdiff=srcdiff,
                     timeout_seconds=args.srcdiff_timeout,
@@ -303,7 +306,8 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
             callback, _ = _activity(progress)
             (evaluation, evaluation_seconds) = _timed(
                 lambda: evaluate_corpus(
-                    data_root=data_root,
+                    data_root=cache_root,
+                    results_root=results_root,
                     corpus=corpus,
                     srcmove=srcmove,
                     timeout_seconds=args.srcmove_timeout,
@@ -367,7 +371,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
         )
 
     suite_id = f"suite-{utc_now().replace(':', '').replace('+', '-')}-{uuid.uuid4()}"
-    suite_dir = data_root / "bigclonebench" / "suite-runs" / suite_id
+    suite_dir = results_root / "bigclonebench" / "suite-runs" / suite_id
     suite = {
         "schema_version": 1,
         "suite_id": suite_id,

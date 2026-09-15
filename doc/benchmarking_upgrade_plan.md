@@ -224,7 +224,7 @@ Generated roots should be configurable, with an ignored local default. A
 conceptual layout is:
 
 ```text
-benchmark-data/
+benchmark-cache/
   input-snapshots/
     <input-snapshot-id>/
       manifest.json
@@ -243,6 +243,7 @@ benchmark-data/
         <case-id>/
           input.srcdiff.xml
           case.json
+benchmark-results/
   runs/
     <run-id>/
       run.json

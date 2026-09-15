@@ -27,15 +27,13 @@ from benchmarks.process import (  # noqa: E402
     validate_srcdiff_xml,
     write_json_atomic,
 )
+from benchmarks.paths import DEFAULT_CACHE_ROOT  # noqa: E402
 from benchmarks.provenance import observe_executable, sha256_file, utc_now  # noqa: E402
-
-
-DEFAULT_DATA_ROOT = REPO_ROOT / "benchmark-data"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
     subparsers = parser.add_subparsers(dest="command", required=True)
     for name in ("replay", "isolate"):
         subparser = subparsers.add_parser(name)
@@ -186,7 +184,7 @@ def run_replay(
 
 def main() -> int:
     args = parse_args()
-    data_root = args.data_root.expanduser().resolve()
+    data_root = args.cache_root.expanduser().resolve()
     _, attempt = load_attempt(data_root, args.attempt)
     _, original, modified = load_input_snapshot_pair(data_root, attempt)
     executable = (args.srcdiff or Path(attempt["command"][0])).expanduser().resolve()

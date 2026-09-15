@@ -95,7 +95,7 @@ and creating mutable case directories is too expensive. Add an explicit compile
 stage that produces a local, immutable benchmark dataset:
 
 ```text
-benchmark-data/bigclonebench/compiled/<dataset-id>/
+benchmark-cache/bigclonebench/compiled/<dataset-id>/
   manifest.json
   catalog.sqlite
   fragments/

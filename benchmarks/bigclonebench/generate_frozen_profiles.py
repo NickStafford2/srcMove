@@ -17,8 +17,8 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.bigclonebench.compile import DEFAULT_DATA_ROOT
 from benchmarks.bigclonebench.compiled import load_compiled_dataset
+from benchmarks.paths import DEFAULT_CACHE_ROOT
 PAIR_SETS = ("type1", "type2", "type3", "known-false-positive")
 PRESET_PATH = SCRIPT_DIR / "frozen_profiles.jsonl"
 from benchmarks.bigclonebench.selection import (
@@ -38,7 +38,7 @@ from benchmarks.provenance import utc_now
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dataset", help="Compiled dataset ID or directory")
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
     parser.add_argument("--output", type=Path, default=PRESET_PATH)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument(
@@ -137,7 +137,7 @@ def _probe_type3_frames(
 
 def generate(args: argparse.Namespace) -> tuple[Path, dict[str, int]]:
     compiled = load_compiled_dataset(
-        args.dataset, data_root=args.data_root, verification="identity"
+        args.dataset, data_root=args.cache_root, verification="identity"
     )
     supplied = _selection_arguments(args.selection)
     selected: dict[str, tuple[Path, Mapping[str, Any]]] = {}
@@ -152,7 +152,7 @@ def generate(args: argparse.Namespace) -> tuple[Path, dict[str, int]]:
         else:
             directory, manifest, _ = create_selection(
                 compiled,
-                data_root=args.data_root,
+                data_root=args.cache_root,
                 pair_set=pair_set,
                 mode="sample",
                 role="tuning",

@@ -36,11 +36,11 @@ make bigclonebench-compile
 ```
 
 The immutable dataset is stored below
-`benchmark-data/bigclonebench/compiled/<dataset-id>/`. A small lookup index lets
+`benchmark-cache/bigclonebench/compiled/<dataset-id>/`. A small lookup index lets
 later invocations reuse it after checking the database and selected source-file
 metadata. Reuse does not reopen H2, extract Java, or walk and hash every fragment.
 If catalog compilation fails or is interrupted after H2 export, checked exports
-remain below `benchmark-data/bigclonebench/work/`; the next identical compile
+remain below `benchmark-cache/bigclonebench/work/`; the next identical compile
 reuses them. Successful publication removes that temporary work cache. Progress
 is reported separately for import, fragment extraction, pair identity, and index
 construction, followed by publication validation.
@@ -62,7 +62,7 @@ the complete frame.
 
 Phase 2 selects directly from this SQLite catalog and never accesses H2. It
 publishes each content-identified selection under
-`benchmark-data/bigclonebench/selections/<selection-id>/`. Create the complete
+`benchmark-cache/bigclonebench/selections/<selection-id>/`. Create the complete
 deduplicated Type-1 frame with:
 
 ```bash
@@ -147,7 +147,7 @@ selection for Type 1, Type 2, Type 3, and known false positives, reuses immutabl
 snapshots and srcDiff corpora when their inputs and tool identity are unchanged,
 then creates a separate srcMove evaluation for each pair set. Results are never
 blended into one accuracy percentage. Combined run metadata is saved below
-`benchmark-data/bigclonebench/suite-runs/` and links to each append-only
+`benchmark-results/bigclonebench/suite-runs/` and links to each append-only
 evaluation run.
 
 Every compiled case is an isolated two-file archive. Both revisions retain
@@ -235,7 +235,7 @@ After corpus creation, any number of srcMove builds can be evaluated without
 BigCloneBench, its source files, or `srcdiff` being available.
 
 Each evaluation writes `summary.json` and `cases.csv` below its unique
-`benchmark-data/runs/<run-id>/` directory. Reports are never written to one
+`benchmark-results/runs/<run-id>/` directory. Reports are never written to one
 shared summary path. The summary reconciles upstream failures, srcDiff semantic
 ineligibility, srcMove tool failures, misses, wrong classifications, other
 oracle failures, and strict passes. It reports both the end-to-end rate over all

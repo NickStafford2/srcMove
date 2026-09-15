@@ -36,10 +36,10 @@ from benchmarks.corpus import (
     run_corpus,
 )
 from benchmarks.progress import ProgressDisplay
+from benchmarks.paths import DEFAULT_CACHE_ROOT, DEFAULT_RESULTS_ROOT
 from support.tooling import find_srcdiff, find_srcmove
 
 
-DEFAULT_DATA_ROOT = REPO_ROOT / "benchmark-data"
 DEFAULT_CASES_ROOT = SCRIPT_DIR / "cases"
 
 
@@ -55,7 +55,8 @@ def _add_selection_arguments(parser: argparse.ArgumentParser) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
+    parser.add_argument("--results-root", type=Path, default=DEFAULT_RESULTS_ROOT)
     stages = parser.add_subparsers(dest="stage", required=True)
 
     stages.add_parser("preflight")
@@ -176,6 +177,7 @@ def build_corpus(
 def evaluate_corpus(
     *,
     data_root: Path,
+    results_root: Path | None = None,
     corpus: VerifiedCorpus | str | Path,
     srcmove: Path,
     timeout_seconds: float,
@@ -188,6 +190,7 @@ def evaluate_corpus(
     )
     run_dir, run_manifest = run_corpus(
         data_root=data_root,
+        results_root=results_root,
         corpus=verified_corpus,
         srcmove=srcmove,
         timeout_seconds=timeout_seconds,
@@ -379,7 +382,8 @@ def _report_benchmark_result(directory: Path, summary: dict) -> bool:
 
 def main() -> int:
     args = parse_args()
-    data_root = args.data_root.expanduser().resolve()
+    cache_root = args.cache_root.expanduser().resolve()
+    results_root = args.results_root.expanduser().resolve()
     exit_code = 0
     try:
         if args.stage == "preflight":
@@ -433,7 +437,7 @@ def main() -> int:
         if args.stage == "snapshot":
             adapter = BigCloneBenchAdapter(args.cases_dir, _selection(args))
             directory, manifest = _prepare_snapshot(
-                data_root=data_root, adapter=adapter
+                data_root=cache_root, adapter=adapter
             )
             print(f"input_snapshot_id={manifest['input_snapshot_id']}")
         elif args.stage == "corpus":
@@ -442,7 +446,7 @@ def main() -> int:
                 raise ValueError("srcdiff not found; pass --srcdiff")
             with ProgressDisplay("srcDiff", detail="preparing corpus") as progress:
                 directory, manifest = build_corpus(
-                    data_root=data_root,
+                    data_root=cache_root,
                     input_snapshot=args.input_snapshot,
                     srcdiff=srcdiff,
                     timeout_seconds=args.timeout,
@@ -470,7 +474,8 @@ def main() -> int:
                 raise ValueError("srcMove not found; pass --srcmove")
             with ProgressDisplay("srcMove", detail="evaluating corpus") as progress:
                 directory, manifest, summary = evaluate_corpus(
-                    data_root=data_root,
+                    data_root=cache_root,
+                    results_root=results_root,
                     corpus=args.corpus,
                     srcmove=srcmove,
                     timeout_seconds=args.timeout,
@@ -497,14 +502,14 @@ def main() -> int:
                 raise ValueError("srcMove not found; pass --srcmove")
             adapter = BigCloneBenchAdapter(args.cases_dir, _selection(args))
             snapshot = _prepare_snapshot(
-                data_root=data_root, adapter=adapter
+                data_root=cache_root, adapter=adapter
             )
             snapshot_manifest = snapshot.manifest
             with ProgressDisplay(
                 "srcDiff", total=snapshot_manifest["counts"]["selected"]
             ) as progress:
                 corpus = build_corpus(
-                    data_root=data_root,
+                    data_root=cache_root,
                     input_snapshot=snapshot,
                     srcdiff=srcdiff,
                     timeout_seconds=args.srcdiff_timeout,
@@ -521,7 +526,8 @@ def main() -> int:
             eligible = corpus_manifest["counts"]["semantic_eligible"]
             with ProgressDisplay("srcMove", total=eligible) as progress:
                 directory, manifest, summary = evaluate_corpus(
-                    data_root=data_root,
+                    data_root=cache_root,
+                    results_root=results_root,
                     corpus=corpus,
                     srcmove=srcmove,
                     timeout_seconds=args.srcmove_timeout,

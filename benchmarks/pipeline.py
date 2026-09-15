@@ -18,15 +18,14 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
 from benchmarks.contracts import RunMode
 from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
 from benchmarks.directory_adapter import DirectoryPairAdapter
+from benchmarks.paths import DEFAULT_CACHE_ROOT, DEFAULT_RESULTS_ROOT
 from support.tooling import find_srcdiff, find_srcmove
-
-
-DEFAULT_DATA_ROOT = REPO_ROOT / "benchmark-data"
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
+    parser.add_argument("--results-root", type=Path, default=DEFAULT_RESULTS_ROOT)
     subparsers = parser.add_subparsers(dest="stage", required=True)
 
     snapshot = subparsers.add_parser(
@@ -95,7 +94,8 @@ def json_object(value: str, option: str) -> dict:
 
 def main() -> int:
     args = parse_args()
-    data_root = args.data_root.expanduser().resolve()
+    cache_root = args.cache_root.expanduser().resolve()
+    results_root = args.results_root.expanduser().resolve()
     exit_code = 0
     try:
         if args.stage == "snapshot":
@@ -106,7 +106,7 @@ def main() -> int:
                 metadata=json_object(args.metadata_json, "--metadata-json"),
             )
             directory, manifest = create_input_snapshot(
-                data_root=data_root,
+                data_root=cache_root,
                 adapter=adapter,
                 source=json_object(args.source_json, "--source-json"),
                 filter_configuration={"excluded_suffixes": args.exclude_suffix},
@@ -117,7 +117,7 @@ def main() -> int:
             if srcdiff is None:
                 raise ValueError("srcdiff not found; pass --srcdiff")
             directory, manifest = generate_corpus(
-                data_root=data_root,
+                data_root=cache_root,
                 input_snapshot=args.input_snapshot,
                 srcdiff=srcdiff,
                 timeout_seconds=args.timeout,
@@ -140,7 +140,8 @@ def main() -> int:
             if srcmove is None:
                 raise ValueError("srcMove not found; pass --srcmove")
             directory, manifest = run_corpus(
-                data_root=data_root,
+                data_root=cache_root,
+                results_root=results_root,
                 corpus=args.corpus,
                 srcmove=srcmove,
                 timeout_seconds=args.timeout,

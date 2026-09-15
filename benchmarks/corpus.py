@@ -982,6 +982,7 @@ def _compact_promoted_srcdiff_outputs(
 def run_corpus(
     *,
     data_root: Path,
+    results_root: Path | None = None,
     corpus: VerifiedCorpus | str | Path,
     srcmove: Path,
     timeout_seconds: float,
@@ -994,6 +995,7 @@ def run_corpus(
     timing_callback: TimingCallback | None = None,
     srcmove_observation: Mapping[str, Any] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
+    results_root = data_root if results_root is None else results_root
     if isinstance(corpus, VerifiedCorpus):
         verified_corpus = corpus
         if timing_callback is not None:
@@ -1021,14 +1023,16 @@ def run_corpus(
             )
     if resume_run is None:
         run_id = f"run-{utc_now().replace(':', '').replace('+', '-')}-{uuid.uuid4()}"
-        final_dir = data_root / "runs" / run_id
+        final_dir = results_root / "runs" / run_id
         final_dir.mkdir(parents=True, exist_ok=False)
         created_at = utc_now()
         case_records: list[dict[str, Any]] = []
     else:
         supplied = Path(resume_run)
         final_dir = (
-            supplied if supplied.is_dir() else data_root / "runs" / str(resume_run)
+            supplied
+            if supplied.is_dir()
+            else results_root / "runs" / str(resume_run)
         )
         run_path = final_dir / "run.json"
         if not run_path.is_file():

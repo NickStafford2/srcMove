@@ -36,6 +36,7 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
 
 from benchmarks.contracts import canonical_json
 from benchmarks.performance import describe
+from benchmarks.paths import DEFAULT_RESULTS_ROOT
 from benchmarks.process import write_json_atomic
 from benchmarks.provenance import (
     observe_environment,
@@ -54,7 +55,6 @@ from srcmove_history.git import select_older_first_parent_history
 from support.tooling import find_srcdiff, find_srcmove
 
 
-DEFAULT_DATA_ROOT = REPO_ROOT / "benchmark-data"
 SCALING_STUDY_SCHEMA_VERSION = 2
 SCALING_TRIAL_SCHEMA_VERSION = 2
 SAFE_LABEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
@@ -738,7 +738,7 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
 
     study_id = _study_identifier(args.label)
     study_dir = (
-        args.data_root.expanduser().resolve() / "history-scaling" / study_id
+        args.results_root.expanduser().resolve() / "history-scaling" / study_id
     )
     study_dir.mkdir(parents=True, exist_ok=False)
     (study_dir / "trials").mkdir()
@@ -913,13 +913,13 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     network = parser.add_mutually_exclusive_group()
     network.add_argument("--fetch", action="store_true")
     network.add_argument("--offline", action="store_true")
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--results-root", type=Path, default=DEFAULT_RESULTS_ROOT)
     parser.add_argument(
         "--scratch-root",
         type=Path,
         help=(
             "existing local directory for timed trial data; finalized trial "
-            "reports are promoted to --data-root afterward"
+            "reports are promoted to --results-root afterward"
         ),
     )
     parser.add_argument("--srcdiff", type=Path)

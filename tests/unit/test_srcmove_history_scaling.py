@@ -138,6 +138,7 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
         self.assertEqual(args.repetitions, 3)
         self.assertFalse(hasattr(args, "retention"))
         self.assertIsNone(args.scratch_root)
+        self.assertEqual(args.results_root.name, "benchmark-results")
 
     def test_scratch_trial_data_is_promoted_and_removed(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

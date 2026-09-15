@@ -79,7 +79,8 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
 """,
             )
             args = SimpleNamespace(
-                data_root=root / "data",
+                cache_root=root / "data",
+                results_root=root / "results",
                 bce_dir=bce,
                 mode="census",
                 role="tuning",
@@ -129,6 +130,17 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
 
             self.assertFalse(first_passed)
             self.assertFalse(second_passed)
+            self.assertTrue(first_dir.is_relative_to(args.results_root.resolve()))
+            self.assertTrue(second_dir.is_relative_to(args.results_root.resolve()))
+            self.assertTrue(
+                all(
+                    Path(item["run_directory"]).is_relative_to(
+                        args.results_root.resolve()
+                    )
+                    for item in first["pair_sets"]
+                )
+            )
+            self.assertTrue((args.cache_root / "corpora").is_dir())
             self.assertTrue((first_dir / "summary.json").is_file())
             self.assertTrue((second_dir / "summary.json").is_file())
             self.assertEqual(len(first["pair_sets"]), 4)

@@ -11,9 +11,21 @@ correctness tests in `tests/`.
   immutable srcDiff XML that capture both external process timings and
   `srcMove --profile` stage timings.
 
-Generated benchmark data is ignored by Git but saved automatically below
-`benchmark-data/`. Treat completed study manifests and their referenced
-immutable artifacts as the authoritative result.
+Generated benchmark storage is ignored by Git and split by purpose:
+
+- `benchmark-cache/` holds reproducible inputs and intermediates: frozen source
+  snapshots, srcDiff attempts, verified srcDiff corpora, generation batches,
+  and compiled or selected BigCloneBench data.
+- `benchmark-results/` holds completed srcMove evaluations, performance runs,
+  history-scaling studies, and combined-suite summaries.
+
+A corpus is a reusable set of validated srcDiff XML inputs. A generation batch
+is the resumable record of the srcDiff attempts that produced one. Neither is a
+thesis result. Treat completed manifests under `benchmark-results/` and their
+referenced immutable cache inputs as the authoritative result.
+
+CLI tools expose `--cache-root` and `--results-root` where applicable. Make
+targets use `BENCHMARK_CACHE_ROOT` and `BENCHMARK_RESULTS_ROOT`.
 
 The phased upgrade of reusable srcDiff corpora, provenance, failure incidents,
 dataset adapters, and publication runs is described in the
@@ -39,7 +51,7 @@ compatibility contracts:
 - `benchmarks/bigclonebench/run.py` generates and evaluates cases together,
   writing ignored cases and a replaceable `cases/summary.csv`.
 - `benchmarks/run_performance.py` reads existing XML inputs and writes ignored
-  local performance runs unless an explicit output is selected.
+  local performance runs under the selected results root.
 
 Previously archived thesis results are historical evidence, not regression
 expectations for the refactored implementation.
@@ -66,7 +78,8 @@ these observations; legacy coupled runners do not.
 ## Staged corpus workflow
 
 `pipeline.py` provides the shared input snapshot, attempt, corpus, and run stages.
-Generated data defaults to the ignored `benchmark-data/` directory.
+Reusable stages default to `benchmark-cache/`; runs default to
+`benchmark-results/`.
 Input snapshots and corpora use content-derived identifiers; runs use unique,
 append-only identifiers.
 
@@ -119,7 +132,7 @@ cgroup OOM evidence when those interfaces are available.
 `investigate.py` replays a preserved srcDiff incident from its checksummed input
 snapshot. A repeatable `--relative-path` selects individual files while
 preserving their paths; `isolate` bisects an archive inventory and retains the
-candidate subsets and every attempt below `benchmark-data/investigations/`.
+candidate subsets and every attempt below `benchmark-cache/investigations/`.
 
 ## Performance measurements
 
@@ -152,7 +165,7 @@ standalone experiment, replace `--corpus` with repeatable
 the number of variants so each build can occupy each schedule position.
 
 Each append-only run is stored below
-`benchmark-data/performance/runs/<run-id>/` with:
+`benchmark-results/performance/runs/<run-id>/` with:
 
 - `run.json`: input and binary checksums, provenance, environment, policy, and
   the complete schedule

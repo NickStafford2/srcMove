@@ -4,7 +4,8 @@ CLONE_TYPE ?= type1
 LIMIT ?= 100
 SELECTION_ROLE ?= tuning
 CASES_DIR ?= benchmarks/bigclonebench/cases
-BIGCLONEBENCH_DATA_ROOT ?= benchmark-data
+BENCHMARK_CACHE_ROOT ?= benchmark-cache
+BENCHMARK_RESULTS_ROOT ?= benchmark-results
 BIGCLONEBENCH_DATASET ?=
 BIGCLONEBENCH_SELECTION_ID ?=
 MODE ?= sample
@@ -88,7 +89,7 @@ history-scaling:
 		$(if $(SEED),--seed "$(SEED)") \
 		$(if $(LABEL),--label "$(LABEL)") \
 		$(if $(ENVIRONMENT_LABEL),--environment-label "$(ENVIRONMENT_LABEL)") \
-		$(if $(DATA_ROOT),--data-root "$(DATA_ROOT)") \
+		--results-root "$(BENCHMARK_RESULTS_ROOT)" \
 		$(if $(SCRATCH_ROOT),--scratch-root "$(SCRATCH_ROOT)") \
 		$(if $(DIRECTORY),--directory "$(DIRECTORY)") \
 		$(if $(filter 1 yes true,$(UPDATE)),--fetch) \
@@ -99,19 +100,19 @@ bigclonebench-preflight:
 
 bigclonebench-compile:
 	@$(PYTHON) benchmarks/bigclonebench/compile.py \
-		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" compile \
+		--cache-root "$(BENCHMARK_CACHE_ROOT)" compile \
 		$(if $(COMPILE_LIMIT),--limit-per-kind "$(COMPILE_LIMIT)")
 
 bigclonebench-conflicts:
 	@$(PYTHON) benchmarks/bigclonebench/conflicts.py \
 		$(if $(BIGCLONEBENCH_DATASET),"$(BIGCLONEBENCH_DATASET)") \
-		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" \
+		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
 		$(if $(CONFLICT_LIMIT),--limit "$(CONFLICT_LIMIT)")
 
 bigclonebench-select:
 	@test -n "$(BIGCLONEBENCH_DATASET)" || { echo 'error: BIGCLONEBENCH_DATASET is required'; exit 2; }
 	@$(PYTHON) benchmarks/bigclonebench/selection.py "$(BIGCLONEBENCH_DATASET)" \
-		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" \
+		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
 		--pair-set "$(CLONE_TYPE)" --mode "$(MODE)" \
 		--role "$(SELECTION_ROLE)" --seed "$(SEED)" \
 		--sample-size "$(SAMPLE_SIZE)" \
@@ -120,11 +121,12 @@ bigclonebench-select:
 bigclonebench-snapshot:
 	@test -n "$(BIGCLONEBENCH_SELECTION_ID)" || { echo 'error: BIGCLONEBENCH_SELECTION_ID is required'; exit 2; }
 	@$(PYTHON) benchmarks/bigclonebench/snapshot.py "$(BIGCLONEBENCH_SELECTION_ID)" \
-		--data-root "$(BIGCLONEBENCH_DATA_ROOT)"
+		--cache-root "$(BENCHMARK_CACHE_ROOT)"
 
 bigclonebench-suite:
 	@$(PYTHON) benchmarks/bigclonebench/suite.py \
-		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" \
+		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
+		--results-root "$(BENCHMARK_RESULTS_ROOT)" \
 		--profile "$(PROFILE)" --role "$(ROLE)" --seed "$(SEED)" \
 		--sample-size "$(SAMPLE_SIZE)" \
 		$(if $(PAIR_SET),--pair-set "$(PAIR_SET)") \
@@ -139,7 +141,9 @@ bigclonebench-cases:
 		--out-dir "$(CASES_DIR)"
 
 bigclonebench: bigclonebench-cases
-	@$(PYTHON) benchmarks/bigclonebench/pipeline.py benchmark \
+	@$(PYTHON) benchmarks/bigclonebench/pipeline.py \
+		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
+		--results-root "$(BENCHMARK_RESULTS_ROOT)" benchmark \
 		$(BIGCLONEBENCH_SELECTION) --cases-dir "$(CASES_DIR)" \
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
 		--srcmove /workspace/srcMove/build/srcMove

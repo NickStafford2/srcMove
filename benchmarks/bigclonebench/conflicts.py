@@ -17,13 +17,13 @@ REPO_ROOT = SCRIPT_DIR.parents[1]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.bigclonebench.compile import DEFAULT_DATA_ROOT
 from benchmarks.bigclonebench.compiled import load_compiled_dataset
 from benchmarks.bigclonebench.selection import (
     _catalog_connection,
     content_label_conflict_ids,
     content_label_conflicts,
 )
+from benchmarks.paths import DEFAULT_CACHE_ROOT
 
 
 def parse_args() -> argparse.Namespace:
@@ -35,7 +35,7 @@ def parse_args() -> argparse.Namespace:
             "Compiled dataset ID or directory; inferred when the index has one dataset."
         ),
     )
-    parser.add_argument("--data-root", type=Path, default=DEFAULT_DATA_ROOT)
+    parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
     parser.add_argument(
         "--limit", type=int, default=5, help="Examples to print. Default: 5."
     )
@@ -49,7 +49,7 @@ def _dataset(args: argparse.Namespace) -> str | Path:
     if args.dataset:
         return args.dataset
     index_path = (
-        args.data_root.expanduser().resolve() / "bigclonebench/compiled/index.json"
+        args.cache_root.expanduser().resolve() / "bigclonebench/compiled/index.json"
     )
     value = json.loads(index_path.read_text(encoding="utf-8"))
     entries = value.get("entries") if isinstance(value, Mapping) else None
@@ -65,7 +65,7 @@ def build_report(args: argparse.Namespace) -> dict[str, Any]:
     if args.limit < 0:
         raise ValueError("limit must be nonnegative")
     compiled = load_compiled_dataset(
-        _dataset(args), data_root=args.data_root, verification="identity"
+        _dataset(args), data_root=args.cache_root, verification="identity"
     )
     with closing(_catalog_connection(compiled)) as connection:
         identifiers = content_label_conflict_ids(connection)

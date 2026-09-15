@@ -60,7 +60,7 @@ class InvestigationTests(unittest.TestCase):
                 [
                     sys.executable,
                     str(REPO_ROOT / "benchmarks" / "investigate.py"),
-                    "--data-root",
+                    "--cache-root",
                     str(data_root),
                     "replay",
                     source_attempt,
@@ -98,7 +98,7 @@ class InvestigationTests(unittest.TestCase):
                 [
                     sys.executable,
                     str(REPO_ROOT / "benchmarks" / "investigate.py"),
-                    "--data-root",
+                    "--cache-root",
                     str(data_root),
                     "isolate",
                     source_attempt,

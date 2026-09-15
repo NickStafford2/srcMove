@@ -4,7 +4,7 @@ I ran make bigclonebench-compile on 2026-08-21. on commit 6997fca
 ```
 dev@58b83fafe8d6:/workspace/srcMove$ make bigclonebench-compile
 BigCloneBench compile: full external pair frame
-data_root=/workspace/srcMove/benchmark-data
+cache_root=/workspace/srcMove/benchmark-cache
 ✓ compile/export working in 08:06 — exported positive and known-false-positive rows
 ✓ compile/import 8648734/8648734 100% in 1:00:13 — 8,375,313 positive, 273,421 known false positive, 71,933 functions
 ✓ compile/fragments 73501/73501 100% in 06:45 — 60,850 unique fragments
@@ -12,7 +12,7 @@ data_root=/workspace/srcMove/benchmark-data
 ✓ compile/index 1/1 100% in 04:42 — read indexes built
 ✓ compile/finalize 1/1 100% in 1:19:44 — published and fully validated
 dataset_id=bcb-dataset-sha256-bdee915912b126e9ec4f857560e01a7b70f30f988cd539a970cab029198dcc49
-directory=/workspace/srcMove/benchmark-data/bigclonebench/compiled/bcb-dataset-sha256-bdee915912b126e9ec4f857560e01a7b70f30f988cd539a970cab029198dcc49
+directory=/workspace/srcMove/benchmark-cache/bigclonebench/compiled/bcb-dataset-sha256-bdee915912b126e9ec4f857560e01a7b70f30f988cd539a970cab029198dcc49
 {
   "available_pairs": 8648734,
   "catalog_pair_rows": 8648734,
