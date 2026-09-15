@@ -9,6 +9,14 @@ settled.
 - Code review of the BigCloneBench runner and oracle
 - Add `--offset` to BigCloneBench generation for deterministic benchmark slices
   such as rows 1-1000, 1001-2000, etc.
+- Add a focused large-input benchmark after benchmark storage is reorganized.
+  Generate a small, reproducible set of validated srcDiff archives from fixed
+  reference-repository revisions with Python excluded, then reuse
+  `benchmarks/run_performance.py` to measure srcMove alone. Cover several input
+  sizes and report repeated-run wall time, variability, peak RSS, internal
+  profile timings, MiB/s, and diff regions/s. This is a scalability and stress
+  experiment, not a move-detection accuracy benchmark; do not restore the
+  retired two-revision repository pipeline.
 - Review docs for upgrades. Generate documentation of current progress for my masters
   thesis.
 - Document why `examples/` exists: it contains srcDiff/srcMove example outputs
