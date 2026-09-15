@@ -6,9 +6,19 @@
       "url": "git@github.com:NickStafford2/ContextExport.git",
       "roles": ["reference"]
     },
+    "deckard": {
+      "checkout": "Deckard",
+      "url": "https://github.com/skyhover/Deckard.git",
+      "roles": ["reference"]
+    },
     "firefox": {
       "checkout": "firefox",
       "url": "git@github.com:mozilla-firefox/firefox.git",
+      "roles": ["reference"]
+    },
+    "gumtree": {
+      "checkout": "gumtree",
+      "url": "https://github.com/GumTreeDiff/gumtree.git",
       "roles": ["reference"]
     },
     "linux": {
@@ -37,6 +47,11 @@
       "url": "https://github.com/sqlite/sqlite.git",
       "analysis_directory": "src",
       "roles": ["history", "history-scaling", "large-input"]
+    },
+    "sourcerercc": {
+      "checkout": "SourcererCC",
+      "url": "https://github.com/Mondego/SourcererCC.git",
+      "roles": ["reference"]
     },
     "srcmove": {
       "checkout": "srcMove",

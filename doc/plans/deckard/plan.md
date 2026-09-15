@@ -48,8 +48,8 @@ The replacement should recognize:
 ## Implementation strategy
 
 Before reimplementing a component, check whether a well-isolated part of the
-bundled Deckard implementation can be reused directly or whether its executable
-pipeline can serve as a comparison oracle. Direct reuse is expected to be
+local Deckard reference implementation can be reused directly or whether its
+executable pipeline can serve as a comparison oracle. Direct reuse is expected to be
 limited by Deckard's parser, data formats, dependencies, and process boundaries.
 The likely approach is therefore to reproduce its functionality in `src2/`,
 adapted to srcDiff regions and srcML ASTs, while keeping the reference source
@@ -67,7 +67,8 @@ license and attribution.
   location for the parallel `srcMove2` target
 - [`tests/README.md`](../../../tests/README.md): test commands and binary-path
   override used for side-by-side runs
-- [`reference-implementation`](reference-implementation): bundled Deckard source
+- [`reference-implementation`](reference-implementation): local, ignored Deckard
+  reference clone
 - [Deckard paper](<DECKARD_ Scalable and accurate tree-based detection of code clone.pdf>)
   is the canonical algorithm description
 

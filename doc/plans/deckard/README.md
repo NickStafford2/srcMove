@@ -11,5 +11,5 @@ preserving srcMove's role as a post-processor of srcDiff output. See
 [`doc/architecture.md`](../../architecture.md) for the current architecture.
 
 The original Deckard paper is stored in this directory, and
-[`reference-implementation`](reference-implementation) links to the bundled
-Deckard source repository.
+[`reference-implementation`](reference-implementation) links to the local,
+ignored Deckard clone registered under `reference-repositories/`.

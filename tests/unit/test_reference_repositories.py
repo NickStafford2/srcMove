@@ -31,12 +31,27 @@ def git(repository: Path, *arguments: str) -> str:
 
 
 class ReferenceRepositoryTests(unittest.TestCase):
-    def test_checked_in_registry_has_recommended_repositories(self) -> None:
+    def test_checked_in_registry_has_documented_repositories(self) -> None:
         registry = REPO_ROOT / "reference-repositories/repositories.json"
-        for name in ("sqlite", "notepadpp", "opencv", "linux", "open-nicad"):
+        for name in (
+            "sqlite",
+            "notepadpp",
+            "opencv",
+            "linux",
+            "open-nicad",
+            "deckard",
+            "sourcerercc",
+            "gumtree",
+        ):
             configuration = load_reference_configuration(registry, name)
             self.assertTrue(configuration.url)
             self.assertTrue(configuration.checkout)
+
+    def test_reference_implementations_are_reference_only(self) -> None:
+        registry = REPO_ROOT / "reference-repositories/repositories.json"
+        for name in ("open-nicad", "deckard", "sourcerercc", "gumtree"):
+            configuration = load_reference_configuration(registry, name)
+            self.assertEqual(configuration.roles, ("reference",))
 
     def test_configuration_contains_only_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
