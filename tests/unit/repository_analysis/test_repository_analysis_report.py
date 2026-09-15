@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from repository_analysis.report import (
@@ -39,6 +40,40 @@ class RepositoryAnalysisReportTests(unittest.TestCase):
         )
         self.assertIn("not manually validated ground truth", report)
         self.assertIn("No commit pair processing failures", report)
+
+    def test_zero_move_report_does_not_name_an_arbitrary_commit_pair(self) -> None:
+        snapshot = replace(
+            self._snapshot(),
+            move_groups=0,
+            move_bearing_commit_pairs=0,
+            match_kinds=(),
+            within_file_moves=0,
+            cross_file_moves=0,
+            group_kinds=(),
+            mean_moves=0.0,
+            median_moves=0.0,
+            p95_moves=0.0,
+            maximum=CommitPairMaximum(
+                number=1,
+                old_commit="a" * 40,
+                new_commit="b" * 40,
+                moves=0,
+            ),
+        )
+
+        report = render_report(snapshot)
+
+        self.assertIn("Maximum moves               0", report)
+        self.assertNotIn("commit pair 1:", report)
+
+    def test_report_explains_observation_and_timing_semantics(self) -> None:
+        report = render_report(self._snapshot())
+
+        self.assertIn("path exclusions (observations)", report.lower())
+        self.assertIn("not counts of unique paths", report)
+        self.assertIn("retained XPath evidence", report)
+        self.assertIn("may contain multiple source or destination regions", report)
+        self.assertIn("Total wall time sums finalized run invocations", report)
 
     @staticmethod
     def _snapshot() -> ReportSnapshot:

@@ -74,13 +74,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     target = run.add_mutually_exclusive_group(required=True)
     target.add_argument(
-        "--pairs", type=int, metavar="N", help="cover the newest N pairs in total"
+        "--pairs",
+        type=int,
+        metavar="N",
+        help="cover the newest N commit pairs in total",
     )
     target.add_argument(
         "--more",
         type=int,
         metavar="N",
-        help="cover N additional pairs beyond the committed frontier",
+        help="cover N additional commit pairs beyond the committed frontier",
     )
     target.add_argument(
         "--through", metavar="COMMIT", help="cover through a full commit ID"
@@ -115,7 +118,9 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
 
-    list_command = commands.add_parser("list", help="list durable pair outcomes")
+    list_command = commands.add_parser(
+        "list", help="list durable commit pair outcomes"
+    )
     filters = list_command.add_mutually_exclusive_group()
     filters.add_argument("--failed", action="store_true")
     filters.add_argument("--moves", action="store_true")
@@ -132,7 +137,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     list_command.add_argument("--limit", type=int, default=50, help="maximum rows")
     list_command.add_argument(
-        "--after", type=int, metavar="PAIR", help="continue after displayed pair number"
+        "--after",
+        type=int,
+        metavar="COMMIT_PAIR",
+        help="continue after the displayed commit pair number",
     )
     list_command.add_argument(
         "--oldest-first",
@@ -141,8 +149,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_format(list_command)
 
-    show = commands.add_parser("show", help="show evidence for one durable pair")
-    show.add_argument("pair", type=int, metavar="PAIR")
+    show = commands.add_parser(
+        "show", help="show evidence for one durable commit pair"
+    )
+    show.add_argument("pair", type=int, metavar="COMMIT_PAIR")
     _add_format(show)
 
     compare = commands.add_parser(
@@ -170,7 +180,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--pair",
         type=int,
         metavar="N",
-        help="compare one durable analysis pair by its displayed number",
+        help="compare one durable commit pair by its displayed number",
     )
     compare.add_argument(
         "--save",
@@ -413,15 +423,18 @@ def _status_document(summary: Mapping[str, Any]) -> dict[str, Any]:
 def _render_pair_list(page: Mapping[str, Any]) -> str:
     items = page.get("items", [])
     if not items:
-        return "No matching pairs."
-    lines = ["Pair  Commits               Status                  Paths   Moves   Time"]
+        return "No matching commit pairs."
+    lines = [
+        "Commit pair  Commits               Status                  "
+        "Paths   Moves   Time"
+    ]
     for item in items:
         old = str(item["old_commit"])[:8]
         new = str(item["new_commit"])[:8]
         status = str(item["status"]).replace("_", "-")
         paths = f"{item['analyzable_path_count']}/{item['changed_path_count']}"
         lines.append(
-            f"{item['number']:>4}  {old} → {new}  {status:<22} "
+            f"{item['number']:>11}  {old} → {new}  {status:<22} "
             f"{paths:>7} {item['move_count']:>7} {item['elapsed_seconds']:>6.1f}s"
         )
     if page.get("next_cursor") is not None:
@@ -432,7 +445,7 @@ def _render_pair_list(page: Mapping[str, Any]) -> str:
 def _render_pair(detail: Mapping[str, Any]) -> str:
     status = str(detail["status"]).replace("_", " ")
     lines = [
-        f"Pair {detail['number']} — {status}",
+        f"Commit pair {detail['number']} — {status}",
         "",
         f"Commits    {str(detail['old_commit'])[:12]} → "
         f"{str(detail['new_commit'])[:12]}",
@@ -441,7 +454,9 @@ def _render_pair(detail: Mapping[str, Any]) -> str:
     ]
     timings = detail.get("timings")
     if isinstance(timings, Mapping) and "pair_seconds" in timings:
-        lines.append(f"Time       {float(timings['pair_seconds']):.1f}s pair work")
+        lines.append(
+            f"Time       {float(timings['pair_seconds']):.1f}s commit pair work"
+        )
     metrics = detail.get("metrics")
     exclusion_counts = (
         metrics.get("path_exclusion_counts")

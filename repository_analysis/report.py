@@ -142,19 +142,21 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
             commit_pair_seconds.append(
                 _seconds(timings.get("pair_seconds", 0.0))
             )
-            candidate = CommitPairMaximum(
-                number=(
-                    _count(
-                        row["distance_from_newest"], "commit pair distance"
-                    )
-                    + 1
-                ),
-                old_commit=_text(row["old_commit"], "old commit"),
-                new_commit=_text(row["new_commit"], "new commit"),
-                moves=moves,
+            number = (
+                _count(row["distance_from_newest"], "commit pair distance")
+                + 1
             )
-            if maximum is None or candidate.moves > maximum.moves:
-                maximum = candidate
+            old_commit = _text(row["old_commit"], "old commit")
+            new_commit = _text(row["new_commit"], "new commit")
+            if moves > 0:
+                candidate = CommitPairMaximum(
+                    number=number,
+                    old_commit=old_commit,
+                    new_commit=new_commit,
+                    moves=moves,
+                )
+                if maximum is None or candidate.moves > maximum.moves:
+                    maximum = candidate
 
     match_kinds: Counter[str] = Counter()
     within_file = 0
@@ -184,7 +186,7 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
     oldest = state.oldest_completed_commit
     total_commits = _positive_git_count(repository, newest)
     return ReportSnapshot(
-        repository_name=manifest.repository_identity.value,
+        repository_name=_repository_name(repository),
         repository=repository,
         analysis_root=resolved_analysis_root,
         newest_commit=newest,
@@ -381,7 +383,7 @@ def render_report(report: ReportSnapshot) -> str:
     )
 
     if report.exclusion_counts:
-        lines.extend(("", "Most common path exclusions"))
+        lines.extend(("", "Most common path exclusions (observations)"))
         lines.extend(
             _exclusion_field(_exclusion_label(reason), count)
             for reason, count in report.exclusion_counts[:10]
@@ -416,12 +418,28 @@ def render_report(report: ReportSnapshot) -> str:
         "  - Results are srcMove detections, not manually validated ground truth."
     )
     lines.append(
+        "  - Each detected move is one srcMove result and may contain multiple "
+        "source or destination regions."
+    )
+    lines.append(
+        "  - Within-file and cross-file locations come from filenames in the "
+        "retained XPath evidence."
+    )
+    lines.append(
+        "  - Path exclusion counts are observations across commit pairs, not "
+        "counts of unique paths."
+    )
+    lines.append(
         "  - History traversal follows first-parent commit pairs from the "
         "frozen newest commit."
     )
     lines.append(
         "  - Tool work times sum processing across commit pairs and may exceed "
         "wall time when workers run in parallel."
+    )
+    lines.append(
+        "  - Total wall time sums finalized run invocations, including no-op "
+        "and failed or interrupted runs whose durations were recorded."
     )
     if report.covered_commit_pairs < report.total_history_commit_pairs:
         lines.append(
@@ -472,6 +490,17 @@ def _git(repository: Path, *arguments: str) -> str:
             + (f": {detail}" if detail else "")
         )
     return process.stdout.strip()
+
+
+def _repository_name(repository: Path) -> str:
+    try:
+        origin = _git(repository, "remote", "get-url", "origin")
+    except RuntimeError:
+        return repository.name
+    candidate = origin.rstrip("/").rsplit("/", 1)[-1].rsplit(":", 1)[-1]
+    if candidate.endswith(".git"):
+        candidate = candidate[:-4]
+    return candidate or repository.name
 
 
 def _positive_git_count(repository: Path, commit: str) -> int:
@@ -621,7 +650,7 @@ def _commit_label(commit: str | None, date: str | None) -> str:
 
 
 def _maximum_label(maximum: CommitPairMaximum | None) -> str:
-    if maximum is None:
+    if maximum is None or maximum.moves == 0:
         return "0"
     return (
         f"{maximum.moves:,} (commit pair {maximum.number}: "

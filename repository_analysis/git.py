@@ -142,7 +142,7 @@ def select_first_parent_history(
         or not isinstance(pair_count, int)
         or pair_count <= 0
     ):
-        raise ValueError("pair count must be positive")
+        raise ValueError("commit pair count must be positive")
     if not isinstance(start, str) or not start or "\0" in start:
         raise ValueError("start revision must be a non-empty string")
     history = select_older_first_parent_history(
@@ -150,7 +150,8 @@ def select_first_parent_history(
     )
     if len(history.commits) < 2:
         raise RuntimeError(
-            "the selected history has fewer than two commits; no adjacent pair exists"
+            "the selected history has fewer than two commits; no adjacent "
+            "commit pair exists"
         )
     return history
 
@@ -169,7 +170,7 @@ def select_older_first_parent_history(
         or not isinstance(pair_count, int)
         or pair_count <= 0
     ):
-        raise ValueError("pair count must be positive")
+        raise ValueError("commit pair count must be positive")
     if pair_count is not None and through is not None:
         raise ValueError("history selection accepts either pair_count or through")
     if not isinstance(start, str) or not start or "\0" in start:

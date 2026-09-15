@@ -139,7 +139,14 @@ use successfully compared commit pairs as their denominator; commit pairs
 without analyzable changes and failed commit pairs are reported separately.
 Each detected move is one retained srcMove detection and may contain multiple
 source or destination regions. Within-file and cross-file classifications are
-derived from the filenames retained in those regions' XPath evidence.
+derived from the filenames retained in those regions' XPath evidence. Path
+exclusion counts are observations across commit pairs rather than counts of
+unique paths. Total wall time sums finalized `run` invocations, including
+no-op and failed or interrupted invocations whose durations were recorded.
+
+The displayed repository name is derived from the basename of the current
+`origin` URL, with the checkout directory name as a fallback. It is descriptive
+report metadata, not part of the frozen analysis identity.
 
 `run` reports progress to stderr immediately. On a terminal it renders a live
 spinner, durable coverage bar, outcome counters, elapsed time, and an ETA after

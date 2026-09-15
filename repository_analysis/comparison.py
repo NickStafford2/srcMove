@@ -25,7 +25,7 @@ from .worker import PairExecutor, remove_ephemeral_tree
 
 @dataclass(frozen=True, slots=True)
 class ComparisonResult:
-    """One explicit pair outcome and the non-canonical files copied from it."""
+    """One explicit commit pair outcome and its copied non-canonical files."""
 
     outcome: PairOutcome
     saved_paths: tuple[Path, ...]
@@ -40,15 +40,17 @@ def compare_commits(
     save: str,
     pair_number: int | None = None,
 ) -> ComparisonResult:
-    """Execute and save one pair while leaving SQLite and coverage untouched."""
+    """Execute one commit pair while leaving SQLite and coverage untouched."""
 
     if save not in {"all", "srcdiff", "srcmove"}:
         raise ValueError(f"unsupported comparison artifact selection: {save!r}")
     if pair_number is not None:
         if old_revision is not None or new_revision is not None:
-            raise ValueError("use either a pair number or commit revisions, not both")
+            raise ValueError(
+                "use either a commit pair number or commit revisions, not both"
+            )
         if pair_number <= 0:
-            raise ValueError("comparison pair number must be positive")
+            raise ValueError("comparison commit pair number must be positive")
     elif old_revision is None:
         raise ValueError("comparison requires at least one commit revision")
 

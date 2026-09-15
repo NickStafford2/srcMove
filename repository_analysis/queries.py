@@ -251,7 +251,7 @@ class AnalysisReader:
         self.analysis_root = analysis_root
 
     def identity(self) -> AnalysisIdentitySnapshot:
-        """Return immutable analysis identity without aggregating pair outcomes."""
+        """Return identity without aggregating commit pair outcomes."""
 
         with AnalysisDatabase.open(self.analysis_root, read_only=True) as database:
             with database.read_snapshot():
@@ -280,8 +280,12 @@ class AnalysisReader:
                     status = _terminal_status(row["status"])
                     statuses[status] += 1
                     checkpointed += row["batch_status"] == "pending"
-                    metrics = _json_object(row["metrics_json"], "pair metrics")
-                    pair_timings = _json_object(row["timings_json"], "pair timings")
+                    metrics = _json_object(
+                        row["metrics_json"], "commit pair metrics"
+                    )
+                    pair_timings = _json_object(
+                        row["timings_json"], "commit pair timings"
+                    )
                     for name in (
                         "move_count", "move_group_count", "move_pair_count",
                         "annotated_region_count",
@@ -291,7 +295,7 @@ class AnalysisReader:
                         timings[name] += _seconds(value, name)
                 if sum(statuses.values()) != state.completed_pair_count + checkpointed:
                     raise ValueError(
-                        "durable analysis coverage drifts from stored pairs"
+                        "durable analysis coverage drifts from stored commit pairs"
                     )
                 match_kinds = tuple(
                     NamedCount(
@@ -358,7 +362,7 @@ class AnalysisReader:
         oldest_first: bool = False,
     ) -> PairPage:
         if status is not None and status not in TERMINAL_PAIR_STATUSES:
-            raise ValueError(f"unknown pair status: {status!r}")
+            raise ValueError(f"unknown commit pair status: {status!r}")
         for value, name in (
             (failed, "failed"),
             (with_moves, "with_moves"),
@@ -373,12 +377,14 @@ class AnalysisReader:
             or not isinstance(limit, int)
             or not 1 <= limit <= 1000
         ):
-            raise ValueError("pair list limit must be between 1 and 1000")
+            raise ValueError("commit pair list limit must be between 1 and 1000")
         if after_distance is not None and (
             isinstance(after_distance, bool) or not isinstance(after_distance, int)
             or after_distance < 0
         ):
-            raise ValueError("pair list cursor must be a nonnegative integer")
+            raise ValueError(
+                "commit pair list cursor must be a nonnegative integer"
+            )
         clauses = ["p.status IS NOT NULL"]
         parameters: list[Any] = []
         if status is not None:
@@ -422,7 +428,7 @@ class AnalysisReader:
 
     def show(self, number: int) -> PairDetailSnapshot:
         if isinstance(number, bool) or not isinstance(number, int) or number <= 0:
-            raise ValueError("pair number must be a positive integer")
+            raise ValueError("commit pair number must be a positive integer")
         with AnalysisDatabase.open(self.analysis_root, read_only=True) as database:
             with database.read_snapshot():
                 detail = database.pair_details(number - 1)
@@ -447,8 +453,8 @@ class AnalysisReader:
 
 def _pair_list_item(row: Any) -> PairListItem:
     distance = _count(row["distance_from_newest"], "distance from newest")
-    metrics = _json_object(row["metrics_json"], "pair metrics")
-    timings = _json_object(row["timings_json"], "pair timings")
+    metrics = _json_object(row["metrics_json"], "commit pair metrics")
+    timings = _json_object(row["timings_json"], "commit pair timings")
     return PairListItem(
         number=distance + 1,
         distance_from_newest=distance,
@@ -488,9 +494,9 @@ def _json_object(value: Any, context: str) -> dict[str, Any]:
 
 
 def _terminal_status(value: Any) -> str:
-    status = _text(value, "pair status")
+    status = _text(value, "commit pair status")
     if status not in TERMINAL_PAIR_STATUSES:
-        raise ValueError(f"unknown stored pair status: {status!r}")
+        raise ValueError(f"unknown stored commit pair status: {status!r}")
     return status
 
 

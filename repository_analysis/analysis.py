@@ -324,7 +324,7 @@ def _advance_analysis(
             if desired_total is not None and desired_total < pending_total:
                 raise ValueError(
                     "requested target is smaller than frozen pending work; "
-                    f"resume at least {pending_total} total pairs"
+                    f"resume at least {pending_total} total commit pairs"
                 )
             prefix, execution = _execute_pending_batch(
                 database,
@@ -349,7 +349,7 @@ def _advance_analysis(
         )
         if len(manifest.commits) < 2:
             raise RuntimeError(
-                "repository has no older adjacent pair at the analysis frontier"
+                "repository has no older adjacent commit pair at the analysis frontier"
             )
         database.add_pending_batch(
             manifest,
@@ -373,7 +373,7 @@ def analysis_status(analysis_root: Path) -> dict[str, Any]:
 
 
 def analysis_identity(analysis_root: Path) -> dict[str, str]:
-    """Return immutable analysis identity without scanning pair outcomes."""
+    """Return immutable identity without scanning commit pair outcomes."""
 
     return AnalysisReader(analysis_root).identity().record()
 
@@ -388,7 +388,7 @@ def analysis_list_pairs(
     after_distance: int | None = None,
     oldest_first: bool = False,
 ) -> dict[str, Any]:
-    """Return one stable, keyset-paginated page of durable pair outcomes."""
+    """Return one stable page of durable commit pair outcomes."""
 
     return AnalysisReader(analysis_root).list_pairs(
         status=status,
@@ -403,7 +403,7 @@ def analysis_list_pairs(
 def analysis_pair_details(
     analysis_root: Path, distance_from_newest: int
 ) -> dict[str, Any]:
-    """Return compact evidence for one durable pair by zero-based distance."""
+    """Return evidence for one durable commit pair by zero-based distance."""
 
     return AnalysisReader(analysis_root).show(distance_from_newest + 1).record()
 

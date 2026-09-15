@@ -281,7 +281,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 self.assertEqual(older_batch.base_revision, 2)
                 self.assertEqual(database.analysis().revision, 3)
 
-                with self.assertRaisesRegex(ValueError, "no durable pair"):
+                with self.assertRaisesRegex(ValueError, "no durable commit pair"):
                     database.pair_details(2)
 
     def test_pair_outcomes_are_exclusive_and_completion_requires_full_prefix(self) -> None:

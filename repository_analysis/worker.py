@@ -68,7 +68,9 @@ class PairExecutor:
         key = (item.sequence, item.fingerprint)
         with self._owned_pairs_lock:
             if key in self._owned_pairs:
-                raise RuntimeError(f"pair {item.sequence} already has an owner")
+                raise RuntimeError(
+                    f"commit pair {item.sequence} already has an owner"
+                )
             self._owned_pairs[key] = directory
 
     def acknowledge(self, outcome: PairOutcome) -> None:
@@ -306,7 +308,8 @@ def _required_paths(item: PairWorkItem) -> tuple[Path, Path, Path]:
     ]
     if missing:
         raise ValueError(
-            f"pair work item is missing execution fields: {', '.join(missing)}"
+            "commit pair work item is missing execution fields: "
+            f"{', '.join(missing)}"
         )
     assert item.repository is not None
     assert item.srcdiff is not None

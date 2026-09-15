@@ -513,6 +513,13 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 4)
+            git(
+                repository,
+                "remote",
+                "add",
+                "origin",
+                "https://example.invalid/owner/fixture-project.git",
+            )
             self._init(repository, excluded_suffixes=(".txt",))
             status, _, error = self._main(
                 [
@@ -539,8 +546,11 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             self.assertEqual((status, error), (0, ""))
             self.assertIn("Repository History Move Analysis", output)
+            self.assertIn("Repository                  fixture-project", output)
             self.assertIn("2 of 3 commit pairs (66.7%)", output)
             self.assertIn("Commit pairs with ≥1 move   0 of 0 (n/a)", output)
+            self.assertIn("Maximum moves               0", output)
+            self.assertNotIn("commit pair 1:", output)
             self.assertEqual(database.read_bytes(), before)
 
             with contextlib.redirect_stderr(io.StringIO()):
