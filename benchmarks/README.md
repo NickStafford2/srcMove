@@ -129,11 +129,6 @@ without replacing earlier evidence. `run` supports the same selection policy
 with `--resume-run RUN_ID`. Linux attempts record process-group peak RSS and
 cgroup OOM evidence when those interfaces are available.
 
-`investigate.py` replays a preserved srcDiff incident from its checksummed input
-snapshot. A repeatable `--relative-path` selects individual files while
-preserving their paths; `isolate` bisects an archive inventory and retains the
-candidate subsets and every attempt below `benchmark-cache/investigations/`.
-
 ## Performance measurements
 
 Use `srcMove --profile` directly when you want a quick view of which internal
