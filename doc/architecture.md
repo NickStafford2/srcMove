@@ -32,7 +32,7 @@ The pipeline is coordinated by [`src/pipeline.cpp`](../src/pipeline.cpp).
 [`src/parse/diff_region.cpp`](../src/parse/diff_region.cpp) makes one pass over
 the input and records every `diff:delete` and `diff:insert` region. Each record
 includes its file, nesting relationship, node span, XPath, raw text, captured
-srcML nodes, and canonical representations.
+srcML nodes, and cached matching representations.
 
 The parser explicitly distinguishes single-file and archive srcDiff shapes.
 That file ownership is what permits a delete in one file to match an insert in
@@ -57,10 +57,13 @@ overly broad surrounding diff wrapper when the structure supports it.
 captured srcML events into cached canonical representations. The Type-1 form
 ignores the outer diff wrapper, comments, `diff:ws` elements, and formatting-only
 text while retaining identifiers, literals, keywords, operators, and srcML
-structure. The Type-2 form additionally renames identifiers consistently by
-first occurrence and replaces literals with their category (`integer`,
-`floating`, `string`, `character`, `boolean`, or `null`). Language keywords,
-operators, and structural distinctions remain unchanged.
+structure. The Type-2 identity is a compact lexical form: it consistently
+numbers direct srcML `<name>` tokens by first occurrence, replaces literals
+with their category (`integer`, `floating`, `string`, `character`, `boolean`,
+or `null`), and ignores empty statements as well as comments and formatting.
+Other source tokens and operators remain unchanged. Group keys also include the
+candidate's srcML element kind, so lexically identical constructs of different
+kinds do not collapse into one group.
 
 Candidates are bucketed with 64-bit FNV-1a hashes of that canonical form. A hash
 is only an index: groups are split and confirmed using the full canonical text,
@@ -79,10 +82,11 @@ then:
 
 Type-3 uses a NiCad-inspired sequence rule implemented directly in srcMove; no
 NiCad executable or runtime dependency is involved. Canonicalization caches two
-compact views: Type-2-normalized code divided at statement and block boundaries
-(`;`, `{`, and `}`), and a finer token sequence. The token view blind-normalizes
-every non-keyword identifier to `$name`; the Type-2 canonical form separately
-retains its stricter, consistent first-occurrence mapping.
+compact views: normalized code divided at statement and block boundaries (`;`,
+`{`, and `}`), and a finer token sequence. Both similarity views retain the
+Type-2 representation's consistent first-occurrence name mapping. This keeps
+identifier-correspondence patterns as evidence rather than making similarly
+shaped but unrelated functions identical through blind name replacement.
 
 Each unit is hashed to 64 bits. For either pair of sequences `A` and `B`, with
 longest common subsequence length `L`, the representation accepts exactly when

@@ -145,7 +145,7 @@
       "expected_to_lines": ["int calculate(int value) {", "    int result = value + 2;", "    return result;", "  }"]
     },
     {
-      "id": "classification_type3_java_method_inconsistent_renaming", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Blind identifier normalization exposes a near-miss move even when the rename is not a consistent Type-2 mapping.",
+      "id": "classification_type3_java_method_inconsistent_renaming", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Inconsistent identifier correspondence is a Type-3 edit rather than a consistent Type-2 rename.",
       "original_files": {
         "Source.java": ["class Source {", "  int subtract(int left, int right) {", "    return left - right;", "  }", "}"],
         "Destination.java": ["class Destination {}"]

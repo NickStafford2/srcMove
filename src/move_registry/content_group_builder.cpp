@@ -197,8 +197,14 @@ void add_selected_exact_groups(content_groups             &out,
   }
 }
 
-using normalized_group_map =
-    std::unordered_map<std::string_view, pending_group, sv_hash>;
+using normalized_group_map = std::unordered_map<std::string, pending_group>;
+
+std::string type2_group_key(const move_candidate &candidate) {
+  std::string key = candidate.full_name;
+  key.push_back('\0');
+  key += candidate.type2_canonical_text;
+  return key;
+}
 
 std::vector<pending_group>
 build_type2_groups(const candidate_registry         &registry,
@@ -208,8 +214,9 @@ build_type2_groups(const candidate_registry         &registry,
   normalized_group_map type2_groups;
   type2_groups.reserve(exact_groups.size());
 
-  // O(unmatched exact-group ids). Type-2 candidates are grouped by their
-  // already-computed identifier-normalized canonical text.
+  // O(unmatched exact-group ids). Candidate-local normalization is cached;
+  // grouping remains linear rather than comparing every delete with every
+  // insertion.
   for (std::size_t group_index : order) {
     const pending_group &group = exact_groups[group_index];
     if (has_both_sides(group)) {
@@ -225,8 +232,7 @@ build_type2_groups(const candidate_registry         &registry,
       if (!candidate.type2_eligible) {
         continue;
       }
-      pending_group &type2_group =
-          type2_groups[std::string_view(candidate.type2_canonical_text)];
+      pending_group &type2_group = type2_groups[type2_group_key(candidate)];
       type2_group.content_hash = candidate.type2_hash;
       type2_group.match        = match_kind::type2;
       type2_group.del_ids.push_back(id);
@@ -241,8 +247,7 @@ build_type2_groups(const candidate_registry         &registry,
       if (!candidate.type2_eligible) {
         continue;
       }
-      pending_group &type2_group =
-          type2_groups[std::string_view(candidate.type2_canonical_text)];
+      pending_group &type2_group = type2_groups[type2_group_key(candidate)];
       type2_group.content_hash = candidate.type2_hash;
       type2_group.match        = match_kind::type2;
       type2_group.ins_ids.push_back(id);
@@ -543,8 +548,8 @@ content_groups build_content_groups(const candidate_registry &registry,
   std::vector<pending_group> type2_groups;
   {
     scoped_profile_timer timer(profile, "content_groups.type2_build");
-    type2_groups =
-        build_type2_groups(registry, exact_groups, exact_group_order, selection);
+    type2_groups = build_type2_groups(registry, exact_groups,
+                                      exact_group_order, selection);
   }
 
   {

@@ -5,7 +5,6 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace srcmove {
@@ -25,35 +24,6 @@ bool is_whitespace_only(std::string_view s) {
       return false;
   }
   return true;
-}
-
-bool is_language_keyword(std::string_view text) {
-  // srcML represents both primitive keywords and user-defined type names with
-  // <name>. Keep language words stable while normalizing true identifiers.
-  static const std::unordered_set<std::string_view> keywords = {
-      "abstract", "alignas", "alignof", "and", "as", "asm", "assert",
-      "async", "auto", "await", "base", "bool", "boolean", "break",
-      "byte", "case", "catch", "char", "checked", "class", "compl",
-      "concept", "const", "consteval", "constexpr", "constinit",
-      "const_cast", "continue", "co_await", "co_return", "co_yield",
-      "decimal", "decltype", "default", "delegate", "delete", "do",
-      "double", "dynamic", "else", "enum", "explicit", "export",
-      "extends", "extern", "false", "final", "finally", "fixed", "float",
-      "for", "foreach", "friend", "goto", "if", "implements", "implicit",
-      "import", "in", "inline", "instanceof", "int", "interface",
-      "internal", "is", "lock", "long", "module", "mutable", "namespace",
-      "native", "new", "noexcept", "not", "nullptr", "null", "object",
-      "operator", "or", "out", "override", "package", "params", "private",
-      "protected", "public", "readonly", "record", "ref", "register",
-      "reinterpret_cast", "requires", "return", "sealed", "short", "signed",
-      "sizeof", "stackalloc", "static", "static_assert", "static_cast",
-      "strictfp", "string", "struct", "super", "switch", "synchronized",
-      "template", "this", "thread_local", "throw", "throws", "transient",
-      "true", "try", "typedef", "typeid", "typename", "uint", "ulong",
-      "unchecked", "union", "unsafe", "ushort", "using", "var", "virtual",
-      "void", "volatile", "wchar_t", "when", "where", "while", "with",
-      "xor", "yield"};
-  return keywords.find(text) != keywords.end();
 }
 
 std::uint64_t hash_text(std::string_view text) {
@@ -164,6 +134,14 @@ void append_escaped(std::string &out, std::string_view s) {
   }
 }
 
+void append_compact(std::string &out, std::string_view text) {
+  for (unsigned char c : text) {
+    if (!std::isspace(c)) {
+      out.push_back(static_cast<char>(c));
+    }
+  }
+}
+
 } // namespace
 
 std::string
@@ -176,10 +154,12 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
   int         wrapper_depth         = 0;
   bool        skipped_outer_wrapper = false;
   int         comment_depth         = 0;
-  int         name_depth            = 0;
+  int         ignored_empty_depth   = 0;
   int         literal_depth         = 0;
+  bool        literal_value_emitted = false;
   std::string current_literal_category;
   std::unordered_map<std::string, std::size_t> normalized_names;
+  std::vector<std::string> element_stack;
 
   if (normalized_lines != nullptr) {
     normalized_lines->clear();
@@ -190,6 +170,21 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
 
   for (const auto &node : nodes) {
     const std::string fn = node.full_name();
+
+    if (ignored_empty_depth > 0) {
+      if (node.is_start()) {
+        ++ignored_empty_depth;
+      } else if (node.is_end()) {
+        --ignored_empty_depth;
+      }
+      continue;
+    }
+
+    if (opt.ignore_empty_statements && node.is_start() &&
+        node.name == "empty_stmt") {
+      ignored_empty_depth = 1;
+      continue;
+    }
 
     if (comment_depth > 0) {
       if (node.is_start() && node.name == "comment") {
@@ -233,30 +228,42 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
           is_whitespace_only(*node.content)) {
         continue;
       }
-      out += "T(";
+      if (opt.normalize_literals && literal_depth > 0 &&
+          literal_value_emitted) {
+        continue;
+      }
+      if (opt.include_structure) {
+        out += "T(";
+      }
       std::string normalized_text;
       std::string similarity_text;
-      if (opt.normalize_names && name_depth > 0 &&
-          !is_language_keyword(*node.content)) {
+      const bool normalizable_name =
+          !element_stack.empty() && element_stack.back() == "name";
+      if (opt.identifiers == identifier_normalization::consistent &&
+          normalizable_name) {
         const auto [it, inserted] =
             normalized_names.emplace(*node.content, normalized_names.size() + 1);
         (void)inserted;
         normalized_text = "$name" + std::to_string(it->second);
-        // Type 2 preserves a consistent identifier mapping. Type 3 compares
-        // blind-normalized token sequences so systematic and inconsistent
-        // renames do not obscure otherwise similar edited code.
-        similarity_text = "$name";
+        similarity_text = normalized_text;
         out += normalized_text;
       } else if (opt.normalize_literals && literal_depth > 0) {
+        literal_value_emitted = true;
         normalized_text = current_literal_category == "$number"
                               ? number_category(*node.content)
                               : current_literal_category;
         out += normalized_text;
       } else {
-        append_escaped(out, *node.content);
+        if (opt.include_structure) {
+          append_escaped(out, *node.content);
+        } else {
+          append_compact(out, *node.content);
+        }
         normalized_text = *node.content;
       }
-      out += ")";
+      if (opt.include_structure) {
+        out += ")";
+      }
       append_normalized_code(normalized_line, normalized_lines,
                              normalized_text);
       append_normalized_token(normalized_tokens,
@@ -266,30 +273,34 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
     }
 
     if (node.is_start()) {
-      out += "S(";
-      out += fn;
-      out += ")";
-      if (opt.normalize_names && fn == "name") {
-        ++name_depth;
+      if (opt.include_structure) {
+        out += "S(";
+        out += fn;
+        out += ")";
       }
       if (opt.normalize_literals && node.name == "literal") {
         ++literal_depth;
         current_literal_category = literal_category(node);
+        literal_value_emitted = false;
       }
+      element_stack.push_back(fn);
     } else if (node.is_end()) {
-      if (opt.normalize_names && fn == "name" && name_depth > 0) {
-        --name_depth;
-      }
       if (opt.normalize_literals && node.name == "literal" &&
           literal_depth > 0) {
         --literal_depth;
         if (literal_depth == 0) {
           current_literal_category.clear();
+          literal_value_emitted = false;
         }
       }
-      out += "E(";
-      out += fn;
-      out += ")";
+      if (opt.include_structure) {
+        out += "E(";
+        out += fn;
+        out += ")";
+      }
+      if (!element_stack.empty()) {
+        element_stack.pop_back();
+      }
     }
   }
 

@@ -100,10 +100,14 @@ collect_subtree_canonical_text(const std::vector<captured_srcml_node> &nodes) {
   return canonicalize_diff_region_subtree(plain_nodes);
 }
 
-static std::string collect_subtree_type2_canonical_text(
-    const std::vector<captured_srcml_node> &nodes,
-    std::vector<std::uint64_t>             &normalized_lines,
-    std::vector<std::uint64_t>             &normalized_tokens) {
+struct normalized_subtree {
+  std::string canonical;
+  std::vector<std::uint64_t> lines;
+  std::vector<std::uint64_t> tokens;
+};
+
+static normalized_subtree collect_subtree_normalized_text(
+    const std::vector<captured_srcml_node> &nodes) {
   std::vector<srcml_node> plain_nodes;
   plain_nodes.reserve(nodes.size());
 
@@ -111,11 +115,19 @@ static std::string collect_subtree_type2_canonical_text(
     plain_nodes.push_back(captured.node);
   }
 
-  canonical_options opt;
-  opt.normalize_names    = true;
-  opt.normalize_literals = true;
-  return canonicalize_diff_region_subtree(plain_nodes, opt, &normalized_lines,
-                                          &normalized_tokens);
+  normalized_subtree result;
+  canonical_options consistent_options;
+  consistent_options.identifiers = identifier_normalization::consistent;
+  consistent_options.normalize_literals = true;
+  canonicalize_diff_region_subtree(plain_nodes, consistent_options,
+                                   &result.lines, &result.tokens);
+
+  canonical_options lexical_options = consistent_options;
+  lexical_options.ignore_empty_statements = true;
+  lexical_options.include_structure = false;
+  result.canonical =
+      canonicalize_diff_region_subtree(plain_nodes, lexical_options);
+  return result;
 }
 
 static bool passes_region_text_filters(const std::string           &raw_text,
@@ -177,17 +189,14 @@ extract_preferred_child_candidates(const diff_region           &region,
     }
 
     std::string canonical_text = collect_subtree_canonical_text(current);
-    std::vector<std::uint64_t> type2_normalized_lines;
-    std::vector<std::uint64_t> type3_normalized_tokens;
-    std::string type2_canonical_text =
-        collect_subtree_type2_canonical_text(
-            current, type2_normalized_lines, type3_normalized_tokens);
+    normalized_subtree normalized =
+        collect_subtree_normalized_text(current);
     move_candidate candidate(region.kind, current.front().index,
                              region.filename, std::move(raw_text),
                              std::move(canonical_text),
-                             std::move(type2_canonical_text),
-                             std::move(type2_normalized_lines),
-                             std::move(type3_normalized_tokens),
+                             std::move(normalized.canonical),
+                             std::move(normalized.lines),
+                             std::move(normalized.tokens),
                              is_type2_eligible_name(current.front().node.name));
     candidate.xpath   = current.front().xpath;
     candidate.full_name = current.front().node.full_name();
