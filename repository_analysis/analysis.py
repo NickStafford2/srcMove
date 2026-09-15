@@ -13,6 +13,7 @@ from typing import Any
 from .coordinator import CoordinatorStats, run_pairs_from_sequence
 from .database import (
     AnalysisDatabase,
+    StoredAnalysis,
     StoredBatch,
     analysis_database_exists,
 )
@@ -148,7 +149,7 @@ def analyze_repository(
     srcmove_path: Path | None = None,
     observer: AnalysisObserver | None = None,
 ) -> AnalyzeResult:
-    """Create, resume, or extend one analysis toward an absolute target."""
+    """Create, resume, or extend one analysis toward a target."""
 
     if jobs <= 0:
         raise ValueError("jobs must be positive")
@@ -159,12 +160,13 @@ def analyze_repository(
         _ensure_state_gitignore(root)
         invocation_started = time.monotonic()
         remove_ephemeral_tree(root / "scratch", root)
+        creation_target = _creation_target(target)
         if analysis_database_exists(root):
             database = AnalysisDatabase.open(root)
         else:
             database = _create_database(
                 root,
-                target,
+                creation_target,
                 repository=repository,
                 start=start,
                 repository_identity=repository_identity,
@@ -174,6 +176,7 @@ def analyze_repository(
             )
         with database:
             state = database.analysis()
+            effective_target = _effective_target(state, target)
             _verify_supplied_definition(
                 database.latest_manifest(),
                 newest_commit=state.newest_commit,
@@ -187,20 +190,20 @@ def analyze_repository(
             assert operation.started_at is not None
             database.begin_invocation(
                 operation.invocation_id,
-                target_kind=target.kind,
-                target_value=target.database_value(),
+                target_kind=effective_target.kind,
+                target_value=effective_target.database_value(),
                 jobs=jobs,
                 started_at=operation.started_at,
             )
             try:
                 active_observer.analysis_started(
-                    _progress_start(database, root, target, jobs)
+                    _progress_start(database, root, effective_target, jobs)
                 )
                 result = _advance_analysis(
                     database,
                     root=root,
                     invocation_id=operation.invocation_id,
-                    target=target,
+                    target=effective_target,
                     jobs=jobs,
                     repository=repository,
                     start=start,
@@ -253,9 +256,31 @@ def analyze_repository(
                 "completed_pair_count"
             ]
             active_observer.analysis_finished(
-                result=_progress_finish_result(result.summary, target)
+                result=_progress_finish_result(result.summary, effective_target)
             )
             return result
+
+
+def _creation_target(target: AnalysisTarget) -> AnalysisTarget:
+    """Translate a relative target for initial batch creation."""
+
+    if target.kind == "additional_pairs":
+        assert isinstance(target.value, int)
+        return AnalysisTarget("total_pairs", target.value)
+    return target
+
+
+def _effective_target(
+    state: StoredAnalysis, target: AnalysisTarget
+) -> AnalysisTarget:
+    """Resolve relative coverage while the analysis operation lock is held."""
+
+    if target.kind == "additional_pairs":
+        assert isinstance(target.value, int)
+        return AnalysisTarget(
+            "total_pairs", state.completed_pair_count + target.value
+        )
+    return target
 
 
 def _advance_analysis(
@@ -695,13 +720,18 @@ def _ensure_state_gitignore(root: Path) -> None:
 
 
 def _validate_target(target: AnalysisTarget) -> None:
-    if target.kind == "total_pairs":
+    if target.kind in {"total_pairs", "additional_pairs"}:
         if (
             isinstance(target.value, bool)
             or not isinstance(target.value, int)
             or target.value <= 0
         ):
-            raise ValueError("total-pairs target must be a positive integer")
+            label = (
+                "total-pairs"
+                if target.kind == "total_pairs"
+                else "additional-pairs"
+            )
+            raise ValueError(f"{label} target must be a positive integer")
     elif target.kind == "through":
         if not isinstance(target.value, str) or not target.value or "\0" in target.value:
             raise ValueError("through target must be a non-empty revision")

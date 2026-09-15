@@ -81,6 +81,52 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertEqual(extended.summary["completed_pair_count"], 4)
             self.assertEqual(extended.summary["oldest_completed_commit"], commits[2])
 
+    def test_additional_target_extends_from_locked_committed_frontier(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository, commits = self._history(root, 7)
+            analysis = root / "analysis"
+            srcdiff = executable(root / "srcdiff")
+            srcmove = executable(root / "srcmove")
+
+            first = self._analyze(
+                analysis, repository, srcdiff, srcmove, total_pairs=2
+            )
+            self.assertEqual(first.summary["completed_pair_count"], 2)
+
+            extended = analyze_repository(
+                analysis_root=analysis,
+                target=AnalysisTarget("additional_pairs", 2),
+                jobs=2,
+            )
+
+            self.assertEqual(extended.summary["completed_pair_count"], 4)
+            self.assertEqual(extended.summary["oldest_completed_commit"], commits[2])
+            self.assertEqual(
+                extended.summary["invocation"]["target_kind"], "total_pairs"
+            )
+            self.assertEqual(extended.summary["invocation"]["target_value"], "4")
+
+    def test_additional_target_creates_analysis_like_total_target(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository, commits = self._history(root, 5)
+
+            result = analyze_repository(
+                analysis_root=root / "analysis",
+                target=AnalysisTarget("additional_pairs", 2),
+                jobs=2,
+                repository=repository,
+                repository_identity=RepositoryIdentity("fixture-repository"),
+                configuration=AnalysisConfiguration(excluded_suffixes=(".txt",)),
+                srcdiff_path=executable(root / "srcdiff"),
+                srcmove_path=executable(root / "srcmove"),
+            )
+
+            self.assertEqual(result.summary["completed_pair_count"], 2)
+            self.assertEqual(result.summary["oldest_completed_commit"], commits[2])
+            self.assertEqual(result.summary["invocation"]["target_value"], "2")
+
     def test_root_bounded_target_records_exhaustion_and_repeats_as_noop(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)

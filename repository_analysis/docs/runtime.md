@@ -27,6 +27,7 @@ bin/srcmove-history run \
   --srcmove PATH
 
 bin/srcmove-history run --pairs 500
+bin/srcmove-history run --more 100
 
 bin/srcmove-history status
 bin/srcmove-history list --failed
@@ -59,12 +60,19 @@ by `show PAIR` or `compare --pair PAIR --save all`.
 Exactly one target is required:
 
 - `--pairs N` requests an absolute covered-pair count;
+- `--more N` extends the committed frontier by N additional adjacent pairs;
 - `--through COMMIT` requests a full, immutable commit object ID on the frozen
   first-parent history;
 - `--all` continues in bounded batches until the repository root.
 
 Repeating a satisfied target is a verified no-op. A branch moving after the
 first invocation does not move the analysis's frozen newest anchor.
+
+`--more N` is resolved to an absolute pair target while holding the analysis
+operation lock. If an interrupted run left a pending batch, that batch counts
+toward the requested extension rather than causing already-checkpointed work to
+be skipped or duplicated. On a new analysis, `--more N` is equivalent to
+`--pairs N`.
 
 The CLI discovers the enclosing Git worktree from the current directory and
 uses `<repository>/.srcmove/` as its one active analysis. `-C PATH` changes the

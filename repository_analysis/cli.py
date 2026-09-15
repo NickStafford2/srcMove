@@ -67,13 +67,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="create, resume, or extend one repository analysis",
         description=(
             "Create, resume, or extend the repository's .srcmove analysis "
-            "toward one absolute history coverage target. Existing analyses "
-            "reuse their frozen definition."
+            "toward one history coverage target. Existing analyses reuse "
+            "their frozen definition."
         ),
     )
     target = run.add_mutually_exclusive_group(required=True)
     target.add_argument(
         "--pairs", type=int, metavar="N", help="cover the newest N pairs in total"
+    )
+    target.add_argument(
+        "--more",
+        type=int,
+        metavar="N",
+        help="cover N additional pairs beyond the committed frontier",
     )
     target.add_argument(
         "--through", metavar="COMMIT", help="cover through a full commit ID"
@@ -179,6 +185,8 @@ def _add_format(parser: argparse.ArgumentParser) -> None:
 def _target(arguments: argparse.Namespace) -> AnalysisTarget:
     if arguments.pairs is not None:
         return AnalysisTarget("total_pairs", arguments.pairs)
+    if arguments.more is not None:
+        return AnalysisTarget("additional_pairs", arguments.more)
     if arguments.through is not None:
         return AnalysisTarget("through", arguments.through)
     return AnalysisTarget("all", None)

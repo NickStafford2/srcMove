@@ -498,6 +498,55 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                         "--all",
                     ]
                 )
+            with self.assertRaises(SystemExit):
+                parser.parse_args(
+                    [
+                        "run",
+                        "--pairs",
+                        "2",
+                        "--more",
+                        "2",
+                    ]
+                )
+
+    def test_more_extends_existing_coverage_without_counting_it_manually(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 5, filename="fixture.cpp")
+            self._init(repository, excluded_suffixes=())
+            creation = [
+                "-C",
+                str(repository),
+                "run",
+                "--pairs",
+                "1",
+                "--srcdiff",
+                str(fake_executable(root / "srcdiff")),
+                "--srcmove",
+                str(fake_executable(root / "srcmove")),
+                "--progress",
+                "never",
+            ]
+            self.assertEqual(self._main(creation)[0], 0)
+
+            status, output, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "run",
+                    "--more",
+                    "2",
+                    "--progress",
+                    "never",
+                    "--format",
+                    "json",
+                ]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            report = json.loads(output)
+            self.assertEqual(report["coverage"]["durable"], 3)
+            self.assertEqual(report["target"], {"kind": "pairs", "value": 3})
 
     def test_missing_creation_inputs_do_not_create_partial_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
