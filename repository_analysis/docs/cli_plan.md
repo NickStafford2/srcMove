@@ -367,21 +367,29 @@ use nested concepts rather than exposing a flat copy of database columns:
 
 ```json
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "analysis": {
     "name": "sqlite",
     "root": "/workspace/sqlite/.srcmove"
   },
   "state": "target_reached_with_failures",
-  "target": {"kind": "pairs", "value": 100},
+  "target": {"kind": "commit_pairs", "value": 100},
   "coverage": {
-    "target": 100,
-    "committed": 100,
-    "checkpointed": 0,
-    "durable": 100
+    "target_commit_pairs": 100,
+    "committed_commit_pairs": 100,
+    "checkpointed_commit_pairs": 0,
+    "durable_commit_pairs": 100
   },
-  "outcomes": {"analyzed": 41, "skipped": 56, "failed": 3},
-  "moves": {"groups": 1, "pairs": 1, "annotated_regions": 2}
+  "outcomes": {
+    "compared_commit_pairs": 41,
+    "without_analyzable_changes": 56,
+    "failed_commit_pairs": 3
+  },
+  "moves": {
+    "detections": 1,
+    "source_destination_pairings": 1,
+    "annotated_regions": 2
+  }
 }
 ```
 
@@ -390,8 +398,8 @@ default human output. They belong in JSON or verbose diagnostics.
 
 ## Live progress
 
-Progress represents durable work first. Update it only after a pair outcome has
-been successfully recorded.
+Progress represents durable work first. Update it only after a commit pair
+outcome has been successfully recorded.
 
 For a finite target:
 

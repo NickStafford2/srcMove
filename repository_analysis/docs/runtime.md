@@ -109,9 +109,12 @@ old analysis; initialize a new `.srcmove` before running a different analysis.
 Creation-only options are rejected when an analysis already exists rather than
 being interpreted as an in-place update.
 
-Human-readable output is the default. `--format json` emits one versioned JSON
-document to stdout. Status derives live writer state by probing the operation
-lock; `activity.json` alone is never treated as proof that a run is active.
+Human-readable output is the default. `run --format json` and
+`status --format json` emit status document schema version 2. Its names make
+commit pair counts explicit and report moves as `detections`,
+`source_destination_pairings`, `annotated_regions`, and `by_match_type`.
+Status derives live writer state by probing the operation lock; `activity.json`
+alone is never treated as proof that a run is active.
 The compact summary reports processed adjacent commit pairs, separates commit
 pairs successfully compared from commit pairs without analyzable changes and
 failures, and counts detected moves by match type. Its elapsed time is the sum of every

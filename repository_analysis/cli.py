@@ -371,46 +371,68 @@ def _status_document(summary: Mapping[str, Any]) -> dict[str, Any]:
     target_kind = None if invocation is None else invocation.get("target_kind")
     target_value: Any = None if invocation is None else invocation.get("target_value")
     if target_kind == "total_pairs" and target_value is not None:
-        target_kind = "pairs"
+        target_kind = "commit_pairs"
         target_value = int(target_value)
     if invocation is not None:
         invocation["target_kind"] = target_kind
         invocation["target_value"] = target_value
     statuses = dict(summary.get("statuses", {}))
-    pending = summary.get("pending")
-    if isinstance(pending, Mapping):
-        pending = {key: value for key, value in pending.items() if key != "batch_id"}
+    pending_value = summary.get("pending")
+    pending = None
+    if isinstance(pending_value, Mapping):
+        pending_target_kind = pending_value.get("target_kind")
+        pending_target_value = pending_value.get("target_value")
+        if (
+            pending_target_kind == "total_pairs"
+            and pending_target_value is not None
+        ):
+            pending_target_kind = "commit_pairs"
+            pending_target_value = int(pending_target_value)
+        pending = {
+            "commit_pair_count": pending_value.get("pair_count", 0),
+            "completed_commit_pairs": pending_value.get("completed_prefix", 0),
+            "target_kind": pending_target_kind,
+            "target_value": pending_target_value,
+        }
+    timings = dict(summary.get("timings", {}))
+    if "pair_seconds" in timings:
+        timings["commit_pair_seconds"] = timings.pop("pair_seconds")
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "analysis": dict(summary.get("analysis", {})),
         "state": summary.get("state", "idle"),
         "target": {"kind": target_kind, "value": target_value},
         "coverage": {
-            "target": target_value if target_kind == "pairs" else None,
-            "committed": summary.get("completed_pair_count", 0),
-            "checkpointed": summary.get("checkpointed_pair_count", 0),
-            "durable": summary.get("durable_pair_count", 0),
+            "target_commit_pairs": (
+                target_value if target_kind == "commit_pairs" else None
+            ),
+            "committed_commit_pairs": summary.get("completed_pair_count", 0),
+            "checkpointed_commit_pairs": summary.get(
+                "checkpointed_pair_count", 0
+            ),
+            "durable_commit_pairs": summary.get("durable_pair_count", 0),
         },
         "outcomes": {
-            "analyzed": summary.get("completed", 0),
-            "skipped": summary.get("no_analyzable_change", 0),
-            "failed": summary.get("failed", 0),
+            "compared_commit_pairs": summary.get("completed", 0),
+            "without_analyzable_changes": summary.get(
+                "no_analyzable_change", 0
+            ),
+            "failed_commit_pairs": summary.get("failed", 0),
             "by_status": statuses,
         },
         "moves": {
-            "moves": summary.get("move_count", 0),
-            "groups": summary.get("move_group_count", 0),
-            "pairs": summary.get("move_pair_count", 0),
+            "detections": summary.get("move_group_count", 0),
+            "source_destination_pairings": summary.get("move_pair_count", 0),
             "annotated_regions": summary.get("annotated_region_count", 0),
-            "by_type": dict(summary.get("match_kinds", {})),
+            "by_match_type": dict(summary.get("match_kinds", {})),
         },
         "history": {
             "newest_commit": summary.get("newest_commit"),
-            "frontier_commit": summary.get("oldest_completed_commit"),
+            "oldest_analyzed_commit": summary.get("oldest_completed_commit"),
             "exhausted": bool(summary.get("history_exhausted")),
         },
         "timings": {
-            **dict(summary.get("timings", {})),
+            **timings,
             "cumulative_wall_seconds": summary.get(
                 "cumulative_wall_seconds", 0.0
             ),

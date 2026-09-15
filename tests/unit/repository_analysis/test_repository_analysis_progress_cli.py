@@ -63,7 +63,7 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
             self.assertEqual(status, 0)
             self.assertEqual(error, "")
             document = json.loads(output)
-            self.assertEqual(document["coverage"]["durable"], 2)
+            self.assertEqual(document["coverage"]["durable_commit_pairs"], 2)
 
     def test_progress_always_uses_stderr_without_contaminating_json(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -81,7 +81,9 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
             )
 
             self.assertEqual(status, 0)
-            self.assertEqual(json.loads(output)["coverage"]["durable"], 2)
+            self.assertEqual(
+                json.loads(output)["coverage"]["durable_commit_pairs"], 2
+            )
             self.assertIn("0/2", error)
             self.assertIn("2/2", error)
             self.assertNotIn(error, output)

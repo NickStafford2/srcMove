@@ -12,7 +12,12 @@ from pathlib import Path
 from unittest.mock import patch
 
 from repository_analysis.analysis import AnalysisTarget, analyze_repository
-from repository_analysis.cli import _render_pair, build_parser, main
+from repository_analysis.cli import (
+    _render_pair,
+    _status_document,
+    build_parser,
+    main,
+)
 from repository_analysis.configuration import (
     load_history_configuration,
     render_history_configuration,
@@ -56,6 +61,84 @@ def fake_executable(path: Path, outcome: str = "valid-archive") -> Path:
 
 
 class RepositoryAnalysisCliTests(unittest.TestCase):
+    def test_status_json_schema_2_uses_explicit_research_terms(self) -> None:
+        document = _status_document(
+            {
+                "completed_pair_count": 8,
+                "checkpointed_pair_count": 2,
+                "durable_pair_count": 10,
+                "completed": 6,
+                "no_analyzable_change": 3,
+                "failed": 1,
+                "move_count": 4,
+                "move_group_count": 4,
+                "move_pair_count": 5,
+                "annotated_region_count": 9,
+                "match_kinds": {"exact": 3, "type3": 1},
+                "oldest_completed_commit": "a" * 40,
+                "newest_commit": "b" * 40,
+                "timings": {"pair_seconds": 12.5, "srcmove_seconds": 3.0},
+                "invocation": {
+                    "target_kind": "total_pairs",
+                    "target_value": "10",
+                },
+                "pending": {
+                    "batch_id": "private",
+                    "pair_count": 4,
+                    "completed_prefix": 2,
+                    "target_kind": "total_pairs",
+                    "target_value": "12",
+                },
+            }
+        )
+
+        self.assertEqual(document["schema_version"], 2)
+        self.assertEqual(
+            document["coverage"],
+            {
+                "target_commit_pairs": 10,
+                "committed_commit_pairs": 8,
+                "checkpointed_commit_pairs": 2,
+                "durable_commit_pairs": 10,
+            },
+        )
+        self.assertEqual(
+            document["outcomes"],
+            {
+                "compared_commit_pairs": 6,
+                "without_analyzable_changes": 3,
+                "failed_commit_pairs": 1,
+                "by_status": {},
+            },
+        )
+        self.assertEqual(
+            document["moves"],
+            {
+                "detections": 4,
+                "source_destination_pairings": 5,
+                "annotated_regions": 9,
+                "by_match_type": {"exact": 3, "type3": 1},
+            },
+        )
+        self.assertEqual(
+            document["history"]["oldest_analyzed_commit"], "a" * 40
+        )
+        self.assertEqual(
+            document["target"], {"kind": "commit_pairs", "value": 10}
+        )
+        self.assertEqual(document["invocation"]["target_kind"], "commit_pairs")
+        self.assertEqual(
+            document["pending"],
+            {
+                "commit_pair_count": 4,
+                "completed_commit_pairs": 2,
+                "target_kind": "commit_pairs",
+                "target_value": 12,
+            },
+        )
+        self.assertEqual(document["timings"]["commit_pair_seconds"], 12.5)
+        self.assertNotIn("pair_seconds", document["timings"])
+
     def test_compare_requires_canonical_analysis_without_creating_state(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = self._history(Path(temporary_directory), 2)
@@ -131,7 +214,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                     ["-C", str(repository), "status", "--format", "json"]
                 )[1]
             )
-            self.assertEqual(status_output["coverage"]["durable"], 1)
+            self.assertEqual(
+                status_output["coverage"]["durable_commit_pairs"], 1
+            )
 
     def test_compare_can_save_only_one_tool_artifact_family(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -356,7 +441,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             status, output, error = self._main(["-C", str(repository), "run", *creation])
             self.assertEqual((status, error), (0, ""))
-            self.assertEqual(json.loads(output)["coverage"]["durable"], 2)
+            self.assertEqual(
+                json.loads(output)["coverage"]["durable_commit_pairs"], 2
+            )
 
             with patch.object(
                 PairExecutor,
@@ -367,16 +454,21 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                     ["-C", str(repository), "run", *common]
                 )
             self.assertEqual((repeated, error), (0, ""))
-            self.assertEqual(json.loads(output)["coverage"]["durable"], 2)
+            self.assertEqual(
+                json.loads(output)["coverage"]["durable_commit_pairs"], 2
+            )
 
             status, output, error = self._main(
                 ["-C", str(repository), "status", "--format", "json"]
             )
             self.assertEqual((status, error), (0, ""))
             report = json.loads(output)
-            self.assertEqual(report["coverage"]["committed"], 2)
+            self.assertEqual(report["schema_version"], 2)
+            self.assertEqual(report["coverage"]["committed_commit_pairs"], 2)
             self.assertIsNone(report["pending"])
-            self.assertEqual(report["invocation"]["target_kind"], "pairs")
+            self.assertEqual(
+                report["invocation"]["target_kind"], "commit_pairs"
+            )
             self.assertEqual(report["invocation"]["target_value"], 2)
             self.assertEqual(report["invocation"]["result"], "target_reached")
             self.assertEqual(report["state"], "target_reached")
@@ -593,8 +685,10 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             self.assertEqual((status, error), (0, ""))
             report = json.loads(output)
-            self.assertEqual(report["coverage"]["durable"], 3)
-            self.assertEqual(report["target"], {"kind": "pairs", "value": 3})
+            self.assertEqual(report["coverage"]["durable_commit_pairs"], 3)
+            self.assertEqual(
+                report["target"], {"kind": "commit_pairs", "value": 3}
+            )
 
     def test_missing_creation_inputs_do_not_create_partial_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -832,7 +926,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                 ]
             )
             self.assertEqual((status, error), (0, ""))
-            self.assertEqual(json.loads(output)["coverage"]["durable"], 1)
+            self.assertEqual(
+                json.loads(output)["coverage"]["durable_commit_pairs"], 1
+            )
 
     def test_analysis_extends_after_repository_is_moved(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -869,7 +965,9 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             )
 
             self.assertEqual((status, error), (0, ""))
-            self.assertEqual(json.loads(output)["coverage"]["durable"], 2)
+            self.assertEqual(
+                json.loads(output)["coverage"]["durable_commit_pairs"], 2
+            )
 
     def test_no_op_run_verifies_frozen_executable_bytes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -920,7 +1018,10 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             status, output, error = self._main(base)
             self.assertEqual((status, error), (0, ""))
-            self.assertEqual(json.loads(output)["outcomes"]["skipped"], 1)
+            self.assertEqual(
+                json.loads(output)["outcomes"]["without_analyzable_changes"],
+                1,
+            )
 
             (repository / ".srcmove").rename(repository / ".srcmove-default")
             self._init(repository, excluded_suffixes=())
@@ -955,8 +1056,8 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             self.assertEqual((status, error), (0, ""))
             result = json.loads(output)
-            self.assertEqual(result["outcomes"]["skipped"], 1)
-            self.assertEqual(result["outcomes"]["failed"], 0)
+            self.assertEqual(result["outcomes"]["without_analyzable_changes"], 1)
+            self.assertEqual(result["outcomes"]["failed_commit_pairs"], 0)
 
     def test_run_requires_init_and_init_does_not_create_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
