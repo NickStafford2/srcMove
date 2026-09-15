@@ -43,16 +43,16 @@ from benchmarks.provenance import (
     sha256_file,
     utc_now,
 )
-from benchmarks.repositories.run_case import (
-    DEFAULT_DATA_ROOT,
-    ensure_repo,
-    load_case_config,
-    normalize_repo_subdir,
+from benchmarks.repositories.reference import (
+    ensure_reference_repository,
+    load_reference_configuration,
+    normalize_repository_subdirectory,
 )
 from srcmove_history.git import select_older_first_parent_history
 from support.tooling import find_srcdiff, find_srcmove
 
 
+DEFAULT_DATA_ROOT = REPO_ROOT / "benchmark-data"
 SCALING_STUDY_SCHEMA_VERSION = 2
 SCALING_TRIAL_SCHEMA_VERSION = 2
 SAFE_LABEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
@@ -718,14 +718,14 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
     config_path = case_dir / "info.json"
     if not config_path.is_file():
         raise FileNotFoundError(f"repository case not found: {config_path}")
-    config = load_case_config(config_path)
+    config = load_reference_configuration(config_path)
     selected_dir = (
-        normalize_repo_subdir(args.directory, "--directory")
+        normalize_repository_subdirectory(args.directory, "--directory")
         if args.directory is not None
         else config["directory"]
     )
     clone_dir = case_dir / "work" / "repo"
-    ensure_repo(
+    ensure_reference_repository(
         config["github"], clone_dir, offline=args.offline, update=args.fetch
     )
     history = select_older_first_parent_history(

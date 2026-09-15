@@ -694,7 +694,7 @@ replayed or reduced from its preserved attempt record.
 
 ### Phase 4: Targeted BigCloneBench reproducibility integration
 
-Begin this phase only after the repository benchmark has established the shared
+Begin this phase only after the benchmark pipeline has established the shared
 input snapshot, corpus, provenance, and srcDiff failure-handling infrastructure.
 BigCloneBench should adapt that foundation rather than create a second runner
 architecture.

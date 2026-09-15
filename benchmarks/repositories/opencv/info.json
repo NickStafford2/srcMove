@@ -1,5 +1,3 @@
 {
-  "github": "https://github.com/opencv/opencv.git",
-  "old_rev": "4.8.0",
-  "new_rev": "4.8.1"
+  "github": "https://github.com/opencv/opencv.git"
 }

@@ -5,17 +5,15 @@ correctness tests in `tests/`.
 
 - [BigCloneBench](bigclonebench/README.md): synthetic positive-case Type-1,
   Type-2, and observational Type-3 workloads generated from clone pairs.
-- [Repository benchmarks](repositories/README.md): end-to-end `srcdiff` and
-  `srcMove` runs across configured revisions of real repositories.
+- [History scaling](repositories/README.md): controlled throughput measurements
+  for production `srcmove_history` analyses.
 - `run_performance.py`: paired/interleaved performance measurements over
   immutable srcDiff XML that capture both external process timings and
   `srcMove --profile` stage timings.
 
 Generated benchmark data is ignored by Git but saved automatically below
-`benchmark-data/`. Repository invocations create append-only run records and a
-small series index; see the [repository benchmark guide](repositories/README.md).
-Treat those manifests and their referenced immutable artifacts—not mutable
-`work/` directories—as the authoritative result.
+`benchmark-data/`. Treat completed study manifests and their referenced
+immutable artifacts as the authoritative result.
 
 The phased upgrade of reusable srcDiff corpora, provenance, failure incidents,
 dataset adapters, and publication runs is described in the
@@ -40,10 +38,6 @@ compatibility contracts:
 
 - `benchmarks/bigclonebench/run.py` generates and evaluates cases together,
   writing ignored cases and a replaceable `cases/summary.csv`.
-- `benchmarks/repositories/run_case.py` is the public repository orchestrator.
-  Its case-local `work/` directory is only a checkout/export cache; authoritative
-  input snapshots, attempts, corpora, runs, and series indexes are stored under
-  `benchmark-data/`.
 - `benchmarks/run_performance.py` reads existing XML inputs and writes ignored
   local performance runs unless an explicit output is selected.
 
@@ -105,10 +99,8 @@ IDs and paths and establish a fresh verification boundary. Successful srcDiff
 XML is promoted with a same-filesystem hard link when possible, with a copy as
 the portability fallback.
 
-Repository commands are documented in the
-[repository benchmark guide](repositories/README.md). An existing corpus can be
-replayed with a different srcMove executable without the input snapshot's
-original checkout or `srcdiff` being available.
+An existing corpus can be replayed with a different srcMove executable without
+the input snapshot's original checkout or `srcdiff` being available.
 
 BigCloneBench uses the same core through its
 [staged benchmark guide](bigclonebench/README.md). Its adapter adds only the

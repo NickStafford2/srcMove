@@ -17,7 +17,7 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
 
 from benchmarks.contracts import RunMode
 from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
-from benchmarks.repositories.adapter import RepositoryAdapter
+from benchmarks.directory_adapter import DirectoryPairAdapter
 from support.tooling import find_srcdiff, find_srcmove
 
 
@@ -99,7 +99,7 @@ def main() -> int:
     exit_code = 0
     try:
         if args.stage == "snapshot":
-            adapter = RepositoryAdapter(
+            adapter = DirectoryPairAdapter(
                 case_id=args.case_id,
                 original=args.original,
                 modified=args.modified,

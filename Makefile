@@ -16,7 +16,7 @@ VERIFY_SOURCE ?= 0
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 BIGCLONEBENCH_SELECTION = $(if $(filter 1 yes true,$(KNOWN_FALSE_POSITIVES))$(filter known-false-positive,$(CLONE_TYPE)),--known-false-positives,--clone-type "$(CLONE_TYPE)")
 
-.PHONY: help configure build test test-unit test-srcmove-history test-xml test-source test-policy test-classification benchmark-repo benchmark-repos history-scaling bigclonebench-preflight bigclonebench-compile bigclonebench-conflicts bigclonebench-select bigclonebench-snapshot bigclonebench-suite bigclonebench-cases bigclonebench
+.PHONY: help configure build test test-unit test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigclonebench-preflight bigclonebench-compile bigclonebench-conflicts bigclonebench-select bigclonebench-snapshot bigclonebench-suite bigclonebench-cases bigclonebench
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -28,8 +28,6 @@ help:
 	@printf '  %-28s %s\n' 'make test-source' 'Build and run source-pair regression tests'
 	@printf '  %-28s %s\n' 'make test-policy' 'Build and run reviewer-editable move-policy tests'
 	@printf '  %-28s %s\n' 'make test-classification' 'Run the focused Type-1/2/3/none contracts'
-	@printf '  %-28s %s\n' 'make benchmark-repo' 'Run and save CASE repository benchmark'
-	@printf '  %-28s %s\n' 'make benchmark-repos' 'Run the explicit standard repository suite'
 	@printf '  %-28s %s\n' 'make history-scaling' 'Measure history throughput across JOBS'
 	@printf '  %-28s %s\n' 'make bigclonebench-preflight' 'Check the local BigCloneBench installation'
 	@printf '  %-28s %s\n' 'make bigclonebench-compile' 'Compile or reuse the local BigCloneBench catalog'
@@ -77,26 +75,6 @@ test-classification: build
 		--case classification_type3_java_method_inconsistent_renaming \
 		--case classification_none_unrelated_java_methods \
 		--case classification_none_similar_java_method_shapes
-
-benchmark-repo:
-	@test -n "$(CASE)" || { echo 'error: CASE is required'; exit 2; }
-	@$(PYTHON) benchmarks/repositories/run_case.py "$(CASE)" \
-		$(if $(OLD_REV),--old-rev "$(OLD_REV)") \
-		$(if $(NEW_REV),--new-rev "$(NEW_REV)") \
-		$(if $(DIRECTORY),--directory "$(DIRECTORY)") \
-		$(if $(SERIES),--series "$(SERIES)") \
-		$(if $(filter 1 yes true,$(UPDATE)),--fetch) \
-		$(if $(filter 1 yes true,$(OFFLINE)),--offline)
-
-benchmark-repos:
-	@$(PYTHON) benchmarks/repositories/run.py \
-		$(if $(SUITE),--suite "$(SUITE)") \
-		$(if $(SERIES),--series "$(SERIES)") \
-		$(if $(CASE),--case "$(CASE)") \
-		$(if $(EXCLUDE_CASE),--exclude-case "$(EXCLUDE_CASE)") \
-		$(if $(filter 1 yes true,$(LIST)),--list) \
-		$(if $(filter 1 yes true,$(UPDATE)),--fetch) \
-		$(if $(filter 1 yes true,$(OFFLINE)),--offline)
 
 history-scaling:
 	@test -n "$(CASE)" || { echo 'error: CASE is required'; exit 2; }

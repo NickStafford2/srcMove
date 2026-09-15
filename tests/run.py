@@ -263,7 +263,7 @@ def main() -> int:
     print("=== Test Summary ===")
     print(f"steps run: {len(steps)}")
     print(f"failures : {failures}")
-    print("benchmarks: excluded; run BigCloneBench or repository benchmarks separately")
+    print("benchmarks: excluded; run BigCloneBench or history scaling separately")
     return 1 if failures else 0
 
 

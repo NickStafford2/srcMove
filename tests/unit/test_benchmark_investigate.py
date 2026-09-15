@@ -15,7 +15,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.corpus import create_input_snapshot, generate_corpus
-from benchmarks.repositories.adapter import RepositoryAdapter
+from benchmarks.directory_adapter import DirectoryPairAdapter
 
 
 def executable_copy(root: Path, name: str) -> Path:
@@ -41,7 +41,7 @@ class InvestigationTests(unittest.TestCase):
                 (modified / name).write_text("int new;\n")
             _, input_snapshot = create_input_snapshot(
                 data_root=data_root,
-                adapter=RepositoryAdapter(
+                adapter=DirectoryPairAdapter(
                     case_id="failure", original=original, modified=modified
                 ),
                 source={"repository": "fixture"},

@@ -23,7 +23,7 @@ from benchmarks.corpus import (
     run_corpus,
 )
 from benchmarks.contracts import InputPair
-from benchmarks.repositories.adapter import RepositoryAdapter
+from benchmarks.directory_adapter import DirectoryPairAdapter
 
 
 def executable_copy(root: Path, name: str) -> Path:
@@ -55,7 +55,7 @@ class CorpusPipelineTests(unittest.TestCase):
             srcmove = executable_copy(root, "srcmove-valid-archive")
             snapshot = create_input_snapshot(
                 data_root=generated,
-                adapter=RepositoryAdapter(
+                adapter=DirectoryPairAdapter(
                     case_id="tiny", original=original, modified=modified
                 ),
                 source={"repository": "fixture"},
@@ -97,7 +97,7 @@ class CorpusPipelineTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             original, modified = source_pair(root)
-            adapter = RepositoryAdapter(
+            adapter = DirectoryPairAdapter(
                 case_id="tiny", original=original, modified=modified
             )
             first_status: list[str] = []
@@ -127,7 +127,7 @@ class CorpusPipelineTests(unittest.TestCase):
             srcdiff = executable_copy(root, "srcdiff-valid-archive")
             _, input_snapshot = create_input_snapshot(
                 data_root=generated,
-                adapter=RepositoryAdapter(
+                adapter=DirectoryPairAdapter(
                     case_id="tiny", original=original, modified=modified
                 ),
                 source={"repository": "fixture"},
@@ -227,7 +227,7 @@ class CorpusPipelineTests(unittest.TestCase):
             srcdiff = executable_copy(root, "srcdiff-valid-archive")
             _, input_snapshot = create_input_snapshot(
                 data_root=generated,
-                adapter=RepositoryAdapter(
+                adapter=DirectoryPairAdapter(
                     case_id="tiny", original=original, modified=modified
                 ),
                 source={"repository": "fixture"},
@@ -293,7 +293,7 @@ class CorpusPipelineTests(unittest.TestCase):
             original, modified = source_pair(root)
             (original / "unsupported.py").write_text("print('old')\n")
             (modified / "unsupported.py").write_text("print('new')\n")
-            adapter = RepositoryAdapter(
+            adapter = DirectoryPairAdapter(
                 case_id="tiny", original=original, modified=modified
             )
 
@@ -432,7 +432,7 @@ class CorpusPipelineTests(unittest.TestCase):
 
             for generated_name in ("generated-one", "generated-two"):
                 generated = root / generated_name
-                adapter = RepositoryAdapter(
+                adapter = DirectoryPairAdapter(
                     case_id="tiny", original=original, modified=modified
                 )
                 _, input_snapshot = create_input_snapshot(
@@ -459,7 +459,7 @@ class CorpusPipelineTests(unittest.TestCase):
             original, modified = source_pair(root)
             srcdiff = executable_copy(root, "srcdiff-valid-archive")
             srcmove = executable_copy(root, "srcmove-valid-archive")
-            adapter = RepositoryAdapter(
+            adapter = DirectoryPairAdapter(
                 case_id="tiny", original=original, modified=modified
             )
             _, input_snapshot = create_input_snapshot(
@@ -536,7 +536,7 @@ class CorpusPipelineTests(unittest.TestCase):
             srcdiff = executable_copy(root, "srcdiff-valid-archive")
             _, input_snapshot = create_input_snapshot(
                 data_root=generated,
-                adapter=RepositoryAdapter(
+                adapter=DirectoryPairAdapter(
                     case_id="tiny", original=original, modified=modified
                 ),
                 source={"repository": "fixture"},
@@ -580,7 +580,7 @@ class CorpusPipelineTests(unittest.TestCase):
             generated = root / "generated"
             original, modified = source_pair(root)
             srcdiff = executable_copy(root, "srcdiff-nonzero-valid")
-            adapter = RepositoryAdapter(
+            adapter = DirectoryPairAdapter(
                 case_id="tiny", original=original, modified=modified
             )
             _, input_snapshot = create_input_snapshot(
@@ -615,7 +615,7 @@ class CorpusPipelineTests(unittest.TestCase):
             original, modified = source_pair(root)
             srcdiff = executable_copy(root, "srcdiff-valid-archive")
             srcmove = executable_copy(root, "srcmove-valid-archive")
-            adapter = RepositoryAdapter(
+            adapter = DirectoryPairAdapter(
                 case_id="tiny", original=original, modified=modified
             )
             input_snapshot_dir, input_snapshot = create_input_snapshot(

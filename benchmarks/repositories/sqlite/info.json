@@ -1,6 +1,4 @@
 {
   "github": "https://github.com/sqlite/sqlite.git",
-  "old_rev": "version-3.45.1",
-  "new_rev": "version-3.50.0",
   "directory": "src"
 }

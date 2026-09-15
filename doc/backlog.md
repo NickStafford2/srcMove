@@ -13,9 +13,8 @@ settled.
   thesis.
 - Document why `examples/` exists: it contains srcDiff/srcMove example outputs
   consumed by `../srcVisual` to render srcDiff/srcML output in a web UI. Keep the
-  checked-in outputs and the ability to regenerate them until they move to
-  `srcVisual`. Decide whether `build_example.sh` should be removed, replaced, or
-  documented as legacy.
+  checked-in outputs until they move to `srcVisual`; the retired repository
+  benchmark no longer provides a regeneration command.
 - General purpose cleanup.
 
 ## Later
