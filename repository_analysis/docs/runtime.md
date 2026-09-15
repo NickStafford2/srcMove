@@ -111,8 +111,15 @@ being interpreted as an in-place update.
 Human-readable output is the default. `--format json` emits one versioned JSON
 document to stdout. Status derives live writer state by probing the operation
 lock; `activity.json` alone is never treated as proof that a run is active.
-Human output calls successful outcomes `analyzed`, no-change outcomes `skipped`,
-and all durable terminal outcomes `covered`.
+The compact summary reports processed adjacent commit pairs, separates pairs
+successfully compared from pairs without analyzable changes and failures, and
+counts detected moves by match type. Its elapsed time is the sum of every
+recorded `run` wall duration; srcDiff and srcMove times are cumulative process
+durations across pairs and may exceed elapsed time when workers run in
+parallel. The displayed range labels the frozen newest anchor and oldest
+covered commit explicitly. Internal move-group shape, annotated-region counts,
+state paths, and invocation details remain available through JSON and the
+`list` and `show` commands rather than the default summary.
 
 `run` reports progress to stderr immediately. On a terminal it renders a live
 spinner, durable coverage bar, outcome counters, elapsed time, and an ETA after

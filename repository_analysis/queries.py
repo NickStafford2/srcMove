@@ -66,6 +66,7 @@ class MoveCounts:
     groups: int
     pairs: int
     annotated_regions: int
+    by_type: tuple[NamedCount, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +127,7 @@ class StatusSnapshot:
     history_exhausted: bool
     statuses: tuple[NamedCount, ...]
     moves: MoveCounts
+    cumulative_wall_seconds: float
     timings: tuple[NamedSeconds, ...]
     pending: PendingSnapshot | None
     invocation: InvocationSnapshot | None
@@ -152,6 +154,10 @@ class StatusSnapshot:
             "move_group_count": self.moves.groups,
             "move_pair_count": self.moves.pairs,
             "annotated_region_count": self.moves.annotated_regions,
+            "match_kinds": {
+                item.name: item.count for item in self.moves.by_type
+            },
+            "cumulative_wall_seconds": self.cumulative_wall_seconds,
             "timings": {item.name: item.seconds for item in self.timings},
             "pending": (
                 None
@@ -287,6 +293,24 @@ class AnalysisReader:
                     raise ValueError(
                         "durable analysis coverage drifts from stored pairs"
                     )
+                match_kinds = tuple(
+                    NamedCount(
+                        _text(row["match_kind"], "move match kind"),
+                        _count(row["count"], "move match-kind count"),
+                    )
+                    for row in database.connection.execute(
+                        """
+                        SELECT match_kind, COUNT(*) AS count
+                        FROM moves
+                        GROUP BY match_kind
+                        ORDER BY match_kind
+                        """
+                    )
+                )
+                if sum(item.count for item in match_kinds) != totals["move_group_count"]:
+                    raise ValueError(
+                        "stored move match kinds drift from move-group count"
+                    )
                 stored_invocation = database.latest_invocation()
                 return StatusSnapshot(
                     schema_version=QUERY_SCHEMA_VERSION,
@@ -303,7 +327,9 @@ class AnalysisReader:
                     moves=MoveCounts(
                         totals["move_count"], totals["move_group_count"],
                         totals["move_pair_count"], totals["annotated_region_count"],
+                        match_kinds,
                     ),
+                    cumulative_wall_seconds=database.cumulative_wall_seconds(),
                     timings=tuple(
                         NamedSeconds(name, seconds)
                         for name, seconds in sorted(timings.items())

@@ -732,6 +732,23 @@ class AnalysisDatabase:
         state = self.analysis()
         if selected_pairs != state.completed_pair_count:
             raise ValueError("completed analysis coverage drifts from stored pairs")
+        match_kinds = {
+            _text(row["match_kind"], "move match kind"): _nonnegative_integer(
+                row["count"], "move match-kind count"
+            )
+            for row in self.connection.execute(
+                """
+                SELECT m.match_kind, COUNT(*) AS count
+                FROM moves AS m
+                JOIN batches AS b ON b.batch_id = m.batch_id
+                WHERE b.status = 'completed'
+                GROUP BY m.match_kind
+                ORDER BY m.match_kind
+                """
+            )
+        }
+        if sum(match_kinds.values()) != totals["move_group_count"]:
+            raise ValueError("stored move match kinds drift from move-group count")
         return {
             "schema_version": DATABASE_SCHEMA_VERSION,
             "revision": state.revision,
@@ -751,8 +768,27 @@ class AnalysisDatabase:
             "move_group_count": totals["move_group_count"],
             "move_pair_count": totals["move_pair_count"],
             "annotated_region_count": totals["annotated_region_count"],
+            "match_kinds": match_kinds,
             "timings": dict(sorted(timings.items())),
         }
+
+    def cumulative_wall_seconds(self) -> float:
+        """Return the sum of every invocation duration that was recorded."""
+
+        total = 0.0
+        for row in self.connection.execute(
+            "SELECT wall_seconds FROM invocations WHERE wall_seconds IS NOT NULL"
+        ):
+            value = row["wall_seconds"]
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value < 0
+            ):
+                raise ValueError("stored invocation wall time is malformed")
+            total += float(value)
+        return total
 
     def pair_details(self, distance_from_newest: int) -> dict[str, Any]:
         """Load one durable canonical outcome without regenerating it."""

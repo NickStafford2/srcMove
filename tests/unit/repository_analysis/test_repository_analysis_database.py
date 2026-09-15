@@ -121,6 +121,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 self.assertEqual(finished.result, "target_reached")
                 self.assertEqual(finished.wall_seconds, 3.0)
                 self.assertEqual(database.latest_invocation(), finished)
+                self.assertEqual(database.cumulative_wall_seconds(), 3.0)
                 with self.assertRaisesRegex(ValueError, "already finalized"):
                     database.finish_invocation(
                         "2" * 32,

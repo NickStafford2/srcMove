@@ -404,8 +404,8 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             status, output, error = self._main(["-C", str(repository), "status"])
             self.assertEqual((status, error), (0, ""))
-            self.assertIn("2/2 pairs (100%)", output)
-            self.assertIn("2 skipped", output)
+            self.assertIn("Commit pairs 2 processed (target 2", output)
+            self.assertIn("2 without analyzable changes", output)
 
             with AnalysisOperationLock(analysis, command="background-run"):
                 status, output, error = self._main(

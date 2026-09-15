@@ -382,13 +382,19 @@ def _status_document(summary: Mapping[str, Any]) -> dict[str, Any]:
             "groups": summary.get("move_group_count", 0),
             "pairs": summary.get("move_pair_count", 0),
             "annotated_regions": summary.get("annotated_region_count", 0),
+            "by_type": dict(summary.get("match_kinds", {})),
         },
         "history": {
             "newest_commit": summary.get("newest_commit"),
             "frontier_commit": summary.get("oldest_completed_commit"),
             "exhausted": bool(summary.get("history_exhausted")),
         },
-        "timings": dict(summary.get("timings", {})),
+        "timings": {
+            **dict(summary.get("timings", {})),
+            "cumulative_wall_seconds": summary.get(
+                "cumulative_wall_seconds", 0.0
+            ),
+        },
         "pending": pending,
         "invocation": invocation,
     }

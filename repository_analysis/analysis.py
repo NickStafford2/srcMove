@@ -245,6 +245,9 @@ def analyze_repository(
                 wall_seconds=time.monotonic() - invocation_started,
             )
             result.summary["invocation"] = invocation.record()
+            result.summary["cumulative_wall_seconds"] = (
+                database.cumulative_wall_seconds()
+            )
             manifest = database.initial_manifest()
             result.summary["analysis"] = {
                 "name": manifest.repository_identity.value,
