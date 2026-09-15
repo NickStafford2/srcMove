@@ -8,7 +8,7 @@ import sys
 REPOSITORY_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(REPOSITORY_ROOT))
 
-from repository_analysis.cli import main
+from srcmove_history.cli import main
 
 
 raise SystemExit(main())

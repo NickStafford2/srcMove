@@ -1,0 +1,339 @@
+# Repository-History Analysis
+
+This document describes verified current behavior. The accepted
+[architecture decision](architecture.md) defines the consolidation and
+refactoring direction without claiming that unimplemented structure exists.
+
+## Purpose
+
+`srcmove_history` runs srcDiff and srcMove across adjacent first-parent Git
+commits. It is production analysis infrastructure; benchmarks may invoke it but
+do not own its state format or execution semantics.
+
+Each commit pair is materialized as two directory trees. srcDiff is therefore always
+invoked with `--archive`, and its XML output is always validated as an archive.
+
+The public lifecycle is target-driven:
+
+```bash
+cd REPOSITORY
+
+bin/srcmove-history init
+# Edit .srcmove/config.toml before the first run.
+
+bin/srcmove-history run \
+  --pairs 100 \
+  --srcdiff PATH \
+  --srcmove PATH
+
+bin/srcmove-history run --pairs 500
+bin/srcmove-history run --more 100
+
+bin/srcmove-history status
+bin/srcmove-history report
+bin/srcmove-history list --failed
+bin/srcmove-history show 1
+bin/srcmove-history compare COMMIT --save all
+bin/srcmove-history compare OLD NEW --save all
+bin/srcmove-history compare --pair PAIR --save all
+```
+
+`run` creates, resumes, or extends the same analysis. There are no public
+`start`, `resume`, or `continue-older` state machines.
+
+`compare COMMIT` analyzes the commit against its first parent. Supplying
+`compare OLD NEW` instead analyzes any explicit pair. Both forms run the same
+changed-path inventory and pair executor without publishing an invocation,
+pair outcome, coverage, or move evidence to SQLite. They use the analysis's
+frozen configuration and admitted executables. `--save all` copies
+`srcdiff.xml`, `srcmove.xml`, and `results.json` to
+`.srcmove/comparisons/<old-object-id>-to-<new-object-id>/`; `srcdiff` and
+`srcmove` copy only their respective artifact families. The selection controls
+retention, not execution: srcMove still runs after a successful srcDiff
+comparison. As with history analysis, srcDiff receives materialized trees
+containing only changed, analyzable paths rather than whole revisions.
+
+`compare --pair PAIR` resolves the stable number printed by `list` from the
+canonical database, then regenerates artifacts for that pair without changing
+its stored outcome. This provides the direct workflow `list --moves`, followed
+by `show PAIR` or `compare --pair PAIR --save all`.
+
+Exactly one target is required:
+
+- `--pairs N` requests an absolute covered-pair count;
+- `--more N` extends the committed frontier by N additional adjacent pairs;
+- `--through COMMIT` requests a full, immutable commit object ID on the frozen
+  first-parent history;
+- `--all` continues in bounded batches until the repository root.
+
+Repeating a satisfied target is a verified no-op. A branch moving after the
+first invocation does not move the analysis's frozen newest anchor.
+
+`--more N` is resolved to an absolute pair target while holding the analysis
+operation lock. If an interrupted run left a pending batch, that batch counts
+toward the requested extension rather than causing already-checkpointed work to
+be skipped or duplicated. On a new analysis, `--more N` is equivalent to
+`--pairs N`.
+
+The CLI discovers the enclosing Git worktree from the current directory and
+uses `<repository>/.srcmove/` as its one active analysis. `-C PATH` changes the
+working directory before discovery. `--state-dir NAME` explicitly selects a
+different direct child of the repository root, primarily to inspect a renamed
+archive such as `.srcmoveOld`; only `.srcmove` is selected implicitly.
+
+The state directory contains a `.gitignore` whose exact contents are `*`, so
+the database, admitted tools, locks, and scratch remain ignored even when the
+directory is renamed. The CLI never edits the repository's top-level
+`.gitignore` or `.git/info/exclude`.
+
+`init` creates `.srcmove/config.toml` but does not create SQLite, admit tools,
+retain Git objects, or analyze history. The generated `[analysis]` table is
+editable until the first `run`; its default excluded suffix list contains
+`.py` while srcDiff's Python handling remains unreliable. Removing `.py` from
+that file before the first run enables Python without a special CLI override.
+Configured suffixes can only narrow the source set described under the
+execution contract; they cannot make an unrecognized extension analyzable.
+
+The first `run` freezes the `[analysis]` values in SQLite. Later runs reread
+the file and reject drift before recording an invocation. The `[run]` table is
+not part of the frozen analysis definition: `jobs` may change between runs, and
+`--jobs` overrides it for one invocation. `init` can also backfill a missing
+configuration for an existing database from its frozen definition without
+changing that database.
+
+One state directory contains one immutable analysis definition. History
+coverage may be extended, and stored results may be queried in different ways,
+but changing source scope, excluded suffixes, tool bytes, or other creation
+configuration requires a new state directory. Renaming `.srcmove` archives the
+old analysis; initialize a new `.srcmove` before running a different analysis.
+Creation-only options are rejected when an analysis already exists rather than
+being interpreted as an in-place update.
+
+Human-readable output is the default. `run --format json` and
+`status --format json` emit status document schema version 2. Its names make
+commit pair counts explicit and report moves as `detections`,
+`source_destination_pairings`, `annotated_regions`, and `by_match_type`.
+Status derives live writer state by probing the operation lock; `activity.json`
+alone is never treated as proof that a run is active.
+The compact summary reports processed adjacent commit pairs, separates commit
+pairs successfully compared from commit pairs without analyzable changes and
+failures, and counts detected moves by match type. Its elapsed time is the sum of every
+recorded `run` wall duration; srcDiff and srcMove times are cumulative process
+durations across commit pairs and may exceed elapsed time when workers run in
+parallel. The displayed range labels the frozen newest anchor and oldest
+covered commit explicitly. Internal move-group shape, annotated-region counts,
+state paths, and invocation details remain available through JSON and the
+`list` and `show` commands rather than the default summary.
+
+`report` produces a detailed, deterministic plain-text research summary from
+committed results. It has no `--format` option; redirect stdout to save it:
+
+```bash
+bin/srcmove-history report > history-report.txt
+```
+
+The report states first-parent history coverage against the total frozen
+history, commit pair outcomes, move prevalence, match classification, file
+location, move topology, distribution, cumulative performance, common path
+exclusions, and the frozen analysis definition. Its methodological notes call
+out partial coverage, result concentration, approximate Type 3 detections, and
+failed commit pairs when applicable. Distribution and prevalence percentages
+use successfully compared commit pairs as their denominator; commit pairs
+without analyzable changes and failed commit pairs are reported separately.
+Each detected move is one retained srcMove detection and may contain multiple
+source or destination regions. Within-file and cross-file classifications are
+derived from the filenames retained in those regions' XPath evidence. Path
+exclusion counts are observations across commit pairs rather than counts of
+unique paths. Total wall time sums finalized `run` invocations, including
+no-op and failed or interrupted invocations whose durations were recorded.
+
+The displayed repository name is derived from the basename of the current
+`origin` URL, with the checkout directory name as a fallback. It is descriptive
+report metadata, not part of the frozen analysis identity.
+
+`run` reports progress to stderr immediately. On a terminal it renders a live
+spinner, durable coverage bar, outcome counters, elapsed time, and an ETA after
+enough current-run samples exist. Redirected stderr receives a starting line,
+sparse milestones or an update at least every 30 seconds, and a finish line.
+The displayed coverage advances only after the pair outcome transaction commits.
+
+Progress is controlled independently of stdout:
+
+- `--progress auto` is the default: enabled for human output and disabled for
+  JSON output;
+- `--progress always` writes progress to stderr even with JSON stdout;
+- `--progress never` disables progress.
+
+For `--all`, the final history size is unknown, so progress does not invent a
+percentage or ETA. A resumed pending batch starts from its durable checkpointed
+prefix rather than returning to zero.
+
+## Authoritative state
+
+`.srcmove/analysis.sqlite3` is the only authoritative saved state. Python's
+standard-library `sqlite3` module supplies transactions and indexing without an
+external dependency. JSON or CSV output is a derived view, never a second
+authority.
+
+The database stores:
+
+- one immutable analysis definition: repository identity and relative locator,
+  configuration, tool digests, schema versions, and retention policy;
+- every invocation target, worker count, timing, terminal result, and last
+  durable update, including verified no-op invocations;
+- bounded frozen work batches;
+- stable pair identities and terminal outcomes;
+- compact, queryable move evidence.
+
+`distance_from_newest` is the stable pair order key: zero is the newest pair and
+larger values are older. Extending history never renumbers existing rows.
+
+Old JSON chain roots are deliberately rejected. Mixing the old chain format
+with SQLite would recreate multiple authorities and ambiguous recovery. Start a
+new analysis root instead.
+
+Database schema version 6 is a deliberate clean break. Older roots are rejected
+with an instruction to start a fresh state directory. Version 6 retains the
+analysis-relative repository and admitted-tool locators introduced in version 4
+and srcDiff archive invariant from version 5. It also records unsupported Git
+modes as compact path-exclusion counts instead of failing an otherwise valid
+pair. Moving a repository together with `.srcmove` therefore preserves its
+executable-byte identity and allows later history extension.
+
+## Invocation lifecycle
+
+After acquiring the writer lock and opening or creating the database, `run`
+records one running invocation. A successful target records
+`target_reached` or `target_reached_with_failures`; an orchestration exception
+records `failed`, and `KeyboardInterrupt` records `interrupted`. Wall time is
+stored separately from summed worker timings.
+
+Beginning the next locked invocation reconciles any older `running` row to
+`interrupted`. The activity file remains useful for process diagnostics, but
+durable invocation history lives in SQLite. Failures before the initial
+database can be created are necessarily represented only by the activity file.
+
+## Concurrency and recovery
+
+Every mutating operation holds one nonblocking `flock` on
+`.srcmove/.operation.lock` for its entire lifetime, including worker execution.
+This intentionally favors simple behavior over optimistic concurrent work: a
+second writer fails immediately before loading state or opening workers.
+
+`activity.json` records `is_running`, start/end timestamps, PID, host, command,
+and invocation ID for diagnostics. It is not the mutex. If a process crashes,
+the kernel releases `flock`; stale activity is reported as interrupted on the
+next invocation.
+
+SQLite transactions define the durable boundaries:
+
+1. Freeze a bounded pending batch in one transaction.
+2. Publish each terminal pair outcome in its own transaction.
+3. After every pair is terminal, commit the batch and advance coverage in one
+   transaction.
+
+On resume, a pending batch is continued exactly. Its terminal prefix is not
+recomputed. A request smaller than already-frozen pending coverage is rejected;
+an equal or larger request completes the pending batch first. A crash after the
+final coverage transaction but before output is safe because the same absolute
+target is then a no-op.
+
+Scratch trees are disposable. After acquiring the writer lock, the next
+invocation removes stale scratch from an interrupted process. Durable results
+are already in SQLite before a worker's scratch is acknowledged for deletion.
+
+Each published terminal outcome is immutable and records the invocation that
+produced it. A crash before that transaction leaves the pair pending; there is
+no durable attempt record and no in-place retry policy.
+
+Read-only status, list, and show services return immutable snapshot values.
+Status includes both committed coverage and the terminal checkpointed prefix of
+the pending batch. List uses stable one-based pair numbers and bounded keyset
+pagination. Show reads compact evidence for either committed or checkpointed
+terminal outcomes.
+
+## Scale and storage
+
+Internal batches are capped independently of the requested target. `--all`
+therefore begins useful work without loading the full history or creating one
+unshrinkable million-pair pending batch. Work and completion queues are also
+bounded by worker count.
+
+At analysis creation, exact srcDiff and srcMove bytes are copied into an
+analysis-owned content-addressed tool store. Workers execute those admitted
+copies, so replacement of the original executable cannot change a pending or
+later batch. Each admitted file is identified and revalidated by its SHA-256
+digest and size at the start of every `run`, including a satisfied no-op target;
+executable paths are runtime locators, not analysis identity.
+
+Successful results retain compact evidence rather than complete XML or raw
+moved source bodies:
+
+- scalar and grouped metrics;
+- match kind and source/destination XPath arrays for each move;
+- SHA-256 and UTF-8 byte length for each moved raw-text region;
+- results-file SHA-256 and byte length as an observation.
+
+`show` loads one committed pair and its moves on demand. It does not scan or
+materialize the full analysis.
+
+Failures retain termination/resource observations and a bounded stdout/stderr
+sample with complete-stream byte counts and hashes. Durable log data is capped
+at 64 KiB per captured stream even when the runtime capture limit is larger.
+
+## Execution contract
+
+One work item is one adjacent commit pair containing all relevant changed paths,
+not one file. This preserves cross-file move detection. Modified files appear
+on both sides, additions only on the new side, deletions only on the old side,
+and renames use their old/new paths.
+
+Path admission follows srcML's standard, case-sensitive language-extension
+registry because srcDiff uses that registry and supplies no per-file language
+override. The accepted suffixes are C (`.c`, `.h`, `.i`), C++ (`.cpp`, `.CPP`,
+`.cp`, `.hpp`, `.cxx`, `.hxx`, `.cc`, `.hh`, `.c++`, `.h++`, `.C`, `.H`,
+`.tcc`, `.ii`), Java/AspectJ (`.java`, `.aj`), C# (`.cs`), and Python (`.py`,
+`.pyi`, `.pyw`, `.pyz`). User-configured exclusions apply afterward. Other
+extensions remain visible in the changed-path count but are recorded as
+`unsupported_srcml_extension`; a pair containing only such paths completes as
+`no_analyzable_change` without running srcDiff.
+
+Symlinks and submodules remain visible in the changed-path count but are never
+materialized or followed. Compact pair metrics record them under
+`path_exclusion_counts` as `unsupported_git_mode: symlink` or
+`unsupported_git_mode: submodule`. Other unsupported Git modes use their raw
+mode value in the same reason format.
+
+Workers own private scratch and reusable Git object readers. Each worker runs at
+most one srcDiff or srcMove process at a time. Outcomes may finish out of order,
+but the coordinator publishes only a contiguous sequence.
+
+Terminal statuses are:
+
+- `completed`;
+- `no_analyzable_change`;
+- `export_failed`;
+- `srcdiff_failed`;
+- `srcmove_failed`;
+- `orchestration_failed`.
+
+Tool and validation failures count as covered terminal pairs. The CLI exits one
+when committed coverage contains failures, but retrying the same target does not
+rerun them. An unexpected coordinator or database error exits two and leaves
+pending work recoverable.
+
+## Verification
+
+Run focused tests in the intended Docker environment:
+
+```bash
+./bin/srcml-dev-shell make --no-print-directory \
+  -C srcMove test-srcmove-history
+```
+
+The tests cover target convergence, root exhaustion, bounded all-history
+planning, exact pending recovery, terminal-failure idempotency, lock contention,
+stale scratch cleanup, frozen executable admission, compact storage, and
+read-only status, list, and show queries. Progress tests cover transactional
+publication, resumed prefixes, no-op runs, renderer isolation, TTY output, and
+stdout/stderr separation.

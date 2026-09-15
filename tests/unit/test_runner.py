@@ -44,26 +44,26 @@ class TestInventoryTests(unittest.TestCase):
             run.print_inventory()
 
         self.assertIn(
-            "repository-analysis: focused repository-analysis unit tests",
+            "srcmove-history: focused srcmove-history unit tests",
             output.getvalue(),
         )
 
-    def test_repository_analysis_suite_uses_nested_test_directory(self) -> None:
+    def test_srcmove_history_suite_uses_nested_test_directory(self) -> None:
         steps = run.test_steps(
             SimpleNamespace(cases=None),
-            ["repository-analysis"],
+            ["srcmove-history"],
             {},
             None,
             None,
         )
 
         self.assertEqual(len(steps), 1)
-        self.assertEqual(steps[0].name, "repository-analysis unit")
+        self.assertEqual(steps[0].name, "srcmove-history unit")
         self.assertEqual(
             steps[0].command[-6:],
             [
                 "-s",
-                "tests/unit/repository_analysis",
+                "tests/unit/srcmove_history",
                 "-t",
                 ".",
                 "-p",

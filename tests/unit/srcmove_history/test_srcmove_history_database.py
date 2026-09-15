@@ -1,0 +1,445 @@
+from __future__ import annotations
+
+import os
+import sqlite3
+import tempfile
+import unittest
+from dataclasses import FrozenInstanceError
+from pathlib import Path
+
+from srcmove_history.database import AnalysisDatabase
+from srcmove_history.contracts import PairOutcome, PairStatus
+from srcmove_history.inputs import (
+    AnalysisConfiguration,
+    RepositoryIdentity,
+    freeze_analysis_inputs,
+    observe_executable,
+    build_pair_work_items,
+)
+from srcmove_history.retention import RetentionPolicy
+from srcmove_history.queries import AnalysisReader, _freeze_json, _thaw_json
+
+
+def executable(path: Path, content: bytes = b"#!/bin/sh\nexit 0\n") -> Path:
+    path.write_bytes(content)
+    path.chmod(0o755)
+    return path
+
+
+def begin_invocation(database: AnalysisDatabase, invocation_id: str = "9" * 32) -> str:
+    database.begin_invocation(
+        invocation_id,
+        target_kind="all",
+        target_value=None,
+        jobs=1,
+        started_at="2026-01-01T00:00:00+00:00",
+    )
+    return invocation_id
+
+
+class AnalysisDatabaseTests(unittest.TestCase):
+    def test_frozen_query_json_preserves_container_types(self) -> None:
+        values = ({}, [], {"nested": []}, [["key", 1]])
+        for value in values:
+            with self.subTest(value=value):
+                self.assertEqual(_thaw_json(_freeze_json(value)), value)
+
+    def test_only_truthful_compact_retention_is_supported(self) -> None:
+        self.assertEqual(
+            RetentionPolicy().record(),
+            {
+                "schema_version": 1,
+                "mode": "compact",
+                "successful_pairs": "metrics_xpaths_and_text_digests",
+                "failed_pairs": "bounded_process_evidence",
+                "tool_outputs": "discard_after_compaction",
+                "materialized_inputs": "ephemeral",
+            },
+        )
+        with self.assertRaisesRegex(ValueError, "unsupported"):
+            RetentionPolicy(mode="full")
+
+    def test_invocations_are_append_only_and_reconcile_interrupted_writer(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = root / "repository"
+            repository.mkdir()
+            manifest = self._manifest(
+                repository,
+                observe_executable(executable(root / "srcdiff")),
+                observe_executable(executable(root / "srcmove")),
+                commits=("a", "b"),
+            )
+            with AnalysisDatabase.create(
+                root / "analysis",
+                manifest,
+                batch_id="a" * 32,
+                target_kind="total_pairs",
+                target_value="1",
+                reaches_root=True,
+                retention_policy=RetentionPolicy(),
+            ) as database:
+                first = database.begin_invocation(
+                    "1" * 32,
+                    target_kind="total_pairs",
+                    target_value="1",
+                    jobs=2,
+                    started_at="2026-01-01T00:00:00+00:00",
+                )
+                self.assertEqual(first.result, "running")
+
+                second = database.begin_invocation(
+                    "2" * 32,
+                    target_kind="all",
+                    target_value=None,
+                    jobs=4,
+                    started_at="2026-01-02T00:00:00+00:00",
+                )
+
+                self.assertEqual(database.invocation("1" * 32).result, "interrupted")
+                self.assertEqual(second.created_order, 1)
+                batch = database.pending_batch()
+                assert batch is not None
+                database.record_outcome(
+                    batch,
+                    PairOutcome(
+                        build_pair_work_items(manifest)[0],
+                        PairStatus.NO_ANALYZABLE_CHANGE,
+                    ),
+                    invocation_id="2" * 32,
+                )
+                self.assertNotEqual(
+                    database.invocation("2" * 32).last_durable_at,
+                    second.last_durable_at,
+                )
+                finished = database.finish_invocation(
+                    "2" * 32,
+                    result="target_reached",
+                    ended_at="2026-01-02T00:00:03+00:00",
+                    wall_seconds=3.0,
+                )
+                self.assertEqual(finished.result, "target_reached")
+                self.assertEqual(finished.wall_seconds, 3.0)
+                self.assertEqual(database.latest_invocation(), finished)
+                self.assertEqual(database.cumulative_wall_seconds(), 3.0)
+                with self.assertRaisesRegex(ValueError, "already finalized"):
+                    database.finish_invocation(
+                        "2" * 32,
+                        result="failed",
+                        ended_at="2026-01-02T00:00:04+00:00",
+                        wall_seconds=4.0,
+                    )
+
+    def test_older_schema_root_is_rejected_with_fresh_start_instruction(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = root / "repository"
+            repository.mkdir()
+            manifest = self._manifest(
+                repository,
+                observe_executable(executable(root / "srcdiff")),
+                observe_executable(executable(root / "srcmove")),
+                commits=("a", "b"),
+            )
+            analysis = root / "analysis"
+            database = AnalysisDatabase.create(
+                analysis,
+                manifest,
+                batch_id="b" * 32,
+                target_kind="total_pairs",
+                target_value="1",
+                reaches_root=True,
+                retention_policy=RetentionPolicy(),
+            )
+            database.close()
+            for version in (1, 2, 3, 4, 5):
+                connection = sqlite3.connect(analysis / "analysis.sqlite3")
+                try:
+                    connection.execute(f"PRAGMA user_version = {version}")
+                finally:
+                    connection.close()
+                with self.assertRaisesRegex(
+                    ValueError, "start a fresh analysis root"
+                ):
+                    AnalysisDatabase.open(analysis)
+
+    def test_batches_extend_without_renumbering_completed_pairs(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = root / "repository"
+            repository.mkdir()
+            srcdiff = observe_executable(executable(root / "srcdiff"))
+            srcmove = observe_executable(executable(root / "srcmove"))
+            analysis_root = root / "analysis"
+            initial = self._manifest(
+                repository, srcdiff, srcmove, commits=("d", "e", "f")
+            )
+
+            with AnalysisDatabase.create(
+                analysis_root,
+                initial,
+                batch_id="1" * 32,
+                target_kind="total_pairs",
+                target_value="2",
+                reaches_root=False,
+                retention_policy=RetentionPolicy(),
+            ) as database:
+                state = database.analysis()
+                self.assertEqual(state.revision, 1)
+                self.assertEqual(state.completed_pair_count, 0)
+                batch = database.pending_batch()
+                self.assertIsNotNone(batch)
+                assert batch is not None
+                self.assertEqual(
+                    database.pending_manifest(batch).canonical_bytes(),
+                    initial.canonical_bytes(),
+                )
+                self.assertEqual(database.completed_prefix(batch), 0)
+
+                work = build_pair_work_items(initial)
+                invocation_id = begin_invocation(database)
+                database.record_outcome(
+                    batch,
+                    PairOutcome(work[0], PairStatus.NO_ANALYZABLE_CHANGE),
+                    invocation_id=invocation_id,
+                )
+                self.assertEqual(database.completed_prefix(batch), 1)
+                reader = AnalysisReader(analysis_root)
+                checkpoint = reader.status()
+                self.assertEqual(checkpoint.coverage.committed, 0)
+                self.assertEqual(checkpoint.coverage.checkpointed, 1)
+                self.assertEqual(checkpoint.coverage.durable, 1)
+                with self.assertRaises(FrozenInstanceError):
+                    checkpoint.coverage.committed = 1  # type: ignore[misc]
+                self.assertEqual(reader.show(2).invocation_id, invocation_id)
+                second_invocation_id = begin_invocation(database, "7" * 32)
+                database.record_outcome(
+                    batch,
+                    PairOutcome(
+                        work[1], PairStatus.EXPORT_FAILED, error="export failed"
+                    ),
+                    invocation_id=second_invocation_id,
+                )
+                committed = database.commit_pending_batch(batch)
+                self.assertEqual(committed.revision, 2)
+                self.assertEqual(committed.completed_pair_count, 2)
+                self.assertEqual(committed.oldest_completed_commit, "d")
+                summary = database.summary()
+                self.assertEqual(summary["completed_pair_count"], 2)
+                self.assertEqual(summary["no_analyzable_change"], 1)
+                self.assertEqual(summary["failed"], 1)
+                details = database.pair_details(1)
+                self.assertEqual(details["old_commit"], "d")
+                self.assertEqual(details["new_commit"], "e")
+                self.assertEqual(details["moves"], [])
+                self.assertEqual(details["invocation_id"], invocation_id)
+                first_page = reader.list_pairs(limit=1)
+                self.assertEqual([item.number for item in first_page.items], [1])
+                self.assertEqual(first_page.next_cursor, 0)
+                second_page = reader.list_pairs(
+                    limit=1, after_distance=first_page.next_cursor
+                )
+                self.assertEqual([item.number for item in second_page.items], [2])
+                self.assertIsNone(second_page.next_cursor)
+                self.assertEqual(
+                    len(reader.list_pairs(status="no_analyzable_change").items), 1
+                )
+                self.assertEqual(
+                    [item.number for item in reader.list_pairs(failed=True).items],
+                    [1],
+                )
+                self.assertEqual(len(reader.list_pairs(with_moves=True).items), 0)
+                self.assertEqual(
+                    [item.number for item in reader.list_pairs(oldest_first=True).items],
+                    [2, 1],
+                )
+                for arguments in (
+                    {"status": "completed", "failed": True},
+                    {"status": "completed", "with_moves": True},
+                    {"failed": True, "with_moves": True},
+                ):
+                    with self.assertRaisesRegex(ValueError, "filters are exclusive"):
+                        reader.list_pairs(**arguments)
+                with self.assertRaisesRegex(ValueError, "must be a Boolean"):
+                    reader.list_pairs(failed=1)  # type: ignore[arg-type]
+
+                older = self._manifest(
+                    repository, srcdiff, srcmove, commits=("b", "c", "d")
+                )
+                older_batch = database.add_pending_batch(
+                    older,
+                    batch_id="2" * 32,
+                    target_kind="total_pairs",
+                    target_value="4",
+                    reaches_root=True,
+                    retention_policy=RetentionPolicy(),
+                )
+                distances = database.connection.execute(
+                    "SELECT distance_from_newest FROM pairs ORDER BY distance_from_newest"
+                ).fetchall()
+                self.assertEqual([row[0] for row in distances], [0, 1, 2, 3])
+                self.assertEqual(older_batch.base_revision, 2)
+                self.assertEqual(database.analysis().revision, 3)
+
+                with self.assertRaisesRegex(ValueError, "no durable commit pair"):
+                    database.pair_details(2)
+
+    def test_pair_outcomes_are_exclusive_and_completion_requires_full_prefix(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = root / "repository"
+            repository.mkdir()
+            srcdiff = observe_executable(executable(root / "srcdiff"))
+            srcmove = observe_executable(executable(root / "srcmove"))
+            manifest = self._manifest(
+                repository, srcdiff, srcmove, commits=("a", "b", "c")
+            )
+            database = AnalysisDatabase.create(
+                root / "analysis",
+                manifest,
+                batch_id="a" * 32,
+                target_kind="all",
+                target_value=None,
+                reaches_root=True,
+                retention_policy=RetentionPolicy(),
+            )
+            self.addCleanup(database.close)
+            batch = database.pending_batch()
+            assert batch is not None
+
+            outcome = PairOutcome(
+                build_pair_work_items(manifest)[0],
+                PairStatus.NO_ANALYZABLE_CHANGE,
+            )
+            with self.assertRaisesRegex(ValueError, "no running invocation"):
+                database.record_outcome(
+                    batch, outcome, invocation_id="8" * 32
+                )
+            stored = database.connection.execute(
+                "SELECT status, outcome_invocation_id FROM pairs "
+                "WHERE batch_id = ? AND batch_sequence = 0",
+                (batch.batch_id,),
+            ).fetchone()
+            self.assertEqual(tuple(stored), (None, None))
+            invocation_id = begin_invocation(database)
+            database.record_outcome(
+                batch, outcome, invocation_id=invocation_id
+            )
+            with self.assertRaisesRegex(ValueError, "already sealed"):
+                database.record_outcome(
+                    batch, outcome, invocation_id=invocation_id
+                )
+            with self.assertRaisesRegex(ValueError, "not complete"):
+                database.commit_pending_batch(batch)
+
+    def test_database_reopens_with_canonical_manifest_and_schema_identity(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = root / "repository"
+            repository.mkdir()
+            srcdiff = observe_executable(executable(root / "srcdiff"))
+            srcmove = observe_executable(executable(root / "srcmove"))
+            manifest = self._manifest(
+                repository, srcdiff, srcmove, commits=("a", "b")
+            )
+            database = AnalysisDatabase.create(
+                root / "analysis",
+                manifest,
+                batch_id="f" * 32,
+                target_kind="through",
+                target_value="a",
+                reaches_root=False,
+                retention_policy=RetentionPolicy(),
+            )
+            database.close()
+
+            with AnalysisDatabase.open(root / "analysis") as reopened:
+                batch = reopened.pending_batch()
+                self.assertIsNotNone(batch)
+                assert batch is not None
+                self.assertEqual(
+                    reopened.pending_manifest(batch).canonical_bytes(),
+                    manifest.canonical_bytes(),
+                )
+
+    def test_read_only_status_can_observe_last_committed_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = root / "repository"
+            repository.mkdir()
+            srcdiff = observe_executable(executable(root / "srcdiff"))
+            srcmove = observe_executable(executable(root / "srcmove"))
+            analysis = root / "analysis"
+            manifest = self._manifest(
+                repository, srcdiff, srcmove, commits=("a", "b")
+            )
+            with AnalysisDatabase.create(
+                analysis,
+                manifest,
+                batch_id="e" * 32,
+                target_kind="total_pairs",
+                target_value="1",
+                reaches_root=False,
+                retention_policy=RetentionPolicy(),
+            ) as writer:
+                writer.connection.execute("BEGIN IMMEDIATE")
+                try:
+                    writer.connection.execute(
+                        "UPDATE analysis SET revision = 99 WHERE singleton = 1"
+                    )
+                    with AnalysisDatabase.open(
+                        analysis, read_only=True
+                    ) as reader:
+                        self.assertEqual(reader.analysis().revision, 1)
+                finally:
+                    writer.connection.execute("ROLLBACK")
+
+    def test_writer_recovers_exact_interrupted_database_publication_link(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = root / "repository"
+            repository.mkdir()
+            manifest = self._manifest(
+                repository,
+                observe_executable(executable(root / "srcdiff")),
+                observe_executable(executable(root / "srcmove")),
+                commits=("a", "b"),
+            )
+            analysis = root / "analysis"
+            database = AnalysisDatabase.create(
+                analysis,
+                manifest,
+                batch_id="d" * 32,
+                target_kind="total_pairs",
+                target_value="1",
+                reaches_root=False,
+                retention_policy=RetentionPolicy(),
+            )
+            database.close()
+            interrupted = analysis / ".analysis.sqlite3.tmp-interrupted"
+            os.link(analysis / "analysis.sqlite3", interrupted)
+
+            with self.assertRaisesRegex(ValueError, "one owned regular file"):
+                AnalysisDatabase.open(analysis, read_only=True)
+            self.assertTrue(interrupted.exists())
+
+            with AnalysisDatabase.open(analysis) as recovered:
+                self.assertEqual(recovered.analysis().revision, 1)
+            self.assertFalse(interrupted.exists())
+
+    def _manifest(self, repository, srcdiff, srcmove, *, commits):
+        analysis_root = repository.parent / "analysis"
+        analysis_root.mkdir(exist_ok=True)
+        return freeze_analysis_inputs(
+            analysis_root=analysis_root,
+            repository=repository,
+            repository_identity=RepositoryIdentity("fixture-repository"),
+            commits=commits,
+            configuration=AnalysisConfiguration(excluded_suffixes=(".txt",)),
+            srcdiff=srcdiff,
+            srcmove=srcmove,
+        )
+
+
+if __name__ == "__main__":
+    unittest.main()

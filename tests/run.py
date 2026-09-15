@@ -20,7 +20,7 @@ from support.tooling import command_text, find_srcdiff, find_srcmove, run_comman
 
 SUITE_DESCRIPTIONS = {
     "unit": "all Python unit tests",
-    "repository-analysis": "focused repository-analysis unit tests",
+    "srcmove-history": "focused srcmove-history unit tests",
     "xml": "checked-in srcDiff XML regression fixtures",
     "source": "checked-in source pairs regenerated through srcdiff",
     "policy": "reviewer-editable move and not-move catalogs regenerated through srcdiff",
@@ -148,17 +148,17 @@ def test_steps(
             )
         )
 
-    if not args.cases and "repository-analysis" in suites:
+    if not args.cases and "srcmove-history" in suites:
         steps.append(
             TestStep(
-                "repository-analysis unit",
+                "srcmove-history unit",
                 [
                     sys.executable,
                     "-m",
                     "unittest",
                     "discover",
                     "-s",
-                    "tests/unit/repository_analysis",
+                    "tests/unit/srcmove_history",
                     "-t",
                     ".",
                     "-p",
@@ -227,7 +227,7 @@ def main() -> int:
         suites = [
             suite
             for suite in suites
-            if suite not in ("unit", "repository-analysis")
+            if suite not in ("unit", "srcmove-history")
         ]
 
     try:

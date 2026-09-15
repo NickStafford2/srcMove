@@ -193,7 +193,7 @@ ambiguity policy, and performance safeguards have one canonical description in
 
 - [Documentation index](doc/README.md)
 - [Architecture](doc/architecture.md)
-- [Repository analysis](repository_analysis/docs/README.md)
+- [srcMove History](srcmove_history/docs/README.md)
 - [Correctness tests](tests/README.md)
 - [Benchmarks](benchmarks/README.md)
 - [BigCloneBench methodology](doc/bigclonebench_srcmove_conversion.md)
