@@ -21,3 +21,19 @@ longitudinal questions about when, where, and how moves occur over a
 repository's lifetime.
 
 The current operational contract is documented in [Runtime behavior](runtime.md).
+
+## Planned thesis contrast
+
+The thesis evaluation should include a small endpoint-versus-history contrast
+over a few deliberately selected commit windows. For each window, run the
+normal adjacent-pair analysis and one `srcmove-history compare OLD NEW --save
+all` comparison between its endpoints. Report the detections from each view and
+inspect examples that are visible when they occur but absent from the endpoint
+comparison.
+
+This contrast motivates sequential analysis; it is not an accuracy benchmark.
+Real repository histories do not provide a complete oracle for every move, so
+differences between the two views must be reported as observational evidence,
+not recall. Large-scale distant-commit benchmarking is outside the planned
+evaluation unless the thesis makes a separate claim about arbitrary revision
+pairs.

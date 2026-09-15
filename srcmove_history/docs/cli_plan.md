@@ -24,10 +24,8 @@ behavior from the remaining planned interface work.
 | Human output | Implemented foundation | Run/status summaries, research reports, and compact list/show/compare views use analyzed/skipped/covered terminology | Continue usability refinement from real studies |
 | Live progress | Implemented foundation | Immediate preparation, durable publication events, TTY spinner/bar/ETA, sparse redirected updates, resume baselines, and `auto`/`always`/`never` modes | Refine from long real-world runs and add `status --watch` |
 | Export | Not implemented | Normalized evidence is queryable in SQLite | Stable CSV/JSONL research exports |
-| Benchmark retirement | Not started | Both implementations still exist | Move remaining studies/adapters to the production service, then remove the old runner |
+| Benchmark retirement | Implemented | Scaling trials use `srcmove_history`; the receipt-based history runner and its browsing command are removed | No CLI-specific work required |
 
-The highest-value next increment is retiring the legacy benchmark history
-runner so scaling studies use this production service and SQLite authority.
 Preflight, Git diff inspection, export, and `status --watch` remain independent
 interface improvements.
 
@@ -44,15 +42,14 @@ Keep the current plan's strongest decisions:
 
 The remaining design should address three workflow gaps:
 
-1. **The legacy benchmark runner remains a second implementation.** Scaling
-   studies must become adapters over `srcmove_history`, after which the old
-   receipt-based state and execution pipeline can be removed.
-2. **Creation needs a read-only preflight.** Repository-local TOML and tool
+1. **Creation needs a read-only preflight.** Repository-local TOML and tool
    discovery make configuration reviewable, but users cannot yet preview the
    exact frozen definition without starting a run.
-3. **Analysis needs stable research exports.** Reports and browsing are
+2. **Analysis needs stable research exports.** Reports and browsing are
    available, but users still need versioned pair and move tables without
    querying implementation tables.
+3. **Long-running analyses need passive observation.** `status` reports a
+   consistent snapshot, but `status --watch` remains planned.
 
 ## Goals
 
@@ -581,13 +578,9 @@ every browsing feature before making normal runs understandable.
 - add optional Git diff presentation;
 - keep verbose evidence lazy so large analyses remain inexpensive to inspect.
 
-### 5. Export and retire the old runner
+### 5. Export
 
 - implement versioned `pairs` and `moves` CSV/JSONL exports;
-- port benchmark adapters and scaling studies to the production service;
-- verify that production browsing covers the useful old `show` workflow;
-- remove `benchmarks/repositories/run_history.py` only after its remaining
-  consumers have migrated.
 
 ## Acceptance criteria
 

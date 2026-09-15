@@ -131,9 +131,9 @@ git clone https://github.com/torvalds/linux.git \
   srcMove/benchmarks/repositories/linux/work/repo
 ```
 
-Do not use `--depth`: the historical runner rejects shallow repositories. A
-later history study should use commit-to-parent edges rather than treating the
-kernel's merge-heavy first-parent chain as individual patch history.
+Do not use `--depth`: srcMove History rejects shallow repositories. A history
+study should use commit-to-parent edges rather than treating the kernel's
+merge-heavy first-parent chain as individual patch history.
 
 `wowy_advanced_analytics` is excluded from every suite because it is Python and
 the current snapshot pipeline excludes `.py` files. `zlib` is also excluded:
@@ -144,177 +144,14 @@ be used until the intended comparison is confirmed. `context_export` and
 `build_examples.py` turns selected benchmark results into ignored example
 artifacts for documentation or manual inspection.
 
-## Experimental first-parent history runner
-
-The initial historical-analysis runner can freeze and execute a bounded sequence
-of adjacent first-parent commit pairs. For example, this selects the newest
-three SQLite pairs after fetching and processes them oldest-to-newest:
-
-```bash
-python3 benchmarks/repositories/run_history.py start sqlite \
-  --start origin/HEAD --count 3 --fetch --jobs 2
-```
-
-`--jobs N` bounds the number of commit pairs processed concurrently and
-defaults to `1`. Pair selection, receipts, CSV rows, and command output remain
-in oldest-to-newest sequence order. Each worker receives a separate numbered
-export/work directory and only returns a structured pair outcome. The
-coordinator alone checkpoints pair receipts and `history.json`, updates terminal
-progress, and builds `summary.csv`, `moves/`, and the `latest` link. Derived
-history-wide views are rebuilt only at history initialization and finalization,
-not after every pair.
-
-Show every detected move from the latest saved history:
-
-```bash
-make history-results
-
-# Equivalent direct command:
-python3 benchmarks/repositories/run_history.py show
-```
-
-The command prints only commit pairs with moves, including match kind, move ID,
-source and destination file/function, and the moved text. Select a history by
-ID, path, or label; repeated labels resolve to their most recently updated run:
-
-```bash
-make history-results HISTORY=sqlite-100-pair
-```
-
-Inspect one 1-based pair and include its source patch:
-
-```bash
-make history-results PAIR=16 DIFF=1
-```
-
-Use `VERBOSE=1` to include source/destination XPath values and canonical
-`results.json` and annotated `srcmove.xml` paths. With the direct Python command,
-the equivalent options are `--pair`, `--diff`, and `--verbose`. The annotated
-XML exists only for successful runs that detected moves.
-
-The case's configured directory still applies; SQLite currently measures
-`src/`. A selected commit whose adjacent change has no paths remaining in that
-scope and the mandatory suffix filters is recorded as `no_analyzable_change`,
-not as zero moves. History studies use their own compact index:
-
-```text
-benchmark-data/repository-histories/<history-id>/
-  history.json               study configuration, commits, status, aggregates
-  pairs/000001.json          one canonical receipt per adjacent commit pair
-  pairs/000002.json
-  results/000001.json        srcMove result for each analyzed pair
-  moves/000016/              browseable view of one positive pair
-    results.json             relative link to the retained srcMove result
-  summary.csv                table rebuilt from the pair receipts
-```
-
-History pairs do not also create `repository-runs/<history-id>/` entries or a
-second summary. Pair receipts reference the canonical snapshot, corpus, attempt,
-run, and result artifacts instead of copying them.
-
-`benchmark-data/repository-histories/latest` points to the most recently written
-history. Its `moves/` directory contains only pairs where srcMove detected at
-least one move, so the underlying artifacts can be opened without following
-content IDs or attempt UUIDs:
-
-```bash
-ls benchmark-data/repository-histories/latest/moves
-python3 -m json.tool \
-  benchmark-data/repository-histories/latest/moves/000016/results.json
-```
-
-The positive-move result is a relative symbolic link, not an artifact copy.
-Zero-move observations retain their compact `results.json` for frequency
-calculations but do not clutter the positive-move browse view. XML files appear
-there only when an XML-retaining policy was selected.
-
-### History retention
-
-History runs default to `--retention results`. This keeps the history report and
-every successful `results.json`, including zero-move observations, while
-discarding successful srcDiff/srcMove XML, snapshots, corpora, attempts, and
-other pipeline intermediates. Positive results are linked under `moves/` for
-quick inspection. Failed-pair status remains in its pair receipt; the recorded
-commits and tool configuration can be used to reproduce it.
-
-The default runs in a history-owned isolated directory and removes that
-directory only after the complete history has been finalized. It does not read,
-populate, or delete the shared benchmark cache. `--no-cache` is an alias for
-this default policy.
-
-Use `--retention full` when repeated analysis speed matters more than storage.
-It uses the shared content-addressed snapshot and srcDiff corpus cache, keeps
-compact zero-move results, retains positive srcMove XML, and provides the
-fastest repeated analysis.
-
-For large one-off studies, compact retention runs the pipeline in a directory
-owned only by that history:
-
-```bash
-python3 benchmarks/repositories/run_history.py start sqlite \
-  --start origin/HEAD --count 100 --fetch \
-  --label sqlite-100-pair --retention compact
-```
-
-After successful completion, compact retention keeps:
-
-- the history manifest, pair receipts, and CSV summary;
-- `results.json`, `srcmove.xml`, and `srcdiff.xml` for positive pairs;
-- complete input, process, and output evidence for failed pairs.
-
-It discards successful zero-move snapshots, corpora, runs, and attempts. The
-Non-full modes never populate or delete the shared cache.
-
-Ephemeral retention keeps only the history report and compact per-pair metrics:
-
-```bash
-python3 benchmarks/repositories/run_history.py start sqlite \
-  --start origin/HEAD --count 100 --fetch \
-  --label sqlite-100-pair --retention ephemeral
-```
-
-It records whether moves were detected but discards detailed move text, XML,
-failure evidence, and all intermediate artifacts after a completed history. If
-a results, compact, or ephemeral run is interrupted, its isolated `.pipeline` directory
-is intentionally left intact for diagnosis rather than being cleaned blindly.
-
-History pairs materialize selected Git blobs directly into content-addressed
-input-snapshot staging; there is no intermediate export tree or export-to-snapshot
-copy. Modified files appear on both sides, additions only on the new side, and
-deletions only on the old side. Renames are represented by their old and new
-paths so cross-file moves remain detectable. Relative repository paths, snapshot
-manifest schema, content identities, and checksum verification are unchanged.
-Parallel workers read the frozen Git repository concurrently but never check it
-out or modify it; each has a numbered private work directory that is removed
-after the coordinator has collected every outcome.
-
-History timings distinguish work performed by the current command from cached
-attempt provenance. `srcdiff_execution_seconds` counts only a srcDiff process
-started by the current history run. Cache reuse time covers current snapshot and
-corpus verification, while `srcdiff_cached_execution_seconds` retains the
-original attempt duration for reference and is excluded from current-run totals.
-Fine-grained profile fields record verification, interrupted-attempt recovery,
-reconciliation, executable observation, and history-artifact writes.
-The retained `export_seconds` field is zero for direct Git snapshots; Git blob
-materialization and hashing are included in `input_snapshot_seconds`.
-New srcMove runs do not recover unrelated prior runs; an explicit resume recovers
-only the selected run before reconciling its attempts.
-srcDiff writes an initial generation checkpoint before execution. Fresh and
-complete generations avoid global attempt scans; only an existing incomplete
-generation performs recovery and reconciliation.
-
-This create-only pilot is the migration baseline for the production
-[repository-analysis runtime](../../repository_analysis/docs/runtime.md).
-Resume, retry, and crash-window reconciliation remain planned work.
-
-### History scaling studies
+## srcMove History scaling studies
 
 [`benchmark_history_scaling.py`](benchmark_history_scaling.py) measures the
-history runner itself across a fixed set of worker counts. It resolves the
-complete commit range and both tool executables once, runs every trial in an
-isolated data root, rotates job-count order deterministically, and rejects a
-study as successful if normalized results or history configuration differ
-between trials.
+production [`srcmove_history`](../../srcmove_history/docs/runtime.md) runtime
+across a fixed set of worker counts. It resolves the commit range and both tool
+executables once, runs every trial against a fresh SQLite analysis, rotates
+job-count order deterministically, and rejects a study as successful if
+normalized results or analysis definitions differ between trials.
 
 From the workspace root, run a three-repeat, 300-pair scaling study in Docker:
 
@@ -339,17 +176,12 @@ container-local storage, add:
 ```
 
 The scaling coordinator creates a private directory per trial, excludes report
-promotion time from the benchmark wall time, copies the finalized trial data
-back below `benchmark-data/history-scaling/`, records the promotion duration,
-and removes the private directory. `SCRATCH_ROOT` must name an existing,
-non-symbolic-link directory. Omit it when comparing normal bind-mounted I/O.
-
-The default `results` retention preserves enough evidence to compare complete
-normalized `results.json` content. Use `RETENTION=ephemeral` only when compact
-metric equivalence is sufficient and minimizing retained data matters more
-than detailed move-result comparison. `WARMUPS=1` runs one unmeasured trial at
-every worker count; it is deliberately off by default because a complete warmup
-sweep can be expensive.
+promotion time from the benchmark wall time, promotes the portable normalized
+result and logs, records the promotion duration, and removes the non-relocatable
+scratch analysis. `SCRATCH_ROOT` must name an existing, non-symbolic-link
+directory. Omit it to retain each SQLite analysis and measure normal bind-mounted
+I/O. `WARMUPS=1` runs one unmeasured trial at every worker count; it is
+deliberately off by default because a complete warmup sweep can be expensive.
 
 The study observes Git revisions and dirty source state, exact srcDiff/srcMove
 binary checksums and build-receipt status, runner checksums, CPU model/count,
@@ -367,8 +199,10 @@ benchmark-data/history-scaling/<study-id>/
   summary.csv                spreadsheet-friendly per-job summary
   trials/<trial-id>/
     trial.json               command, timing, CPU, peak RSS, result hash
-    history.log              complete history-runner output
-    data/                    isolated history artifacts for this trial
+    history.log              complete srcMove History output
+    data/
+      analysis-result.json   portable normalized outcomes and fingerprints
+      analysis/              SQLite state; omitted for scratch-backed trials
 ```
 
 The reported knee is conservative: it identifies the worker count before two

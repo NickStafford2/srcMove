@@ -1,8 +1,8 @@
 # Repository-History Analysis
 
 This document describes verified current behavior. The accepted
-[architecture decision](architecture.md) defines the product boundary and the
-remaining consolidation of the legacy benchmark history runner.
+[architecture decision](architecture.md) defines the product boundary shared
+by the CLI and benchmark adapters.
 
 ## Purpose
 

@@ -6,12 +6,11 @@
 
 ## Context
 
-srcMove has two remaining generations of repository-history analysis: the
-production `srcmove_history` package and an experimental benchmark history
-runner. An older receipt-based package architecture was removed during the
-initial consolidation. The remaining implementations still overlap in
-execution and presentation, leaving more than one apparent way to run the same
-analysis.
+srcMove previously had a production `srcmove_history` package and an
+experimental receipt-based benchmark history runner. Their overlapping
+execution and persistence models created more than one apparent way to run the
+same analysis. The experimental runner was removed after its scaling study was
+migrated to the production service.
 
 ## Decision
 
@@ -65,10 +64,9 @@ Program responsibilities are separated as follows:
 - Query and reporting services do not schedule pair execution or modify
   analysis coverage. They read SQLite and may resolve retained analysis
   artifacts or frozen Git context needed for inspection.
-- Benchmark adapters must select repositories, revisions, and measurement
-  settings through the supported analysis interface used by the CLI. The
-  remaining legacy benchmark history runner violates this boundary and is
-  scheduled for retirement.
+- Benchmark adapters select repositories, revisions, and measurement settings
+  through the supported analysis interface used by the CLI. They do not own a
+  competing execution pipeline or persistence format.
 
 The durable model distinguishes an immutable analysis, a command invocation, a
 frozen commit pair, its one canonical terminal outcome, and normalized move
@@ -84,7 +82,7 @@ The conceptual entities and read contracts are defined in the
 [data model](data_model.md). Physical tables and migration code remain the
 authority for storage details.
 
-## Migration rules
+## Boundary rules
 
 Refactoring will preserve these established contracts:
 
@@ -97,10 +95,9 @@ Refactoring will preserve these established contracts:
   producing invocation;
 - stable pair ordering when older history is appended.
 
-Readable move browsing and research reporting now use the production analyzer.
-The remaining scaling workflow must be rebuilt as a benchmark adapter over
-`srcmove_history`; the legacy receipt-based runner must then be removed rather
-than retained as a compatibility architecture.
+Readable move browsing, research reporting, and scaling studies use the
+production analyzer. The retired receipt format has no compatibility reader or
+migration path because preserving it would recreate a second state authority.
 
 Attempt history and in-place retry policy are deliberately deferred. They will
 be added only if a concrete requirement cannot be met by rerunning unpublished
@@ -111,6 +108,4 @@ work or creating a separate analysis.
 There is one supported production path for executing and resuming historical
 analysis, one state model to verify, and one data source for later thesis
 analysis. Explicit database versioning permits clean breaks that require a new
-analysis root when an old format cannot be migrated safely. The legacy
-benchmark runner remains temporary migration work, not a second supported
-product path.
+analysis root when an old format cannot be migrated safely.

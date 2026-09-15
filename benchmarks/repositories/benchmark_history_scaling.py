@@ -49,15 +49,12 @@ from benchmarks.repositories.run_case import (
     load_case_config,
     normalize_repo_subdir,
 )
-from benchmarks.repositories.run_history import (
-    load_history_results,
-    select_first_parent_history,
-)
+from srcmove_history.git import select_older_first_parent_history
 from support.tooling import find_srcdiff, find_srcmove
 
 
-SCALING_STUDY_SCHEMA_VERSION = 1
-SCALING_TRIAL_SCHEMA_VERSION = 1
+SCALING_STUDY_SCHEMA_VERSION = 2
+SCALING_TRIAL_SCHEMA_VERSION = 2
 SAFE_LABEL_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 TRIAL_COLUMNS = (
     "sequence",
@@ -84,8 +81,8 @@ TRIAL_COLUMNS = (
     "throughput_pairs_per_second",
     "analyzed_pairs_per_second",
     "normalized_results_sha256",
-    "history_id",
-    "history_manifest",
+    "definition_fingerprint_sha256",
+    "analysis_result",
     "log_path",
 )
 
@@ -344,54 +341,6 @@ def observe_system(label: str | None) -> dict[str, Any]:
     return observation
 
 
-def _history_directory(trial_data_root: Path) -> Path | None:
-    histories = trial_data_root / "repository-histories"
-    if not histories.is_dir():
-        return None
-    candidates = [
-        path
-        for path in histories.iterdir()
-        if path.is_dir() and path.name.startswith("history-")
-    ]
-    return candidates[0] if len(candidates) == 1 else None
-
-
-def normalize_history_results(
-    history_dir: Path, trial_data_root: Path
-) -> tuple[str, list[dict[str, Any]]]:
-    """Hash result-bearing fields while excluding IDs, paths, and timings."""
-
-    _, pairs = load_history_results(history_dir)
-    normalized: list[dict[str, Any]] = []
-    for pair in pairs:
-        results = None
-        artifacts = pair.get("artifacts", {})
-        relative = artifacts.get("results_path") if isinstance(artifacts, Mapping) else None
-        if isinstance(relative, str):
-            results_path = (trial_data_root / relative).resolve()
-            if not results_path.is_relative_to(trial_data_root.resolve()):
-                raise ValueError(f"result path escaped trial data root: {relative}")
-            if results_path.is_file():
-                results = json.loads(results_path.read_text(encoding="utf-8"))
-        normalized.append(
-            {
-                key: pair.get(key)
-                for key in (
-                    "sequence",
-                    "old_commit",
-                    "new_commit",
-                    "status",
-                    "path_counts",
-                    "changed_paths",
-                    "counts",
-                    "metrics",
-                )
-            }
-            | {"results": results}
-        )
-    return hashlib.sha256(canonical_json(normalized)).hexdigest(), normalized
-
-
 def _child_cpu_usage() -> tuple[float, float]:
     usage = resource.getrusage(resource.RUSAGE_CHILDREN)
     return usage.ru_utime, usage.ru_stime
@@ -402,10 +351,10 @@ def run_trial(
     study_dir: Path,
     schedule_entry: Mapping[str, Any],
     case_name: str,
+    repository: Path,
     start_commit: str,
     pair_count: int,
     selected_dir: str | None,
-    retention: str,
     srcdiff: Path,
     srcmove: Path,
     srcdiff_timeout: float,
@@ -438,10 +387,18 @@ def run_trial(
     with _trial_data_storage(
         durable_data_root, scratch_root, storage_observation
     ) as trial_data_root:
+        analysis_root = trial_data_root / "analysis"
+        analysis_result_path = trial_data_root / "analysis-result.json"
         command = [
             sys.executable,
-            str(SCRIPT_DIR / "run_history.py"),
-            "start",
+            str(SCRIPT_DIR / "srcmove_history_trial.py"),
+            "--analysis-root",
+            str(analysis_root),
+            "--output",
+            str(analysis_result_path),
+            "--repository",
+            str(repository.resolve()),
+            "--name",
             case_name,
             "--start",
             start_commit,
@@ -449,11 +406,6 @@ def run_trial(
             str(pair_count),
             "--jobs",
             str(schedule_entry["jobs"]),
-            "--offline",
-            "--retention",
-            retention,
-            "--data-root",
-            str(trial_data_root),
             "--srcdiff",
             str(srcdiff),
             "--srcmove",
@@ -464,8 +416,6 @@ def run_trial(
             str(srcmove_timeout),
             "--src-encoding",
             source_encoding,
-            "--label",
-            trial_name,
         ]
         if selected_dir is not None:
             command.extend(["--directory", selected_dir])
@@ -511,30 +461,35 @@ def run_trial(
                 resource_usage = monitor.finish()
         wall_seconds = time.monotonic() - started
         after_user, after_system = _child_cpu_usage()
+        analysis_disk_bytes = _directory_size(analysis_root)
+        analysis_result = None
+        normalization_error = None
+        try:
+            value = json.loads(analysis_result_path.read_text(encoding="utf-8"))
+            if not isinstance(value, dict):
+                raise ValueError("analysis result must contain an object")
+            analysis_result = value
+        except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+            normalization_error = f"{type(error).__name__}: {error}"
+        if scratch_root is not None and analysis_root.is_dir():
+            shutil.rmtree(analysis_root)
     cpu_user = max(0.0, after_user - before_user)
     cpu_system = max(0.0, after_system - before_system)
     cpu_total = cpu_user + cpu_system
 
-    history_dir = _history_directory(durable_data_root)
-    history: dict[str, Any] | None = None
-    normalized_sha256 = None
-    normalization_error = None
-    if history_dir is not None:
-        try:
-            history, _ = load_history_results(history_dir)
-            normalized_sha256, _ = normalize_history_results(
-                history_dir, durable_data_root
-            )
-        except Exception as error:
-            normalization_error = f"{type(error).__name__}: {error}"
-    aggregates = history.get("aggregates", {}) if history else {}
-    selected_pairs = aggregates.get("selected_pairs")
-    analyzed_pairs = aggregates.get("completed")
+    summary = analysis_result.get("summary", {}) if analysis_result else {}
+    selected_pairs = summary.get("completed_pair_count")
+    analyzed_pairs = summary.get("completed")
+    normalized_sha256 = (
+        analysis_result.get("normalized_results_sha256")
+        if analysis_result
+        else None
+    )
     status = (
         "success"
         if exit_code == 0
-        and history is not None
-        and history.get("status") == "completed"
+        and analysis_result is not None
+        and selected_pairs == pair_count
         and normalized_sha256 is not None
         else "failed"
     )
@@ -552,12 +507,12 @@ def run_trial(
         "cpu_total_seconds": cpu_total,
         "cpu_utilization": cpu_total / wall_seconds if wall_seconds else None,
         **resource_usage,
-        "disk_bytes": _directory_size(trial_dir),
+        "disk_bytes": analysis_disk_bytes,
         **storage_observation,
         "selected_pairs": selected_pairs,
         "analyzed_pairs": analyzed_pairs,
-        "skipped_pairs": aggregates.get("no_analyzable_change"),
-        "failed_pairs": aggregates.get("failed"),
+        "skipped_pairs": summary.get("no_analyzable_change"),
+        "failed_pairs": summary.get("failed"),
         "throughput_pairs_per_second": (
             selected_pairs / wall_seconds
             if isinstance(selected_pairs, int) and wall_seconds
@@ -570,14 +525,13 @@ def run_trial(
         ),
         "normalized_results_sha256": normalized_sha256,
         "normalization_error": normalization_error,
-        "configuration_fingerprint_sha256": (
-            history.get("configuration_fingerprint_sha256") if history else None
-        ),
-        "history_id": history.get("history_id") if history else None,
-        "history_manifest": (
-            str((history_dir / "history.json").relative_to(study_dir))
-            if history_dir is not None
+        "definition_fingerprint_sha256": (
+            analysis_result.get("definition_fingerprint_sha256")
+            if analysis_result
             else None
+        ),
+        "analysis_result": str(
+            (durable_data_root / "analysis-result.json").relative_to(study_dir)
         ),
         "log_path": str(log_path.relative_to(study_dir)),
     }
@@ -613,10 +567,10 @@ def build_summary(
         for row in all_successful
         if row.get("normalized_results_sha256")
     }
-    configuration_hashes = {
-        str(row["configuration_fingerprint_sha256"])
+    definition_hashes = {
+        str(row["definition_fingerprint_sha256"])
         for row in all_successful
-        if row.get("configuration_fingerprint_sha256")
+        if row.get("definition_fingerprint_sha256")
     }
     variants: dict[str, Any] = {}
     previous_wall = None
@@ -701,8 +655,8 @@ def build_summary(
             next(iter(normalized_hashes)) if len(normalized_hashes) == 1 else None
         ),
         "normalized_result_hashes": sorted(normalized_hashes),
-        "configuration_equivalent": len(configuration_hashes) == 1,
-        "configuration_fingerprints": sorted(configuration_hashes),
+        "definition_equivalent": len(definition_hashes) == 1,
+        "definition_fingerprints": sorted(definition_hashes),
         "jobs": variants,
     }
 
@@ -774,10 +728,11 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
     ensure_repo(
         config["github"], clone_dir, offline=args.offline, update=args.fetch
     )
-    resolved_start, commits = select_first_parent_history(
-        clone_dir, args.start, args.count
+    history = select_older_first_parent_history(
+        clone_dir, args.start, pair_count=args.count
     )
-    pair_count = len(commits) - 1
+    resolved_start = history.resolved_start
+    pair_count = len(history.commits) - 1
     srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
     srcmove = find_srcmove(REPO_ROOT, args.srcmove)
     if srcdiff is None or srcmove is None:
@@ -795,7 +750,7 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
         warmups=args.warmups,
         seed=args.seed,
     )
-    commit_list = [commit.commit for commit in commits]
+    commit_list = list(history.commits)
     study: dict[str, Any] = {
         "schema_version": SCALING_STUDY_SCHEMA_VERSION,
         "study_id": study_id,
@@ -821,14 +776,13 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
             "warmups": args.warmups,
             "seed": args.seed,
             "ordering": "deterministic_interleaved_rotating",
-            "retention": args.retention,
             "scratch_root": (
                 str(args.scratch_root.expanduser().resolve())
                 if args.scratch_root is not None
                 else None
             ),
             "marginal_threshold": args.marginal_threshold,
-            "result_equivalence": "normalized_pair_receipts_and_available_results",
+            "result_equivalence": "normalized_srcmove_history_outcomes",
         },
         "configuration": {
             "position": args.position,
@@ -849,7 +803,9 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
             },
             "implementation": {
                 "scaling_runner": observe_file(Path(__file__)),
-                "history_runner": observe_file(SCRIPT_DIR / "run_history.py"),
+                "history_trial_adapter": observe_file(
+                    SCRIPT_DIR / "srcmove_history_trial.py"
+                ),
             },
         },
         "trials": [],
@@ -859,9 +815,9 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
     expected_files = {
         "srcdiff executable": (srcdiff, sha256_file(srcdiff)),
         "srcMove executable": (srcmove, sha256_file(srcmove)),
-        "history runner": (
-            SCRIPT_DIR / "run_history.py",
-            sha256_file(SCRIPT_DIR / "run_history.py"),
+        "history trial adapter": (
+            SCRIPT_DIR / "srcmove_history_trial.py",
+            sha256_file(SCRIPT_DIR / "srcmove_history_trial.py"),
         ),
     }
     try:
@@ -875,10 +831,10 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
                 study_dir=study_dir,
                 schedule_entry=entry,
                 case_name=args.case,
+                repository=clone_dir,
                 start_commit=resolved_start,
                 pair_count=pair_count,
                 selected_dir=selected_dir,
-                retention=args.retention,
                 srcdiff=srcdiff,
                 srcmove=srcmove,
                 srcdiff_timeout=args.srcdiff_timeout,
@@ -913,7 +869,7 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
             "completed"
             if summary["total_failed_trials"] == 0
             and summary["normalized_results_equivalent"]
-            and summary["configuration_equivalent"]
+            and summary["definition_equivalent"]
             else "completed_with_failures"
         )
         study.update(
@@ -974,12 +930,6 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--srcmove-timeout", type=float, default=300.0)
     parser.add_argument("--src-encoding", default="UTF-8")
     parser.add_argument("--position", action="store_true")
-    parser.add_argument(
-        "--retention",
-        choices=("results", "compact", "ephemeral"),
-        default="results",
-        help="history artifact retention per trial; default: results",
-    )
     parser.add_argument(
         "--marginal-threshold",
         type=float,
