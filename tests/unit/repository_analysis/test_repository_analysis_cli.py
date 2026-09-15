@@ -79,7 +79,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
     def test_compare_does_not_change_canonical_results(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            repository = self._history(root, 5)
+            repository = self._history(root, 5, filename="fixture.cpp")
             self._init(repository, excluded_suffixes=())
             commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
             creation = [
@@ -136,7 +136,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
     def test_compare_can_save_only_one_tool_artifact_family(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            repository = self._history(root, 4)
+            repository = self._history(root, 4, filename="fixture.cpp")
             self._init(repository, excluded_suffixes=())
             commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
             self.assertEqual(
@@ -833,6 +833,33 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             self.assertEqual(
                 json.loads(output)["outcomes"]["by_status"]["srcdiff_failed"], 1
             )
+
+    def test_non_srcml_extensions_are_skipped_before_tool_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 2, filename="translations.xml")
+            self._init(repository, excluded_suffixes=())
+
+            status, output, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "run",
+                    "--pairs",
+                    "1",
+                    "--format",
+                    "json",
+                    "--srcdiff",
+                    str(executable(root / "srcdiff")),
+                    "--srcmove",
+                    str(executable(root / "srcmove")),
+                ]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            result = json.loads(output)
+            self.assertEqual(result["outcomes"]["skipped"], 1)
+            self.assertEqual(result["outcomes"]["failed"], 0)
 
     def test_run_requires_init_and_init_does_not_create_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

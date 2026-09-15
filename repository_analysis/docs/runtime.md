@@ -82,6 +82,8 @@ retain Git objects, or analyze history. The generated `[analysis]` table is
 editable until the first `run`; its default excluded suffix list contains
 `.py` while srcDiff's Python handling remains unreliable. Removing `.py` from
 that file before the first run enables Python without a special CLI override.
+Configured suffixes can only narrow the source set described under the
+execution contract; they cannot make an unrecognized extension analyzable.
 
 The first `run` freezes the `[analysis]` values in SQLite. Later runs reread
 the file and reject drift before recording an invocation. The `[run]` table is
@@ -240,6 +242,16 @@ One work item is one adjacent commit pair containing all relevant changed paths,
 not one file. This preserves cross-file move detection. Modified files appear
 on both sides, additions only on the new side, deletions only on the old side,
 and renames use their old/new paths.
+
+Path admission follows srcML's standard, case-sensitive language-extension
+registry because srcDiff uses that registry and supplies no per-file language
+override. The accepted suffixes are C (`.c`, `.h`, `.i`), C++ (`.cpp`, `.CPP`,
+`.cp`, `.hpp`, `.cxx`, `.hxx`, `.cc`, `.hh`, `.c++`, `.h++`, `.C`, `.H`,
+`.tcc`, `.ii`), Java/AspectJ (`.java`, `.aj`), C# (`.cs`), and Python (`.py`,
+`.pyi`, `.pyw`, `.pyz`). User-configured exclusions apply afterward. Other
+extensions remain visible in the changed-path count but are recorded as
+`unsupported_srcml_extension`; a pair containing only such paths completes as
+`no_analyzable_change` without running srcDiff.
 
 Symlinks and submodules remain visible in the changed-path count but are never
 materialized or followed. Compact pair metrics record them under
