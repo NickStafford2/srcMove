@@ -23,7 +23,7 @@ scripts/build_release.sh
 
 The historical coupled BigCloneBench setup/profile command is retired. Use the
 current input snapshot and corpus workflow documented in
-`benchmarks/bigclonebench/README.md`.
+`bigMoveBench/README.md`.
 
 Profile file:
 
@@ -157,7 +157,7 @@ Correctness:
 scripts/build_release.sh
 python3 tests/regression/xml/run.py build-release/srcMove
 python3 tests/regression/source/run.py
-python3 benchmarks/bigclonebench/run.py --clone-type type1 --limit 10 --srcmove build-release/srcMove
+python3 bigMoveBench/run.py --clone-type type1 --limit 10 --srcmove build-release/srcMove
 ```
 
 Performance:

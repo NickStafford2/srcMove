@@ -5,6 +5,7 @@ The repository `Makefile` is the developer interface. From the repository root:
 ```bash
 make test                         # build, then run every correctness suite
 make test-unit                    # all Python unit tests
+make test-bigmovebench            # BigMoveBench unit tests only
 make test-srcmove-history     # srcmove-history unit tests only
 make test-xml                     # build, then run XML regressions
 make test-source                  # build, then run source-pair regressions
@@ -30,7 +31,9 @@ python3 tests/regression/policy/list.py --catalog contextual
 
 ## Suites
 
-- `unit`: all Python unit tests, including the srcmove-history tests.
+- `unit`: core Python unit tests.
+- `bigmovebench`: focused tests under `bigMoveBench/tests/`; run explicitly
+  with `make test-bigmovebench` and included by `make test-unit`.
 - `srcmove-history`: focused unit tests under
   `tests/unit/srcmove_history/`; run explicitly with
   `make test-srcmove-history`.
@@ -77,7 +80,7 @@ retry lineage, resource observations, and srcDiff replay/subset reduction.
 Repository-orchestrator fixtures verify that one command reuses immutable input
 snapshots and corpora, appends distinct srcMove runs and series records, and
 saves srcDiff failures without starting a misleading srcMove run.
-Tiny BigCloneBench fixtures additionally verify semantic eligibility, strict
+Tiny BigMoveBench fixtures additionally verify semantic eligibility, strict
 match-kind enforcement, append-only summaries, reconciled outcomes, and reuse
 of one immutable corpus across multiple fake srcMove builds. They do not require
 or download BigCloneBench.

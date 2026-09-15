@@ -3,7 +3,7 @@ CMAKE ?= cmake
 CLONE_TYPE ?= type1
 LIMIT ?= 100
 SELECTION_ROLE ?= tuning
-CASES_DIR ?= benchmarks/bigclonebench/cases
+CASES_DIR ?= bigMoveBench/cases
 BENCHMARK_CACHE_ROOT ?= benchmark-cache
 BENCHMARK_RESULTS_ROOT ?= benchmark-results
 BIGCLONEBENCH_DATASET ?=
@@ -17,27 +17,28 @@ VERIFY_SOURCE ?= 0
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 BIGCLONEBENCH_SELECTION = $(if $(filter 1 yes true,$(KNOWN_FALSE_POSITIVES))$(filter known-false-positive,$(CLONE_TYPE)),--known-false-positives,--clone-type "$(CLONE_TYPE)")
 
-.PHONY: help configure build test test-unit test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigclonebench-preflight bigclonebench-compile bigclonebench-conflicts bigclonebench-select bigclonebench-snapshot bigclonebench-suite bigclonebench-cases bigclonebench
+.PHONY: help configure build test test-unit test-bigmovebench test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-snapshot bigmovebench-suite bigmovebench-cases bigmovebench
 
 help:
 	@printf '%s\n' 'Available targets:'
 	@printf '  %-28s %s\n' 'make build' 'Configure and build srcMove'
 	@printf '  %-28s %s\n' 'make test' 'Build and run every correctness suite'
 	@printf '  %-28s %s\n' 'make test-unit' 'Run all Python unit tests'
+	@printf '  %-28s %s\n' 'make test-bigmovebench' 'Run focused BigMoveBench unit tests'
 	@printf '  %-28s %s\n' 'make test-srcmove-history' 'Run srcmove-history unit tests'
 	@printf '  %-28s %s\n' 'make test-xml' 'Build and run XML regression tests'
 	@printf '  %-28s %s\n' 'make test-source' 'Build and run source-pair regression tests'
 	@printf '  %-28s %s\n' 'make test-policy' 'Build and run reviewer-editable move-policy tests'
 	@printf '  %-28s %s\n' 'make test-classification' 'Run the focused Type-1/2/3/none contracts'
 	@printf '  %-28s %s\n' 'make history-scaling' 'Measure history throughput across JOBS'
-	@printf '  %-28s %s\n' 'make bigclonebench-preflight' 'Check the local BigCloneBench installation'
-	@printf '  %-28s %s\n' 'make bigclonebench-compile' 'Compile or reuse the local BigCloneBench catalog'
-	@printf '  %-28s %s\n' 'make bigclonebench-conflicts' 'Explain content identities excluded for conflicting labels'
-	@printf '  %-28s %s\n' 'make bigclonebench-select' 'Publish a selection from the compiled catalog'
-	@printf '  %-28s %s\n' 'make bigclonebench-snapshot' 'Materialize an immutable compiled-selection snapshot'
-	@printf '  %-28s %s\n' 'make bigclonebench-suite' 'Run frozen BCB PROFILE=small|medium (full is slow)'
-	@printf '  %-28s %s\n' 'make bigclonebench-cases' 'Generate a configurable BigCloneBench case slice'
-	@printf '  %-28s %s\n' 'make bigclonebench' 'Generate cases and run the staged BigCloneBench pipeline'
+	@printf '  %-28s %s\n' 'make bigmovebench-preflight' 'Check the local BigCloneBench installation'
+	@printf '  %-28s %s\n' 'make bigmovebench-compile' 'Compile or reuse the local BigCloneBench catalog'
+	@printf '  %-28s %s\n' 'make bigmovebench-conflicts' 'Explain content identities excluded for conflicting labels'
+	@printf '  %-28s %s\n' 'make bigmovebench-select' 'Publish a selection from the compiled catalog'
+	@printf '  %-28s %s\n' 'make bigmovebench-snapshot' 'Materialize an immutable compiled-selection snapshot'
+	@printf '  %-28s %s\n' 'make bigmovebench-suite' 'Run BigMoveBench PROFILE=small|medium (full is slow)'
+	@printf '  %-28s %s\n' 'make bigmovebench-cases' 'Generate a configurable BigCloneBench case slice'
+	@printf '  %-28s %s\n' 'make bigmovebench' 'Generate cases and run the staged BigMoveBench pipeline'
 
 configure:
 	$(CMAKE) -S . -B build -G Ninja
@@ -49,7 +50,10 @@ test: build
 	$(PYTHON) tests/run.py
 
 test-unit:
-	$(PYTHON) tests/run.py --suite unit
+	$(PYTHON) tests/run.py --suite unit --suite bigmovebench
+
+test-bigmovebench:
+	$(PYTHON) tests/run.py --suite bigmovebench
 
 test-srcmove-history:
 	$(PYTHON) tests/run.py --suite srcmove-history
@@ -95,36 +99,36 @@ history-scaling:
 		$(if $(filter 1 yes true,$(UPDATE)),--fetch) \
 		$(if $(filter 1 yes true,$(OFFLINE)),--offline)
 
-bigclonebench-preflight:
-	@$(PYTHON) benchmarks/bigclonebench/pipeline.py preflight
+bigmovebench-preflight:
+	@$(PYTHON) bigMoveBench/pipeline.py preflight
 
-bigclonebench-compile:
-	@$(PYTHON) benchmarks/bigclonebench/compile.py \
+bigmovebench-compile:
+	@$(PYTHON) bigMoveBench/compile.py \
 		--cache-root "$(BENCHMARK_CACHE_ROOT)" compile \
 		$(if $(COMPILE_LIMIT),--limit-per-kind "$(COMPILE_LIMIT)")
 
-bigclonebench-conflicts:
-	@$(PYTHON) benchmarks/bigclonebench/conflicts.py \
+bigmovebench-conflicts:
+	@$(PYTHON) bigMoveBench/conflicts.py \
 		$(if $(BIGCLONEBENCH_DATASET),"$(BIGCLONEBENCH_DATASET)") \
 		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
 		$(if $(CONFLICT_LIMIT),--limit "$(CONFLICT_LIMIT)")
 
-bigclonebench-select:
+bigmovebench-select:
 	@test -n "$(BIGCLONEBENCH_DATASET)" || { echo 'error: BIGCLONEBENCH_DATASET is required'; exit 2; }
-	@$(PYTHON) benchmarks/bigclonebench/selection.py "$(BIGCLONEBENCH_DATASET)" \
+	@$(PYTHON) bigMoveBench/selection.py "$(BIGCLONEBENCH_DATASET)" \
 		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
 		--pair-set "$(CLONE_TYPE)" --mode "$(MODE)" \
 		--role "$(SELECTION_ROLE)" --seed "$(SEED)" \
 		--sample-size "$(SAMPLE_SIZE)" \
 		$(if $(DEDUPE),--dedupe "$(DEDUPE)")
 
-bigclonebench-snapshot:
+bigmovebench-snapshot:
 	@test -n "$(BIGCLONEBENCH_SELECTION_ID)" || { echo 'error: BIGCLONEBENCH_SELECTION_ID is required'; exit 2; }
-	@$(PYTHON) benchmarks/bigclonebench/snapshot.py "$(BIGCLONEBENCH_SELECTION_ID)" \
+	@$(PYTHON) bigMoveBench/snapshot.py "$(BIGCLONEBENCH_SELECTION_ID)" \
 		--cache-root "$(BENCHMARK_CACHE_ROOT)"
 
-bigclonebench-suite:
-	@$(PYTHON) benchmarks/bigclonebench/suite.py \
+bigmovebench-suite:
+	@$(PYTHON) bigMoveBench/suite.py \
 		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
 		--results-root "$(BENCHMARK_RESULTS_ROOT)" \
 		--profile "$(PROFILE)" --role "$(ROLE)" --seed "$(SEED)" \
@@ -134,14 +138,14 @@ bigclonebench-suite:
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
 		--srcmove /workspace/srcMove/build/srcMove
 
-bigclonebench-cases:
-	@$(PYTHON) benchmarks/bigclonebench/pipeline.py cases \
+bigmovebench-cases:
+	@$(PYTHON) bigMoveBench/pipeline.py cases \
 		$(BIGCLONEBENCH_SELECTION) --limit "$(LIMIT)" \
 		--selection-role "$(SELECTION_ROLE)" $(BIGCLONEBENCH_CASE_OPTIONS) \
 		--out-dir "$(CASES_DIR)"
 
-bigclonebench: bigclonebench-cases
-	@$(PYTHON) benchmarks/bigclonebench/pipeline.py \
+bigmovebench: bigmovebench-cases
+	@$(PYTHON) bigMoveBench/pipeline.py \
 		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
 		--results-root "$(BENCHMARK_RESULTS_ROOT)" benchmark \
 		$(BIGCLONEBENCH_SELECTION) --cases-dir "$(CASES_DIR)" \

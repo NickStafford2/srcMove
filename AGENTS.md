@@ -52,8 +52,8 @@ workspace at `../docs/workspace.md`.
 - [doc/architecture.md](doc/architecture.md): verified srcMove implementation overview
 - [srcmove_history/docs/README.md](srcmove_history/docs/README.md):
   repository-history analyzer architecture, runtime, and research notes
-- [doc/bigclonebench_notes.md](doc/bigclonebench_notes.md): BigCloneBench setup notes
-- [doc/bigclonebench_srcmove_conversion.md](doc/bigclonebench_srcmove_conversion.md):
+- [bigMoveBench/docs/bigclonebench.md](bigMoveBench/docs/bigclonebench.md): BigCloneBench setup notes
+- [bigMoveBench/docs/methodology.md](bigMoveBench/docs/methodology.md):
   converting BigCloneBench clone pairs into srcMove tests
 - [tests/README.md](tests/README.md): test entry points and suite boundaries
 - [benchmarks/README.md](benchmarks/README.md): benchmark types and entry points

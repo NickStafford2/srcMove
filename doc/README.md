@@ -30,18 +30,18 @@ summaries or diagrams disagree with current behavior.
   and fixture conventions
 - [Benchmarks](../benchmarks/README.md): benchmark types and runners
 
-## BigCloneBench research
+## BigMoveBench research
 
-- [BigCloneBench and IJaDataset notes](bigclonebench_notes.md): dataset setup,
+- [BigCloneBench and IJaDataset notes](../bigMoveBench/docs/bigclonebench.md): dataset setup,
   terminology, and interpretation
-- [Converting BigCloneEval into srcMove tests](bigclonebench_srcmove_conversion.md):
+- [BigMoveBench methodology](../bigMoveBench/docs/methodology.md):
   methodology for generating synthetic move cases
-- [BigCloneBench runner](../benchmarks/bigclonebench/README.md): operational
+- [BigMoveBench runner](../bigMoveBench/README.md): operational
   setup and commands
 
 ## Planning and non-authoritative notes
 
-- [BigCloneBench suite plan](plans/benchmarks/README.md): deduplicated Type-1,
+- [BigMoveBench suite plan](../bigMoveBench/docs/plans/suite.md): deduplicated Type-1,
   Type-2, Type-3-strength, weak/semantic, and known-false-positive evaluation
   over a compiled reusable dataset
 - [Benchmarking upgrade plan](benchmarking_upgrade_plan.md): staged design for

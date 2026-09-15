@@ -65,7 +65,7 @@ Run at least:
 cmake --build build
 python3 tests/regression/xml/run.py build/srcMove
 python3 tests/regression/source/run.py
-python3 benchmarks/bigclonebench/run.py --clone-type type1 --limit 10
+python3 bigMoveBench/run.py --clone-type type1 --limit 10
 ```
 
 For performance validation, compare `--profile` output before and after on a

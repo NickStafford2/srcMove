@@ -19,14 +19,15 @@ from support.tooling import command_text, find_srcdiff, find_srcmove, run_comman
 
 
 SUITE_DESCRIPTIONS = {
-    "unit": "all Python unit tests",
+    "unit": "core Python unit tests",
+    "bigmovebench": "focused BigMoveBench unit tests",
     "srcmove-history": "focused srcmove-history unit tests",
     "xml": "checked-in srcDiff XML regression fixtures",
     "source": "checked-in source pairs regenerated through srcdiff",
     "policy": "reviewer-editable move and not-move catalogs regenerated through srcdiff",
 }
 
-DEFAULT_SUITES = ("unit", "xml", "source", "policy")
+DEFAULT_SUITES = ("unit", "bigmovebench", "xml", "source", "policy")
 
 
 @dataclass(frozen=True)
@@ -140,6 +141,25 @@ def test_steps(
                     "discover",
                     "-s",
                     "tests/unit",
+                    "-t",
+                    ".",
+                    "-p",
+                    "test_*.py",
+                ],
+            )
+        )
+
+    if not args.cases and "bigmovebench" in suites:
+        steps.append(
+            TestStep(
+                "BigMoveBench unit",
+                [
+                    sys.executable,
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    "bigMoveBench/tests",
                     "-t",
                     ".",
                     "-p",
@@ -263,7 +283,7 @@ def main() -> int:
     print("=== Test Summary ===")
     print(f"steps run: {len(steps)}")
     print(f"failures : {failures}")
-    print("benchmarks: excluded; run BigCloneBench or history scaling separately")
+    print("benchmarks: excluded; run BigMoveBench or history scaling separately")
     return 1 if failures else 0
 
 

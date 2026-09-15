@@ -6,7 +6,7 @@ settled.
 
 ## Next
 
-- Code review of the BigCloneBench runner and oracle
+- Code review of the BigMoveBench pipeline and oracle
 - Add `--offset` to BigCloneBench generation for deterministic benchmark slices
   such as rows 1-1000, 1001-2000, etc.
 - Add a focused large-input benchmark after benchmark storage is reorganized.

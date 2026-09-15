@@ -16,5 +16,4 @@ benchmark-cache/*
 !benchmark-cache/README.md
 benchmark-results/*
 !benchmark-results/README.md
-benchmarks/bigclonebench/data/
 srcReader/

@@ -3,8 +3,8 @@
 Benchmarks are experiments and are intentionally separate from deterministic
 correctness tests in `tests/`.
 
-- [BigCloneBench](bigclonebench/README.md): synthetic positive-case Type-1,
-  Type-2, and observational Type-3 workloads generated from clone pairs.
+- [BigMoveBench](../bigMoveBench/README.md): srcMove's benchmark derived from
+  BigCloneBench clone pairs and known false positives.
 - [History scaling](repositories/README.md): controlled throughput measurements
   for production `srcmove_history` analyses.
 - `run_performance.py`: paired/interleaved performance measurements over
@@ -41,17 +41,12 @@ checks; they must not replace shared execution, provenance, storage, or
 reporting.
 
 Phase 0 characterization is entirely offline. Tiny source and srcDiff fixtures,
-a configurable fake executable, and strict BigCloneBench oracle tests live under
-`tests/`. BigCloneBench remains an external manual prerequisite and normal tests
-must neither download it nor depend on historical large-run counts.
+a configurable fake executable, and strict BigMoveBench oracle tests live under
+`bigMoveBench/tests/`. BigCloneBench remains an external manual prerequisite;
+normal tests neither download it nor depend on historical large-run counts.
 
-Older benchmark-specific interfaces remain exploratory references, not
-compatibility contracts:
-
-- `benchmarks/bigclonebench/run.py` generates and evaluates cases together,
-  writing ignored cases and a replaceable `cases/summary.csv`.
-- `benchmarks/run_performance.py` reads existing XML inputs and writes ignored
-  local performance runs under the selected results root.
+`benchmarks/run_performance.py` reads existing XML inputs and writes ignored
+local performance runs under the selected results root.
 
 Previously archived thesis results are historical evidence, not regression
 expectations for the refactored implementation.
@@ -115,8 +110,8 @@ the portability fallback.
 An existing corpus can be replayed with a different srcMove executable without
 the input snapshot's original checkout or `srcdiff` being available.
 
-BigCloneBench uses the same core through its
-[staged benchmark guide](bigclonebench/README.md). Its adapter adds only the
+BigMoveBench uses the same core through its
+[staged benchmark guide](../bigMoveBench/README.md). Its adapter adds only the
 versioned payload-exposure eligibility check and strict Type-1/Type-2 oracle.
 Fixture-backed unit tests cover corpus reuse across multiple srcMove builds and
 reconcile upstream failures, semantic ineligibility, misses, wrong

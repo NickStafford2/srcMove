@@ -53,8 +53,8 @@ Use these homes unless a more specific file already exists:
 - `doc/README.md`: documentation map and where-to-look index
 - `doc/architecture.md`: architecture and implementation overview
 - `doc/srcDiff_notes.md`: srcDiff behavior, formats, and quirks
-- `doc/bigclonebench_notes.md`: BigCloneBench/IJaDataset setup and database facts
-- `doc/bigclonebench_srcmove_conversion.md`: converting BigCloneBench clone pairs
+- `bigMoveBench/docs/bigclonebench.md`: BigCloneBench/IJaDataset setup and database facts
+- `bigMoveBench/docs/methodology.md`: converting BigCloneBench clone pairs
   into srcMove move tests
 - `tests/README.md`: correctness-test entry points and suite behavior
 - `benchmarks/**/README.md`: benchmark-specific setup, methodology, and runners

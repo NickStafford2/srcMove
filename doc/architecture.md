@@ -188,6 +188,6 @@ Java fragments, places them in before/after source layouts, runs srcDiff and
 srcMove, and checks for the expected move. They are not historical edit ground
 truth and must not be reported as detector-wide precision or recall.
 
-See [BigCloneBench notes](bigclonebench_notes.md) and
-[the conversion methodology](bigclonebench_srcmove_conversion.md) for the
+See [BigCloneBench notes](../bigMoveBench/docs/bigclonebench.md) and
+[the conversion methodology](../bigMoveBench/docs/methodology.md) for the
 dataset interpretation and test construction details.

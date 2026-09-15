@@ -93,7 +93,7 @@ These are positive cases, so their pass rate is a strict synthetic
 detection-and-classification rate for the declared BigCloneBench slice and
 oracle. It is not general move-detection recall, historical-edit accuracy,
 overall accuracy, or precision. See the
-[conversion methodology](bigclonebench_srcmove_conversion.md) for the exact
+[conversion methodology](../bigMoveBench/docs/methodology.md) for the exact
 construction and its limitations.
 
 The current strict oracle is intentional: a Type-1 case must detect the intended
@@ -106,7 +106,7 @@ between every possible clone taxonomy. Questionable labels, unsupported
 variations, extraction problems, and conversion artifacts found among failures
 belong in the thesis analysis rather than being silently removed to improve the
 score. The canonical oracle is documented in the
-[conversion methodology](bigclonebench_srcmove_conversion.md).
+[conversion methodology](../bigMoveBench/docs/methodology.md).
 
 When this evaluation discovers a useful failure, minimize it and promote the
 small stable example into `tests/regression/`. The large evaluation continues
@@ -215,7 +215,7 @@ nonzero-exit output remains attempt evidence and cannot become corpus input.
 For BigCloneBench, well-formed srcDiff XML is necessary but not sufficient. The
 corpus must also record whether srcDiff exposed the intended synthetic payload
 as usable delete/insert regions. That dataset-specific eligibility rule belongs
-in the [conversion methodology](bigclonebench_srcmove_conversion.md), not in the
+in the [conversion methodology](../bigMoveBench/docs/methodology.md), not in the
 generic corpus format.
 
 ## Artifact and Provenance Model

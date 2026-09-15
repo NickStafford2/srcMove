@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-import importlib.util
-import json
 import subprocess
 import sys
 import tempfile
@@ -11,10 +9,6 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_ROOT = REPO_ROOT / "tests" / "fixtures" / "benchmark"
-BIGCLONEBENCH_RUNNER = REPO_ROOT / "benchmarks" / "bigclonebench" / "run.py"
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-
 from benchmarks.contracts import (
     CONTRACT_VERSION,
     ProvenanceStatus,
@@ -25,18 +19,6 @@ from benchmarks.contracts import (
     canonical_json,
     content_identifier,
 )
-
-
-def load_bigclonebench_runner():
-    spec = importlib.util.spec_from_file_location(
-        "bigclonebench_oracle", BIGCLONEBENCH_RUNNER
-    )
-    if spec is None or spec.loader is None:
-        raise RuntimeError(f"could not load {BIGCLONEBENCH_RUNNER}")
-    module = importlib.util.module_from_spec(spec)
-    sys.modules[spec.name] = module
-    spec.loader.exec_module(module)
-    return module
 
 
 class BenchmarkContractTests(unittest.TestCase):
@@ -139,85 +121,6 @@ class BenchmarkContractTests(unittest.TestCase):
             )
             self.assertEqual(missing_output.returncode, 0)
             self.assertFalse((Path(temporary_directory) / "missing.xml").exists())
-
-    def test_bigclonebench_type_one_requires_exact_classification(self) -> None:
-        runner = load_bigclonebench_runner()
-        failures = self._validate_bigclonebench_case(runner, 1, "exact")
-        self.assertEqual(failures, [])
-
-    def test_bigclonebench_type_two_rejects_wrong_classification(self) -> None:
-        runner = load_bigclonebench_runner()
-        failures = self._validate_bigclonebench_case(runner, 2, "exact")
-        self.assertTrue(any("expected 'type2'" in failure for failure in failures))
-
-    def test_bigclonebench_type_three_requires_type3_classification(self) -> None:
-        runner = load_bigclonebench_runner()
-        self.assertEqual(self._validate_bigclonebench_case(runner, 3, "type3"), [])
-        failures = self._validate_bigclonebench_case(runner, 3, "type2")
-        self.assertTrue(any("expected 'type3'" in failure for failure in failures))
-
-    def test_legacy_type_three_exit_status_is_observational_only(self) -> None:
-        runner = load_bigclonebench_runner()
-        self.assertEqual(
-            runner.benchmark_exit_code(3, failures=4, operational_failures=0), 0
-        )
-        self.assertEqual(
-            runner.benchmark_exit_code(3, failures=4, operational_failures=1), 1
-        )
-        self.assertEqual(
-            runner.benchmark_exit_code(2, failures=1, operational_failures=0), 1
-        )
-
-    def _validate_bigclonebench_case(
-        self, runner, syntactic_type: int, match_kind: str
-    ) -> list[str]:
-        with tempfile.TemporaryDirectory() as temporary_directory:
-            case_dir = Path(temporary_directory)
-            metadata = {
-                "syntactic_type": syntactic_type,
-                "expected": {
-                    "from_raw_text": "void moved() {}",
-                    "to_raw_text": "void moved() {}",
-                    "from_generated_text": "void moved() {}",
-                    "to_generated_text": "void moved() {}",
-                    "from_start_line": 3,
-                    "from_end_line": 3,
-                    "to_start_line": 7,
-                    "to_end_line": 7,
-                },
-            }
-            results = {
-                "move_count": 1,
-                "match_kinds": {match_kind: 1},
-                "moves": [
-                    {
-                        "move_id": "m1",
-                        "match_kind": match_kind,
-                        "from_raw_texts": ["void moved() {}"],
-                        "to_raw_texts": ["void moved() {}"],
-                    }
-                ],
-            }
-            (case_dir / "metadata.json").write_text(
-                json.dumps(metadata), encoding="utf-8"
-            )
-            results_path = case_dir / "results.json"
-            results_path.write_text(json.dumps(results), encoding="utf-8")
-            srcmove_path = case_dir / "srcmove.xml"
-            srcmove_path.write_text(
-                "<unit xmlns:diff='urn:diff' xmlns:pos='urn:pos' "
-                "xmlns:mv='http://www.srcML.org/srcMove'>"
-                "<delete mv:id='m1' mv:to='target' pos:start='3:1|3:1' pos:end='3:9|3:9'/>"
-                "<insert mv:id='m1' mv:from='source' pos:start='7:1|7:1' pos:end='7:9|7:9'/>"
-                "</unit>",
-                encoding="utf-8",
-            )
-
-            failures, _ = runner.validate_case(
-                case_dir, results_path, srcmove_path, syntactic_type
-            )
-            return failures
-
 
 if __name__ == "__main__":
     unittest.main()
