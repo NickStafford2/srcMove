@@ -211,9 +211,10 @@ srcReader/srcML stack.
 
 ## Current limitations
 
-- Type-3 and Type-4 moves are not supported.
+- Type-4 moves are not supported.
 - Type-2 support is constrained identifier normalization, not general near-miss
-  clone detection or semantic equivalence.
+  clone detection or semantic equivalence. Type-3 uses bounded syntactic
+  similarity; it does not imply semantic equivalence.
 - There is no probabilistic confidence score, locality model, or behavioral
   interpretation.
 - Many-to-many and unequal-count groups are classified but not fully paired or

@@ -127,6 +127,24 @@ void append_normalized_code(std::string                 &line,
   }
 }
 
+void append_normalized_token(std::vector<std::uint64_t> *tokens,
+                             std::string_view             text) {
+  if (tokens == nullptr) {
+    return;
+  }
+
+  std::string compact;
+  compact.reserve(text.size());
+  for (unsigned char c : text) {
+    if (!std::isspace(c)) {
+      compact.push_back(static_cast<char>(c));
+    }
+  }
+  if (!compact.empty()) {
+    tokens->push_back(hash_text(compact));
+  }
+}
+
 void append_escaped(std::string &out, std::string_view s) {
   for (char c : s) {
     switch (c) {
@@ -151,7 +169,8 @@ void append_escaped(std::string &out, std::string_view s) {
 std::string
 canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
                                  const canonical_options       &opt,
-                                 std::vector<std::uint64_t> *normalized_lines) {
+                                 std::vector<std::uint64_t> *normalized_lines,
+                                 std::vector<std::uint64_t> *normalized_tokens) {
   std::string out;
   std::string normalized_line;
   int         wrapper_depth         = 0;
@@ -164,6 +183,9 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
 
   if (normalized_lines != nullptr) {
     normalized_lines->clear();
+  }
+  if (normalized_tokens != nullptr) {
+    normalized_tokens->clear();
   }
 
   for (const auto &node : nodes) {
@@ -213,12 +235,17 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
       }
       out += "T(";
       std::string normalized_text;
+      std::string similarity_text;
       if (opt.normalize_names && name_depth > 0 &&
           !is_language_keyword(*node.content)) {
         const auto [it, inserted] =
             normalized_names.emplace(*node.content, normalized_names.size() + 1);
         (void)inserted;
         normalized_text = "$name" + std::to_string(it->second);
+        // Type 2 preserves a consistent identifier mapping. Type 3 compares
+        // blind-normalized token sequences so systematic and inconsistent
+        // renames do not obscure otherwise similar edited code.
+        similarity_text = "$name";
         out += normalized_text;
       } else if (opt.normalize_literals && literal_depth > 0) {
         normalized_text = current_literal_category == "$number"
@@ -232,6 +259,9 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
       out += ")";
       append_normalized_code(normalized_line, normalized_lines,
                              normalized_text);
+      append_normalized_token(normalized_tokens,
+                              similarity_text.empty() ? normalized_text
+                                                      : similarity_text);
       continue;
     }
 

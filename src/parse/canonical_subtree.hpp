@@ -22,6 +22,8 @@ std::string
 canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
                                  const canonical_options       &opt = {},
                                  std::vector<std::uint64_t> *normalized_lines =
+                                     nullptr,
+                                 std::vector<std::uint64_t> *normalized_tokens =
                                      nullptr);
 
 } // namespace srcmove

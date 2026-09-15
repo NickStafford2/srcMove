@@ -143,6 +143,20 @@
       "expected_match_kind": "type3",
       "expected_from_lines": ["int calculate(int value) {", "    int result = value * 2;", "    return result;", "  }"],
       "expected_to_lines": ["int calculate(int value) {", "    int result = value + 2;", "    return result;", "  }"]
+    },
+    {
+      "id": "classification_type3_java_method_inconsistent_renaming", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Blind identifier normalization exposes a near-miss move even when the rename is not a consistent Type-2 mapping.",
+      "original_files": {
+        "Source.java": ["class Source {", "  int subtract(int left, int right) {", "    return left - right;", "  }", "}"],
+        "Destination.java": ["class Destination {}"]
+      },
+      "modified_files": {
+        "Source.java": ["class Source {}"],
+        "Destination.java": ["class Destination {", "  int subtract(int right, int left) {", "    return left - right;", "  }", "}"]
+      },
+      "expected_match_kind": "type3",
+      "expected_from_lines": ["int subtract(int left, int right) {", "    return left - right;", "  }"],
+      "expected_to_lines": ["int subtract(int right, int left) {", "    return left - right;", "  }"]
     }
   ]
 }

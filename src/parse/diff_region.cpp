@@ -168,7 +168,8 @@ void close_diff_region(std::vector<diff_region>         &regions,
   type2_options.normalize_literals = true;
   regions[rid].type2_canonical_text =
       canonicalize_diff_region_subtree(subtree_nodes, type2_options,
-                                       &regions[rid].type2_normalized_lines);
+                                       &regions[rid].type2_normalized_lines,
+                                       &regions[rid].type3_normalized_tokens);
   regions[rid].type2_hash =
       move_candidate::fast_hash_raw(regions[rid].type2_canonical_text);
 }

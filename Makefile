@@ -75,6 +75,7 @@ test-classification: build
 		--case classification_type3_java_method_added_statement \
 		--case classification_type3_java_method_removed_statement \
 		--case classification_type3_java_method_modified_statement \
+		--case classification_type3_java_method_inconsistent_renaming \
 		--case classification_none_unrelated_java_methods \
 		--case classification_none_similar_java_method_shapes
 

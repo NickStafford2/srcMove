@@ -102,7 +102,8 @@ collect_subtree_canonical_text(const std::vector<captured_srcml_node> &nodes) {
 
 static std::string collect_subtree_type2_canonical_text(
     const std::vector<captured_srcml_node> &nodes,
-    std::vector<std::uint64_t>             &normalized_lines) {
+    std::vector<std::uint64_t>             &normalized_lines,
+    std::vector<std::uint64_t>             &normalized_tokens) {
   std::vector<srcml_node> plain_nodes;
   plain_nodes.reserve(nodes.size());
 
@@ -113,7 +114,8 @@ static std::string collect_subtree_type2_canonical_text(
   canonical_options opt;
   opt.normalize_names    = true;
   opt.normalize_literals = true;
-  return canonicalize_diff_region_subtree(plain_nodes, opt, &normalized_lines);
+  return canonicalize_diff_region_subtree(plain_nodes, opt, &normalized_lines,
+                                          &normalized_tokens);
 }
 
 static bool passes_region_text_filters(const std::string           &raw_text,
@@ -176,13 +178,16 @@ extract_preferred_child_candidates(const diff_region           &region,
 
     std::string canonical_text = collect_subtree_canonical_text(current);
     std::vector<std::uint64_t> type2_normalized_lines;
+    std::vector<std::uint64_t> type3_normalized_tokens;
     std::string type2_canonical_text =
-        collect_subtree_type2_canonical_text(current, type2_normalized_lines);
+        collect_subtree_type2_canonical_text(
+            current, type2_normalized_lines, type3_normalized_tokens);
     move_candidate candidate(region.kind, current.front().index,
                              region.filename, std::move(raw_text),
                              std::move(canonical_text),
                              std::move(type2_canonical_text),
                              std::move(type2_normalized_lines),
+                             std::move(type3_normalized_tokens),
                              is_type2_eligible_name(current.front().node.name));
     candidate.xpath   = current.front().xpath;
     candidate.full_name = current.front().node.full_name();
@@ -230,7 +235,8 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
     if (passes_region_text_filters(r.raw_text, opt)) {
       move_candidate c(r.kind, r.start_idx, r.filename, r.raw_text,
                        r.canonical_text, r.type2_canonical_text,
-                       r.type2_normalized_lines, false);
+                       r.type2_normalized_lines, r.type3_normalized_tokens,
+                       false);
       c.xpath   = r.start_xpath;
       c.end_idx = r.end_idx; // preserve the true close position
       if (child_candidates.size() == 1) {

@@ -35,6 +35,7 @@ public:
                  std::string canonical_text,
                  std::string type2_canonical_text,
                  std::vector<std::uint64_t> type2_normalized_lines,
+                 std::vector<std::uint64_t> type3_normalized_tokens,
                  bool        type2_eligible = false);
 
   Kind        kind;
@@ -49,6 +50,7 @@ public:
   std::string canonical_text;       // normalized subtree identity, for matching
   std::string type2_canonical_text; // identifier/literal-normalized identity
   std::vector<std::uint64_t> type2_normalized_lines; // cached Type-3 sequence
+  std::vector<std::uint64_t> type3_normalized_tokens; // blind-normalized tokens
   bool type2_eligible; // true for statement-level-or-larger type 2 matching
   Role role = Role::diff_wrapper;
   std::uint64_t hash;

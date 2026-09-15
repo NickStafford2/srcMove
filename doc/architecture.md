@@ -78,12 +78,18 @@ then:
 6. emits remaining delete-only and insert-only groups for reporting
 
 Type-3 uses a NiCad-inspired sequence rule implemented directly in srcMove; no
-NiCad executable or runtime dependency is involved. During canonicalization,
-the Type-2-normalized token stream is divided at statement and block boundaries
-(`;`, `{`, and `}`), and each resulting segment is hashed to a 64-bit integer.
-For sequences `A` and `B` with longest common subsequence length `L`, a pair is
-accepted exactly when both `L / |A| >= 0.70` and `L / |B| >= 0.70`. This is
-equivalent to `L / max(|A|, |B|) >= 0.70`.
+NiCad executable or runtime dependency is involved. Canonicalization caches two
+compact views: Type-2-normalized code divided at statement and block boundaries
+(`;`, `{`, and `}`), and a finer token sequence. The token view blind-normalizes
+every non-keyword identifier to `$name`; the Type-2 canonical form separately
+retains its stricter, consistent first-occurrence mapping.
+
+Each unit is hashed to 64 bits. For either pair of sequences `A` and `B`, with
+longest common subsequence length `L`, the representation accepts exactly when
+both `L / |A| >= 0.70` and `L / |B| >= 0.70`. This is equivalent to
+`L / max(|A|, |B|) >= 0.70`. A candidate pair qualifies when either the
+statement/block view or token view accepts; its stronger similarity orders the
+edge.
 
 The comparison first rejects impossible size ratios, then runs a two-row LCS
 that exits when the remaining rows cannot reach the required common length.
@@ -129,8 +135,9 @@ does not yet infer a unique pairing within an ambiguous many-to-many group.
 Parsing and writing are streaming passes, while collected regions, candidates,
 and compact candidate-id groups remain in memory. Hash indexing and exact-text
 partitioning avoid constructing the full delete-by-insert Cartesian product for
-Type 1 and Type 2. Cached normalized segment hashes, element-kind partitioning,
-the size-ratio bound, and early-exit LCS constrain Type-3 work. The
+Type 1 and Type 2. Cached normalized segment and token hashes, element-kind
+partitioning, per-representation size windows, and early-exit LCS constrain
+Type-3 work. The
 implementation exposes coarse `--profile` timings for repeatable pipeline
 measurements.
 
