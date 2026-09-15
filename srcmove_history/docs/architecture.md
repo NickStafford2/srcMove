@@ -2,6 +2,7 @@
 
 - Status: accepted
 - Date: 2026-08-20
+- Last reviewed: 2026-09-15
 
 ## Context
 
@@ -14,9 +15,10 @@ analysis.
 
 ## Decision
 
-`srcmove_history` is the sole product boundary for historical repository
-analysis. Its SQLite database is the sole authoritative state. Benchmark tools
-may configure or measure it, but must not own a competing execution pipeline or
+`srcmove_history` is the history-analysis component of the srcMove product. It
+remains in the srcMove repository while retaining a distinct internal boundary.
+Its SQLite database is the sole authoritative state. Benchmark tools may
+configure or measure it, but must not own a competing execution pipeline or
 state format.
 
 The target runtime is:
@@ -43,7 +45,7 @@ analysis coordinator
         v
 single transactional SQLite writer
         |
-        +----> status / list / show / export queries
+        +----> status / report / list / show queries
 ```
 
 `run` is the only CLI command that changes analysis coverage. It creates a new
@@ -53,22 +55,23 @@ already satisfied, it validates the existing analysis and performs no pair
 execution. Users do not need to choose separate start, resume, or continue
 commands.
 
-Program responsibilities will be separated as follows:
+Program responsibilities are separated as follows:
 
 - The CLI parses arguments and renders results; it does not orchestrate work.
 - The application service owns create, resume, extension, and batch planning.
 - The execution pipeline owns one frozen adjacent-commit pair and returns a
   normalized outcome without publishing shared state.
 - The persistence layer owns schema migrations, transactions, and integrity.
-- Query and export services do not schedule pair execution or modify analysis
-  coverage. They read SQLite and may resolve retained analysis artifacts or
-  frozen Git context needed for inspection.
-- Benchmark tools select repositories, revisions, and measurement settings,
-  then invoke the same supported analysis interface used by the CLI. They do
-  not implement a separate history-analysis pipeline or persistence format.
+- Query and reporting services do not schedule pair execution or modify
+  analysis coverage. They read SQLite and may resolve retained analysis
+  artifacts or frozen Git context needed for inspection.
+- Benchmark adapters must select repositories, revisions, and measurement
+  settings through the supported analysis interface used by the CLI. The
+  remaining legacy benchmark history runner violates this boundary and is
+  scheduled for retirement.
 
-The durable model will distinguish an immutable analysis, a command invocation,
-a frozen commit pair, its one canonical terminal outcome, and normalized move
+The durable model distinguishes an immutable analysis, a command invocation, a
+frozen commit pair, its one canonical terminal outcome, and normalized move
 evidence. Each terminal outcome identifies the invocation that produced it. A
 crash before transactional publication leaves no durable outcome, so a later
 invocation may process the still-pending pair. Once published, the outcome is
@@ -94,12 +97,10 @@ Refactoring will preserve these established contracts:
   producing invocation;
 - stable pair ordering when older history is appended.
 
-Features unique to the experimental runner, such as readable move browsing and
-scaling studies, will be rebuilt as queries, exports, or benchmark adapters over
-the production analyzer. Once equivalent behavior exists, the experimental
-runner will become a small adapter or be removed rather than maintained as a
-compatibility architecture. Superseded receipt-based package APIs have already
-been removed.
+Readable move browsing and research reporting now use the production analyzer.
+The remaining scaling workflow must be rebuilt as a benchmark adapter over
+`srcmove_history`; the legacy receipt-based runner must then be removed rather
+than retained as a compatibility architecture.
 
 Attempt history and in-place retry policy are deliberately deferred. They will
 be added only if a concrete requirement cannot be met by rerunning unpublished
@@ -107,9 +108,9 @@ work or creating a separate analysis.
 
 ## Consequences
 
-There will be one supported way to execute and resume historical analysis, one
-state model to verify, and one data source for later thesis analysis. The
-migration requires explicit database versioning and may require new analysis
-roots when an old format cannot be migrated safely. Proposed structure in this
-decision must not be described as implemented behavior until the runtime
-documentation and tests confirm it.
+There is one supported production path for executing and resuming historical
+analysis, one state model to verify, and one data source for later thesis
+analysis. Explicit database versioning permits clean breaks that require a new
+analysis root when an old format cannot be migrated safely. The legacy
+benchmark runner remains temporary migration work, not a second supported
+product path.

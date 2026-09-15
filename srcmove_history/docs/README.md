@@ -2,7 +2,7 @@
 
 `srcmove_history` is srcMove's production tool for analyzing moves across
 adjacent Git commits. This directory is the canonical home for its design,
-runtime behavior, research motivation, and study results.
+runtime behavior, and research motivation.
 
 ## Current design and behavior
 
@@ -17,20 +17,13 @@ runtime behavior, research motivation, and study results.
 - [Research motivation](research_motivation.md): why sequential commit analysis
   complements comparisons between distant revisions
 
-The architecture decision defines where the program is going. The data model
-and CLI plan refine that direction. The runtime document describes what the
-current implementation has verified today. Keep those roles separate: proposed
-structure does not become documented behavior until it is implemented and
-tested.
+The architecture decision defines the product boundary. The data model and CLI
+plan define stable concepts and remaining interface work. The runtime document
+is the authority for behavior verified by the current implementation.
 
-## Studies and supporting notes
+## Supporting notes
 
-- [Preliminary parallel-scaling study](studies/parallel_scaling_pilot.md)
 - [Storage estimate](notes/storage_estimate.md)
-
-Files under `history/` preserve implementation context from completed phases.
-They are not current requirements and should not be used in place of the two
-current documents above.
 
 Benchmark-specific setup remains in
 [`benchmarks/repositories/README.md`](../../benchmarks/repositories/README.md).

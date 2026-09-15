@@ -2,36 +2,34 @@
 
 ## Status
 
-This document defines the intended command-line interface for
-`srcmove_history`. The tool is under active development. Compatibility with
-the current CLI, its JSON output, and existing analysis roots is not a design
-constraint.
-
-The runtime and storage model remain target-driven and resumable. This plan
-changes how that model is presented to people and scripts.
+This document records the intended command-line interface and remaining work
+for `srcmove_history`. [Runtime behavior](runtime.md) is the authority for the
+current CLI and storage contracts. Commands and options described here but
+listed as unimplemented in the snapshot are proposals, not compatibility
+promises.
 
 ## Implementation snapshot
 
-As of 2026-08-20, the backend foundation is substantially further along than
-the user interface. Do not infer CLI completion from an implemented query or
-storage contract.
+As of 2026-09-15, the core lifecycle, progress, reporting, comparison, and
+browsing interfaces are implemented. The table distinguishes verified current
+behavior from the remaining planned interface work.
 
 | Area | State | What exists | What remains |
 | --- | --- | --- | --- |
-| Target-driven runtime | Implemented | `run` presents create, resume, extend, no-op verification, bounded batches, parallel workers, and failure exit status | Live progress is tracked separately below |
+| Target-driven runtime | Implemented | `run` presents create, resume, absolute or `--more` extension, no-op verification, bounded batches, parallel workers, and failure exit status | No CLI-specific work required |
 | Durable state | Implemented | SQLite schema v6, relocatable analysis definition, admitted executable bytes, invocation records, terminal outcomes, and pending-batch recovery | No CLI-specific work required |
-| Status data | First slice implemented | Snapshot aggregation, analysis identity, real writer-lock state, derived product state, and human/JSON output | Add verbose frozen configuration/tool detail and `status --watch` |
-| Pair exploration | First slice implemented | `list` filtering/pagination and `show` evidence are exposed with human/JSON output | Add optional Git diff and refine verbose move evidence |
-| Command surface | Partial | Repository-local `srcmove-history` with `init`, `run`, `status`, `list`, and `show`, strict TOML configuration, Git-root discovery, `-C`, explicit archived-state selection, and PATH tool discovery | Add preflight, `--dry-run`, and eventual installed-image PATH setup |
-| Human output | First slice implemented | Run/status summaries and compact list/show views use analyzed/skipped/covered terminology | Add live progress and continue usability refinement from real studies |
-| Live progress | First slice implemented | Immediate preparation, durable publication events, TTY spinner/bar/ETA, sparse redirected updates, resume baselines, and `auto`/`always`/`never` modes | Refine from long real-world runs and add `status --watch` |
+| Status data | Implemented foundation | Snapshot aggregation, analysis identity, real writer-lock state, derived product state, and human/JSON output | Add verbose frozen configuration/tool detail and `status --watch` |
+| Result exploration | Implemented foundation | `report`, filtered/paginated `list`, `show`, and non-authoritative `compare` artifacts are available | Add optional Git diff and refine verbose move evidence |
+| Command surface | Partial | Repository-local `srcmove-history` with `init`, `run`, `status`, `report`, `list`, `show`, and `compare`; strict TOML configuration; Git-root discovery; `-C`; explicit archived-state selection; and PATH tool discovery | Add preflight, `--dry-run`, export, and eventual installed-image PATH setup |
+| Human output | Implemented foundation | Run/status summaries, research reports, and compact list/show/compare views use analyzed/skipped/covered terminology | Continue usability refinement from real studies |
+| Live progress | Implemented foundation | Immediate preparation, durable publication events, TTY spinner/bar/ETA, sparse redirected updates, resume baselines, and `auto`/`always`/`never` modes | Refine from long real-world runs and add `status --watch` |
 | Export | Not implemented | Normalized evidence is queryable in SQLite | Stable CSV/JSONL research exports |
 | Benchmark retirement | Not started | Both implementations still exist | Move remaining studies/adapters to the production service, then remove the old runner |
 
-In phase terms, the data/query prerequisites, first command/rendering slice, and
-durable live progress slice are complete. Result browsing has its first usable
-slice. Preflight is now the highest-value next increment, followed by
-Git diff inspection, export, and `status --watch`.
+The highest-value next increment is retiring the legacy benchmark history
+runner so scaling studies use this production service and SQLite authority.
+Preflight, Git diff inspection, export, and `status --watch` remain independent
+interface improvements.
 
 ## Design assessment
 
@@ -44,17 +42,17 @@ Keep the current plan's strongest decisions:
 - final summaries that distinguish wall time from summed parallel work;
 - no dependency from production code on the retiring benchmark runner.
 
-The redesign should also address three workflow gaps:
+The remaining design should address three workflow gaps:
 
-1. **Creation must be reviewable.** Repository-local TOML, tool discovery, and
-   sensible defaults should keep the common workflow short without hiding the
-   frozen study definition.
-2. **Status lacks a product-level state.** Raw counters are insufficient. The
-   CLI must say whether the analysis is running, interrupted, idle, complete,
-   or complete with pair failures, then show the evidence behind that state.
-3. **Analysis is not the final research workflow.** Users need stable exports
-   of pairs and moves without querying implementation tables or preserving a
-   second results authority.
+1. **The legacy benchmark runner remains a second implementation.** Scaling
+   studies must become adapters over `srcmove_history`, after which the old
+   receipt-based state and execution pipeline can be removed.
+2. **Creation needs a read-only preflight.** Repository-local TOML and tool
+   discovery make configuration reviewable, but users cannot yet preview the
+   exact frozen definition without starting a run.
+3. **Analysis needs stable research exports.** Reports and browsing are
+   available, but users still need versioned pair and move tables without
+   querying implementation tables.
 
 ## Goals
 
@@ -103,8 +101,12 @@ Install one executable named `srcmove-history`.
 srcmove-history [-C PATH] [--state-dir NAME] init
 srcmove-history [-C PATH] [--state-dir NAME] run [OPTIONS]
 srcmove-history [-C PATH] [--state-dir NAME] status [OPTIONS]
+srcmove-history [-C PATH] [--state-dir NAME] report
 srcmove-history [-C PATH] [--state-dir NAME] list [OPTIONS]
 srcmove-history [-C PATH] [--state-dir NAME] show PAIR [OPTIONS]
+srcmove-history [-C PATH] [--state-dir NAME] compare COMMIT --save MODE
+srcmove-history [-C PATH] [--state-dir NAME] compare OLD NEW --save MODE
+srcmove-history [-C PATH] [--state-dir NAME] compare --pair PAIR --save MODE
 srcmove-history [-C PATH] [--state-dir NAME] export [OPTIONS]
 ```
 
@@ -137,12 +139,14 @@ Exactly one target is required:
 
 ```text
 --pairs N          cover the newest N adjacent pairs in total
+--more N           cover N additional pairs beyond the committed frontier
 --through COMMIT   cover through one full first-parent commit ID
 --all              cover all available first-parent history
 ```
 
-`--pairs` is absolute, not incremental. Repeating a satisfied target verifies
-the analysis and exits without opening workers.
+`--pairs` is absolute, while `--more` resolves an extension to an absolute
+target while holding the writer lock. Repeating a satisfied absolute target
+verifies the analysis and exits without opening workers.
 
 Creation example:
 
