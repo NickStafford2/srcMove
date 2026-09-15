@@ -139,13 +139,17 @@ output path and JSON results file can also be supplied:
 CLI synopsis:
 
 ```text
-srcMove <srcdiff.xml> [out.xml] [--results results.json] [--profile] [-v]
+srcMove <srcdiff.xml> [out.xml] [--results results.json]
+        [--min-granularity statement|fragment] [--profile] [-v]
 srcMove --help
 srcMove --version
 ```
 
 - `--results <file>` writes move groups, XPaths, raw texts, candidate counts,
   group classifications, and match kinds as JSON.
+- `--min-granularity statement|fragment` selects the minimum move unit.
+  `statement` is the default; `fragment` enables low-level diff fragments for
+  specialized analysis.
 - `--profile` writes coarse `profile.<stage>_ms=<milliseconds>` timings to
   standard error.
 - `-v` and `--verbose` are accepted for compatibility but currently have no

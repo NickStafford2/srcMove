@@ -44,12 +44,19 @@ another.
 policy:
 
 - start from leaf diff regions
-- exclude whitespace-only and very small payloads
+- exclude whitespace-only payloads and fragments smaller than a complete
+  statement or declaration
 - expand eligible diff regions into preferred structural children and
   statements, such as functions, classes, declarations, conditionals, and loops
 
 This expansion lets srcMove annotate the moved source construct instead of an
 overly broad surrounding diff wrapper when the structure supports it.
+Statement-sized candidates must also contain at least four srcML lexical text
+events, which suppresses low-information statements such as `break;`,
+`return;`, and `f();`. A diff wrapper is eligible only when it contains a
+complete construct meeting the same evidence floor. The CLI option
+`--min-granularity fragment` restores raw diff-fragment candidates for
+specialized analysis; it is not the default.
 
 ### 3. Canonicalize and group
 
@@ -152,8 +159,9 @@ performance result for arbitrary projects.
 ## Current limitations
 
 - Type-4 moves are not supported.
-- Type-2 and Type-3 are limited to eligible structural constructs and selected
-  statement kinds; tiny fragments are not promoted into near-miss matches.
+- Exact, Type-2, and Type-3 matching use statement-or-larger candidates by
+  default. Tiny fragments can be enabled explicitly but are not useful as the
+  default move unit.
 - There is no probabilistic confidence score, locality model, behavioral model,
   or developer-intent reconstruction.
 - Many-to-many and unequal-count groups are classified but not fully paired or

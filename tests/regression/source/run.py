@@ -149,6 +149,8 @@ def run_case(
         str(srcmove_xml),
         "--results",
         str(results_json),
+        "--min-granularity",
+        "fragment",
     ]
     srcmove_result = run_command(srcmove_cmd, cwd=repo_root)
 

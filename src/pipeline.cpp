@@ -130,7 +130,8 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   std::vector<move_candidate> candidates;
   {
     scoped_profile_timer timer(profile, "pipeline.filter_candidates");
-    const region_filter_options filter_options = get_default_filter_options();
+    region_filter_options filter_options = get_default_filter_options();
+    filter_options.min_granularity = options.min_granularity;
     // O(diff regions + captured nodes) for the selected regions. Canonical text
     // collection dominates the constant factor.
     candidates = filter_regions_for_registry(regions, filter_options);

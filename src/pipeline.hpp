@@ -10,6 +10,7 @@
 #ifndef INCLUDED_MOVE_PIPELINE_HPP
 #define INCLUDED_MOVE_PIPELINE_HPP
 
+#include "region_filter.hpp"
 #include "summary.hpp"
 #include <string>
 
@@ -19,6 +20,8 @@ class profile_report;
 
 struct pipeline_options {
   bool verbose = false;
+  minimum_move_granularity min_granularity =
+      minimum_move_granularity::statement;
 };
 
 summary run_pipeline(const std::string &srcdiff_in_filename,

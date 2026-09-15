@@ -29,6 +29,11 @@ enum class region_filter_policy {
   all_regions     // everything
 };
 
+enum class minimum_move_granularity {
+  statement,
+  fragment,
+};
+
 struct region_filter_options {
   region_filter_policy policy = region_filter_policy::leaf_only;
   // Common practical filters:
@@ -36,6 +41,11 @@ struct region_filter_options {
   bool        skip_pre_marked      = false;
   bool        expand_structural_children = true;
   std::size_t min_chars = 2; // after whitespace-only check (still raw chars)
+  minimum_move_granularity min_granularity =
+      minimum_move_granularity::statement;
+  // Four srcML lexical text events admit useful expressions such as `x = y;`
+  // while rejecting isolated tokens and low-information control statements.
+  std::size_t min_statement_tokens = 4;
 };
 
 region_filter_options get_default_filter_options();

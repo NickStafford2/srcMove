@@ -31,6 +31,7 @@ static std::vector<move_candidate> load_candidates(const std::string &xml) {
   opt.drop_whitespace_only = true;
   opt.skip_pre_marked      = true;
   opt.min_chars            = 1;
+  opt.min_granularity      = minimum_move_granularity::fragment;
 
   return filter_regions_for_registry(regions, opt);
 }

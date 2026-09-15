@@ -301,6 +301,21 @@
         "source.cpp": ["bool source() { return false; }"],
         "destination.cpp": ["bool destination() { return true; }"]
       }
+    },
+    {
+      "id": "cpp_const_qualifier_cross_context_fragment",
+      "language": "C++",
+      "extension": ".cpp",
+      "scenario": "archive",
+      "rationale": "A const qualifier reused in unrelated expressions and declarations is not a moved statement.",
+      "original_files": {
+        "source.cpp": ["int source() { return sizeof(const Widget); }"],
+        "Parameters.h": ["Widget finalValue;"]
+      },
+      "modified_files": {
+        "source.cpp": ["int source() { return sizeof(Widget); }"],
+        "Parameters.h": ["const Widget finalValue;"]
+      }
     }
   ]
 }
