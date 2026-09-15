@@ -73,7 +73,9 @@ def compact_pair_outcome(outcome: PairOutcome) -> CompactPair:
             and artifact.validation_status == "valid"
         ]
         if len(results) != 1:
-            raise ValueError("completed pair requires one valid results artifact")
+            raise ValueError(
+                "completed commit pair requires one valid results artifact"
+            )
         artifact = results[0]
         content = _read_verified_file(
             artifact.path, artifact.size_bytes, artifact.sha256, "srcMove results"
@@ -164,9 +166,11 @@ def _metrics(outcome: PairOutcome) -> dict[str, Any]:
     result = dict(outcome.metrics)
     for name, value in result.items():
         if isinstance(value, float) and not math.isfinite(value):
-            raise ValueError(f"pair metric {name!r} must be finite")
+            raise ValueError(f"commit pair metric {name!r} must be finite")
         if not isinstance(value, (str, int, float, bool)) and value is not None:
-            raise ValueError(f"pair metric {name!r} is not compact scalar data")
+            raise ValueError(
+                f"commit pair metric {name!r} is not compact scalar data"
+            )
     return dict(sorted(result.items()))
 
 
@@ -179,7 +183,9 @@ def _timings(outcome: PairOutcome) -> dict[str, float]:
             or not math.isfinite(value)
             or value < 0
         ):
-            raise ValueError(f"pair timing {name!r} must be finite and non-negative")
+            raise ValueError(
+                f"commit pair timing {name!r} must be finite and non-negative"
+            )
         result[name] = float(value)
     return dict(sorted(result.items()))
 

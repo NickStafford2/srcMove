@@ -5,6 +5,8 @@
 #ifndef INCLUDED_MOVE_CLI_HPP
 #define INCLUDED_MOVE_CLI_HPP
 
+#include "region_filter.hpp"
+
 #include <stdexcept>
 #include <string>
 
@@ -18,6 +20,8 @@ struct cli_options {
   std::string results_path;
   bool        verbose = false;
   bool        profile = false;
+  minimum_move_granularity min_granularity =
+      minimum_move_granularity::statement;
 };
 
 class cli_error : public std::runtime_error {

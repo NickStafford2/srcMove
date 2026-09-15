@@ -43,7 +43,7 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
             status, output, error = self._main(arguments)
 
             self.assertEqual(status, 0)
-            self.assertIn("4/4 pairs", output)
+            self.assertIn("Commit pairs 4 processed (target 4", output)
             lines = error.splitlines()
             self.assertGreaterEqual(len(lines), 2)
             self.assertIn("preparing", lines[0])
@@ -96,7 +96,7 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
             )
 
             self.assertEqual(status, 0)
-            self.assertIn("2/2 pairs", output)
+            self.assertIn("Commit pairs 2 processed (target 2", output)
             self.assertEqual(error, "")
 
     def test_no_op_run_finishes_cleanly_without_opening_workers(self) -> None:
@@ -125,7 +125,7 @@ class RepositoryAnalysisProgressCliTests(unittest.TestCase):
                 )
 
             self.assertEqual(status, 0)
-            self.assertIn("2/2 pairs", output)
+            self.assertIn("Commit pairs 2 processed (target 2", output)
             self.assertIn("2/2", error)
             self.assertNotIn("error", error.lower())
 

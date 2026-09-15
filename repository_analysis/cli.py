@@ -31,6 +31,7 @@ from .inputs import AnalysisConfiguration, RepositoryIdentity
 from .locking import AnalysisOperationLock, is_analysis_writer_locked
 from .presentation import render_run, render_status
 from .progress import TerminalAnalysisObserver
+from .report import build_report, render_report
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -67,13 +68,22 @@ def build_parser() -> argparse.ArgumentParser:
         help="create, resume, or extend one repository analysis",
         description=(
             "Create, resume, or extend the repository's .srcmove analysis "
-            "toward one absolute history coverage target. Existing analyses "
-            "reuse their frozen definition."
+            "toward one history coverage target. Existing analyses reuse "
+            "their frozen definition."
         ),
     )
     target = run.add_mutually_exclusive_group(required=True)
     target.add_argument(
-        "--pairs", type=int, metavar="N", help="cover the newest N pairs in total"
+        "--pairs",
+        type=int,
+        metavar="N",
+        help="cover the newest N commit pairs in total",
+    )
+    target.add_argument(
+        "--more",
+        type=int,
+        metavar="N",
+        help="cover N additional commit pairs beyond the committed frontier",
     )
     target.add_argument(
         "--through", metavar="COMMIT", help="cover through a full commit ID"
@@ -99,7 +109,18 @@ def build_parser() -> argparse.ArgumentParser:
     status = commands.add_parser("status", help="show durable coverage and state")
     _add_format(status)
 
-    list_command = commands.add_parser("list", help="list durable pair outcomes")
+    commands.add_parser(
+        "report",
+        help="summarize historical move-analysis results",
+        description=(
+            "Generate a detailed plain-text report from committed analysis "
+            "results and the frozen first-parent Git history."
+        ),
+    )
+
+    list_command = commands.add_parser(
+        "list", help="list durable commit pair outcomes"
+    )
     filters = list_command.add_mutually_exclusive_group()
     filters.add_argument("--failed", action="store_true")
     filters.add_argument("--moves", action="store_true")
@@ -116,7 +137,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     list_command.add_argument("--limit", type=int, default=50, help="maximum rows")
     list_command.add_argument(
-        "--after", type=int, metavar="PAIR", help="continue after displayed pair number"
+        "--after",
+        type=int,
+        metavar="COMMIT_PAIR",
+        help="continue after the displayed commit pair number",
     )
     list_command.add_argument(
         "--oldest-first",
@@ -125,8 +149,10 @@ def build_parser() -> argparse.ArgumentParser:
     )
     _add_format(list_command)
 
-    show = commands.add_parser("show", help="show evidence for one durable pair")
-    show.add_argument("pair", type=int, metavar="PAIR")
+    show = commands.add_parser(
+        "show", help="show evidence for one durable commit pair"
+    )
+    show.add_argument("pair", type=int, metavar="COMMIT_PAIR")
     _add_format(show)
 
     compare = commands.add_parser(
@@ -154,7 +180,7 @@ def build_parser() -> argparse.ArgumentParser:
         "--pair",
         type=int,
         metavar="N",
-        help="compare one durable analysis pair by its displayed number",
+        help="compare one durable commit pair by its displayed number",
     )
     compare.add_argument(
         "--save",
@@ -179,6 +205,8 @@ def _add_format(parser: argparse.ArgumentParser) -> None:
 def _target(arguments: argparse.Namespace) -> AnalysisTarget:
     if arguments.pairs is not None:
         return AnalysisTarget("total_pairs", arguments.pairs)
+    if arguments.more is not None:
+        return AnalysisTarget("additional_pairs", arguments.more)
     if arguments.through is not None:
         return AnalysisTarget("through", arguments.through)
     return AnalysisTarget("all", None)
@@ -374,13 +402,19 @@ def _status_document(summary: Mapping[str, Any]) -> dict[str, Any]:
             "groups": summary.get("move_group_count", 0),
             "pairs": summary.get("move_pair_count", 0),
             "annotated_regions": summary.get("annotated_region_count", 0),
+            "by_type": dict(summary.get("match_kinds", {})),
         },
         "history": {
             "newest_commit": summary.get("newest_commit"),
             "frontier_commit": summary.get("oldest_completed_commit"),
             "exhausted": bool(summary.get("history_exhausted")),
         },
-        "timings": dict(summary.get("timings", {})),
+        "timings": {
+            **dict(summary.get("timings", {})),
+            "cumulative_wall_seconds": summary.get(
+                "cumulative_wall_seconds", 0.0
+            ),
+        },
         "pending": pending,
         "invocation": invocation,
     }
@@ -389,15 +423,18 @@ def _status_document(summary: Mapping[str, Any]) -> dict[str, Any]:
 def _render_pair_list(page: Mapping[str, Any]) -> str:
     items = page.get("items", [])
     if not items:
-        return "No matching pairs."
-    lines = ["Pair  Commits               Status                  Paths   Moves   Time"]
+        return "No matching commit pairs."
+    lines = [
+        "Commit pair  Commits               Status                  "
+        "Paths   Moves   Time"
+    ]
     for item in items:
         old = str(item["old_commit"])[:8]
         new = str(item["new_commit"])[:8]
         status = str(item["status"]).replace("_", "-")
         paths = f"{item['analyzable_path_count']}/{item['changed_path_count']}"
         lines.append(
-            f"{item['number']:>4}  {old} → {new}  {status:<22} "
+            f"{item['number']:>11}  {old} → {new}  {status:<22} "
             f"{paths:>7} {item['move_count']:>7} {item['elapsed_seconds']:>6.1f}s"
         )
     if page.get("next_cursor") is not None:
@@ -408,7 +445,7 @@ def _render_pair_list(page: Mapping[str, Any]) -> str:
 def _render_pair(detail: Mapping[str, Any]) -> str:
     status = str(detail["status"]).replace("_", " ")
     lines = [
-        f"Pair {detail['number']} — {status}",
+        f"Commit pair {detail['number']} — {status}",
         "",
         f"Commits    {str(detail['old_commit'])[:12]} → "
         f"{str(detail['new_commit'])[:12]}",
@@ -417,7 +454,9 @@ def _render_pair(detail: Mapping[str, Any]) -> str:
     ]
     timings = detail.get("timings")
     if isinstance(timings, Mapping) and "pair_seconds" in timings:
-        lines.append(f"Time       {float(timings['pair_seconds']):.1f}s pair work")
+        lines.append(
+            f"Time       {float(timings['pair_seconds']):.1f}s commit pair work"
+        )
     metrics = detail.get("metrics")
     exclusion_counts = (
         metrics.get("path_exclusion_counts")
@@ -532,6 +571,9 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if arguments.output_format == "human"
                 else _json(_status_document(summary))
             )
+            exit_status = 0
+        elif arguments.command == "report":
+            output = render_report(build_report(analysis))
             exit_status = 0
         elif arguments.command == "list":
             after_distance = None if arguments.after is None else arguments.after - 1

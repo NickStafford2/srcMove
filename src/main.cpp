@@ -14,6 +14,7 @@ int main(int argc, char **argv) {
     srcmove::profile_report profile;
     srcmove::pipeline_options pipeline_options;
     pipeline_options.verbose = opts.verbose;
+    pipeline_options.min_granularity = opts.min_granularity;
 
     const srcmove::summary summ =
         srcmove::run_pipeline(opts.input_path, opts.output_path, pipeline_options,

@@ -3,8 +3,8 @@
 Benchmarks are experiments and are intentionally separate from deterministic
 correctness tests in `tests/`.
 
-- [BigCloneBench](bigclonebench/README.md): synthetic positive-case Type-1 and
-  Type-2 detection workloads generated from BigCloneBench clone pairs.
+- [BigCloneBench](bigclonebench/README.md): synthetic positive-case Type-1,
+  Type-2, and observational Type-3 workloads generated from clone pairs.
 - [Repository benchmarks](repositories/README.md): end-to-end `srcdiff` and
   `srcMove` runs across configured revisions of real repositories.
 - `run_performance.py`: paired/interleaved performance measurements over

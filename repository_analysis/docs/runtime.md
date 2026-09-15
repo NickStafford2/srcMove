@@ -10,7 +10,7 @@ refactoring direction without claiming that unimplemented structure exists.
 commits. It is production analysis infrastructure; benchmarks may invoke it but
 do not own its state format or execution semantics.
 
-Each pair is materialized as two directory trees. srcDiff is therefore always
+Each commit pair is materialized as two directory trees. srcDiff is therefore always
 invoked with `--archive`, and its XML output is always validated as an archive.
 
 The public lifecycle is target-driven:
@@ -27,8 +27,10 @@ bin/srcmove-history run \
   --srcmove PATH
 
 bin/srcmove-history run --pairs 500
+bin/srcmove-history run --more 100
 
 bin/srcmove-history status
+bin/srcmove-history report
 bin/srcmove-history list --failed
 bin/srcmove-history show 1
 bin/srcmove-history compare COMMIT --save all
@@ -59,12 +61,19 @@ by `show PAIR` or `compare --pair PAIR --save all`.
 Exactly one target is required:
 
 - `--pairs N` requests an absolute covered-pair count;
+- `--more N` extends the committed frontier by N additional adjacent pairs;
 - `--through COMMIT` requests a full, immutable commit object ID on the frozen
   first-parent history;
 - `--all` continues in bounded batches until the repository root.
 
 Repeating a satisfied target is a verified no-op. A branch moving after the
 first invocation does not move the analysis's frozen newest anchor.
+
+`--more N` is resolved to an absolute pair target while holding the analysis
+operation lock. If an interrupted run left a pending batch, that batch counts
+toward the requested extension rather than causing already-checkpointed work to
+be skipped or duplicated. On a new analysis, `--more N` is equivalent to
+`--pairs N`.
 
 The CLI discovers the enclosing Git worktree from the current directory and
 uses `<repository>/.srcmove/` as its one active analysis. `-C PATH` changes the
@@ -82,6 +91,8 @@ retain Git objects, or analyze history. The generated `[analysis]` table is
 editable until the first `run`; its default excluded suffix list contains
 `.py` while srcDiff's Python handling remains unreliable. Removing `.py` from
 that file before the first run enables Python without a special CLI override.
+Configured suffixes can only narrow the source set described under the
+execution contract; they cannot make an unrecognized extension analyzable.
 
 The first `run` freezes the `[analysis]` values in SQLite. Later runs reread
 the file and reject drift before recording an invocation. The `[run]` table is
@@ -101,8 +112,41 @@ being interpreted as an in-place update.
 Human-readable output is the default. `--format json` emits one versioned JSON
 document to stdout. Status derives live writer state by probing the operation
 lock; `activity.json` alone is never treated as proof that a run is active.
-Human output calls successful outcomes `analyzed`, no-change outcomes `skipped`,
-and all durable terminal outcomes `covered`.
+The compact summary reports processed adjacent commit pairs, separates commit
+pairs successfully compared from commit pairs without analyzable changes and
+failures, and counts detected moves by match type. Its elapsed time is the sum of every
+recorded `run` wall duration; srcDiff and srcMove times are cumulative process
+durations across commit pairs and may exceed elapsed time when workers run in
+parallel. The displayed range labels the frozen newest anchor and oldest
+covered commit explicitly. Internal move-group shape, annotated-region counts,
+state paths, and invocation details remain available through JSON and the
+`list` and `show` commands rather than the default summary.
+
+`report` produces a detailed, deterministic plain-text research summary from
+committed results. It has no `--format` option; redirect stdout to save it:
+
+```bash
+bin/srcmove-history report > history-report.txt
+```
+
+The report states first-parent history coverage against the total frozen
+history, commit pair outcomes, move prevalence, match classification, file
+location, move topology, distribution, cumulative performance, common path
+exclusions, and the frozen analysis definition. Its methodological notes call
+out partial coverage, result concentration, approximate Type 3 detections, and
+failed commit pairs when applicable. Distribution and prevalence percentages
+use successfully compared commit pairs as their denominator; commit pairs
+without analyzable changes and failed commit pairs are reported separately.
+Each detected move is one retained srcMove detection and may contain multiple
+source or destination regions. Within-file and cross-file classifications are
+derived from the filenames retained in those regions' XPath evidence. Path
+exclusion counts are observations across commit pairs rather than counts of
+unique paths. Total wall time sums finalized `run` invocations, including
+no-op and failed or interrupted invocations whose durations were recorded.
+
+The displayed repository name is derived from the basename of the current
+`origin` URL, with the checkout directory name as a fallback. It is descriptive
+report metadata, not part of the frozen analysis identity.
 
 `run` reports progress to stderr immediately. On a terminal it renders a live
 spinner, durable coverage bar, outcome counters, elapsed time, and an ETA after
@@ -240,6 +284,16 @@ One work item is one adjacent commit pair containing all relevant changed paths,
 not one file. This preserves cross-file move detection. Modified files appear
 on both sides, additions only on the new side, deletions only on the old side,
 and renames use their old/new paths.
+
+Path admission follows srcML's standard, case-sensitive language-extension
+registry because srcDiff uses that registry and supplies no per-file language
+override. The accepted suffixes are C (`.c`, `.h`, `.i`), C++ (`.cpp`, `.CPP`,
+`.cp`, `.hpp`, `.cxx`, `.hxx`, `.cc`, `.hh`, `.c++`, `.h++`, `.C`, `.H`,
+`.tcc`, `.ii`), Java/AspectJ (`.java`, `.aj`), C# (`.cs`), and Python (`.py`,
+`.pyi`, `.pyw`, `.pyz`). User-configured exclusions apply afterward. Other
+extensions remain visible in the changed-path count but are recorded as
+`unsupported_srcml_extension`; a pair containing only such paths completes as
+`no_analyzable_change` without running srcDiff.
 
 Symlinks and submodules remain visible in the changed-path count but are never
 materialized or followed. Compact pair metrics record them under

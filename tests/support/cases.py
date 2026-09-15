@@ -246,9 +246,11 @@ def _load_policy_catalog(
 
         if expect_move:
             match_kind = raw_case.get("expected_match_kind")
-            if match_kind not in ("exact", "type2"):
+            allowed_match_kinds = ("exact", "type2", "type3")
+            if match_kind not in allowed_match_kinds:
                 raise CaseDefinitionError(
-                    f"{context}: expected_match_kind must be 'exact' or 'type2'"
+                    f"{context}: expected_match_kind must be one of "
+                    + ", ".join(repr(kind) for kind in allowed_match_kinds)
                 )
             _validate_lines(
                 raw_case.get("expected_from_lines"), "expected_from_lines", context

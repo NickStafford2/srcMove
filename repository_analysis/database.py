@@ -356,7 +356,7 @@ class AnalysisDatabase:
                 else _text(row["oldest_completed_commit"], "oldest completed commit")
             ),
             completed_pair_count=_nonnegative_integer(
-                row["completed_pair_count"], "completed pair count"
+                row["completed_pair_count"], "completed commit pair count"
             ),
             history_exhausted=_boolean(row["history_exhausted"], "history exhausted"),
         )
@@ -549,13 +549,16 @@ class AnalysisDatabase:
         item = outcome.work_item
         compact = compact_pair_outcome(outcome)
         if compact.status not in TERMINAL_PAIR_STATUSES:
-            raise ValueError(f"pair outcome has non-terminal status: {compact.status!r}")
+            raise ValueError(
+                "commit pair outcome has non-terminal status: "
+                f"{compact.status!r}"
+            )
         invocation = self.connection.execute(
             "SELECT result FROM invocations WHERE invocation_id = ?",
             (invocation_id,),
         ).fetchone()
         if invocation is None or invocation["result"] != "running":
-            raise ValueError("pair outcome has no running invocation")
+            raise ValueError("commit pair outcome has no running invocation")
         row = self.connection.execute(
             """
             SELECT old_commit, new_commit, pair_fingerprint, status
@@ -564,11 +567,15 @@ class AnalysisDatabase:
             (batch.batch_id, item.sequence),
         ).fetchone()
         if row is None:
-            raise ValueError("pair outcome is not part of the pending batch")
+            raise ValueError(
+                "commit pair outcome is not part of the pending batch"
+            )
         expected = (row["old_commit"], row["new_commit"], row["pair_fingerprint"])
         observed = (item.old_commit, item.new_commit, item.fingerprint)
         if observed != expected:
-            raise ValueError("pair outcome identity drift from pending batch")
+            raise ValueError(
+                "commit pair outcome identity drift from pending batch"
+            )
         with self._transaction():
             changed = self.connection.execute(
                 """
@@ -595,7 +602,9 @@ class AnalysisDatabase:
                 ),
             ).rowcount
             if changed != 1:
-                raise ValueError("pair outcome was already sealed or is not pending")
+                raise ValueError(
+                    "commit pair outcome was already sealed or is not pending"
+                )
             for move in compact.moves:
                 self.connection.execute(
                     """
@@ -624,7 +633,7 @@ class AnalysisDatabase:
                 (_utc_now(), invocation_id),
             ).rowcount
             if changed != 1:
-                raise ValueError("pair outcome has no running invocation")
+                raise ValueError("commit pair outcome has no running invocation")
 
     def completed_prefix(self, batch: StoredBatch) -> int:
         rows = self.connection.execute(
@@ -638,7 +647,7 @@ class AnalysisDatabase:
         found_pending = False
         for expected, row in enumerate(rows):
             if row["batch_sequence"] != expected:
-                raise ValueError("pending batch pair sequence drift")
+                raise ValueError("pending batch commit pair sequence drift")
             if row["status"] is None:
                 found_pending = True
             elif found_pending:
@@ -646,7 +655,7 @@ class AnalysisDatabase:
             else:
                 prefix += 1
         if len(rows) != batch.pair_count:
-            raise ValueError("pending batch pair count drift")
+            raise ValueError("pending batch commit pair count drift")
         return prefix
 
     def commit_pending_batch(self, batch: StoredBatch) -> StoredAnalysis:
@@ -703,13 +712,17 @@ class AnalysisDatabase:
         )
         selected_pairs = 0
         for row in rows:
-            status = _text(row["status"], "pair status")
+            status = _text(row["status"], "commit pair status")
             if status not in TERMINAL_PAIR_STATUSES:
-                raise ValueError(f"unknown stored pair status: {status!r}")
+                raise ValueError(f"unknown stored commit pair status: {status!r}")
             statuses[status] += 1
             selected_pairs += 1
-            metrics = _json_object(bytes(row["metrics_json"]), "pair metrics")
-            pair_timings = _json_object(bytes(row["timings_json"]), "pair timings")
+            metrics = _json_object(
+                bytes(row["metrics_json"]), "commit pair metrics"
+            )
+            pair_timings = _json_object(
+                bytes(row["timings_json"]), "commit pair timings"
+            )
             for name in (
                 "move_count",
                 "move_group_count",
@@ -718,7 +731,9 @@ class AnalysisDatabase:
             ):
                 value = metrics.get(name, 0)
                 if isinstance(value, bool) or not isinstance(value, int) or value < 0:
-                    raise ValueError(f"stored pair metric {name!r} is malformed")
+                    raise ValueError(
+                        f"stored commit pair metric {name!r} is malformed"
+                    )
                 totals[name] += value
             for name, value in pair_timings.items():
                 if (
@@ -727,11 +742,32 @@ class AnalysisDatabase:
                     or not math.isfinite(value)
                     or value < 0
                 ):
-                    raise ValueError(f"stored pair timing {name!r} is malformed")
+                    raise ValueError(
+                        f"stored commit pair timing {name!r} is malformed"
+                    )
                 timings[name] += float(value)
         state = self.analysis()
         if selected_pairs != state.completed_pair_count:
-            raise ValueError("completed analysis coverage drifts from stored pairs")
+            raise ValueError(
+                "completed analysis coverage drifts from stored commit pairs"
+            )
+        match_kinds = {
+            _text(row["match_kind"], "move match kind"): _nonnegative_integer(
+                row["count"], "move match-kind count"
+            )
+            for row in self.connection.execute(
+                """
+                SELECT m.match_kind, COUNT(*) AS count
+                FROM moves AS m
+                JOIN batches AS b ON b.batch_id = m.batch_id
+                WHERE b.status = 'completed'
+                GROUP BY m.match_kind
+                ORDER BY m.match_kind
+                """
+            )
+        }
+        if sum(match_kinds.values()) != totals["move_group_count"]:
+            raise ValueError("stored move match kinds drift from move-group count")
         return {
             "schema_version": DATABASE_SCHEMA_VERSION,
             "revision": state.revision,
@@ -751,8 +787,27 @@ class AnalysisDatabase:
             "move_group_count": totals["move_group_count"],
             "move_pair_count": totals["move_pair_count"],
             "annotated_region_count": totals["annotated_region_count"],
+            "match_kinds": match_kinds,
             "timings": dict(sorted(timings.items())),
         }
+
+    def cumulative_wall_seconds(self) -> float:
+        """Return the sum of every invocation duration that was recorded."""
+
+        total = 0.0
+        for row in self.connection.execute(
+            "SELECT wall_seconds FROM invocations WHERE wall_seconds IS NOT NULL"
+        ):
+            value = row["wall_seconds"]
+            if (
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or not math.isfinite(value)
+                or value < 0
+            ):
+                raise ValueError("stored invocation wall time is malformed")
+            total += float(value)
+        return total
 
     def pair_details(self, distance_from_newest: int) -> dict[str, Any]:
         """Load one durable canonical outcome without regenerating it."""
@@ -776,9 +831,12 @@ class AnalysisDatabase:
         ).fetchone()
         if row is None:
             raise ValueError(
-                f"no durable pair exists at distance {distance} from newest"
+                "no durable commit pair exists at distance "
+                f"{distance} from newest"
             )
-        metrics = _json_object(bytes(row["metrics_json"]), "pair metrics")
+        metrics = _json_object(
+            bytes(row["metrics_json"]), "commit pair metrics"
+        )
         moves = []
         move_rows = self.connection.execute(
             """
@@ -813,16 +871,16 @@ class AnalysisDatabase:
                 }
             )
         if metrics.get("move_count", 0) != len(moves):
-            raise ValueError("stored move rows drift from pair move count")
+            raise ValueError("stored move rows drift from stored move count")
         evidence = row["evidence_json"]
         return {
             "distance_from_newest": distance,
             "old_commit": _text(row["old_commit"], "old commit"),
             "new_commit": _text(row["new_commit"], "new commit"),
             "pair_fingerprint": _text(
-                row["pair_fingerprint"], "pair fingerprint"
+                row["pair_fingerprint"], "commit pair fingerprint"
             ),
-            "status": _text(row["status"], "pair status"),
+            "status": _text(row["status"], "commit pair status"),
             "invocation_id": _text(
                 row["outcome_invocation_id"], "outcome invocation ID"
             ),
@@ -833,12 +891,16 @@ class AnalysisDatabase:
                 row["analyzable_path_count"], "analyzable path count"
             ),
             "metrics": metrics,
-            "timings": _json_object(bytes(row["timings_json"]), "pair timings"),
+            "timings": _json_object(
+                bytes(row["timings_json"]), "commit pair timings"
+            ),
             "error": row["error"],
             "failure_evidence": (
                 None
                 if evidence is None
-                else _json_object(bytes(evidence), "pair failure evidence")
+                else _json_object(
+                    bytes(evidence), "commit pair failure evidence"
+                )
             ),
             "results_observation": (
                 None
@@ -891,9 +953,9 @@ class AnalysisDatabase:
                 or row["new_commit"] != item.new_commit
                 or row["pair_fingerprint"] != item.fingerprint
             ):
-                raise ValueError("analysis batch pair identity drift")
+                raise ValueError("analysis batch commit pair identity drift")
         if count != len(expected) or next(rows, None) is not None:
-            raise ValueError("analysis batch pair count drift")
+            raise ValueError("analysis batch commit pair count drift")
 
     @contextmanager
     def _transaction(self):
@@ -971,7 +1033,9 @@ def _stored_batch(row: sqlite3.Row) -> StoredBatch:
         manifest_sha256=_sha256(row["manifest_sha256"], "manifest"),
         oldest_commit=_text(row["oldest_commit"], "oldest commit"),
         newest_commit=_text(row["newest_commit"], "newest commit"),
-        pair_count=_positive_integer(row["pair_count"], "batch pair count"),
+        pair_count=_positive_integer(
+            row["pair_count"], "batch commit pair count"
+        ),
         reaches_root=_boolean(row["reaches_root"], "reaches root"),
         status=status,
     )

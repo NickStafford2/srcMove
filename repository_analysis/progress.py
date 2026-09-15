@@ -65,7 +65,7 @@ class AnalysisProgressStart:
 
 @dataclass(frozen=True, slots=True)
 class PairPublished:
-    """A pair outcome that has crossed the durable publication boundary."""
+    """A commit pair outcome that crossed the durable publication boundary."""
 
     covered: int
     status: PairStatus | str
@@ -73,7 +73,7 @@ class PairPublished:
 
     def __post_init__(self) -> None:
         if self.covered < 0:
-            raise ValueError("covered pair count must be non-negative")
+            raise ValueError("covered commit pair count must be non-negative")
         if self.move_count < 0:
             raise ValueError("move count must be non-negative")
 
@@ -346,11 +346,12 @@ class TerminalAnalysisObserver:
         )
 
     def _count_text(self) -> str:
+        unit = "commit pair" if self.covered == 1 else "commit pairs"
         if self.target_total is None:
-            return f"{self.covered} pairs covered"
+            return f"{self.covered} {unit} covered"
         if self.covered > self.target_total:
             return (
-                f"{self.covered} pairs covered · target "
+                f"{self.covered} {unit} covered · target "
                 f"{self.target_total} satisfied"
             )
         if self.target_total == 0:

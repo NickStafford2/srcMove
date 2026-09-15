@@ -6,20 +6,23 @@ import csv
 import json
 import os
 import tempfile
+import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Mapping
 
 from benchmarks.bigclonebench.run import (
+    _validate_results_schema,
+    assess_positive_case,
     classify_result,
     expected_generated_text,
     text_matches_with_status,
-    validate_case,
 )
+from benchmarks.bigclonebench.selection import TYPE3_STRATA
 from benchmarks.process import write_json_atomic
 from benchmarks.provenance import sha256_file, utc_now
 
 
-SCORING_ORACLE_VERSION = 2
+SCORING_ORACLE_VERSION = 4
 OUTCOMES = (
     "upstream_failure",
     "srcdiff_semantic_ineligible",
@@ -45,18 +48,24 @@ def _score_completed_case(
     results_path: Path,
     srcmove_xml: Path,
 ) -> tuple[str, list[str], dict[str, str], dict[str, Any]]:
-    results = _read_json(results_path)
+    try:
+        results = _read_json(results_path)
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        return (
+            "oracle_failure",
+            [f"results.json parse error: {error}"],
+            {"from": "not_checked", "to": "not_checked"},
+            {},
+        )
     if metadata.get("case_kind") == "known_false_positive":
         text_validation = {"from": "not_checked", "to": "not_checked"}
-        failures: list[str] = []
+        failures = _validate_results_schema(results)
         moves = results.get("moves")
-        move_count = results.get("move_count")
-        if not isinstance(moves, list):
-            failures.append("moves: expected a list")
-        if not isinstance(move_count, int) or move_count < 0:
-            failures.append("move_count: expected a nonnegative integer")
-        elif isinstance(moves, list) and move_count != len(moves):
-            failures.append("move_count does not match the moves list")
+        if results.get("move_count") != 0 or srcmove_xml.exists():
+            try:
+                ET.parse(srcmove_xml)
+            except (OSError, ET.ParseError) as error:
+                failures.append(f"srcmove.xml parse error: {error}")
         expected = metadata.get("expected")
         if not isinstance(expected, dict):
             failures.append("metadata expected field is missing or invalid")
@@ -73,17 +82,14 @@ def _score_completed_case(
         if expected_from is None or expected_to is None:
             failures.append("metadata expected generated texts are missing or invalid")
 
+        if failures:
+            return "oracle_failure", failures, text_validation, results
+
         whole_fragment_match = False
         if isinstance(moves, list) and expected_from is not None and expected_to is not None:
             for move in moves:
-                if not isinstance(move, dict):
-                    failures.append("moves: expected objects")
-                    continue
                 from_texts = move.get("from_raw_texts")
                 to_texts = move.get("to_raw_texts")
-                if not isinstance(from_texts, list) or not isinstance(to_texts, list):
-                    failures.append("move raw-text fields must be lists")
-                    continue
                 from_status = next(
                     (
                         status
@@ -113,27 +119,48 @@ def _score_completed_case(
                 "srcMove linked the complete BigCloneBench known-false-positive pair"
             )
             return "srcmove_false_positive", failures, text_validation, results
-        if failures:
-            return "oracle_failure", failures, text_validation, results
         return "oracle_pass", [], text_validation, results
 
-    syntactic_type = int(metadata["syntactic_type"])
-    failures, text_validation = validate_case(
-        Path("."), results_path, srcmove_xml, syntactic_type, metadata=metadata
+    try:
+        syntactic_type = int(metadata["syntactic_type"])
+    except (KeyError, TypeError, ValueError) as error:
+        return (
+            "oracle_failure",
+            [f"metadata syntactic_type is missing or invalid: {error}"],
+            {"from": "not_checked", "to": "not_checked"},
+            results,
+        )
+    assessment = assess_positive_case(
+        metadata=metadata,
+        results=results,
+        srcmove_xml=srcmove_xml,
+        syntactic_type=syntactic_type,
     )
-    if not failures:
-        return "oracle_pass", [], text_validation, results
-    if results.get("move_count") == 0:
-        return "srcmove_miss", failures, text_validation, results
-
-    classification_failures = [
-        failure
-        for failure in failures
-        if failure.startswith("match_kind:") or failure.startswith("match_kinds.")
-    ]
-    if classification_failures and len(classification_failures) == len(failures):
-        return "wrong_classification", failures, text_validation, results
-    return "oracle_failure", failures, text_validation, results
+    if assessment.detected_move_id is not None:
+        results["_oracle_detected_move_id"] = assessment.detected_move_id
+        results["_oracle_observed_match_kind"] = assessment.observed_match_kind
+    if assessment.operational_failures:
+        return (
+            "oracle_failure",
+            assessment.operational_failures,
+            assessment.text_validation,
+            results,
+        )
+    if not assessment.detected:
+        return (
+            "srcmove_miss",
+            assessment.detection_failures,
+            assessment.text_validation,
+            results,
+        )
+    if not assessment.correctly_classified:
+        return (
+            "wrong_classification",
+            assessment.classification_failures,
+            assessment.text_validation,
+            results,
+        )
+    return "oracle_pass", [], assessment.text_validation, results
 
 
 def _write_csv_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
@@ -145,6 +172,8 @@ def _write_csv_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
         "semantic_reason",
         "clone_type",
         "syntactic_type",
+        "type3_both_similarity",
+        "type3_strength_stratum",
         "functionality_id",
         "function_id_one",
         "function_id_two",
@@ -179,6 +208,42 @@ def _write_csv_atomic(path: Path, rows: list[dict[str, Any]]) -> None:
         except FileNotFoundError:
             pass
         raise
+
+
+def _summarize_type3_strength(rows: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    groups: dict[str, dict[str, Any]] = {}
+    for row in rows:
+        if row["clone_type"] != "type3":
+            continue
+        strength = str(row["type3_strength_stratum"] or "unknown")
+        group = groups.setdefault(
+            strength,
+            {
+                "selected": 0,
+                "detected": 0,
+                "strictly_classified": 0,
+                "detection_rate": None,
+                "strict_classification_rate": None,
+                "outcomes": {outcome: 0 for outcome in OUTCOMES},
+            },
+        )
+        group["selected"] += 1
+        group["detected"] += int(
+            row["outcome"] in {"oracle_pass", "wrong_classification"}
+        )
+        group["strictly_classified"] += int(row["outcome"] == "oracle_pass")
+        group["outcomes"][row["outcome"]] += 1
+    for group in groups.values():
+        denominator = group["selected"]
+        group["detection_rate"] = group["detected"] / denominator
+        group["strict_classification_rate"] = (
+            group["strictly_classified"] / denominator
+        )
+    return {
+        name: groups[name]
+        for name, _, _ in TYPE3_STRATA
+        if name in groups
+    } | ({"unknown": groups["unknown"]} if "unknown" in groups else {})
 
 
 def write_evaluation(
@@ -233,6 +298,8 @@ def write_evaluation(
             if syntactic_type == 1
             else "type2"
             if syntactic_type == 2
+            else "type3"
+            if syntactic_type == 3
             else ""
         )
         failures: list[str] = []
@@ -287,7 +354,9 @@ def write_evaluation(
                 negative_incidental_move_passes += 1
         moves = results.get("moves", [])
         observed_kind = ""
-        if isinstance(moves, list) and len(moves) == 1 and isinstance(moves[0], dict):
+        if isinstance(results.get("_oracle_observed_match_kind"), str):
+            observed_kind = results["_oracle_observed_match_kind"]
+        elif isinstance(moves, list) and len(moves) == 1 and isinstance(moves[0], dict):
             observed_kind = moves[0].get("match_kind", "")
         rows.append(
             {
@@ -306,6 +375,10 @@ def write_evaluation(
                     else ""
                 ),
                 "syntactic_type": syntactic_type,
+                "type3_both_similarity": metadata.get("type3_both_similarity", ""),
+                "type3_strength_stratum": metadata.get(
+                    "type3_strength_stratum", ""
+                ),
                 "functionality_id": metadata.get("functionality_id", ""),
                 "function_id_one": metadata.get("function_id_one", ""),
                 "function_id_two": metadata.get("function_id_two", ""),
@@ -395,12 +468,20 @@ def write_evaluation(
             group["rate"] = int(group["oracle_pass"] or 0) / int(
                 group["selected"] or 1
             )
+    type3_strength_strata = _summarize_type3_strength(rows)
 
     source = corpus_manifest.get("source", {})
     generated_manifest = (
         source.get("selection", {}) if isinstance(source, Mapping) else {}
     )
     case_kind = generated_manifest.get("case_kind", "positive")
+    clone_type = generated_manifest.get("clone_type")
+    selection = generated_manifest.get("selection", {})
+    balanced_type3_sample = (
+        clone_type == "type3"
+        and isinstance(selection, Mapping)
+        and selection.get("method") == "sample"
+    )
     if case_kind == "known_false_positive":
         rates = {
             "end_to_end_whole_fragment_rejection": (
@@ -414,6 +495,21 @@ def write_evaluation(
             ),
             "conditional_srcmove_whole_fragment_false_positive": (
                 counts["srcmove_false_positive"] / eligible if eligible else None
+            ),
+        }
+    elif balanced_type3_sample:
+        rates = {
+            "balanced_sample_end_to_end_detection_and_classification": (
+                counts["oracle_pass"] / selected if selected else None
+            ),
+            "balanced_sample_conditional_srcmove_detection_and_classification": (
+                counts["oracle_pass"] / eligible if eligible else None
+            ),
+            "balanced_sample_end_to_end_strict_text_detection_and_classification": (
+                strict_passes / selected if selected else None
+            ),
+            "balanced_sample_conditional_srcmove_strict_text_detection_and_classification": (
+                strict_passes / eligible if eligible else None
             ),
         }
     else:
@@ -478,10 +574,16 @@ def write_evaluation(
             ),
         },
         "rates": rates,
+        "rate_interpretation": (
+            "balanced_strength_sample_unweighted_not_population_recall"
+            if balanced_type3_sample
+            else "selected_slice"
+        ),
         "strata": {
             "clone_type": clone_type_strata,
             "raw_text_relationship": raw_text_strata,
             "min_tokens": token_size_strata,
+            "type3_strength": type3_strength_strata,
         },
         "cases_csv": {"path": cases_path.name, "sha256": sha256_file(cases_path)},
     }

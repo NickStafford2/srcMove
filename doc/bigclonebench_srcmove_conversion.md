@@ -44,28 +44,34 @@ For each selected clone pair:
 1. Join `CLONES` to `FUNCTIONS` twice.
 2. Extract `function_id_one` lines from its source file.
 3. Extract `function_id_two` lines from its source file.
-4. Build a synthetic old file containing fragment one inside a stable wrapper
-   class.
-5. Build a synthetic new file containing the paired fragment after that class,
-   at top-level srcML scope.
-6. Run `srcDiff original.java modified.java --position`.
+4. Build an old two-file archive containing fragment one in a stable source
+   class and an empty destination class.
+5. Build a new archive with the source class empty and fragment two in the
+   destination class. Both relative files and their distinct classes remain
+   present across revisions.
+6. Run `srcDiff original/ modified/ --position` in archive mode.
 7. Verify that srcDiff exposed the intended synthetic payload as usable
    delete/insert regions.
 8. Run `srcMove` over eligible srcDiff XML.
-9. Score whether srcMove reports one delete/insert move whose annotated positions
-   overlap the generated line ranges for the two benchmark fragments.
+9. Score whether any single reported move links both complete generated fragment
+   texts and that same move's XML delete/insert annotations overlap the expected
+   line ranges. Other reported moves are incidental evidence, not a rejection.
 
-The compiled suite supplies each revision to srcDiff as a one-file directory in
-archive mode. Both directories use the same relative filename, `input.java`, so
-srcDiff compares them as revisions of one file. Different relative filenames
-would instead encode an unrelated whole-file deletion and insertion.
+Each generated revision contains the same two relative paths,
+`source/input.java` and `destination/input.java`. srcDiff therefore compares the
+stable source file across revisions and exposes the removed payload there, then
+compares the stable destination file and exposes the inserted payload there.
+The two distinct container classes prevent the wrappers themselves from looking
+like a cross-file move.
 
 The current evaluation uses a strict detection-and-classification oracle:
-Type-1 cases must report the intended whole-fragment move as `exact`, and Type-2
-cases must report it as `type2`. Position and per-side text validation must also
-pass. Detecting the intended payload with the wrong match kind is useful failure
-evidence, but it is not counted as a pass. The benchmark deliberately uses
-BigCloneBench as the best available large labeled source; questionable labels,
+Type-1 cases must classify the intended whole-fragment move as `exact`, Type-2
+as `type2`, and Type-3 as `type3`. Position and per-side text validation are
+correlated to that move by its result `move_id` and XML `mv:id`/link attributes.
+Detecting the intended payload with the wrong match kind is useful failure
+evidence, but it is not counted as a pass. Type-3 recall is observational. The
+benchmark deliberately uses BigCloneBench as the best available large labeled
+source; questionable labels,
 unsupported variations, extraction problems, or conversion artifacts discovered
 in the failure set should be analyzed and reported rather than silently removed.
 
@@ -165,9 +171,13 @@ hand-authored e2e fixtures:
 benchmarks/bigclonebench/
   cases/
     bcb_t2_000001/
-      original.java
-      modified.java
       metadata.json
+      original/
+        source/input.java
+        destination/input.java
+      modified/
+        source/input.java
+        destination/input.java
 ```
 
 `metadata.json` should record BigCloneBench IDs, source file locations, original
@@ -208,7 +218,7 @@ judge and confidence thresholds. Token size is retained as reporting metadata
 but does not determine eligibility. The ordered table direction is preserved as
 fragment one deleted and fragment two inserted.
 
-Generation reuses the positive cases' extraction and asymmetric wrapper so the
+Generation reuses the positive cases' extraction and two-file archive so the
 srcDiff semantic oracle can first establish that both complete payloads were
 exposed as candidates. The srcMove negative oracle then rejects only a reported
 move that links the complete generated fragment-one text to the complete
@@ -222,6 +232,38 @@ population false-positive rate. Its manifests, summaries, and rates remain
 separate from positive Type-1/Type-2 detection-and-classification results. The
 `syntactic_type` on a false-positive row is retained only as dataset metadata;
 it does not enable Type-3 move matching or create a positive expectation.
+
+## Content-Label Conflict Exclusion
+
+Conflict eligibility is keyed by the unordered SHA-256 pair of the two extracted
+fragment contents. Under the default dedupe policy this is also the execution
+frame identity and deliberately collapses repeated BigCloneBench rows that would
+produce the same synthetic old/new payloads. Row-audit mode retains separate
+execution frames but applies the same content-conflict exclusion.
+
+That content-only identity is less specific than BigCloneBench's function-pair
+identity. Distinct BigCloneBench function pairs can extract to the same two
+fragment contents while one row is a positive clone and another is a known false
+positive. This does not by itself prove that BigCloneBench assigned contradictory
+labels to the same function pair: project, file, function, and functionality
+context can differ even when the extracted payload bytes are equal. The synthetic
+wrapper discards that context, however, so it cannot defensibly give the resulting
+content-identical test both a positive and a negative oracle.
+
+The selector therefore treats every unordered fragment-content identity carrying
+both label kinds as audit-only. It excludes those identities before census
+eligibility counting and deterministic sample ranking for every pair set and
+dedupe mode. This preserves requested sample sizes when enough unambiguous frames
+exist and prevents the same generated input from entering scored selections with
+incompatible expectations.
+
+Each selection preserves the complete evidence in `label-conflicts.jsonl`, writes
+pair-set-specific exclusions to `exclusions.jsonl` with reason
+`positive_negative_content_label_conflict`, and records excluded frame,
+catalog-row, and source-row counts in its manifest. Run
+`make bigclonebench-conflicts` to inspect the compiled catalog directly. The
+report includes contributing BigCloneBench function IDs and separately counts
+cases where the exact same function pair carries both labels.
 
 ## Important Caveats
 
@@ -238,14 +280,14 @@ it does not enable Type-3 move matching or create a positive expectation.
 - Interpret BigCloneBench source ranges as LF-delimited line numbers. Some
   IJaDataset files contain standalone carriage-return characters inside comments,
   and treating those as line breaks shifts later extracted fragments.
-- The synthetic old/new payloads intentionally sit under different parent
-  shapes. If both sides use comparable wrapper blocks, srcDiff can align those
-  wrappers and treat the payload as common code instead of exposing it as
-  delete/insert content for srcMove.
+- Each synthetic archive retains distinct source and destination container
+  classes at stable relative paths. The payload is removed from the source file
+  and added to the destination file, so srcDiff cannot align the two payloads as
+  unchanged content within one corresponding file.
 - Many BigCloneBench fragments depend on imports or surrounding class members.
   srcDiff/srcML parsing generally does not require compilation, but malformed
   extracted fragments should be filtered out.
-- Type-3 and Type-4 pairs should not be marked as required positives unless
-  srcMove grows a similarity matcher designed for them.
+- Type-3 strict classification remains observational until srcMove grows a
+  similarity matcher designed for it. Type-4 is not a required positive.
 - Keep the generator deterministic. A stable SQL `ORDER BY` makes failures
   reproducible and lets you compare recall across srcMove versions.

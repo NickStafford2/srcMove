@@ -126,7 +126,7 @@ class RepositoryAnalysisProgressTests(unittest.TestCase):
             observer.analysis_started(_start(target=None))
             observer.pair_published(PairPublished(1, PairStatus.COMPLETED))
 
-        self.assertIn("1 pairs covered", output.getvalue())
+        self.assertIn("1 commit pair covered", output.getvalue())
         self.assertNotIn("%", output.getvalue())
         self.assertNotIn("ETA", output.getvalue())
 
@@ -166,7 +166,7 @@ class RepositoryAnalysisProgressTests(unittest.TestCase):
 
         rendered = output.getvalue()
         self.assertIn("complete with failures", rendered)
-        self.assertIn("3 pairs covered · target 2 satisfied", rendered)
+        self.assertIn("3 commit pairs covered · target 2 satisfied", rendered)
         self.assertNotIn("3/2", rendered)
 
 

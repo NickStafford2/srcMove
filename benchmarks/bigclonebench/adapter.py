@@ -10,13 +10,13 @@ from typing import Any, Mapping, Sequence
 
 from benchmarks.bigclonebench.compiled import load_compiled_dataset
 from benchmarks.bigclonebench.generate import (
-    build_synthetic_move_sources,
-    dedent_fragment,
+    build_synthetic_move_archive,
     indent_fragment,
 )
 from benchmarks.bigclonebench.selection import (
     GENERATED_INPUT_IDENTITY_VERSION,
     load_selection,
+    type3_stratum,
 )
 from benchmarks.contracts import (
     InputPair,
@@ -29,8 +29,7 @@ from benchmarks.provenance import sha256_file
 
 
 SEMANTIC_ORACLE_VERSION = 1
-SYNTHETIC_WRAPPER_VERSION = 2
-SYNTHETIC_SOURCE_FILENAME = "input.java"
+SYNTHETIC_WRAPPER_VERSION = 4
 SRCDIFF_NAMESPACES = {
     "http://www.srcML.org/srcDiff",
     "http://www.srcML.org/srcDiff/diff",
@@ -44,16 +43,28 @@ def _fragment_relation(fragment_one: str, fragment_two: str) -> dict[str, bool]:
     }
 
 
-def _file_identity(path: Path, contents: bytes) -> dict[str, Any]:
-    return {
-        "kind": "directory",
-        "files": [
+def _write_archive_identity(
+    directory: Path, sources: Mapping[Path, str]
+) -> dict[str, Any]:
+    files: list[dict[str, Any]] = []
+    for relative, source in sorted(
+        sources.items(), key=lambda item: item[0].as_posix()
+    ):
+        contents = source.encode("utf-8")
+        path = directory / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(contents)
+        path.chmod(0o444)
+        files.append(
             {
-                "path": path.name,
+                "path": relative.as_posix(),
                 "size_bytes": len(contents),
                 "sha256": hashlib.sha256(contents).hexdigest(),
             }
-        ],
+        )
+    return {
+        "kind": "directory",
+        "files": files,
         "excluded": [],
     }
 
@@ -66,6 +77,21 @@ def _safe_fragment_sha256(value: Any) -> str:
     ):
         raise ValueError("selection frame contains an invalid fragment SHA-256")
     return value
+
+
+def _type3_frame_strength(rows: Sequence[Mapping[str, Any]]) -> tuple[float, str]:
+    similarities: list[float] = []
+    for row in rows:
+        similarity = row.get("similarity")
+        if not isinstance(similarity, Mapping):
+            raise ValueError("Type-3 selection row is missing similarity")
+        line = similarity.get("line")
+        token = similarity.get("token")
+        if not isinstance(line, (int, float)) or not isinstance(token, (int, float)):
+            raise ValueError("Type-3 selection row has invalid similarity")
+        similarities.append(min(float(line), float(token)))
+    strength = min(similarities)
+    return strength, type3_stratum(strength)
 
 
 def compiled_selection_source_manifest(
@@ -126,7 +152,7 @@ class CompiledBigCloneBenchAdapter:
     """Materialize Phase 2 selections directly from the compiled fragment store."""
 
     name = "bigclonebench"
-    version = 5
+    version = 6
 
     def __init__(
         self,
@@ -149,10 +175,10 @@ class CompiledBigCloneBenchAdapter:
 
         request = self.selection_manifest["request"]
         pair_set = request.get("pair_set")
-        if pair_set not in {"type1", "type2", "known-false-positive"}:
+        if pair_set not in {"type1", "type2", "type3", "known-false-positive"}:
             raise ValueError(
                 "compiled snapshot materialization supports only Type 1, "
-                "Type 2, and known-false-positive selections"
+                "Type 2, Type 3, and known-false-positive selections"
             )
         self.pair_set = str(pair_set)
         self.case_kind = (
@@ -252,28 +278,23 @@ class CompiledBigCloneBenchAdapter:
         original_fragment = self._fragment(original_sha)
         modified_fragment = self._fragment(modified_sha)
         generated_original = indent_fragment(original_fragment)
-        generated_modified = dedent_fragment(modified_fragment)
+        generated_modified = indent_fragment(modified_fragment)
         digest = expected_generated_id.rsplit("-", 1)[-1]
-        original_source, modified_source, original_range, modified_range = (
-            build_synthetic_move_sources(
+        original_sources, modified_sources, original_range, modified_range = (
+            build_synthetic_move_archive(
                 f"BCBMove{digest}", generated_original, generated_modified
             )
         )
-        original_bytes = original_source.encode("utf-8")
-        modified_bytes = modified_source.encode("utf-8")
         original_directory = case_root / "original"
         modified_directory = case_root / "modified"
         original_directory.mkdir(parents=True, exist_ok=False)
         modified_directory.mkdir(parents=True, exist_ok=False)
-        # Archive-mode srcDiff pairs files by relative path. Both revisions
-        # must therefore use the same filename or srcDiff correctly treats
-        # them as an unrelated whole-file deletion and insertion.
-        original_path = original_directory / SYNTHETIC_SOURCE_FILENAME
-        modified_path = modified_directory / SYNTHETIC_SOURCE_FILENAME
-        original_path.write_bytes(original_bytes)
-        modified_path.write_bytes(modified_bytes)
-        original_path.chmod(0o444)
-        modified_path.chmod(0o444)
+        original_identity = _write_archive_identity(
+            original_directory, original_sources
+        )
+        modified_identity = _write_archive_identity(
+            modified_directory, modified_sources
+        )
 
         rows = frame.get("rows")
         if not isinstance(rows, list) or not rows:
@@ -311,6 +332,12 @@ class CompiledBigCloneBenchAdapter:
             if isinstance(row.get("tokens"), Mapping)
             and isinstance(row.get("tokens", {}).get("min"), int)
         ]
+        type3_both_similarity = None
+        type3_strength_stratum = None
+        if self.syntactic_type == 3:
+            type3_both_similarity, type3_strength_stratum = (
+                _type3_frame_strength(rows)
+            )
         functionality_ids = frame.get("functionality_ids", [])
         function_ids = frame.get("function_ids", [])
         metadata = {
@@ -323,6 +350,8 @@ class CompiledBigCloneBenchAdapter:
             ),
             "syntactic_type": representative_type,
             "syntactic_types": syntactic_types,
+            "type3_both_similarity": type3_both_similarity,
+            "type3_strength_stratum": type3_strength_stratum,
             "min_tokens": min(min_tokens) if min_tokens else None,
             "functionality_id": (
                 functionality_ids[0]
@@ -373,8 +402,8 @@ class CompiledBigCloneBenchAdapter:
         }
         return MaterializedInputPair(
             case_id=expected_generated_id,
-            original=_file_identity(original_path, original_bytes),
-            modified=_file_identity(modified_path, modified_bytes),
+            original=original_identity,
+            modified=modified_identity,
             metadata=metadata,
         )
 
@@ -681,11 +710,17 @@ class BigCloneBenchAdapter:
                 raise ValueError(
                     f"case row identity does not match selection manifest: {case_id}"
                 )
+            original = directory / "original"
+            modified = directory / "modified"
             cases.append(
                 InputPair(
                     case_id=case_id,
-                    original=directory / "original.java",
-                    modified=directory / "modified.java",
+                    original=(
+                        original if original.is_dir() else directory / "original.java"
+                    ),
+                    modified=(
+                        modified if modified.is_dir() else directory / "modified.java"
+                    ),
                     metadata=metadata,
                 )
             )

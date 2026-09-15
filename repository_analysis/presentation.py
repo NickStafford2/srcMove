@@ -19,8 +19,8 @@ def render_status(summary: Mapping[str, Any]) -> str:
     """Render one read-only analysis snapshot for a person."""
 
     view = _SummaryView(summary)
-    lines = [f"{view.name} — {view.state_label}", ""]
-    lines.extend(_summary_lines(view, include_percentage=True, frontier="Frontier"))
+    lines = [_heading(view), ""]
+    lines.extend(_summary_lines(view))
     _append_failure_hint(lines, view)
     return "\n".join(lines)
 
@@ -29,23 +29,37 @@ def render_run(summary: Mapping[str, Any]) -> str:
     """Render the final summary of a create, resume, or extension run."""
 
     view = _SummaryView(summary)
-    lines = [view.run_heading, ""]
-    lines.extend(_summary_lines(view, include_percentage=False, frontier="History"))
+    lines = [_heading(view), ""]
+    lines.extend(_summary_lines(view))
     _append_failure_hint(lines, view)
     return "\n".join(lines)
 
 
-def _summary_lines(
-    view: "_SummaryView", *, include_percentage: bool, frontier: str
-) -> list[str]:
+def _heading(view: "_SummaryView") -> str:
+    states = {
+        "target reached with failures": "completed with failures",
+        "history exhausted": "end of history reached",
+        "running": "running",
+        "interrupted": "interrupted",
+        "failed": "failed",
+    }
+    state = states.get(view.state_label)
+    return "Repository history" if state is None else f"Repository history — {state}"
+
+
+def _summary_lines(view: "_SummaryView") -> list[str]:
     lines = [
-        _field("Coverage", view.coverage_text(include_percentage)),
+        _field("Commit pairs", view.coverage_text),
         _field(
-            "Results",
+            "Outcomes",
             " · ".join(
                 (
-                    _count(view.analyzed, "analyzed", "analyzed"),
-                    _count(view.skipped, "skipped", "skipped"),
+                    _count(view.analyzed, "compared", "compared"),
+                    _count(
+                        view.skipped,
+                        "without analyzable change",
+                        "without analyzable changes",
+                    ),
                     _count(view.failed, "failed", "failed"),
                 )
             ),
@@ -56,25 +70,13 @@ def _summary_lines(
     lines.append(
         _field(
             "Moves",
-            " · ".join(
-                (
-                    _count(view.move_groups, "group", "groups"),
-                    _count(view.move_pairs, "move pair", "move pairs"),
-                    _count(
-                        view.annotated_regions,
-                        "annotated region",
-                        "annotated regions",
-                    ),
-                )
-            ),
+            view.moves_text,
         )
     )
     if view.time_text:
         lines.append(_field("Time", view.time_text))
     if view.frontier_text:
-        lines.append(_field(frontier, view.frontier_text))
-    if view.root:
-        lines.append(_field("Analysis", view.root))
+        lines.append(_field("Range", view.frontier_text))
     return lines
 
 
@@ -132,10 +134,6 @@ def _wall_time(seconds: float) -> str:
     return f"{remaining_seconds}s"
 
 
-def _work_time(seconds: float) -> str:
-    return f"{seconds:.1f}s"
-
-
 def _abbreviate(commit: str | None) -> str | None:
     return None if not commit else commit[:8]
 
@@ -176,6 +174,7 @@ class _SummaryView:
             durable, default=self.committed + self.checkpointed
         )
         self.target = self._target_value()
+        self.history_exhausted = bool(summary.get("history_exhausted"))
 
         statuses = _mapping(summary.get("statuses"))
         self.analyzed = _nonnegative_int(
@@ -214,6 +213,13 @@ class _SummaryView:
         self.annotated_regions = _nonnegative_int(
             self.moves.get("annotated_regions", summary.get("annotated_region_count"))
         )
+        move_types = _mapping(
+            self.moves.get("by_type", summary.get("match_kinds"))
+        )
+        self.move_types = {
+            str(name): _nonnegative_int(count)
+            for name, count in move_types.items()
+        }
 
     def _target_value(self) -> int | None:
         nested_target = self.coverage.get("target")
@@ -266,36 +272,29 @@ class _SummaryView:
         return "idle"
 
     @property
-    def run_heading(self) -> str:
-        state = self.state_label
-        if state == "target reached with failures":
-            ending = "reached its target with failures"
-        elif state == "target reached":
-            ending = "complete"
-        elif state == "history exhausted":
-            ending = "reached the end of history"
-        elif state == "running":
-            ending = "is running"
-        elif state == "interrupted":
-            ending = "interrupted"
-        elif state == "failed":
-            ending = "failed"
-        else:
-            ending = state
-        return f"{self.name} history analysis {ending}"
+    def coverage_text(self) -> str:
+        result = f"{self.durable} processed"
+        details: list[str] = []
+        if self.target is not None:
+            details.append(f"target {self.target}")
+        if self.history_exhausted:
+            details.append("end of history reached")
+        elif self.target is not None and self.durable >= self.target:
+            details.append("more history remains")
+        return result if not details else f"{result} ({'; '.join(details)})"
 
-    def coverage_text(self, include_percentage: bool) -> str:
-        if self.target is None:
-            return _count(self.durable, "pair covered", "pairs covered")
-        if self.durable > self.target:
-            return f"{self.durable} pairs covered (target {self.target} satisfied)"
-        result = f"{self.durable}/{self.target} pairs"
-        if include_percentage:
-            percent = (
-                100 if self.target == 0 else int(self.durable * 100 / self.target)
-            )
-            result += f" ({percent}%)"
-        return result
+    @property
+    def moves_text(self) -> str:
+        parts = [_count(self.move_groups, "detected", "detected")]
+        labels = {"exact": "exact", "type2": "Type 2", "type3": "Type 3"}
+        for name in ("exact", "type2", "type3"):
+            count = self.move_types.get(name, 0)
+            if count:
+                parts.append(f"{count} {labels[name]}")
+        for name, count in sorted(self.move_types.items()):
+            if name not in labels and count:
+                parts.append(f"{count} {name}")
+        return " · ".join(parts)
 
     @property
     def failure_text(self) -> str:
@@ -316,17 +315,25 @@ class _SummaryView:
     @property
     def time_text(self) -> str:
         wall = _seconds(
-            self.invocation.get("wall_seconds", self.summary.get("wall_seconds"))
+            self.timings.get(
+                "cumulative_wall_seconds",
+                self.summary.get(
+                    "cumulative_wall_seconds",
+                    self.invocation.get(
+                        "wall_seconds", self.summary.get("wall_seconds")
+                    ),
+                ),
+            )
         )
         srcdiff = _seconds(self.timings.get("srcdiff_seconds"))
         srcmove = _seconds(self.timings.get("srcmove_seconds"))
         parts: list[str] = []
         if wall is not None:
-            parts.append(f"{_wall_time(wall)} wall")
+            parts.append(f"{_wall_time(wall)} elapsed")
         if srcdiff is not None:
-            parts.append(f"{_work_time(srcdiff)} srcDiff work")
+            parts.append(f"{_wall_time(srcdiff)} srcDiff")
         if srcmove is not None:
-            parts.append(f"{_work_time(srcmove)} srcMove work")
+            parts.append(f"{_wall_time(srcmove)} srcMove")
         return " · ".join(parts)
 
     @property
@@ -338,5 +345,8 @@ class _SummaryView:
         abbreviated_newest = _abbreviate(str(newest)) if newest else None
         abbreviated_oldest = _abbreviate(str(oldest)) if oldest else None
         if abbreviated_newest and abbreviated_oldest:
-            return f"{abbreviated_newest} → {abbreviated_oldest}"
+            return (
+                f"newest {abbreviated_newest} · "
+                f"oldest {abbreviated_oldest}"
+            )
         return abbreviated_newest or abbreviated_oldest or ""

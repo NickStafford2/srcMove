@@ -121,6 +121,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 self.assertEqual(finished.result, "target_reached")
                 self.assertEqual(finished.wall_seconds, 3.0)
                 self.assertEqual(database.latest_invocation(), finished)
+                self.assertEqual(database.cumulative_wall_seconds(), 3.0)
                 with self.assertRaisesRegex(ValueError, "already finalized"):
                     database.finish_invocation(
                         "2" * 32,
@@ -280,7 +281,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 self.assertEqual(older_batch.base_revision, 2)
                 self.assertEqual(database.analysis().revision, 3)
 
-                with self.assertRaisesRegex(ValueError, "no durable pair"):
+                with self.assertRaisesRegex(ValueError, "no durable commit pair"):
                     database.pair_details(2)
 
     def test_pair_outcomes_are_exclusive_and_completion_requires_full_prefix(self) -> None:

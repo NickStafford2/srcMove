@@ -33,8 +33,8 @@ Given a srcDiff XML document, srcMove:
 3. builds canonical representations from the embedded srcML structure
 4. uses FNV-1a hashes as indexes, then confirms exact matches with the full
    canonical text
-5. recovers constrained one-to-one Type-2 matches by normalizing eligible
-   identifier names
+5. recovers Type-2 matches by consistently normalizing eligible names and
+   literal categories
 6. suppresses overlapping parent/child selections and annotates every group
    containing both deletes and inserts
 
@@ -139,13 +139,17 @@ output path and JSON results file can also be supplied:
 CLI synopsis:
 
 ```text
-srcMove <srcdiff.xml> [out.xml] [--results results.json] [--profile] [-v]
+srcMove <srcdiff.xml> [out.xml] [--results results.json]
+        [--min-granularity statement|fragment] [--profile] [-v]
 srcMove --help
 srcMove --version
 ```
 
 - `--results <file>` writes move groups, XPaths, raw texts, candidate counts,
   group classifications, and match kinds as JSON.
+- `--min-granularity statement|fragment` selects the minimum move unit.
+  `statement` is the default; `fragment` enables low-level diff fragments for
+  specialized analysis.
 - `--profile` writes coarse `profile.<stage>_ms=<milliseconds>` timings to
   standard error.
 - `-v` and `--verbose` are accepted for compatibility but currently have no
@@ -179,18 +183,11 @@ by this pipeline.
 
 ## Matching scope
 
-The current matcher reports:
-
-- `exact`: identical canonical structure and meaningful text
-- `type2`: identical identifier-normalized canonical structure for an eligible
-  one-delete/one-insert construct
-
-Hash equality alone never establishes a match. Many-to-many and unequal-count
-groups may share a move identifier and partner set, but srcMove does not yet
-infer a unique pairing within those groups.
-
-For the complete implemented pipeline and its performance model, see
-[Architecture](doc/architecture.md).
+The deterministic classifier reports `exact` (Type 1), `type2`, and `type3`;
+pairs below the Type-3 threshold remain unmatched. Hash equality alone never
+establishes a match. The normalization rules, 0.70 similarity formula,
+ambiguity policy, and performance safeguards have one canonical description in
+[Architecture](doc/architecture.md#matching-and-group-semantics).
 
 ## Documentation and evaluation
 
@@ -218,9 +215,10 @@ srcReader/srcML stack.
 
 ## Current limitations
 
-- Type-3 and Type-4 moves are not supported.
-- Type-2 support is constrained identifier normalization, not general near-miss
-  clone detection or semantic equivalence.
+- Type-4 moves are not supported.
+- Type-2 normalization is lexical and consistency-sensitive; it is not semantic
+  equivalence. Type-3 uses bounded syntactic similarity and likewise does not
+  imply semantic equivalence.
 - There is no probabilistic confidence score, locality model, or behavioral
   interpretation.
 - Many-to-many and unequal-count groups are classified but not fully paired or

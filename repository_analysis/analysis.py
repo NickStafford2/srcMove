@@ -13,6 +13,7 @@ from typing import Any
 from .coordinator import CoordinatorStats, run_pairs_from_sequence
 from .database import (
     AnalysisDatabase,
+    StoredAnalysis,
     StoredBatch,
     analysis_database_exists,
 )
@@ -148,7 +149,7 @@ def analyze_repository(
     srcmove_path: Path | None = None,
     observer: AnalysisObserver | None = None,
 ) -> AnalyzeResult:
-    """Create, resume, or extend one analysis toward an absolute target."""
+    """Create, resume, or extend one analysis toward a target."""
 
     if jobs <= 0:
         raise ValueError("jobs must be positive")
@@ -159,12 +160,13 @@ def analyze_repository(
         _ensure_state_gitignore(root)
         invocation_started = time.monotonic()
         remove_ephemeral_tree(root / "scratch", root)
+        creation_target = _creation_target(target)
         if analysis_database_exists(root):
             database = AnalysisDatabase.open(root)
         else:
             database = _create_database(
                 root,
-                target,
+                creation_target,
                 repository=repository,
                 start=start,
                 repository_identity=repository_identity,
@@ -174,6 +176,7 @@ def analyze_repository(
             )
         with database:
             state = database.analysis()
+            effective_target = _effective_target(state, target)
             _verify_supplied_definition(
                 database.latest_manifest(),
                 newest_commit=state.newest_commit,
@@ -187,20 +190,20 @@ def analyze_repository(
             assert operation.started_at is not None
             database.begin_invocation(
                 operation.invocation_id,
-                target_kind=target.kind,
-                target_value=target.database_value(),
+                target_kind=effective_target.kind,
+                target_value=effective_target.database_value(),
                 jobs=jobs,
                 started_at=operation.started_at,
             )
             try:
                 active_observer.analysis_started(
-                    _progress_start(database, root, target, jobs)
+                    _progress_start(database, root, effective_target, jobs)
                 )
                 result = _advance_analysis(
                     database,
                     root=root,
                     invocation_id=operation.invocation_id,
-                    target=target,
+                    target=effective_target,
                     jobs=jobs,
                     repository=repository,
                     start=start,
@@ -242,6 +245,9 @@ def analyze_repository(
                 wall_seconds=time.monotonic() - invocation_started,
             )
             result.summary["invocation"] = invocation.record()
+            result.summary["cumulative_wall_seconds"] = (
+                database.cumulative_wall_seconds()
+            )
             manifest = database.initial_manifest()
             result.summary["analysis"] = {
                 "name": manifest.repository_identity.value,
@@ -253,9 +259,31 @@ def analyze_repository(
                 "completed_pair_count"
             ]
             active_observer.analysis_finished(
-                result=_progress_finish_result(result.summary, target)
+                result=_progress_finish_result(result.summary, effective_target)
             )
             return result
+
+
+def _creation_target(target: AnalysisTarget) -> AnalysisTarget:
+    """Translate a relative target for initial batch creation."""
+
+    if target.kind == "additional_pairs":
+        assert isinstance(target.value, int)
+        return AnalysisTarget("total_pairs", target.value)
+    return target
+
+
+def _effective_target(
+    state: StoredAnalysis, target: AnalysisTarget
+) -> AnalysisTarget:
+    """Resolve relative coverage while the analysis operation lock is held."""
+
+    if target.kind == "additional_pairs":
+        assert isinstance(target.value, int)
+        return AnalysisTarget(
+            "total_pairs", state.completed_pair_count + target.value
+        )
+    return target
 
 
 def _advance_analysis(
@@ -296,7 +324,7 @@ def _advance_analysis(
             if desired_total is not None and desired_total < pending_total:
                 raise ValueError(
                     "requested target is smaller than frozen pending work; "
-                    f"resume at least {pending_total} total pairs"
+                    f"resume at least {pending_total} total commit pairs"
                 )
             prefix, execution = _execute_pending_batch(
                 database,
@@ -321,7 +349,7 @@ def _advance_analysis(
         )
         if len(manifest.commits) < 2:
             raise RuntimeError(
-                "repository has no older adjacent pair at the analysis frontier"
+                "repository has no older adjacent commit pair at the analysis frontier"
             )
         database.add_pending_batch(
             manifest,
@@ -345,7 +373,7 @@ def analysis_status(analysis_root: Path) -> dict[str, Any]:
 
 
 def analysis_identity(analysis_root: Path) -> dict[str, str]:
-    """Return immutable analysis identity without scanning pair outcomes."""
+    """Return immutable identity without scanning commit pair outcomes."""
 
     return AnalysisReader(analysis_root).identity().record()
 
@@ -360,7 +388,7 @@ def analysis_list_pairs(
     after_distance: int | None = None,
     oldest_first: bool = False,
 ) -> dict[str, Any]:
-    """Return one stable, keyset-paginated page of durable pair outcomes."""
+    """Return one stable page of durable commit pair outcomes."""
 
     return AnalysisReader(analysis_root).list_pairs(
         status=status,
@@ -375,7 +403,7 @@ def analysis_list_pairs(
 def analysis_pair_details(
     analysis_root: Path, distance_from_newest: int
 ) -> dict[str, Any]:
-    """Return compact evidence for one durable pair by zero-based distance."""
+    """Return evidence for one durable commit pair by zero-based distance."""
 
     return AnalysisReader(analysis_root).show(distance_from_newest + 1).record()
 
@@ -695,13 +723,18 @@ def _ensure_state_gitignore(root: Path) -> None:
 
 
 def _validate_target(target: AnalysisTarget) -> None:
-    if target.kind == "total_pairs":
+    if target.kind in {"total_pairs", "additional_pairs"}:
         if (
             isinstance(target.value, bool)
             or not isinstance(target.value, int)
             or target.value <= 0
         ):
-            raise ValueError("total-pairs target must be a positive integer")
+            label = (
+                "total-pairs"
+                if target.kind == "total_pairs"
+                else "additional-pairs"
+            )
+            raise ValueError(f"{label} target must be a positive integer")
     elif target.kind == "through":
         if not isinstance(target.value, str) or not target.value or "\0" in target.value:
             raise ValueError("through target must be a non-empty revision")

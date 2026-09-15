@@ -5,12 +5,14 @@ pairs and negative cases from its known false-positive pairs. It supports both
 quick smoke runs and large batches.
 The resulting pass rate is a strict synthetic detection-and-classification rate
 for the selected cases: Type-1 must report `exact`, Type-2 must report `type2`,
-and the position/text oracle must pass. It is not general accuracy, recall, or
-precision. The generated case directories live under
+Type-3 must report `type3`, and the position/text oracle must pass. Type-3
+recall is observational: misses remain measurements rather than operational
+suite failures. These rates are not general accuracy, recall, or precision.
+The generated case directories live under
 `benchmarks/bigclonebench/cases/` and are ignored by git.
 
 Known-false-positive results use a separate whole-fragment rejection metric and
-are never combined with the Type-1/Type-2 positive rate. See the
+are never combined with the positive rates. See the
 [conversion methodology](../../doc/bigclonebench_srcmove_conversion.md).
 
 BigCloneBench is an external manual prerequisite. Both the full IJaDataset and
@@ -69,10 +71,17 @@ make bigclonebench-select \
   SELECTION_ROLE=evaluation
 ```
 
-Use `CLONE_TYPE=type2` or `CLONE_TYPE=known-false-positive` for the other pair
-sets. `MODE=sample SAMPLE_SIZE=100 SEED=0` selects the lowest seeded SHA-256
-ranks from the complete eligible frame. The seed, role, sample size, pair set,
-and dedupe policy are part of selection identity. The default
+Use `CLONE_TYPE=type2`, `CLONE_TYPE=type3`, or
+`CLONE_TYPE=known-false-positive` for the other pair sets. Ordinary samples
+select the lowest seeded SHA-256 ranks from the complete eligible frame. Type-3
+samples instead divide frames by `min(line similarity, token similarity)` into
+`>=.90`, `[.70,.90)`, `[.50,.70)`, and `<.50` bands, allocate equally across
+all four required bands (redistributing unavailable quota), then rank within
+each band. A frame with multiple catalog rows uses their minimum strength.
+Type-3 sample sizes below four, or catalogs missing a band, are rejected. Sample
+nonselections are aggregate manifest counts for Type-3 rather than one JSONL
+record per frame. The seed, role, sample size, pair set, and dedupe policy are
+part of selection identity. The default
 `DEDUPE=exact-unordered-fragment-pair` retains one direction chosen by ascending
 fragment SHA-256; `DEDUPE=none` is the row-based audit mode.
 
@@ -81,16 +90,35 @@ Every selection directory contains:
 - `manifest.json`: request, source catalog identity, counts, and artifact hashes
 - `frames.jsonl`: selected frames and all contributing row, function, and
   functionality metadata
-- `exclusions.jsonl`: unavailable inputs and deterministic sample exclusions
+- `exclusions.jsonl`: unavailable inputs and ordinary deterministic sample
+  exclusions; Type-3 sample nonselections are aggregate-only
 - `label-conflicts.jsonl`: the catalog's complete positive/negative conflict
-  registry
+  registry, including every contributing BigCloneBench function pair
 
 No token, judgment, or confidence minimum is applied. The manifest reports
 sub-50-token coverage explicitly. Reverse-direction rows remain attached to the
 selected frame with their multiplicity and are marked as execution exclusions.
+An extracted-content pair found under both positive and known-false-positive
+labels is excluded before census counting or sample ranking. The manifest reports
+the pair-set-specific excluded frame, catalog-row, and source-row counts, while
+`exclusions.jsonl` records the reason
+`positive_negative_content_label_conflict`. This is a conflict introduced at the
+local content-only abstraction boundary, not necessarily two labels on the same
+BigCloneBench function pair; see the
+[methodology explanation](../../doc/bigclonebench_srcmove_conversion.md#content-label-conflict-exclusion).
+Inspect the complete evidence from the compiled catalog with:
+
+```bash
+make bigclonebench-conflicts
+```
+
+Pass `BIGCLONEBENCH_DATASET=<dataset-id>` if the local compiled index contains
+more than one dataset. The report shows the contributing labels, syntactic types,
+and function IDs and confirms how many conflicts reuse the same BigCloneBench
+function pair.
 Reusing a selection validates all artifact checksums. Phase 3 materializes a
-Type-1, Type-2, or known-false-positive selection directly from the compiled
-fragment store:
+Type-1, Type-2, Type-3, or known-false-positive selection directly from the
+compiled fragment store:
 
 ```bash
 make bigclonebench-snapshot \
@@ -110,28 +138,37 @@ Run every currently supported pair set without copying any dataset, selection,
 snapshot, or corpus identifier:
 
 ```bash
-make bigclonebench-suite MODE=sample
-make bigclonebench-suite MODE=census
+make bigclonebench-suite PROFILE=small
+make bigclonebench-suite PROFILE=medium
 ```
 
 The command compiles or reuses the dataset, publishes or reuses a deterministic
-selection for Type 1, Type 2, and known false positives, reuses immutable
+selection for Type 1, Type 2, Type 3, and known false positives, reuses immutable
 snapshots and srcDiff corpora when their inputs and tool identity are unchanged,
 then creates a separate srcMove evaluation for each pair set. Results are never
 blended into one accuracy percentage. Combined run metadata is saved below
 `benchmark-data/bigclonebench/suite-runs/` and links to each append-only
 evaluation run.
 
-Compiled snapshots use `input.java` as the relative filename on both sides.
-This is required in archive mode: srcDiff pairs files by relative path and would
-treat differently named old/new files as a whole-file deletion and insertion.
+Every compiled case is an isolated two-file archive. Both revisions retain
+`source/input.java` and `destination/input.java`; the payload is removed from a
+stable source class and added to a distinct stable destination class. This
+forces srcDiff to expose the cross-file delete and insert without making either
+container or whole file appear moved.
 
-The live `srcMove execution` counter reports completed cases, while its suffix
-reports oracle passes. The final digest leads with `PASS` or `FAIL` and
-`passed X/Y` for each pair set; whole-fragment detection, wrong classification,
-misses, errors, false acceptances, and incidental moves are secondary
-diagnostics. Exit status 0 means every selected case in every pair set passed;
-status 1 means the benchmark completed but at least one oracle case failed.
+Run Type-3 alone with `make bigclonebench-suite PAIR_SET=type3`. The live
+`srcMove execution` counter reports completed cases, while its suffix
+reports results by strength band. A suite containing observational Type-3
+results reports `COMPLETE` when execution is operationally sound; individual
+pair sets use `PASS`, `FAIL`, or `OBS`. A sampled Type-3 run is labeled as a
+balanced strength sample and shows
+strict-classification and whole-fragment-detection counts for all four bands.
+Its unweighted overall rate is not population recall. Whole-fragment detection,
+wrong classification, misses, errors, false acceptances, and incidental moves
+are secondary diagnostics. Exit status 0 means every strict pair set passed and
+each observational Type-3 case completed without upstream, tool, semantic, or
+oracle errors. Type-3 misses and wrong classifications do not change the exit
+status.
 
 Use `ROLE=tuning|evaluation`, `SEED=<integer>`, `SAMPLE_SIZE=<count>`, and
 `VERIFY_SOURCE=1` as needed. Normal development runs trust artifacts when they
@@ -204,6 +241,12 @@ ineligibility, srcMove tool failures, misses, wrong classifications, other
 oracle failures, and strict passes. It reports both the end-to-end rate over all
 selected cases and the conditional rate over srcDiff-eligible cases.
 
+For Type-3, case metadata and `cases.csv` retain the frame's conservative BOTH
+similarity and strength stratum. `summary.json` reports outcomes, detection,
+strict classification, and rates separately for each strength stratum. Balanced
+sample rates are explicitly labeled unweighted and are never presented as a
+population-weighted estimate.
+
 The selected count can be below the requested limit after dedupe and filtering.
 The selection manifest declares the exact query and parameters, ordered row
 identifiers, input and tool checksums, pair direction, dedupe policy, and
@@ -269,7 +312,9 @@ corpus reuse, and append-only run artifacts are preserved.
 ## Thesis Data Runs
 
 For thesis or paper data, freeze the declared evaluation selection separately
-from tuning cases with `--selection-role evaluation`. Publication enforcement
+from tuning cases with `--selection-role evaluation`. Type-3 is currently
+tuning/observational only: evaluation selection is rejected until a held-out
+partition is implemented. Publication enforcement
 and archive verification belong to Phase 6; Phase 4 development runs already
 retain their manifests and summaries by run identifier. Generate the immutable
 srcDiff corpus first, then use the shared
@@ -278,14 +323,17 @@ builds without rerunning BigCloneBench or srcDiff.
 
 ## Validation
 
-- Type-1 expects one `exact` move.
-- Type-2 expects one `type2` move.
+- Type-1 expects the complete intended move to be `exact`.
+- Type-2 expects the complete intended move to be `type2`.
+- Type-3 expects the complete intended move to be `type3`; its recall is observational.
 - A known-false-positive case expects no single reported move to link the full
   generated source and target fragments. Zero moves passes. Smaller incidental
   child moves also pass and are reported separately; requiring zero moves would
   incorrectly treat every shared child subtree as a whole-pair false positive.
-- The reported delete and insert move positions must overlap the synthetic line
-  ranges for the BigCloneBench fragments stored in `metadata.json`.
+- One reported move must link both complete generated texts, and the XML
+  delete/insert annotations carrying that move's ID and link attributes must
+  overlap the synthetic ranges stored in `metadata.json`. Positions belonging
+  to another move cannot satisfy the oracle; unrelated extra moves are allowed.
 - The reported delete and insert raw texts must match their own expected
   generated fragment texts after wrapper indentation normalization. Type-2 does
   not require the delete text to equal the insert text.

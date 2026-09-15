@@ -6,6 +6,7 @@ import unittest
 from pathlib import Path
 
 from repository_analysis.git import (
+    SRCML_SOURCE_SUFFIXES,
     first_parent_distance,
     inventory_changed_paths,
     retain_history,
@@ -42,6 +43,63 @@ def commit(repository: Path, name: str, content: str) -> str:
 
 
 class RepositoryAnalysisGitTests(unittest.TestCase):
+    def test_srcml_source_suffixes_match_standard_registry(self) -> None:
+        self.assertEqual(
+            SRCML_SOURCE_SUFFIXES,
+            {
+                ".aj", ".c", ".C", ".c++", ".cc", ".cp", ".cpp", ".CPP",
+                ".cs", ".cxx", ".h", ".H", ".h++", ".hh", ".hpp", ".hxx",
+                ".i", ".ii", ".java", ".py", ".pyi", ".pyw", ".pyz", ".tcc",
+            },
+        )
+
+    def test_inventory_admits_only_srcml_source_extensions(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            repository = Path(temporary_directory) / "repository"
+            initialize(repository)
+            old_commit = commit(repository, "base.c", "int before;\n")
+            files = {
+                "aspect.aj": "class Aspect {}\n",
+                "header.H": "int header;\n",
+                "source.CPP": "int source;\n",
+                "stub.pyi": "value: int\n",
+                "almost.Cpp": "int unsupported;\n",
+                "objective.m": "int unsupported;\n",
+                "resource.rc": "not source code\n",
+                "translations.xml": "<translations/>\n",
+                "README": "not source code\n",
+            }
+            for name, content in files.items():
+                (repository / name).write_text(content, encoding="utf-8")
+            git(repository, "add", ".")
+            git(repository, "commit", "-m", "mixed source and data")
+            new_commit = git(repository, "rev-parse", "HEAD")
+
+            changed, analyzable = inventory_changed_paths(
+                repository, old_commit, new_commit, None, (".pyi",)
+            )
+
+            self.assertEqual(
+                [path.path for path in analyzable],
+                ["aspect.aj", "header.H", "source.CPP"],
+            )
+            reasons = {
+                path.path: path.exclusion_reasons
+                for path in changed
+                if path.exclusion_reasons
+            }
+            self.assertEqual(
+                reasons,
+                {
+                    "README": ("unsupported_srcml_extension: <none>",),
+                    "almost.Cpp": ("unsupported_srcml_extension: .Cpp",),
+                    "objective.m": ("unsupported_srcml_extension: .m",),
+                    "resource.rc": ("unsupported_srcml_extension: .rc",),
+                    "stub.pyi": ("excluded_suffix: .pyi",),
+                    "translations.xml": ("unsupported_srcml_extension: .xml",),
+                },
+            )
+
     def test_inventory_excludes_symlinks_and_submodules_with_reasons(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = Path(temporary_directory) / "repository"

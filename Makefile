@@ -8,6 +8,7 @@ BIGCLONEBENCH_DATA_ROOT ?= benchmark-data
 BIGCLONEBENCH_DATASET ?=
 BIGCLONEBENCH_SELECTION_ID ?=
 MODE ?= sample
+PROFILE ?= small
 SEED ?= 0
 SAMPLE_SIZE ?= 100
 ROLE ?= tuning
@@ -15,7 +16,7 @@ VERIFY_SOURCE ?= 0
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 BIGCLONEBENCH_SELECTION = $(if $(filter 1 yes true,$(KNOWN_FALSE_POSITIVES))$(filter known-false-positive,$(CLONE_TYPE)),--known-false-positives,--clone-type "$(CLONE_TYPE)")
 
-.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source test-policy benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-compile bigclonebench-select bigclonebench-snapshot bigclonebench-suite bigclonebench-cases bigclonebench
+.PHONY: help configure build test test-unit test-repository-analysis test-xml test-source test-policy test-classification benchmark-repo benchmark-repos history-scaling history-results bigclonebench-preflight bigclonebench-compile bigclonebench-conflicts bigclonebench-select bigclonebench-snapshot bigclonebench-suite bigclonebench-cases bigclonebench
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -26,15 +27,17 @@ help:
 	@printf '  %-28s %s\n' 'make test-xml' 'Build and run XML regression tests'
 	@printf '  %-28s %s\n' 'make test-source' 'Build and run source-pair regression tests'
 	@printf '  %-28s %s\n' 'make test-policy' 'Build and run reviewer-editable move-policy tests'
+	@printf '  %-28s %s\n' 'make test-classification' 'Run the focused Type-1/2/3/none contracts'
 	@printf '  %-28s %s\n' 'make benchmark-repo' 'Run and save CASE repository benchmark'
 	@printf '  %-28s %s\n' 'make benchmark-repos' 'Run the explicit standard repository suite'
 	@printf '  %-28s %s\n' 'make history-scaling' 'Measure history throughput across JOBS'
 	@printf '  %-28s %s\n' 'make history-results' 'Show moves from the latest repository history'
 	@printf '  %-28s %s\n' 'make bigclonebench-preflight' 'Check the local BigCloneBench installation'
 	@printf '  %-28s %s\n' 'make bigclonebench-compile' 'Compile or reuse the local BigCloneBench catalog'
+	@printf '  %-28s %s\n' 'make bigclonebench-conflicts' 'Explain content identities excluded for conflicting labels'
 	@printf '  %-28s %s\n' 'make bigclonebench-select' 'Publish a selection from the compiled catalog'
 	@printf '  %-28s %s\n' 'make bigclonebench-snapshot' 'Materialize an immutable compiled-selection snapshot'
-	@printf '  %-28s %s\n' 'make bigclonebench-suite' 'Run Type 1, Type 2, and known-false-positive pair sets'
+	@printf '  %-28s %s\n' 'make bigclonebench-suite' 'Run frozen BCB PROFILE=small|medium (full is slow)'
 	@printf '  %-28s %s\n' 'make bigclonebench-cases' 'Generate a configurable BigCloneBench case slice'
 	@printf '  %-28s %s\n' 'make bigclonebench' 'Generate cases and run the staged BigCloneBench pipeline'
 
@@ -61,6 +64,20 @@ test-source: build
 
 test-policy: build
 	$(PYTHON) tests/run.py --suite policy
+
+test-classification: build
+	$(PYTHON) tests/run.py --suite policy \
+		--case classification_type1_java_method_whitespace \
+		--case classification_type1_java_method_comments \
+		--case classification_type2_java_method_identifiers \
+		--case classification_type2_java_method_literal \
+		--case classification_type2_java_method_identifiers_and_literal \
+		--case classification_type3_java_method_added_statement \
+		--case classification_type3_java_method_removed_statement \
+		--case classification_type3_java_method_modified_statement \
+		--case classification_type3_java_method_inconsistent_renaming \
+		--case classification_none_unrelated_java_methods \
+		--case classification_none_similar_java_method_shapes
 
 benchmark-repo:
 	@test -n "$(CASE)" || { echo 'error: CASE is required'; exit 2; }
@@ -116,6 +133,12 @@ bigclonebench-compile:
 		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" compile \
 		$(if $(COMPILE_LIMIT),--limit-per-kind "$(COMPILE_LIMIT)")
 
+bigclonebench-conflicts:
+	@$(PYTHON) benchmarks/bigclonebench/conflicts.py \
+		$(if $(BIGCLONEBENCH_DATASET),"$(BIGCLONEBENCH_DATASET)") \
+		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" \
+		$(if $(CONFLICT_LIMIT),--limit "$(CONFLICT_LIMIT)")
+
 bigclonebench-select:
 	@test -n "$(BIGCLONEBENCH_DATASET)" || { echo 'error: BIGCLONEBENCH_DATASET is required'; exit 2; }
 	@$(PYTHON) benchmarks/bigclonebench/selection.py "$(BIGCLONEBENCH_DATASET)" \
@@ -133,8 +156,9 @@ bigclonebench-snapshot:
 bigclonebench-suite:
 	@$(PYTHON) benchmarks/bigclonebench/suite.py \
 		--data-root "$(BIGCLONEBENCH_DATA_ROOT)" \
-		--mode "$(MODE)" --role "$(ROLE)" --seed "$(SEED)" \
+		--profile "$(PROFILE)" --role "$(ROLE)" --seed "$(SEED)" \
 		--sample-size "$(SAMPLE_SIZE)" \
+		$(if $(PAIR_SET),--pair-set "$(PAIR_SET)") \
 		$(if $(filter 1 yes true,$(VERIFY_SOURCE)),--verify-source) \
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
 		--srcmove /workspace/srcMove/build/srcMove

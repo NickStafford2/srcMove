@@ -22,6 +22,8 @@ std::string match_kind_name(match_kind match) {
     return "exact";
   case match_kind::type2:
     return "type2";
+  case match_kind::type3:
+    return "type3";
   case match_kind::unmatched:
     return "unmatched";
   }

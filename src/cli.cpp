@@ -12,7 +12,8 @@ std::string build_help(const std::string &progname) {
   out << "srcMove - detect moved code regions in a srcDiff document\n\n";
   out << "Usage:\n";
   out << "  " << progname
-      << " <srcdiff.xml> [out.xml] [--results results.json] [--profile] [-v]\n";
+      << " <srcdiff.xml> [out.xml] [--results results.json]"
+         " [--min-granularity statement|fragment] [--profile] [-v]\n";
   out << "  " << progname << " --help\n";
   out << "  " << progname << " --version\n\n";
 
@@ -24,6 +25,8 @@ std::string build_help(const std::string &progname) {
   out << "Options:\n";
   out << "  --results <file>       Write summary JSON to <file>\n";
   out << "  --profile              Write coarse timing data to stderr\n";
+  out << "  --min-granularity <statement|fragment>\n";
+  out << "                         Minimum move unit (default: statement)\n";
   out << "  -v, --verbose          Print move-match debug output to stdout\n";
   out << "  -h, --help             Show this help message and exit\n";
   out << "  --version              Show version information and exit\n";
@@ -61,6 +64,23 @@ cli_options parse_cli(int argc, char **argv) {
 
     if (arg == "--profile") {
       opts.profile = true;
+      continue;
+    }
+
+    if (arg == "--min-granularity") {
+      if (i + 1 >= argc) {
+        throw cli_error("Error: --min-granularity requires statement or fragment\n\n" +
+                        build_help(argv[0]));
+      }
+      const std::string value = argv[++i];
+      if (value == "statement") {
+        opts.min_granularity = minimum_move_granularity::statement;
+      } else if (value == "fragment") {
+        opts.min_granularity = minimum_move_granularity::fragment;
+      } else {
+        throw cli_error("Error: invalid --min-granularity value: " + value +
+                        "\n\n" + build_help(argv[0]));
+      }
       continue;
     }
 

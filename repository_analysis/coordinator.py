@@ -33,7 +33,8 @@ class WorkerExecutionError(RuntimeError):
 
     def __init__(self, work_item: PairWorkItem, cause: BaseException) -> None:
         super().__init__(
-            f"worker failed while executing pair {work_item.sequence}: {cause}"
+            "worker failed while executing commit pair "
+            f"{work_item.sequence}: {cause}"
         )
         self.work_item = work_item
         self.cause = cause
@@ -106,7 +107,7 @@ def run_pairs_from_sequence(
         )
     if next_item.sequence != first_sequence:
         raise ValueError(
-            "pair sequences must be contiguous from the verified starting "
+            "commit pair sequences must be contiguous from the verified starting "
             f"sequence; expected {first_sequence}, got {next_item.sequence}"
         )
     work_queue: queue.Queue[PairWorkItem] = queue.Queue(maxsize=work_capacity)
@@ -165,7 +166,7 @@ def run_pairs_from_sequence(
                         break
                     if next_item.sequence != expected_submission:
                         raise ValueError(
-                            "pair sequences must be contiguous from the verified "
+                            "commit pair sequences must be contiguous from the verified "
                             "starting sequence; "
                             f"expected {expected_submission}, "
                             f"got {next_item.sequence}"
@@ -322,7 +323,7 @@ def _execute_worker_items(
                 outcome = execute_pair(work_item)
                 if outcome.work_item != work_item:
                     raise ValueError(
-                        "pair executor returned an outcome for another item"
+                        "commit pair executor returned an outcome for another item"
                     )
                 result = _WorkerResult(work_item=work_item, outcome=outcome)
             except BaseException as error:

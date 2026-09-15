@@ -1,6 +1,7 @@
 #ifndef INCLUDED_CANONICAL_SUBTREE_HPP
 #define INCLUDED_CANONICAL_SUBTREE_HPP
 
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -8,16 +9,26 @@
 
 namespace srcmove {
 
+enum class identifier_normalization { none, consistent };
+
 struct canonical_options {
   bool ignore_diff_ws              = true;
   bool ignore_whitespace_only_text = true;
   bool ignore_outer_diff_wrapper   = true;
-  bool normalize_names             = false;
+  bool ignore_comments             = true;
+  bool                     ignore_empty_statements = false;
+  bool                     include_structure       = true;
+  identifier_normalization identifiers = identifier_normalization::none;
+  bool                     normalize_literals      = false;
 };
 
 std::string
 canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
-                                 const canonical_options       &opt = {});
+                                 const canonical_options       &opt = {},
+                                 std::vector<std::uint64_t> *normalized_lines =
+                                     nullptr,
+                                 std::vector<std::uint64_t> *normalized_tokens =
+                                     nullptr);
 
 } // namespace srcmove
 

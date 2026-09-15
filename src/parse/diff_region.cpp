@@ -164,9 +164,17 @@ void close_diff_region(std::vector<diff_region>         &regions,
   regions[rid].hash =
       move_candidate::fast_hash_raw(regions[rid].canonical_text);
   canonical_options type2_options;
-  type2_options.normalize_names = true;
+  type2_options.identifiers        = identifier_normalization::consistent;
+  type2_options.normalize_literals = true;
+  canonicalize_diff_region_subtree(subtree_nodes, type2_options,
+                                   &regions[rid].type2_normalized_lines,
+                                   &regions[rid].type3_normalized_tokens);
+
+  canonical_options lexical_options = type2_options;
+  lexical_options.ignore_empty_statements = true;
+  lexical_options.include_structure = false;
   regions[rid].type2_canonical_text =
-      canonicalize_diff_region_subtree(subtree_nodes, type2_options);
+      canonicalize_diff_region_subtree(subtree_nodes, lexical_options);
   regions[rid].type2_hash =
       move_candidate::fast_hash_raw(regions[rid].type2_canonical_text);
 }

@@ -15,6 +15,38 @@ REGULAR_GIT_MODES = {"100644", "100755"}
 GIT_MODE_NAMES = {"120000": "symlink", "160000": "submodule"}
 RETAINED_REF_PREFIX = "refs/srcmove/repository-analyses"
 
+# Standard filename extensions registered by srcML's
+# language_extension_registry. srcDiff does not supply per-file language
+# overrides, so paths outside this set cannot produce source units.
+SRCML_SOURCE_SUFFIXES = frozenset(
+    {
+        ".aj",
+        ".c",
+        ".C",
+        ".c++",
+        ".cc",
+        ".cp",
+        ".cpp",
+        ".CPP",
+        ".cs",
+        ".cxx",
+        ".h",
+        ".H",
+        ".h++",
+        ".hh",
+        ".hpp",
+        ".hxx",
+        ".i",
+        ".ii",
+        ".java",
+        ".py",
+        ".pyi",
+        ".pyw",
+        ".pyz",
+        ".tcc",
+    }
+)
+
 
 class GitMaterializationError(RuntimeError):
     """Git could not produce a complete safe sparse input tree."""
@@ -110,7 +142,7 @@ def select_first_parent_history(
         or not isinstance(pair_count, int)
         or pair_count <= 0
     ):
-        raise ValueError("pair count must be positive")
+        raise ValueError("commit pair count must be positive")
     if not isinstance(start, str) or not start or "\0" in start:
         raise ValueError("start revision must be a non-empty string")
     history = select_older_first_parent_history(
@@ -118,7 +150,8 @@ def select_first_parent_history(
     )
     if len(history.commits) < 2:
         raise RuntimeError(
-            "the selected history has fewer than two commits; no adjacent pair exists"
+            "the selected history has fewer than two commits; no adjacent "
+            "commit pair exists"
         )
     return history
 
@@ -137,7 +170,7 @@ def select_older_first_parent_history(
         or not isinstance(pair_count, int)
         or pair_count <= 0
     ):
-        raise ValueError("pair count must be positive")
+        raise ValueError("commit pair count must be positive")
     if pair_count is not None and through is not None:
         raise ValueError("history selection accepts either pair_count or through")
     if not isinstance(start, str) or not start or "\0" in start:
@@ -299,6 +332,7 @@ def inventory_changed_paths(
     if len(fields) % 2:
         raise RuntimeError("Git returned malformed raw changed-path metadata")
 
+    excluded = {suffix.lower() for suffix in excluded_suffixes}
     changed: list[ChangedPath] = []
     for index in range(0, len(fields), 2):
         header = fields[index].decode("ascii", errors="replace")
@@ -307,6 +341,14 @@ def inventory_changed_paths(
         if len(parts) != 5:
             raise RuntimeError(f"Git returned malformed change header: {header!r}")
         old_mode, new_mode, old_blob, new_blob, status = parts
+        suffix = Path(path).suffix
+        normalized_suffix = suffix.lower()
+        exclusion_reasons = set(_unsupported_git_mode_reasons(old_mode, new_mode))
+        if not exclusion_reasons and suffix not in SRCML_SOURCE_SUFFIXES:
+            label = suffix if suffix else "<none>"
+            exclusion_reasons.add(f"unsupported_srcml_extension: {label}")
+        elif not exclusion_reasons and normalized_suffix in excluded:
+            exclusion_reasons.add(f"excluded_suffix: {normalized_suffix}")
         changed.append(
             ChangedPath(
                 status=status,
@@ -315,19 +357,15 @@ def inventory_changed_paths(
                 new_mode=new_mode,
                 old_blob=old_blob,
                 new_blob=new_blob,
-                exclusion_reasons=_unsupported_git_mode_reasons(
-                    old_mode, new_mode
-                ),
+                exclusion_reasons=tuple(sorted(exclusion_reasons)),
             )
         )
 
-    excluded = {suffix.lower() for suffix in excluded_suffixes}
     analyzable = tuple(
         change
         for change in changed
         if not change.exclusion_reasons
         and change.content_changed
-        and Path(change.path).suffix.lower() not in excluded
     )
     return tuple(changed), analyzable
 

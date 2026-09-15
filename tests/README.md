@@ -9,6 +9,7 @@ make test-repository-analysis     # repository-analysis unit tests only
 make test-xml                     # build, then run XML regressions
 make test-source                  # build, then run source-pair regressions
 make test-policy                  # build, then run move-policy catalogs
+make test-classification          # focused Type-1, Type-2, Type-3, and none contracts
 ```
 
 `tests/run.py` is the underlying test selector and expects an existing build.
@@ -40,6 +41,11 @@ python3 tests/regression/policy/list.py --catalog contextual
   Every entry generates an isolated before/after archive, then runs through
   `srcdiff` and `srcMove`. Negative cases require zero moves; positive cases
   require exactly one move with the declared raw text and match kind.
+
+The canonicalization unit fixture and historical source-pair fixtures use
+fragment granularity because they isolate low-level normalization and grouping
+mechanics. XML and policy regressions use the product default of
+statement-or-larger moves.
 
 Fixture discovery and layout validation are defined once in
 `tests/support/cases.py`. XML cases contain `input.xml`, `expected.xml`, and

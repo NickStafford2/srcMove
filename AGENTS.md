@@ -41,7 +41,7 @@ workspace at `../docs/workspace.md`.
 - Use `tests/run.py` directly only for test inventory or case-level selection.
 - Use existing test runners and fixture patterns when possible.
 - For BigCloneBench work, start with Type-1 clone pairs only.
-- Type-3 and Type-4 moves are not supported.
+- Type-3 is an observational recall stratum; Type-4 moves are not supported.
 - Keep generated benchmark suites separate from small hand-authored tests.
 
 ## Useful Entry Points

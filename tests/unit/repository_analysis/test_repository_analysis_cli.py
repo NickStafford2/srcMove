@@ -79,7 +79,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
     def test_compare_does_not_change_canonical_results(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            repository = self._history(root, 5)
+            repository = self._history(root, 5, filename="fixture.cpp")
             self._init(repository, excluded_suffixes=())
             commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
             creation = [
@@ -136,7 +136,7 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
     def test_compare_can_save_only_one_tool_artifact_family(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            repository = self._history(root, 4)
+            repository = self._history(root, 4, filename="fixture.cpp")
             self._init(repository, excluded_suffixes=())
             commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
             self.assertEqual(
@@ -404,8 +404,8 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
 
             status, output, error = self._main(["-C", str(repository), "status"])
             self.assertEqual((status, error), (0, ""))
-            self.assertIn("2/2 pairs (100%)", output)
-            self.assertIn("2 skipped", output)
+            self.assertIn("Commit pairs 2 processed (target 2", output)
+            self.assertIn("2 without analyzable changes", output)
 
             with AnalysisOperationLock(analysis, command="background-run"):
                 status, output, error = self._main(
@@ -498,6 +498,103 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
                         "--all",
                     ]
                 )
+            with self.assertRaises(SystemExit):
+                parser.parse_args(
+                    [
+                        "run",
+                        "--pairs",
+                        "2",
+                        "--more",
+                        "2",
+                    ]
+                )
+
+    def test_report_reads_committed_results_and_is_plain_text_only(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 4)
+            git(
+                repository,
+                "remote",
+                "add",
+                "origin",
+                "https://example.invalid/owner/fixture-project.git",
+            )
+            self._init(repository, excluded_suffixes=(".txt",))
+            status, _, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "run",
+                    "--pairs",
+                    "2",
+                    "--srcdiff",
+                    str(executable(root / "srcdiff")),
+                    "--srcmove",
+                    str(executable(root / "srcmove")),
+                    "--progress",
+                    "never",
+                ]
+            )
+            self.assertEqual((status, error), (0, ""))
+            database = repository / ".srcmove" / "analysis.sqlite3"
+            before = database.read_bytes()
+
+            status, output, error = self._main(
+                ["-C", str(repository), "report"]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            self.assertIn("Repository History Move Analysis", output)
+            self.assertIn("Repository                  fixture-project", output)
+            self.assertIn("2 of 3 commit pairs (66.7%)", output)
+            self.assertIn("Commit pairs with ≥1 move   0 of 0 (n/a)", output)
+            self.assertIn("Maximum moves               0", output)
+            self.assertNotIn("commit pair 1:", output)
+            self.assertEqual(database.read_bytes(), before)
+
+            with contextlib.redirect_stderr(io.StringIO()):
+                with self.assertRaises(SystemExit):
+                    build_parser().parse_args(["report", "--format", "json"])
+
+    def test_more_extends_existing_coverage_without_counting_it_manually(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 5, filename="fixture.cpp")
+            self._init(repository, excluded_suffixes=())
+            creation = [
+                "-C",
+                str(repository),
+                "run",
+                "--pairs",
+                "1",
+                "--srcdiff",
+                str(fake_executable(root / "srcdiff")),
+                "--srcmove",
+                str(fake_executable(root / "srcmove")),
+                "--progress",
+                "never",
+            ]
+            self.assertEqual(self._main(creation)[0], 0)
+
+            status, output, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "run",
+                    "--more",
+                    "2",
+                    "--progress",
+                    "never",
+                    "--format",
+                    "json",
+                ]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            report = json.loads(output)
+            self.assertEqual(report["coverage"]["durable"], 3)
+            self.assertEqual(report["target"], {"kind": "pairs", "value": 3})
 
     def test_missing_creation_inputs_do_not_create_partial_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
@@ -833,6 +930,33 @@ class RepositoryAnalysisCliTests(unittest.TestCase):
             self.assertEqual(
                 json.loads(output)["outcomes"]["by_status"]["srcdiff_failed"], 1
             )
+
+    def test_non_srcml_extensions_are_skipped_before_tool_execution(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            repository = self._history(root, 2, filename="translations.xml")
+            self._init(repository, excluded_suffixes=())
+
+            status, output, error = self._main(
+                [
+                    "-C",
+                    str(repository),
+                    "run",
+                    "--pairs",
+                    "1",
+                    "--format",
+                    "json",
+                    "--srcdiff",
+                    str(executable(root / "srcdiff")),
+                    "--srcmove",
+                    str(executable(root / "srcmove")),
+                ]
+            )
+
+            self.assertEqual((status, error), (0, ""))
+            result = json.loads(output)
+            self.assertEqual(result["outcomes"]["skipped"], 1)
+            self.assertEqual(result["outcomes"]["failed"], 0)
 
     def test_run_requires_init_and_init_does_not_create_database(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:

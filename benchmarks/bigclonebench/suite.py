@@ -21,6 +21,7 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
 
 from benchmarks.bigclonebench.compile import DEFAULT_DATA_ROOT, ensure_compiled_dataset
 from benchmarks.bigclonebench.evaluate import SCORING_ORACLE_VERSION
+from benchmarks.bigclonebench.frozen_profiles import create_frozen_selection
 from benchmarks.bigclonebench.generate import BCE_DIR
 from benchmarks.bigclonebench.pipeline import build_corpus, evaluate_corpus
 from benchmarks.bigclonebench.selection import DEFAULT_SAMPLE_SIZE, create_selection
@@ -35,7 +36,15 @@ from support.tooling import find_srcdiff, find_srcmove
 PAIR_SETS = (
     ("type1", "Type 1"),
     ("type2", "Type 2"),
+    ("type3", "Type 3"),
     ("known-false-positive", "Known false positives"),
+)
+PAIR_SET_LABELS = dict(PAIR_SETS)
+OPERATIONAL_FAILURES = (
+    "upstream_failure",
+    "srcdiff_semantic_ineligible",
+    "srcmove_tool_failure",
+    "oracle_failure",
 )
 
 
@@ -45,10 +54,24 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--bce-dir", type=Path, default=BCE_DIR)
     parser.add_argument("--mode", choices=("sample", "census"), default="sample")
     parser.add_argument(
+        "--profile",
+        choices=("small", "medium", "full"),
+        default="small",
+        help=(
+            "Frozen standard profile (small/medium), or the slow exhaustive "
+            "dynamic research path (full)."
+        ),
+    )
+    parser.add_argument(
         "--role", choices=("tuning", "evaluation"), default="tuning"
     )
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--sample-size", type=int, default=DEFAULT_SAMPLE_SIZE)
+    parser.add_argument(
+        "--pair-set",
+        choices=tuple(PAIR_SET_LABELS),
+        help="Run only one pair set (default: run the full suite).",
+    )
     parser.add_argument("--verify-source", action="store_true")
     parser.add_argument("--srcdiff", type=Path)
     parser.add_argument("--srcmove", type=Path)
@@ -104,6 +127,18 @@ def _attempt_resources(run_dir: Path, run_manifest: Mapping[str, Any]) -> dict[s
     return {"process_seconds": process_seconds, "peak_rss_bytes": peak_rss}
 
 
+def _operational_failures(counts: Mapping[str, int]) -> int:
+    return sum(counts[name] for name in OPERATIONAL_FAILURES)
+
+
+def _pair_set_operational_pass(
+    pair_set: str, counts: Mapping[str, int]
+) -> bool:
+    if pair_set == "type3":
+        return _operational_failures(counts) == 0
+    return counts["oracle_pass"] == counts["selected"]
+
+
 def _pair_result(
     *,
     pair_set: str,
@@ -122,6 +157,10 @@ def _pair_result(
     counts = summary["counts"]
     resources = _attempt_resources(run_dir, run_manifest)
     detected = counts["oracle_pass"] + counts["wrong_classification"]
+    operational_failures = _operational_failures(counts)
+    observational = pair_set == "type3"
+    type3_strength = summary.get("strata", {}).get("type3_strength", {})
+    operational_pass = _pair_set_operational_pass(pair_set, counts)
     return {
         "pair_set": pair_set,
         "label": label,
@@ -134,6 +173,20 @@ def _pair_result(
         "run_id": run_manifest["run_id"],
         "run_directory": str(run_dir),
         "counts": dict(counts),
+        "assessment": {
+            "mode": "observational" if observational else "strict",
+            "sample_interpretation": (
+                "balanced_strength_sample"
+                if observational
+                and selection_manifest.get("request", {}).get("mode")
+                in {"sample", "preset"}
+                else "census"
+                if observational
+                else None
+            ),
+            "operational_pass": operational_pass,
+            "operational_failures": operational_failures,
+        },
         "metrics": {
             "whole_fragment_detected": detected,
             "strictly_classified": counts["oracle_pass"],
@@ -142,11 +195,19 @@ def _pair_result(
             "incidental": counts.get("negative_incidental_move_passes", 0),
         },
         "selection_counts": dict(selection_manifest["counts"]),
+        "type3_strength_strata": dict(type3_strength) if observational else {},
         "timings": {**dict(timings), **resources},
     }
 
 
 def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
+    selected_pair_set = getattr(args, "pair_set", None)
+    profile = getattr(args, "profile", "full")
+    if args.role == "evaluation" and selected_pair_set in {None, "type3"}:
+        raise ValueError(
+            "Type-3 evaluation suite is unavailable: a held-out partition has "
+            "not been implemented; use ROLE=tuning or exclude Type-3"
+        )
     data_root = args.data_root.expanduser().resolve()
     srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
     srcmove = find_srcmove(REPO_ROOT, args.srcmove)
@@ -171,18 +232,34 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
     )
     pair_results: list[dict[str, Any]] = []
 
-    for pair_set, label in PAIR_SETS:
-        with ProgressDisplay("selection", detail=f"{label} {args.mode}") as progress:
+    pair_sets = (
+        ((selected_pair_set, PAIR_SET_LABELS[selected_pair_set]),)
+        if selected_pair_set is not None
+        else PAIR_SETS
+    )
+    for pair_set, label in pair_sets:
+        selection_mode = "census" if profile == "full" else profile
+        with ProgressDisplay("selection", detail=f"{label} {selection_mode}") as progress:
             (selection_result, selection_seconds) = _timed(
-                lambda pair_set=pair_set, progress=progress: create_selection(
-                    compiled,
-                    data_root=data_root,
-                    pair_set=pair_set,
-                    mode=args.mode,
-                    role=args.role,
-                    sample_size=args.sample_size,
-                    seed=args.seed,
-                    progress=progress,
+                lambda pair_set=pair_set, progress=progress: (
+                    create_selection(
+                        compiled,
+                        data_root=data_root,
+                        pair_set=pair_set,
+                        mode="census",
+                        role=args.role,
+                        sample_size=args.sample_size,
+                        seed=args.seed,
+                        progress=progress,
+                    )
+                    if profile == "full"
+                    else create_frozen_selection(
+                        compiled,
+                        data_root=data_root,
+                        pair_set=pair_set,
+                        profile=profile,
+                        role=args.role,
+                    )
                 )
             )
             selection_dir, selection_manifest, selection_reused = selection_result
@@ -244,6 +321,19 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                     f"passed {passed:,}/{selected:,} selected; "
                     f"false acceptances {counts['srcmove_false_positive']:,}"
                 )
+            elif pair_set == "type3":
+                strata = summary.get("strata", {}).get("type3_strength", {})
+                band_detail = "; ".join(
+                    f"{name} {values['strictly_classified']}/{values['selected']} strict, "
+                    f"{values['detected']}/{values['selected']} detected"
+                    for name, values in strata.items()
+                )
+                interpretation = (
+                    "balanced strength sample"
+                    if profile != "full"
+                    else "observational census"
+                )
+                outcome_detail = f"{interpretation}; {band_detail}"
             else:
                 outcome_detail = (
                     f"passed {passed:,}/{selected:,} selected; "
@@ -251,7 +341,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                 )
             progress.finish(
                 outcome_detail,
-                success=passed == selected,
+                success=_pair_set_operational_pass(pair_set, counts),
             )
 
         pair_results.append(
@@ -283,11 +373,13 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
         "suite_id": suite_id,
         "created_at": utc_now(),
         "request": {
-            "mode": args.mode,
+            "profile": profile,
+            "mode": "census" if profile == "full" else "preset",
             "role": args.role,
             "seed": args.seed,
             "sample_size": args.sample_size,
             "verify_source": args.verify_source,
+            "pair_set": selected_pair_set,
         },
         "compiled_dataset": {
             "dataset_id": compiled.dataset_id,
@@ -302,10 +394,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
         "pair_sets": pair_results,
     }
     write_json_atomic(suite_dir / "summary.json", suite)
-    passed = all(
-        result["counts"]["oracle_pass"] == result["counts"]["selected"]
-        for result in pair_results
-    )
+    passed = all(result["assessment"]["operational_pass"] for result in pair_results)
     return suite_dir, suite, passed
 
 
@@ -316,14 +405,24 @@ def _seconds(value: float) -> str:
 def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
     dataset = suite["compiled_dataset"]
     pair_sets_passed = sum(
-        result["counts"]["oracle_pass"] == result["counts"]["selected"]
-        for result in suite["pair_sets"]
+        result["assessment"]["operational_pass"] for result in suite["pair_sets"]
     )
     suite_passed = pair_sets_passed == len(suite["pair_sets"])
+    has_observational = any(
+        result["assessment"]["mode"] == "observational"
+        for result in suite["pair_sets"]
+    )
+    suite_status = (
+        "COMPLETE"
+        if suite_passed and has_observational
+        else "PASS"
+        if suite_passed
+        else "FAIL"
+    )
     print()
     print(
-        f"BigCloneBench suite: {'PASS' if suite_passed else 'FAIL'} "
-        f"({pair_sets_passed}/{len(suite['pair_sets'])} pair sets passed)"
+        f"BigCloneBench suite: {suite_status} "
+        f"({pair_sets_passed}/{len(suite['pair_sets'])} pair sets operationally complete)"
     )
     print(
         f"  dataset: {dataset['dataset_id']} "
@@ -337,11 +436,33 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
         selected = counts["selected"]
         passed = counts["oracle_pass"]
         pass_rate = passed / selected if selected else 0.0
-        status = "PASS" if passed == selected else "FAIL"
-        print(
-            f"  {result['label']:<22} {status:<4}  passed {passed:,}/{selected:,} "
-            f"({pass_rate:.1%})   srcMove {_seconds(elapsed)}"
+        observational = result["assessment"]["mode"] == "observational"
+        status = (
+            "OBS"
+            if observational and result["assessment"]["operational_pass"]
+            else "ERROR"
+            if observational
+            else "PASS"
+            if passed == selected
+            else "FAIL"
         )
+        if observational:
+            interpretation = result["assessment"].get("sample_interpretation")
+            label = (
+                "balanced strength sample"
+                if interpretation == "balanced_strength_sample"
+                else "observational census"
+            )
+            print(
+                f"  {result['label']:<22} {status:<4}  {label}; "
+                f"{selected:,} selected   srcMove {_seconds(elapsed)}"
+            )
+        else:
+            print(
+                f"  {result['label']:<22} {status:<4}  passed "
+                f"{passed:,}/{selected:,} ({pass_rate:.1%})   "
+                f"srcMove {_seconds(elapsed)}"
+            )
         if result["pair_set"] == "known-false-positive":
             errors = sum(
                 counts[name]
@@ -358,7 +479,11 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
                 f"incidental moves {metrics['incidental']:,}; errors {errors:,}"
             )
         else:
-            expected_kind = "exact" if result["pair_set"] == "type1" else "type2"
+            expected_kind = {
+                "type1": "exact",
+                "type2": "type2",
+                "type3": "type3",
+            }[result["pair_set"]]
             errors = sum(
                 counts[name]
                 for name in (
@@ -374,7 +499,24 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
                 f"wrong class {counts['wrong_classification']:,}; "
                 f"misses {counts['srcmove_miss']:,}; errors {errors:,}"
             )
+            if observational:
+                diagnostic += "; observational results (misses do not fail suite)"
         print(" " * 26 + diagnostic)
+        if observational:
+            for name in ("very_strong", "strong", "moderate", "weak"):
+                stratum = result.get("type3_strength_strata", {}).get(name)
+                if not stratum:
+                    continue
+                stratum_selected = stratum["selected"]
+                strict = stratum["strictly_classified"]
+                detected = stratum["detected"]
+                print(
+                    " " * 26
+                    + f"{name.replace('_', ' '):<12} strict {strict:,}/"
+                    f"{stratum_selected:,} ({strict / stratum_selected:.1%}); "
+                    f"detected {detected:,}/{stratum_selected:,} "
+                    f"({detected / stratum_selected:.1%})"
+                )
         timings = result["timings"]
         print(
             " " * 26
