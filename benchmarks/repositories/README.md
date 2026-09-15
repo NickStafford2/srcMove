@@ -1,15 +1,12 @@
 # History Scaling Benchmark
 
-This directory contains reference-repository descriptions and the controlled
-throughput benchmark for the production
+This directory contains the controlled throughput benchmark for the production
 [`srcmove_history`](../../srcmove_history/docs/runtime.md) analyzer. The former
 two-revision repository benchmark has been retired; use `srcmove-history
 compare OLD NEW` for an intentional endpoint comparison.
 
-Each reference description is an `info.json` containing a repository URL and,
-when appropriate, the source subdirectory to analyze. The current runner keeps
-its ignored clone below `<name>/work/repo`. A later storage cleanup will move
-these clones into the top-level `reference-repositories/` directory.
+Reference descriptions and ignored clones live in
+[`reference-repositories/`](../../reference-repositories/README.md).
 
 ## Run a scaling study
 

@@ -27,6 +27,8 @@ from typing import Any, Iterator, Mapping, MutableMapping, Sequence
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
+REFERENCE_ROOT = REPO_ROOT / "reference-repositories"
+REFERENCE_REGISTRY = REFERENCE_ROOT / "repositories.json"
 TESTS_ROOT = REPO_ROOT / "tests"
 for import_root in (REPO_ROOT, TESTS_ROOT):
     if str(import_root) not in sys.path:
@@ -714,19 +716,15 @@ def _study_identifier(label: str | None) -> str:
 
 
 def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
-    case_dir = SCRIPT_DIR / args.case
-    config_path = case_dir / "info.json"
-    if not config_path.is_file():
-        raise FileNotFoundError(f"repository case not found: {config_path}")
-    config = load_reference_configuration(config_path)
+    config = load_reference_configuration(REFERENCE_REGISTRY, args.case)
     selected_dir = (
         normalize_repository_subdirectory(args.directory, "--directory")
         if args.directory is not None
-        else config["directory"]
+        else config.analysis_directory
     )
-    clone_dir = case_dir / "work" / "repo"
+    clone_dir = REFERENCE_ROOT / config.checkout
     ensure_reference_repository(
-        config["github"], clone_dir, offline=args.offline, update=args.fetch
+        config.url, clone_dir, offline=args.offline, update=args.fetch
     )
     history = select_older_first_parent_history(
         clone_dir, args.start, pair_count=args.count
@@ -759,7 +757,7 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
         "label": args.label,
         "workload": {
             "case": args.case,
-            "repository": config["github"],
+            "repository": config.url,
             "directory": selected_dir,
             "requested_start": args.start,
             "resolved_start": resolved_start,

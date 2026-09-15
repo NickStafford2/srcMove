@@ -148,10 +148,10 @@ verifies the analysis and exits without opening workers.
 Creation example:
 
 ```bash
-srcmove-history -C benchmarks/repositories/sqlite/work/repo init
-# Edit benchmarks/repositories/sqlite/work/repo/.srcmove/config.toml.
+srcmove-history -C reference-repositories/sqlite init
+# Edit reference-repositories/sqlite/.srcmove/config.toml.
 
-srcmove-history -C benchmarks/repositories/sqlite/work/repo run \
+srcmove-history -C reference-repositories/sqlite run \
   --pairs 100 \
   --name sqlite \
   --start version-3.50.0 \
@@ -163,7 +163,7 @@ srcmove-history -C benchmarks/repositories/sqlite/work/repo run \
 Extension example:
 
 ```bash
-srcmove-history -C benchmarks/repositories/sqlite/work/repo run --pairs 500 --jobs 6
+srcmove-history -C reference-repositories/sqlite run --pairs 500 --jobs 6
 ```
 
 Creation discovers the repository. `--name` defaults to a clearly displayed

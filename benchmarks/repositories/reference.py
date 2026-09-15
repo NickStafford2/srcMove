@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import subprocess
+from dataclasses import dataclass
 from pathlib import Path
 
 
@@ -49,18 +50,51 @@ def normalize_repository_subdirectory(
     return subdirectory
 
 
-def load_reference_configuration(path: Path) -> dict[str, str | None]:
+@dataclass(frozen=True)
+class ReferenceConfiguration:
+    name: str
+    url: str
+    checkout: str
+    analysis_directory: str | None
+    roles: tuple[str, ...]
+
+
+def _required_string(value: object, context: str) -> str:
+    if not isinstance(value, str) or not value:
+        raise RuntimeError(f"missing or invalid {context}")
+    return value
+
+
+def load_reference_configuration(
+    path: Path, name: str
+) -> ReferenceConfiguration:
     with path.open("r", encoding="utf-8") as stream:
         data = json.load(stream)
-    repository_url = data.get("github")
-    if not isinstance(repository_url, str) or not repository_url:
-        raise RuntimeError(f"missing or invalid 'github' field in {path}")
-    return {
-        "github": repository_url,
-        "directory": normalize_repository_subdirectory(
-            data.get("directory"), str(path)
+    if not isinstance(data, dict) or data.get("schema_version") != 1:
+        raise RuntimeError(f"unsupported or malformed repository registry: {path}")
+    repositories = data.get("repositories")
+    if not isinstance(repositories, dict):
+        raise RuntimeError(f"missing or invalid 'repositories' object in {path}")
+    raw = repositories.get(name)
+    if not isinstance(raw, dict):
+        raise RuntimeError(f"unknown reference repository {name!r} in {path}")
+    checkout = _required_string(raw.get("checkout"), f"checkout for {name!r}")
+    if Path(checkout).name != checkout or checkout in (".", ".."):
+        raise RuntimeError(f"checkout for {name!r} must be one directory name")
+    raw_roles = raw.get("roles", [])
+    if not isinstance(raw_roles, list) or any(
+        not isinstance(role, str) or not role for role in raw_roles
+    ):
+        raise RuntimeError(f"roles for {name!r} must be strings")
+    return ReferenceConfiguration(
+        name=name,
+        url=_required_string(raw.get("url"), f"URL for {name!r}"),
+        checkout=checkout,
+        analysis_directory=normalize_repository_subdirectory(
+            raw.get("analysis_directory"), f"{path}: {name}"
         ),
-    }
+        roles=tuple(raw_roles),
+    )
 
 
 def _origin_url(repository: Path) -> str | None:

@@ -19,6 +19,8 @@ settled.
   retired two-revision repository pipeline.
 - Review docs for upgrades. Generate documentation of current progress for my masters
   thesis.
+- Add the local school repository containing thesis documents once its location
+  and appropriate workspace ownership are confirmed.
 - Document why `examples/` exists: it contains srcDiff/srcMove example outputs
   consumed by `../srcVisual` to render srcDiff/srcML output in a web UI. Keep the
   checked-in outputs until they move to `srcVisual`; the retired repository

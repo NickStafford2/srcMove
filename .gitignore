@@ -5,6 +5,9 @@ __pycache__/
 out.txt
 compile_commands.json
 .cache/
+reference-repositories/*
+!reference-repositories/README.md
+!reference-repositories/repositories.json
 context-export.toml
 examples/
 profile-results/

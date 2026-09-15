@@ -31,26 +31,42 @@ def git(repository: Path, *arguments: str) -> str:
 
 
 class ReferenceRepositoryTests(unittest.TestCase):
+    def test_checked_in_registry_has_recommended_repositories(self) -> None:
+        registry = REPO_ROOT / "reference-repositories/repositories.json"
+        for name in ("sqlite", "notepadpp", "opencv", "linux", "open-nicad"):
+            configuration = load_reference_configuration(registry, name)
+            self.assertTrue(configuration.url)
+            self.assertTrue(configuration.checkout)
+
     def test_configuration_contains_only_reference_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
-            path = Path(temporary_directory) / "info.json"
+            path = Path(temporary_directory) / "repositories.json"
             path.write_text(
                 json.dumps(
                     {
-                        "github": "https://example.invalid/project.git",
-                        "directory": "src/core",
+                        "schema_version": 1,
+                        "repositories": {
+                            "project": {
+                                "checkout": "project",
+                                "url": "https://example.invalid/project.git",
+                                "analysis_directory": "src/core",
+                                "roles": ["history"],
+                            }
+                        },
                     }
                 ),
                 encoding="utf-8",
             )
 
+            configuration = load_reference_configuration(path, "project")
+
+            self.assertEqual(configuration.name, "project")
             self.assertEqual(
-                load_reference_configuration(path),
-                {
-                    "github": "https://example.invalid/project.git",
-                    "directory": "src/core",
-                },
+                configuration.url, "https://example.invalid/project.git"
             )
+            self.assertEqual(configuration.checkout, "project")
+            self.assertEqual(configuration.analysis_directory, "src/core")
+            self.assertEqual(configuration.roles, ("history",))
 
     def test_repository_subdirectory_must_remain_inside_repository(self) -> None:
         self.assertEqual(normalize_repository_subdirectory("/src/", "test"), "src")

@@ -1,0 +1,57 @@
+{
+  "schema_version": 1,
+  "repositories": {
+    "context_export": {
+      "checkout": "context_export",
+      "url": "git@github.com:NickStafford2/ContextExport.git",
+      "roles": ["reference"]
+    },
+    "firefox": {
+      "checkout": "firefox",
+      "url": "git@github.com:mozilla-firefox/firefox.git",
+      "roles": ["reference"]
+    },
+    "linux": {
+      "checkout": "linux",
+      "url": "https://github.com/torvalds/linux.git",
+      "analysis_directory": "kernel/sched",
+      "roles": ["history", "history-scaling", "large-input"]
+    },
+    "notepadpp": {
+      "checkout": "notepadpp",
+      "url": "https://github.com/notepad-plus-plus/notepad-plus-plus.git",
+      "roles": ["history", "history-scaling", "large-input"]
+    },
+    "opencv": {
+      "checkout": "opencv",
+      "url": "https://github.com/opencv/opencv.git",
+      "roles": ["history", "history-scaling", "large-input"]
+    },
+    "open-nicad": {
+      "checkout": "Open-NiCad",
+      "url": "https://github.com/CordyJ/Open-NiCad.git",
+      "roles": ["reference"]
+    },
+    "sqlite": {
+      "checkout": "sqlite",
+      "url": "https://github.com/sqlite/sqlite.git",
+      "analysis_directory": "src",
+      "roles": ["history", "history-scaling", "large-input"]
+    },
+    "srcmove": {
+      "checkout": "srcMove",
+      "url": "https://github.com/NickStafford2/srcMove.git",
+      "roles": ["reference", "history"]
+    },
+    "wowy_advanced_analytics": {
+      "checkout": "wowy_advanced_analytics",
+      "url": "https://github.com/NickStafford2/WOWY_Advanced_Analytics.git",
+      "roles": ["reference"]
+    },
+    "zlib": {
+      "checkout": "zlib",
+      "url": "https://github.com/madler/zlib.git",
+      "roles": ["history", "history-scaling"]
+    }
+  }
+}
