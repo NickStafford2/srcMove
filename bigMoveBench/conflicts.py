@@ -23,7 +23,7 @@ from bigMoveBench.selection import (
     content_label_conflict_ids,
     content_label_conflicts,
 )
-from benchmarks.paths import DEFAULT_CACHE_ROOT
+from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 
 
 def parse_args() -> argparse.Namespace:

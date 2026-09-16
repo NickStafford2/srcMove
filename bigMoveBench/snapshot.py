@@ -28,7 +28,7 @@ from bigMoveBench.corpus import (
 from benchmarks.contracts import content_identifier
 from benchmarks.process import write_json_atomic
 from bigMoveBench.progress import ProgressDisplay
-from benchmarks.paths import DEFAULT_CACHE_ROOT
+from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 
 
 def parse_args() -> argparse.Namespace:

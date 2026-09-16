@@ -31,7 +31,7 @@ from bigMoveBench.catalog import (
     verify_upstream_sources,
 )
 from bigMoveBench.cases import BCE_DIR, java_identity, preflight
-from benchmarks.paths import DEFAULT_CACHE_ROOT
+from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from benchmarks.process import write_json_atomic
 from bigMoveBench.progress import ProgressDisplay
 from benchmarks.provenance import sha256_file

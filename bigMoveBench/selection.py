@@ -27,7 +27,7 @@ from bigMoveBench.catalog import (
     VerifiedCompiledDataset,
     load_compiled_dataset,
 )
-from benchmarks.paths import DEFAULT_CACHE_ROOT
+from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from benchmarks.contracts import canonical_json, content_identifier
 from bigMoveBench.progress import ProgressDisplay
 from benchmarks.provenance import sha256_file, utc_now

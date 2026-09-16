@@ -18,7 +18,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from bigMoveBench.catalog import load_compiled_dataset
-from benchmarks.paths import DEFAULT_CACHE_ROOT
+from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 PAIR_SETS = ("type1", "type2", "type3", "known-false-positive")
 PRESET_PATH = SCRIPT_DIR / "frozen_profiles.jsonl"
 from bigMoveBench.selection import (

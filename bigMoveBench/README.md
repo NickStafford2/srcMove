@@ -14,6 +14,7 @@ the conversion, selection, execution, and scoring methodology.
 - `snapshot.py` converts a compiled selection into immutable source inputs.
 - `contracts.py` defines source-pair, semantic-eligibility, and adapter types.
 - `corpus.py` owns the input-snapshot, srcDiff-corpus, and srcMove-run stages.
+- `paths.py` owns the default BigMoveBench cache location.
 - `progress.py` provides terminal-aware progress reporting for these commands.
 - `oracle.py` defines scoring; `evaluate.py` applies it to completed runs.
 - `pipeline.py` exposes individual development stages; `suite.py` is the
