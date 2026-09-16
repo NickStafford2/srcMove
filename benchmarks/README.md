@@ -7,15 +7,17 @@ correctness tests in `tests/`.
   BigCloneBench clone pairs and known false positives.
 - [History scaling](../srcmove_history/benchmarks/README.md): controlled throughput measurements
   for production `srcmove_history` analyses.
-- [Performance benchmark](../performance/README.md): paired/interleaved measurements over
-  immutable srcDiff XML that capture both external process timings and
-  `srcMove --profile` stage timings.
+- [Performance benchmark](../performance/README.md): paired/interleaved
+  measurements over named, pre-existing srcDiff XML workloads that capture
+  external process timings and `srcMove --profile` stage timings.
 
 Generated benchmark storage is ignored by Git and split by purpose:
 
-- `benchmark-cache/` holds reproducible inputs and intermediates: frozen source
+- `benchmark-cache/` holds BigMoveBench inputs and intermediates: frozen source
   snapshots, srcDiff attempts, verified srcDiff corpora, generation batches,
   and compiled or selected BigCloneBench data.
+- `performance/cache/workloads/` is the ignored recommended location for
+  reusable performance workloads. It is independent of `benchmark-cache/`.
 - `benchmark-results/` holds completed srcMove evaluations, performance runs,
   history-scaling studies, and combined-suite summaries.
 
@@ -24,8 +26,10 @@ is the resumable record of the srcDiff attempts that produced one. Neither is a
 thesis result. Treat completed manifests under `benchmark-results/` and their
 referenced immutable cache inputs as the authoritative result.
 
-CLI tools expose `--cache-root` and `--results-root` where applicable. Make
-targets use `BENCHMARK_CACHE_ROOT` and `BENCHMARK_RESULTS_ROOT`.
+Dataset-oriented CLI tools expose `--cache-root` where applicable. Performance
+accepts explicit `--workload NAME=PATH` values instead. Result-producing tools
+use `--results-root`; Make targets use `BENCHMARK_CACHE_ROOT` and
+`BENCHMARK_RESULTS_ROOT` where applicable.
 
 The phased upgrade of reusable srcDiff corpora, provenance, failure incidents,
 dataset adapters, and publication runs is described in the
@@ -45,8 +49,9 @@ a configurable fake executable, and strict BigMoveBench oracle tests live under
 `bigMoveBench/tests/`. BigCloneBench remains an external manual prerequisite;
 normal tests neither download it nor depend on historical large-run counts.
 
-The [performance benchmark](../performance/README.md) reads existing XML inputs
-and writes ignored local runs under the selected results root.
+The [performance benchmark](../performance/README.md) reads explicit existing
+XML workloads in place and writes ignored local runs under the selected results
+root. It does not depend on the staged corpus workflow below.
 
 Previously archived thesis results are historical evidence, not regression
 expectations for the refactored implementation.
@@ -170,5 +175,6 @@ For performance and reliability:
   sizes when comparing srcMove builds;
 - report srcDiff failures, invalid XML, timeouts, srcMove failures, and excluded
   files as first-class results rather than silently dropping them;
-- attach input, corpus, executable, configuration, environment, and source
-  revision identifiers to every table intended for the thesis.
+- attach workload identity to every performance table and the applicable
+  dataset identity to every accuracy table, together with executable,
+  configuration, environment, and source revision identifiers.

@@ -12,7 +12,7 @@ settled.
 - Add a focused large-input benchmark after benchmark storage is reorganized.
   Generate a small, reproducible set of validated srcDiff archives from fixed
   reference-repository revisions with Python excluded, then reuse
-  `performance/run.py` to measure srcMove alone. Cover several input
+  `performance/run.py` to measure srcMove alone. Cover several workload
   sizes and report repeated-run wall time, variability, peak RSS, internal
   profile timings, MiB/s, and diff regions/s. This is a scalability and stress
   experiment, not a move-detection accuracy benchmark; do not restore the

@@ -59,9 +59,10 @@ The remaining phases are evidence-driven:
 The thesis evaluation has two central empirical pillars. BigCloneBench provides
 the best available large labeled source of Type-1 and Type-2 clone pairs for the
 synthetic detection-and-classification evaluation. Repository revision pairs
-provide the primary workloads for real-world scale, reliability, performance,
-and failure analysis. The BigCloneBench implementation already provides a strong
-baseline; most new engineering in this plan is therefore directed at reusable
+provide the primary datasets for real-world reliability and failure analysis.
+Independent, pre-existing large srcDiff XML files provide the performance
+workloads. The BigCloneBench implementation already provides a strong baseline;
+most new dataset engineering in this plan is therefore directed at reusable
 srcDiff corpora and large-repository execution rather than redesigning its
 generator or oracle.
 
@@ -70,7 +71,8 @@ validation, repository export, internal profiling, and shared tool discovery.
 Its motivating gaps were coupled srcDiff/srcMove execution, missing failure
 records and timeout policy, implicit file filtering, incidental rather than
 first-class srcDiff corpora, replaceable summaries, ambiguous srcDiff semantic
-ineligibility, and performance results not bound to binary and input checksums.
+ineligibility, and performance results not bound to binary and workload
+checksums.
 Phases 0 through 5 addressed these infrastructure gaps; the pilot must now
 verify the behavior with real workloads.
 
@@ -130,8 +132,9 @@ and uncertainty reported explicitly.
 
 ### Performance benchmark
 
-Performance measurements run srcMove repeatedly over immutable, checksummed
-srcDiff XML. srcDiff generation time is measured separately so upstream cost and
+Performance measurements run srcMove repeatedly over explicit named,
+checksummed srcDiff XML workloads. Workload creation is outside the performance
+runner; srcDiff generation time is measured separately so upstream cost and
 instability do not distort srcMove timing.
 
 ## Benchmark Compatibility Policy
@@ -594,10 +597,10 @@ Retain both raw observations and summaries. Prefer:
 
 - external wall time, CPU time, and peak resident memory
 - srcMove internal stage timings
-- input XML bytes and structural workload counts
+- workload XML bytes and structural size counts
 - warmups plus multiple measured repetitions
 - median and distribution/dispersion, not only a mean
-- identical input checksums when comparing srcMove revisions
+- identical workload checksums when comparing srcMove revisions
 - paired, interleaved revision execution with a recorded randomization seed
 - host and container resource identity and measurement-tool versions
 
@@ -753,9 +756,9 @@ external run, not part of ordinary implementation testing.
 - Produce raw CSV or JSON rows plus a machine-readable summary.
 
 **Complete when:** two srcMove revisions can be fairly compared on identical
-input checksums, neither revision always runs first, environment and cache policy
-are recorded, failures remain raw rows, and the comparison can be reproduced
-from its manifest.
+workload checksums, neither revision always runs first, environment and cache
+policy are recorded, failures remain raw rows, and the comparison can be
+reproduced from its manifest.
 
 Before moving beyond this phase, validate the runner with real srcMove binaries.
 In particular, either require a repetition count that gives every variant equal
@@ -781,11 +784,11 @@ the recorded schedule supports.
   summaries, checksums, commands, and a short account of unresolved failures.
 
 **Complete when:** one representative repository corpus can be generated or its
-srcDiff failure can be reproduced and classified; the resulting srcMove run and
-performance comparison reconcile with their raw records; and another developer
-has enough recorded information to inspect the pilot without relying on a
-mutable `latest` path. A srcDiff defect may remain unresolved if it is minimized,
-reproducible, and reported honestly.
+srcDiff failure can be reproduced and classified; the resulting accuracy run
+and an independent performance workload comparison reconcile with their raw
+records; and another developer has enough recorded information to inspect the
+pilot without relying on a mutable `latest` path. A srcDiff defect may remain
+unresolved if it is minimized, reproducible, and reported honestly.
 
 ### Phase 7: Evidence-driven thesis runs
 

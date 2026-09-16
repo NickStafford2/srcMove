@@ -16,4 +16,5 @@ benchmark-cache/*
 !benchmark-cache/README.md
 benchmark-results/*
 !benchmark-results/README.md
+performance/cache/workloads/
 srcReader/

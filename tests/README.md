@@ -6,7 +6,7 @@ The repository `Makefile` is the developer interface. From the repository root:
 make test                         # build, then run every correctness suite
 make test-unit                    # all Python unit tests
 make test-bigmovebench            # BigMoveBench unit tests only
-make test-performance             # performance benchmark unit tests only
+make test-performance             # performance workload runner unit tests only
 make test-srcmove-history         # srcmove-history unit tests only
 make test-xml                     # build, then run XML regressions
 make test-source                  # build, then run source-pair regressions
@@ -35,8 +35,8 @@ python3 tests/regression/policy/list.py --catalog contextual
 - `unit`: core Python unit tests.
 - `bigmovebench`: focused tests under `bigMoveBench/tests/`; run explicitly
   with `make test-bigmovebench` and included by `make test-unit`.
-- `performance`: focused tests under `performance/tests/`; run explicitly with
-  `make test-performance` and included by `make test-unit`.
+- `performance`: focused workload-runner tests under `performance/tests/`; run
+  explicitly with `make test-performance` and included by `make test-unit`.
 - `srcmove-history`: focused unit tests under
   `tests/unit/srcmove_history/`; run explicitly with
   `make test-srcmove-history`.
@@ -89,7 +89,7 @@ of one immutable corpus across multiple fake srcMove builds. They do not require
 or download BigCloneBench.
 
 Performance-runner fixtures compare fake srcMove builds over checked-in srcDiff
-XML. They verify reproducible position-balanced schedules, identical input
+XML. They verify reproducible position-balanced schedules, immutable workload
 checksums, paired summaries, append-only artifacts, and preservation of failed
 measurements without running large workloads.
 

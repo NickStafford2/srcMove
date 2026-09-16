@@ -16,7 +16,6 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from benchmarks.contracts import RunMode
-from benchmarks.corpus import load_corpus
 from benchmarks.process import execute_attempt, validate_srcdiff_xml, write_json_atomic
 from benchmarks.provenance import (
     collect_run_observation,
@@ -27,8 +26,8 @@ from benchmarks.provenance import (
 from benchmarks.statistics import describe
 
 
-PERFORMANCE_RUN_SCHEMA_VERSION = 1
-PERFORMANCE_SUMMARY_SCHEMA_VERSION = 1
+PERFORMANCE_RUN_SCHEMA_VERSION = 2
+PERFORMANCE_SUMMARY_SCHEMA_VERSION = 2
 PROFILE_LINE_RE = re.compile(
     r"^profile\.([A-Za-z0-9_.]+)_ms=([0-9]+(?:\.[0-9]+)?)$"
 )
@@ -64,88 +63,58 @@ def _require_unique(items: Sequence[tuple[str, Path]], kind: str) -> None:
         raise ValueError(f"duplicate {kind} name(s): {', '.join(sorted(duplicates))}")
 
 
-def load_inputs(
-    *,
-    data_root: Path,
-    corpus: str | Path | None,
-    named_inputs: Sequence[str],
-    selected_case_ids: Sequence[str] = (),
-) -> tuple[dict[str, Path], dict[str, Any]]:
-    """Load direct immutable XML inputs or accepted cases from one corpus."""
+def load_workloads(named_workloads: Sequence[str]) -> dict[str, Path]:
+    """Resolve repeatable NAME=PATH workload declarations."""
 
-    if (corpus is None) == (not named_inputs):
-        raise ValueError("select exactly one of --corpus or one or more --input values")
-
-    if corpus is not None:
-        corpus_dir, manifest = load_corpus(data_root, corpus)
-        accepted = {
-            case["case_id"]: corpus_dir / case["input_path"]
-            for case in manifest["cases"]
-            if case["generation_status"] == "accepted"
-        }
-        selected = set(selected_case_ids) if selected_case_ids else set(accepted)
-        unknown = selected - set(accepted)
-        if unknown:
-            raise ValueError(
-                "unknown accepted corpus case(s): " + ", ".join(sorted(unknown))
-            )
-        inputs = {
-            case["case_id"]: accepted[case["case_id"]]
-            for case in manifest["cases"]
-            if case["case_id"] in selected
-        }
-        source = {
-            "kind": "corpus",
-            "corpus_id": manifest["corpus_id"],
-            "corpus_manifest_sha256": sha256_file(corpus_dir / "manifest.json"),
-        }
-    else:
-        parsed = [parse_named_path(value, "input") for value in named_inputs]
-        _require_unique(parsed, "input")
-        if selected_case_ids:
-            raise ValueError("--case is available only with --corpus")
-        inputs = dict(parsed)
-        source = {"kind": "direct"}
-
-    if not inputs:
-        raise ValueError("performance run selected no inputs")
-    return inputs, source
+    parsed = [parse_named_path(value, "workload") for value in named_workloads]
+    _require_unique(parsed, "workload")
+    if not parsed:
+        raise ValueError("performance run requires at least one workload")
+    return dict(parsed)
 
 
-def inspect_input(path: Path) -> dict[str, Any]:
+def inspect_workload(path: Path) -> dict[str, Any]:
     if not path.is_file():
-        raise FileNotFoundError(f"performance input not found: {path}")
+        raise FileNotFoundError(f"performance workload not found: {path}")
     try:
         root = ET.parse(path).getroot()
     except ET.ParseError as error:
-        raise ValueError(f"performance input is malformed XML: {path}: {error}") from error
+        raise ValueError(
+            f"performance workload is malformed XML: {path}: {error}"
+        ) from error
     child_units = [child for child in root if child.tag.rsplit("}", 1)[-1] == "unit"]
     shape = "archive" if child_units else "single_file"
     validation = validate_srcdiff_xml(path, shape)
     if validation["status"] != "valid":
         raise ValueError(
-            f"performance input is not structurally admitted srcDiff XML: "
+            f"performance workload is not structurally admitted srcDiff XML: "
             f"{path}: {validation.get('error', validation['status'])}"
         )
     elements = list(root.iter())
+    delete_regions = sum(
+        element.tag.rsplit("}", 1)[-1] == "delete" for element in elements
+    )
+    insert_regions = sum(
+        element.tag.rsplit("}", 1)[-1] == "insert" for element in elements
+    )
     return {
         "path": str(path.resolve()),
         "sha256": validation["sha256"],
         "size_bytes": validation["size_bytes"],
-        "shape": shape,
-        "element_count": len(elements),
-        "delete_region_count": sum(
-            element.tag.rsplit("}", 1)[-1] == "delete" for element in elements
-        ),
-        "insert_region_count": sum(
-            element.tag.rsplit("}", 1)[-1] == "insert" for element in elements
-        ),
+        "xml_shape": shape,
+        "metrics": {
+            "xml_element_count": len(elements),
+            "srcml_unit_count": len(child_units) if child_units else 1,
+            "diff_delete_region_count": delete_regions,
+            "diff_insert_region_count": insert_regions,
+            "diff_region_count": delete_regions + insert_regions,
+        },
     }
 
 
 def build_schedule(
     *,
-    case_ids: Sequence[str],
+    workload_names: Sequence[str],
     variant_names: Sequence[str],
     warmups: int,
     repetitions: int,
@@ -153,8 +122,8 @@ def build_schedule(
 ) -> list[dict[str, Any]]:
     """Build a deterministic paired/interleaved and position-balanced schedule."""
 
-    if not case_ids or not variant_names:
-        raise ValueError("schedule requires at least one case and variant")
+    if not workload_names or not variant_names:
+        raise ValueError("schedule requires at least one workload and variant")
     if warmups < 0 or repetitions < 1:
         raise ValueError("warmups must be nonnegative and repetitions must be positive")
     if len(variant_names) > 1 and repetitions < len(variant_names):
@@ -165,19 +134,19 @@ def build_schedule(
 
     randomizer = random.Random(seed)
     base_orders: dict[str, list[str]] = {}
-    for case_id in sorted(case_ids):
+    for workload_name in sorted(workload_names):
         order = sorted(variant_names)
         randomizer.shuffle(order)
-        base_orders[case_id] = order
+        base_orders[workload_name] = order
 
     schedule: list[dict[str, Any]] = []
     sequence = 0
     for phase, count in (("warmup", warmups), ("measured", repetitions)):
         for repetition in range(1, count + 1):
-            ordered_cases = sorted(case_ids)
-            randomizer.shuffle(ordered_cases)
-            for case_id in ordered_cases:
-                base = base_orders[case_id]
+            ordered_workloads = sorted(workload_names)
+            randomizer.shuffle(ordered_workloads)
+            for workload_name in ordered_workloads:
+                base = base_orders[workload_name]
                 offset = (repetition - 1) % len(base)
                 ordered_variants = base[offset:] + base[:offset]
                 for position, variant in enumerate(ordered_variants, start=1):
@@ -187,7 +156,7 @@ def build_schedule(
                             "sequence": sequence,
                             "phase": phase,
                             "repetition": repetition,
-                            "case_id": case_id,
+                            "workload": workload_name,
                             "variant": variant,
                             "position_in_pair": position,
                         }
@@ -237,8 +206,8 @@ def run_measurement(
     schedule_entry: Mapping[str, Any],
     executable: Path,
     executable_sha256: str,
-    input_path: Path,
-    input_observation: Mapping[str, Any],
+    workload_path: Path,
+    workload_observation: Mapping[str, Any],
     timeout_seconds: float,
 ) -> tuple[dict[str, Any], set[str]]:
     if sha256_file(executable) != executable_sha256:
@@ -246,17 +215,17 @@ def run_measurement(
             f"srcMove variant changed after run observation: "
             f"{schedule_entry['variant']}"
         )
-    if sha256_file(input_path) != input_observation["sha256"]:
+    if sha256_file(workload_path) != workload_observation["sha256"]:
         raise ValueError(
-            f"performance input changed after run observation: "
-            f"{schedule_entry['case_id']}"
+            f"performance workload changed after run observation: "
+            f"{schedule_entry['workload']}"
         )
     before_user, before_system = _child_cpu_usage()
 
     def command(output: Path) -> Sequence[str]:
         return [
             str(executable),
-            str(input_path),
+            str(workload_path),
             str(output),
             "--results",
             str(output.parent / "results.json"),
@@ -266,18 +235,18 @@ def run_measurement(
     attempt_dir, attempt = execute_attempt(
         attempts_root=run_dir / "attempts",
         stage="srcmove-performance",
-        case_id=str(schedule_entry["case_id"]),
+        case_id=str(schedule_entry["workload"]),
         command_factory=command,
         cwd=run_dir,
         timeout_seconds=timeout_seconds,
         xml_validator=lambda path: validate_srcdiff_xml(
-            path, str(input_observation["shape"])
+            path, str(workload_observation["xml_shape"])
         ),
         output_filename="srcmove.xml",
         context={
             "performance_run_id": run_dir.name,
             **dict(schedule_entry),
-            "input_sha256": input_observation["sha256"],
+            "workload_sha256": workload_observation["sha256"],
         },
     )
     after_user, after_system = _child_cpu_usage()
@@ -312,11 +281,23 @@ def run_measurement(
         ),
         "peak_rss_bytes": attempt["resource_usage"]["peak_rss_bytes"],
         "peak_rss_status": attempt["resource_usage"]["peak_rss_status"],
-        "input_sha256": input_observation["sha256"],
-        "input_size_bytes": input_observation["size_bytes"],
-        "input_element_count": input_observation["element_count"],
-        "input_delete_region_count": input_observation["delete_region_count"],
-        "input_insert_region_count": input_observation["insert_region_count"],
+        "workload_sha256": workload_observation["sha256"],
+        "workload_size_bytes": workload_observation["size_bytes"],
+        "workload_xml_element_count": workload_observation["metrics"][
+            "xml_element_count"
+        ],
+        "workload_srcml_unit_count": workload_observation["metrics"][
+            "srcml_unit_count"
+        ],
+        "workload_diff_delete_region_count": workload_observation["metrics"][
+            "diff_delete_region_count"
+        ],
+        "workload_diff_insert_region_count": workload_observation["metrics"][
+            "diff_insert_region_count"
+        ],
+        "workload_diff_region_count": workload_observation["metrics"][
+            "diff_region_count"
+        ],
         "output_sha256": attempt["xml"].get("sha256"),
         "output_retention": attempt["output_retention"],
         "results_sha256": results.get("sha256"),
@@ -330,7 +311,7 @@ RAW_BASE_FIELDS = [
     "sequence",
     "phase",
     "repetition",
-    "case_id",
+    "workload",
     "variant",
     "position_in_pair",
     "attempt_id",
@@ -346,11 +327,13 @@ RAW_BASE_FIELDS = [
     "cpu_total_seconds",
     "peak_rss_bytes",
     "peak_rss_status",
-    "input_sha256",
-    "input_size_bytes",
-    "input_element_count",
-    "input_delete_region_count",
-    "input_insert_region_count",
+    "workload_sha256",
+    "workload_size_bytes",
+    "workload_xml_element_count",
+    "workload_srcml_unit_count",
+    "workload_diff_delete_region_count",
+    "workload_diff_insert_region_count",
+    "workload_diff_region_count",
     "output_sha256",
     "output_retention",
     "results_sha256",
@@ -417,11 +400,13 @@ def build_summary(
     for variant in variant_names:
         variant_rows = [row for row in measured if row["variant"] == variant]
         variants[variant] = summarize_rows(variant_rows)
-        variants[variant]["cases"] = {
-            case_id: summarize_rows(
-                [row for row in variant_rows if row["case_id"] == case_id]
+        variants[variant]["workloads"] = {
+            workload_name: summarize_rows(
+                [row for row in variant_rows if row["workload"] == workload_name]
             )
-            for case_id in sorted({str(row["case_id"]) for row in variant_rows})
+            for workload_name in sorted(
+                {str(row["workload"]) for row in variant_rows}
+            )
         }
 
     baseline = variant_names[0]
@@ -435,7 +420,7 @@ def build_summary(
                     continue
                 if row["variant"] not in {baseline, candidate}:
                     continue
-                key = (str(row["case_id"]), int(row["repetition"]))
+                key = (str(row["workload"]), int(row["repetition"]))
                 paired.setdefault(key, {})[str(row["variant"])] = float(row[field])
             complete = [
                 values
@@ -483,8 +468,7 @@ def run_performance(
     *,
     output_root: Path,
     variants: Mapping[str, Path],
-    inputs: Mapping[str, Path],
-    input_source: Mapping[str, Any],
+    workloads: Mapping[str, Path],
     warmups: int,
     repetitions: int,
     seed: int,
@@ -495,6 +479,10 @@ def run_performance(
 ) -> tuple[Path, dict[str, Any], dict[str, Any]]:
     if not variants:
         raise ValueError("performance run requires at least one srcMove variant")
+    if not workloads:
+        raise ValueError("performance run requires at least one workload")
+    for name in workloads:
+        validate_name(name, "workload name")
     for name, executable in variants.items():
         validate_name(name, "variant name")
         if not executable.is_file() or not os.access(executable, os.X_OK):
@@ -507,9 +495,11 @@ def run_performance(
     run_dir.mkdir(parents=True, exist_ok=False)
     (run_dir / "attempts").mkdir()
     created_at = utc_now()
-    input_observations = {name: inspect_input(path) for name, path in inputs.items()}
+    workload_observations = {
+        name: inspect_workload(path) for name, path in workloads.items()
+    }
     schedule = build_schedule(
-        case_ids=list(inputs),
+        workload_names=list(workloads),
         variant_names=list(variants),
         warmups=warmups,
         repetitions=repetitions,
@@ -519,16 +509,17 @@ def run_performance(
         mode=mode,
         repositories={},
         executables=variants,
-        inputs=inputs,
+        inputs=workloads,
+        input_observations=workload_observations,
     )
+    observation["workloads"] = observation.pop("inputs")
     running_manifest = {
         "schema_version": PERFORMANCE_RUN_SCHEMA_VERSION,
         "run_id": run_id,
         "status": "running",
         "created_at": created_at,
         "mode": mode.value,
-        "input_source": dict(input_source),
-        "inputs": input_observations,
+        "workloads": workload_observations,
         "variant_order": list(variants),
         "policy": {
             "warmups": warmups,
@@ -562,8 +553,10 @@ def run_performance(
                 executable_sha256=observation["executables"][
                     str(entry["variant"])
                 ]["artifact"]["sha256"],
-                input_path=inputs[str(entry["case_id"])],
-                input_observation=input_observations[str(entry["case_id"])],
+                workload_path=workloads[str(entry["workload"])],
+                workload_observation=workload_observations[
+                    str(entry["workload"])
+                ],
                 timeout_seconds=timeout_seconds,
             )
             rows.append(row)

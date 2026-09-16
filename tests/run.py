@@ -21,7 +21,7 @@ from support.tooling import command_text, find_srcdiff, find_srcmove, run_comman
 SUITE_DESCRIPTIONS = {
     "unit": "core Python unit tests",
     "bigmovebench": "focused BigMoveBench unit tests",
-    "performance": "focused performance benchmark unit tests",
+    "performance": "focused performance workload runner unit tests",
     "srcmove-history": "focused srcmove-history unit tests",
     "xml": "checked-in srcDiff XML regression fixtures",
     "source": "checked-in source pairs regenerated through srcdiff",
@@ -179,7 +179,7 @@ def test_steps(
     if not args.cases and "performance" in suites:
         steps.append(
             TestStep(
-                "performance benchmark unit",
+                "performance workload runner unit",
                 [
                     sys.executable,
                     "-m",

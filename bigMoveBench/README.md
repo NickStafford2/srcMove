@@ -333,10 +333,11 @@ from tuning cases with `--selection-role evaluation`. Type-3 is currently
 tuning/observational only: evaluation selection is rejected until a held-out
 partition is implemented. Publication enforcement
 and archive verification belong to Phase 6; Phase 4 development runs already
-retain their manifests and summaries by run identifier. Generate the immutable
-srcDiff corpus first, then use the shared
-[performance benchmark](../performance/README.md) to compare srcMove
-builds without rerunning BigCloneBench or srcDiff.
+retain their manifests and summaries by run identifier. BigMoveBench data is
+not reused for runtime experiments. Use independent, large, pre-existing
+srcDiff XML workloads with the
+[performance benchmark](../performance/README.md) when comparing srcMove
+builds.
 
 ## Validation
 

@@ -205,19 +205,21 @@ an afterthought.
 
 ### Phase 0: establish the current baseline
 
-Create immutable, checksummed input snapshots through the benchmarking plan.
-The performance corpus must use multi-file repository archives. At minimum, use:
+Prepare large, checksummed srcDiff XML workloads independently of accuracy
+datasets. Performance workloads must use multi-file repository archives. At
+minimum, use:
 
-- the same large OpenCV corpus or an equivalently documented repository
+- the same large OpenCV workload or an equivalently documented repository
   archive;
 - a candidate-heavy archive, because the historical OpenCV input had almost no
   grouping work.
 
 Use representative small regression inputs to measure startup and scheduling
-overhead. BigCloneBench is not a performance corpus for this upgrade: its
-single-file synthetic cases do not exercise archive-unit parallelism. Use it
-only for its declared synthetic detection-and-classification evaluation when
-confirming that behavior remains unchanged.
+overhead. BigMoveBench is not a source of performance workloads for this
+upgrade: its single-file synthetic examples do not exercise archive-unit
+parallelism. Use it only for its declared synthetic
+detection-and-classification evaluation when confirming that behavior remains
+unchanged.
 
 Record input bytes, archive-unit count and size distribution, region and
 candidate counts, wall time, CPU time, peak RSS, output checksum, build receipt,
@@ -323,7 +325,7 @@ Document:
 - thread-count semantics;
 - memory implications;
 - single-file limitations;
-- benchmark machine and corpus;
+- benchmark machine and workload;
 - observed scaling rather than theoretical core-count claims.
 
 ## Verification

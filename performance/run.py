@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Measure one or more srcMove builds over immutable srcDiff XML inputs."""
+"""Measure srcMove builds over named, pre-existing srcDiff XML workloads."""
 
 from __future__ import annotations
 
@@ -17,11 +17,11 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
 
 from benchmarks.contracts import RunMode
 from performance.benchmark import (
-    load_inputs,
+    load_workloads,
     parse_named_path,
     run_performance,
 )
-from benchmarks.paths import DEFAULT_CACHE_ROOT, DEFAULT_RESULTS_ROOT
+from benchmarks.paths import DEFAULT_RESULTS_ROOT
 from support.tooling import find_srcmove
 
 
@@ -39,24 +39,13 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Single srcMove build, recorded as variant 'current'.",
     )
-    inputs = parser.add_mutually_exclusive_group(required=True)
-    inputs.add_argument(
-        "--corpus",
-        help="Current-schema corpus identifier, directory, or manifest path.",
-    )
-    inputs.add_argument(
-        "--input",
-        action="append",
-        metavar="NAME=PATH",
-        help="Named immutable srcDiff XML input; repeat for multiple cases.",
-    )
     parser.add_argument(
-        "--case",
+        "--workload",
         action="append",
-        default=[],
-        help="Accepted corpus case to measure; repeat to select multiple cases.",
+        required=True,
+        metavar="NAME=PATH",
+        help="Named srcDiff XML workload; repeat to measure multiple workloads.",
     )
-    parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
     parser.add_argument("--results-root", type=Path, default=DEFAULT_RESULTS_ROOT)
     parser.add_argument("--run-id", help="Explicit unique run identifier.")
     parser.add_argument("--warmups", type=int, default=1)
@@ -99,17 +88,11 @@ def main() -> int:
                 raise ValueError("srcMove executable not found; pass --srcmove")
             variants = {"current": executable}
 
-        input_paths, input_source = load_inputs(
-            data_root=args.cache_root.expanduser().resolve(),
-            corpus=args.corpus,
-            named_inputs=args.input or [],
-            selected_case_ids=args.case,
-        )
+        workloads = load_workloads(args.workload)
         run_dir, _, summary = run_performance(
             output_root=args.results_root.expanduser().resolve() / "performance",
             variants=variants,
-            inputs=input_paths,
-            input_source=input_source,
+            workloads=workloads,
             warmups=args.warmups,
             repetitions=args.repetitions,
             seed=args.seed,
