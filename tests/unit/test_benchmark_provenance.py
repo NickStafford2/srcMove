@@ -15,6 +15,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from benchmarking.contracts import RunMode
 from benchmarking.provenance import (
+    RECEIPT_SCHEMA_VERSION,
     build_receipt_identifier,
     collect_run_observation,
     observe_executable,
@@ -61,7 +62,7 @@ def write_receipt(path: Path, artifact: Path, checksum: str) -> None:
     path.write_text(
         json.dumps(
             {
-                "schema_version": 1,
+                "schema_version": RECEIPT_SCHEMA_VERSION,
                 "receipt_id": build_receipt_identifier(
                     sources={},
                     source_lock=None,
@@ -183,6 +184,9 @@ class BuildReceiptTests(unittest.TestCase):
             first = subprocess.run(command, capture_output=True, text=True, check=False)
             self.assertEqual(first.returncode, 0, first.stderr)
             first_receipt = json.loads(receipt.read_text(encoding="utf-8"))
+            self.assertEqual(
+                first_receipt["schema_version"], RECEIPT_SCHEMA_VERSION
+            )
             self.assertEqual(first_receipt["tests"]["status"], "not_run")
             self.assertEqual(
                 observe_executable(executable, receipt)["provenance_status"],

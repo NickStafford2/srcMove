@@ -31,7 +31,7 @@ from bigMoveBench.selection import (
     load_selection,
     type3_stratum,
 )
-from benchmarking.contracts import canonical_json
+from benchmarking.identity import canonical_json
 from benchmarking.provenance import utc_now
 
 

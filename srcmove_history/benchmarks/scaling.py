@@ -32,7 +32,7 @@ REFERENCE_REGISTRY = REFERENCE_ROOT / "repositories.json"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarking.contracts import canonical_json
+from benchmarking.identity import canonical_json
 from benchmarking.paths import DEFAULT_RESULTS_ROOT
 from benchmarking.storage import write_json_atomic
 from benchmarking.provenance import (

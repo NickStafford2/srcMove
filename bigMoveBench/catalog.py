@@ -19,7 +19,7 @@ from bigMoveBench.dataset import (
     extract_bytes,
     source_path,
 )
-from benchmarking.contracts import canonical_json, content_identifier
+from benchmarking.identity import canonical_json, content_identifier
 from benchmarking.storage import write_json_atomic
 from benchmarking.provenance import sha256_file, utc_now
 

@@ -24,7 +24,7 @@ from bigMoveBench.contracts import (
     SemanticResult,
     SemanticStatus,
 )
-from benchmarking.contracts import content_identifier
+from benchmarking.identity import content_identifier
 from benchmarking.provenance import sha256_file
 
 

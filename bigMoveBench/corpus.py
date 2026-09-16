@@ -20,16 +20,13 @@ from bigMoveBench.contracts import (
     SemanticResult,
     SemanticStatus,
 )
-from benchmarking.contracts import (
-    RunMode,
-    canonical_json,
-    content_identifier,
-)
+from benchmarking.contracts import RunMode
 from benchmarking.execution import (
     execute_attempt,
     recover_interrupted_attempts,
     set_attempt_output_retention,
 )
+from benchmarking.identity import canonical_json, content_identifier
 from benchmarking.srcdiff_validation import validate_srcdiff_xml
 from benchmarking.storage import write_json_atomic
 from benchmarking.provenance import (

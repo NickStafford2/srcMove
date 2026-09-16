@@ -25,7 +25,7 @@ from bigMoveBench.corpus import (
     create_input_snapshot,
     load_input_snapshot,
 )
-from benchmarking.contracts import content_identifier
+from benchmarking.identity import content_identifier
 from benchmarking.storage import write_json_atomic
 from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT

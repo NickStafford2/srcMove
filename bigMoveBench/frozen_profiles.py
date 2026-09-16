@@ -13,7 +13,7 @@ from typing import Any, Mapping
 
 from bigMoveBench.catalog import VerifiedCompiledDataset
 from bigMoveBench.selection import SELECTION_SCHEMA_VERSION, TYPE3_STRATA, _artifact, load_selection
-from benchmarking.contracts import canonical_json, content_identifier
+from benchmarking.identity import canonical_json, content_identifier
 from benchmarking.provenance import sha256_file, utc_now
 
 

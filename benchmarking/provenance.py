@@ -12,15 +12,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from benchmarking.contracts import (
-    CONTRACT_VERSION,
-    ProvenanceStatus,
-    RunMode,
-    content_identifier,
-)
+from benchmarking.contracts import ProvenanceStatus, RunMode
+from benchmarking.identity import content_identifier
 
 
-RECEIPT_SCHEMA_VERSION = 1
+RECEIPT_SCHEMA_VERSION = 2
 OBSERVATION_SCHEMA_VERSION = 1
 RELEVANT_SOURCE_SUFFIXES = {
     ".c",
@@ -203,7 +199,6 @@ def build_receipt_identifier(
     artifacts: Sequence[Mapping[str, Any]],
 ) -> str:
     identity_payload = {
-        "contract_version": CONTRACT_VERSION,
         "schema_version": RECEIPT_SCHEMA_VERSION,
         "sources": {
             name: source_state_core(observation)

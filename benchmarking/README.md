@@ -40,8 +40,9 @@ dataset adapters, and publication runs is described in the
 This directory contains infrastructure shared by the independently owned
 benchmark suites listed above. It does not contain a benchmark suite itself.
 
-`contracts.py` defines the canonical content-identity encoding, shared
-process/XML/provenance status vocabulary, and development/publication labels.
+`contracts.py` defines shared process/XML/provenance status vocabulary and
+development/publication labels; `identity.py` defines deterministic content
+encoding and identifiers.
 `execution.py` owns benchmark-attempt lifecycle and recovery;
 `srcmove_runtime/process_supervision.py` owns bounded logs, process groups, and
 resource observation shared with `srcmove_history`; `srcdiff_validation.py` owns
