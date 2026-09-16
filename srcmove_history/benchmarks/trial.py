@@ -15,7 +15,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarking.contracts import canonical_json
-from benchmarking.process import write_json_atomic
+from benchmarking.storage import write_json_atomic
 from srcmove_history import (
     AnalysisConfiguration,
     AnalysisTarget,

@@ -16,13 +16,13 @@ FAKE_TOOL = REPO_ROOT / "tests" / "fixtures" / "benchmark" / "fake_tool.py"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarking.process import (
-    _ProcessGroupResourceSampler,
+from benchmarking.execution import (
     execute_attempt,
     recover_interrupted_attempts,
-    validate_srcdiff_xml,
-    write_json_atomic,
 )
+from benchmarking.process_supervision import _ProcessGroupResourceSampler
+from benchmarking.srcdiff_validation import validate_srcdiff_xml
+from benchmarking.storage import write_json_atomic
 
 
 def fake_command(outcome: str):

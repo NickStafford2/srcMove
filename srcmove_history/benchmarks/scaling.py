@@ -34,7 +34,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from benchmarking.contracts import canonical_json
 from benchmarking.paths import DEFAULT_RESULTS_ROOT
-from benchmarking.process import write_json_atomic
+from benchmarking.storage import write_json_atomic
 from benchmarking.provenance import (
     observe_environment,
     observe_executable,

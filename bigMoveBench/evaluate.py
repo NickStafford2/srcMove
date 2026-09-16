@@ -18,7 +18,7 @@ from bigMoveBench.oracle import (
     text_matches_with_status,
 )
 from bigMoveBench.selection import TYPE3_STRATA
-from benchmarking.process import write_json_atomic
+from benchmarking.storage import write_json_atomic
 from benchmarking.provenance import sha256_file, utc_now
 
 

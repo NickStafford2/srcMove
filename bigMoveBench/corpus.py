@@ -25,13 +25,13 @@ from benchmarking.contracts import (
     canonical_json,
     content_identifier,
 )
-from benchmarking.process import (
+from benchmarking.execution import (
     execute_attempt,
     recover_interrupted_attempts,
     set_attempt_output_retention,
-    validate_srcdiff_xml,
-    write_json_atomic,
 )
+from benchmarking.srcdiff_validation import validate_srcdiff_xml
+from benchmarking.storage import write_json_atomic
 from benchmarking.provenance import (
     collect_run_observation,
     observe_executable,

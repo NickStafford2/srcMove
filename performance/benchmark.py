@@ -16,14 +16,16 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from benchmarking.contracts import RunMode
-from benchmarking.process import execute_attempt, validate_srcdiff_xml, write_json_atomic
+from benchmarking.execution import execute_attempt
 from benchmarking.provenance import (
     collect_run_observation,
     observe_file,
     sha256_file,
     utc_now,
 )
+from benchmarking.srcdiff_validation import validate_srcdiff_xml
 from benchmarking.statistics import describe
+from benchmarking.storage import write_json_atomic
 
 
 PERFORMANCE_RUN_SCHEMA_VERSION = 2
