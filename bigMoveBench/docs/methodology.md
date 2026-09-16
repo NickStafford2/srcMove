@@ -80,6 +80,31 @@ are the best first target for srcMove because they align with the current exact 
 Type-2 match categories. Type-3 and Type-4 pairs are useful later as expected misses
 or as recall targets for future similarity scoring.
 
+## Type-3 Similarity Reference
+
+BigCloneBench records `similarity_line` and `similarity_token` for every positive
+clone row. These values measure shared normalized syntax rather than raw-text
+equality. BigCloneEval's conservative `BOTH` score is the lower of the two:
+
+```text
+bigclonebench_both = min(similarity_line, similarity_token)
+```
+
+BigMoveBench retains both source values. For a deduplicated Type-3 execution
+frame supported by multiple catalog rows, its current strength is the minimum
+`BOTH` value across those rows. Sampled Type-3 selections stratify that value as
+`>= .90`, `[.70, .90)`, `[.50, .70)`, and `< .50`.
+
+This is a useful external reference for evaluating a srcMove Type-3 score, but it
+is not an interchangeable oracle. BigCloneBench computes line and token scores
+over its own normalized comparison form; srcMove uses its own srcML-derived
+statement/block and token sequences. A sound comparison should therefore report
+rank correlation, error or score differences, and detection/classification rates
+by BigCloneBench strength band rather than assuming equal numeric scores have
+identical meaning. Threshold tuning and final evaluation must use separate
+declared selections. See [the BigCloneBench data notes](bigclonebench.md#similarity_line--similarity_token)
+for the upstream score interpretation.
+
 ## srcDiff Eligibility Boundary
 
 Well-formed srcDiff XML does not prove that srcDiff exposed the intended
@@ -161,6 +186,22 @@ direction. The evaluation must declare whether `(A, B)` means only deleting A an
 inserting B, whether both directions are evaluated, or whether a canonical
 direction is chosen. Keep cases used to tune srcMove identifiable and freeze a
 separate evaluation census or sample for the final thesis result.
+
+The current compiled external dataset contains 8,648,734 available labeled pair
+rows: 47,146 Type-1 rows, 4,223 Type-2 rows, 8,323,944 Type-3 rows, and 273,421
+known-false-positive rows. These collapse to 6,011,979 unique unordered
+fragment-content pairs across label kinds. Type 1 collapses to 951 unique content
+pairs, Type 2 to 567, and known false positives to about 232,509; Type 3 accounts
+for the remaining multimillion-case scale. Counts are dataset-specific and must
+be read from the compiled manifest and selection manifests for every reported
+run rather than treated as timeless constants.
+
+For BigMoveBench, a full census means **all eligible unique
+BigCloneBench-labeled fragment pairs after declared exclusions and
+deduplication**. It does not mean the Cartesian product of all IJaDataset
+functions or fragments. The default execution unit is one canonical direction
+per exact unordered fragment-content pair, while every contributing
+BigCloneBench row and its multiplicity remain attached as provenance.
 
 ## Practical Test Layout
 
@@ -266,6 +307,17 @@ report includes contributing BigCloneBench function IDs and separately counts
 cases where the exact same function pair carries both labels.
 
 ## Important Caveats
+
+### Full-census execution cost
+
+The current srcDiff and srcMove corpus loops execute cases serially. They also
+rewrite the complete accumulated JSON batch or run manifest after every case.
+That checkpoint design is robust for small runs but its repeated whole-manifest
+serialization approaches quadratic I/O as a census grows. Before a multimillion
+Type-3 run, replace it with an append-only JSONL or SQLite execution journal,
+periodic compact checkpoints, deterministic shards, and bounded parallel
+workers. Preserve per-case resume and failure evidence while measuring
+checkpoint time separately from tool execution.
 
 - BigCloneBench labels clones, not historical edits. The generated suite measures
   whether srcMove can recognize a synthetic move whose payload is drawn from a
