@@ -20,9 +20,9 @@ from benchmarking.execution import (
     execute_attempt,
     recover_interrupted_attempts,
 )
-from benchmarking.process_supervision import _ProcessGroupResourceSampler
 from benchmarking.srcdiff_validation import validate_srcdiff_xml
 from benchmarking.storage import write_json_atomic
+from srcmove_runtime.process_supervision import _ProcessGroupResourceSampler
 
 
 def fake_command(outcome: str):

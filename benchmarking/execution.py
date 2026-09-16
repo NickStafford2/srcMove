@@ -5,8 +5,6 @@ from __future__ import annotations
 import json
 import os
 import signal
-import subprocess
-import threading
 import time
 import uuid
 from collections.abc import Callable, Mapping, Sequence
@@ -14,26 +12,83 @@ from pathlib import Path
 from typing import Any
 
 from benchmarking.contracts import TerminationStatus, XmlStatus
-from benchmarking.process_supervision import (
-    DEFAULT_LOG_LIMIT,
-    DEFAULT_TIMEOUT_GRACE_SECONDS,
-    BoundedCapture,
-    ResourceMonitor,
-    _drain,
-    _persist_capture,
-    _process_exists,
-    _process_group_exists,
-    _send_group_signal,
-    _signal_name,
-    _wait_for_process_group,
-)
 from benchmarking.provenance import observe_file, utc_now
 from benchmarking.storage import write_json_atomic
+from srcmove_runtime.process_supervision import (
+    CaptureResult,
+    ProcessIdentity,
+    SupervisedProcessResult,
+    process_exists,
+    run_supervised_process,
+)
 
 
 ATTEMPT_SCHEMA_VERSION = 2
+DEFAULT_LOG_LIMIT = 16 * 1024 * 1024
+DEFAULT_TIMEOUT_GRACE_SECONDS = 5.0
 CommandFactory = Callable[[Path], Sequence[str | os.PathLike[str]]]
 XmlValidator = Callable[[Path], dict[str, Any]]
+
+
+def _persist_capture(
+    attempt_dir: Path, filename: str, capture: CaptureResult
+) -> dict[str, Any]:
+    retained_path = None
+    if capture.retained:
+        (attempt_dir / filename).write_bytes(capture.retained)
+        retained_path = filename
+    return {
+        "path": retained_path,
+        "total_bytes": capture.total_bytes,
+        "retained_bytes": len(capture.retained),
+        "omitted_bytes": capture.omitted_bytes,
+        "truncated": capture.truncated,
+        "sha256": capture.sha256,
+        **({"error": capture.error} if capture.error is not None else {}),
+    }
+
+
+def _resource_usage(result: SupervisedProcessResult) -> dict[str, Any]:
+    return {
+        "peak_rss_bytes": result.resources.peak_rss_bytes,
+        "peak_rss_status": result.resources.status,
+        "measurement": result.resources.measurement,
+        "cgroup_oom_kill_observed": (
+            result.resources.cgroup_oom_kill_observed
+        ),
+    }
+
+
+def _cleanup_signals(result: SupervisedProcessResult) -> list[dict[str, Any]]:
+    return [
+        {"number": number, "name": signal.Signals(number).name}
+        for number in result.signals_sent
+    ]
+
+
+def _termination(result: SupervisedProcessResult) -> dict[str, Any]:
+    if result.termination_status == "spawn_failed":
+        return {
+            "status": TerminationStatus.SPAWN_FAILED.value,
+            "error": result.spawn_error,
+        }
+    if result.termination_status == "timed_out":
+        return {"status": TerminationStatus.TIMED_OUT.value}
+    if result.termination_status == "signaled":
+        assert result.signal_number is not None
+        try:
+            signal_name = signal.Signals(result.signal_number).name
+        except ValueError:
+            signal_name = f"SIGNAL_{result.signal_number}"
+        return {
+            "status": TerminationStatus.SIGNALED.value,
+            "signal_number": result.signal_number,
+            "signal_name": signal_name,
+        }
+    return {
+        "status": TerminationStatus.EXITED.value,
+        "exit_code": result.exit_code,
+    }
 
 
 def execute_attempt(
@@ -84,125 +139,26 @@ def execute_attempt(
             if effective_environment.get(key) is not None
         },
     }
-    stdout_capture = BoundedCapture(log_limit)
-    stderr_capture = BoundedCapture(log_limit)
-    cleanup_signals: list[dict[str, Any]] = []
-    termination: dict[str, Any]
-    process: subprocess.Popen[bytes] | None = None
-    threads: list[threading.Thread] = []
-    resource_monitor: ResourceMonitor | None = None
-    start = time.monotonic()
-    process_elapsed_seconds: float | None = None
+    attempt_started = time.monotonic()
 
-    try:
-        try:
-            process = subprocess.Popen(
-                command,
-                cwd=cwd,
-                env=dict(environment) if environment is not None else None,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                start_new_session=os.name == "posix",
-            )
-        except OSError as error:
-            termination = {
-                "status": TerminationStatus.SPAWN_FAILED.value,
-                "error": f"{type(error).__name__}: {error}",
-            }
-        else:
-            start = time.monotonic()
-            started["pid"] = process.pid
-            started["process_group"] = process.pid if os.name == "posix" else None
-            write_json_atomic(attempt_dir / "started.json", started)
-            assert process.stdout is not None
-            assert process.stderr is not None
-            threads = [
-                threading.Thread(
-                    target=_drain, args=(process.stdout, stdout_capture), daemon=True
-                ),
-                threading.Thread(
-                    target=_drain, args=(process.stderr, stderr_capture), daemon=True
-                ),
-            ]
-            for thread in threads:
-                thread.start()
-            resource_monitor = ResourceMonitor(process.pid)
-            resource_monitor.start()
+    def record_started(identity: ProcessIdentity) -> None:
+        started["pid"] = identity.pid
+        started["process_group"] = identity.process_group
+        write_json_atomic(attempt_dir / "started.json", started)
 
-            completed = _wait_for_process_group(
-                process, start + max(0.0, timeout_seconds)
-            )
-            timed_out = not completed
-            if timed_out:
-                if _send_group_signal(process, signal.SIGTERM):
-                    cleanup_signals.append(
-                        {"number": signal.SIGTERM, "name": "SIGTERM"}
-                    )
-                completed = _wait_for_process_group(
-                    process, time.monotonic() + timeout_grace_seconds
-                )
-                if not completed and _send_group_signal(process, signal.SIGKILL):
-                    cleanup_signals.append(
-                        {"number": signal.SIGKILL, "name": "SIGKILL"}
-                    )
-                    _wait_for_process_group(process, time.monotonic() + 0.5)
-
-            returncode = process.wait()
-            process_elapsed_seconds = time.monotonic() - start
-            if timed_out:
-                termination = {"status": TerminationStatus.TIMED_OUT.value}
-            elif returncode < 0:
-                number = -returncode
-                termination = {
-                    "status": TerminationStatus.SIGNALED.value,
-                    "signal_number": number,
-                    "signal_name": _signal_name(number),
-                }
-            else:
-                termination = {
-                    "status": TerminationStatus.EXITED.value,
-                    "exit_code": returncode,
-                }
-    except BaseException:
-        if process is not None and (
-            process.poll() is None or _process_group_exists(process.pid)
-        ):
-            if _send_group_signal(process, signal.SIGTERM):
-                cleanup_signals.append(
-                    {"number": signal.SIGTERM, "name": "SIGTERM"}
-                )
-            if not _wait_for_process_group(process, time.monotonic() + 1.0):
-                if _send_group_signal(process, signal.SIGKILL):
-                    cleanup_signals.append(
-                        {"number": signal.SIGKILL, "name": "SIGKILL"}
-                    )
-                    _wait_for_process_group(process, time.monotonic() + 0.5)
-            if process.poll() is None:
-                process.wait()
-        for thread in threads:
-            thread.join(timeout=5.0)
-        resource_usage = (
-            resource_monitor.finish()
-            if resource_monitor is not None
-            else {
-                "peak_rss_bytes": None,
-                "peak_rss_status": "unavailable",
-                "measurement": None,
-                "cgroup_oom_kill_observed": False,
-            }
-        )
-        stdout = _persist_capture(attempt_dir, "stdout.bin", stdout_capture)
-        stderr = _persist_capture(attempt_dir, "stderr.bin", stderr_capture)
+    def record_interrupted(result: SupervisedProcessResult) -> None:
+        stdout = _persist_capture(attempt_dir, "stdout.bin", result.stdout)
+        stderr = _persist_capture(attempt_dir, "stderr.bin", result.stderr)
         record = {
             **started,
             "completed_at": utc_now(),
-            "elapsed_seconds": time.monotonic() - start,
-            "process_elapsed_seconds": process_elapsed_seconds,
+            "elapsed_seconds": time.monotonic() - attempt_started,
+            "process_elapsed_seconds": result.process_elapsed_seconds,
             "termination": {
                 "status": TerminationStatus.ORCHESTRATION_INTERRUPTED.value
             },
-            "cleanup_signals": cleanup_signals,
-            "resource_usage": resource_usage,
+            "cleanup_signals": _cleanup_signals(result),
+            "resource_usage": _resource_usage(result),
             "stdout": stdout,
             "stderr": stderr,
             "xml": {"status": XmlStatus.NOT_CHECKED.value},
@@ -210,37 +166,35 @@ def execute_attempt(
         }
         write_json_atomic(attempt_dir / "attempt.json", record)
         (attempt_dir / "started.json").unlink(missing_ok=True)
-        raise
 
-    for thread in threads:
-        thread.join(timeout=5.0)
-    resource_usage = (
-        resource_monitor.finish()
-        if resource_monitor is not None
-        else {
-            "peak_rss_bytes": None,
-            "peak_rss_status": "unavailable",
-            "measurement": None,
-            "cgroup_oom_kill_observed": False,
-        }
+    result = run_supervised_process(
+        command,
+        cwd=cwd,
+        environment=environment,
+        timeout_seconds=timeout_seconds,
+        timeout_grace_seconds=timeout_grace_seconds,
+        capture_limit=log_limit,
+        on_started=record_started,
+        on_interrupted=record_interrupted,
     )
-    log_capture_complete = not any(thread.is_alive() for thread in threads)
-    stdout = _persist_capture(attempt_dir, "stdout.bin", stdout_capture)
-    stderr = _persist_capture(attempt_dir, "stderr.bin", stderr_capture)
+    termination = _termination(result)
+    resource_usage = _resource_usage(result)
+    stdout = _persist_capture(attempt_dir, "stdout.bin", result.stdout)
+    stderr = _persist_capture(attempt_dir, "stderr.bin", result.stderr)
     xml = xml_validator(output_path)
     admitted = (
         termination["status"] == TerminationStatus.EXITED.value
         and termination.get("exit_code") == 0
         and xml["status"] == XmlStatus.VALID.value
-        and log_capture_complete
+        and result.capture_complete
     )
     record = {
         **started,
         "completed_at": utc_now(),
-        "elapsed_seconds": time.monotonic() - start,
-        "process_elapsed_seconds": process_elapsed_seconds,
+        "elapsed_seconds": time.monotonic() - attempt_started,
+        "process_elapsed_seconds": result.process_elapsed_seconds,
         "termination": termination,
-        "cleanup_signals": cleanup_signals,
+        "cleanup_signals": _cleanup_signals(result),
         "resource_failure": (
             "out_of_memory"
             if resource_usage["cgroup_oom_kill_observed"]
@@ -250,10 +204,8 @@ def execute_attempt(
             else None
         ),
         "resource_usage": resource_usage,
-        "process_tree_guarantee": (
-            "posix_process_group" if os.name == "posix" else "none"
-        ),
-        "log_capture_complete": log_capture_complete,
+        "process_tree_guarantee": result.process_tree_guarantee,
+        "log_capture_complete": result.capture_complete,
         "stdout": stdout,
         "stderr": stderr,
         "xml": xml,
@@ -315,7 +267,7 @@ def recover_interrupted_attempts(attempts_root: Path) -> list[str]:
                 "attempt_id": attempt_dir.name,
             }
         process_id = started.get("pid")
-        if isinstance(process_id, int) and _process_exists(process_id):
+        if isinstance(process_id, int) and process_exists(process_id):
             continue
         record = {
             **started,
