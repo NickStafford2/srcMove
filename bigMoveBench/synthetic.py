@@ -7,6 +7,10 @@ from pathlib import Path
 
 SYNTHETIC_SOURCE_PATH = Path("source/input.java")
 SYNTHETIC_DESTINATION_PATH = Path("destination/input.java")
+STABLE_WRAPPER_VERSION = 1
+STABLE_SOURCE_ROLE = "source"
+STABLE_DESTINATION_ROLE = "destination"
+STABLE_ROLES = (STABLE_SOURCE_ROLE, STABLE_DESTINATION_ROLE)
 
 
 def indent_fragment(fragment: str) -> str:
@@ -40,6 +44,61 @@ def _build_archive_unit(
     fragment_range = _append_block(lines, fragment) if fragment is not None else None
     _append_block(lines, "}")
     return "\n".join(lines) + "\n", fragment_range
+
+
+def build_stable_archive_unit(
+    role: str, generated_fragment: str | None
+) -> tuple[str, tuple[int, int] | None]:
+    """Render one reusable source or destination wrapper object."""
+
+    if role == STABLE_SOURCE_ROLE:
+        return _build_archive_unit(
+            "BigMoveBenchSource", "SOURCE_CONTEXT", 100, generated_fragment
+        )
+    if role == STABLE_DESTINATION_ROLE:
+        return _build_archive_unit(
+            "BigMoveBenchDestination",
+            "DESTINATION_CONTEXT",
+            200,
+            generated_fragment,
+        )
+    raise ValueError(f"unsupported stable wrapper role: {role}")
+
+
+def build_stable_synthetic_move_archive(
+    generated_fragment1: str, generated_fragment2: str
+) -> tuple[
+    dict[Path, str],
+    dict[Path, str],
+    tuple[int, int],
+    tuple[int, int],
+]:
+    """Build the normalized archive shape from reusable stable wrappers."""
+
+    original_source, original_range = build_stable_archive_unit(
+        STABLE_SOURCE_ROLE, generated_fragment1
+    )
+    modified_source, _ = build_stable_archive_unit(STABLE_SOURCE_ROLE, None)
+    original_destination, _ = build_stable_archive_unit(
+        STABLE_DESTINATION_ROLE, None
+    )
+    modified_destination, modified_range = build_stable_archive_unit(
+        STABLE_DESTINATION_ROLE, generated_fragment2
+    )
+    assert original_range is not None
+    assert modified_range is not None
+    return (
+        {
+            SYNTHETIC_SOURCE_PATH: original_source,
+            SYNTHETIC_DESTINATION_PATH: original_destination,
+        },
+        {
+            SYNTHETIC_SOURCE_PATH: modified_source,
+            SYNTHETIC_DESTINATION_PATH: modified_destination,
+        },
+        original_range,
+        modified_range,
+    )
 
 
 def build_synthetic_move_archive(

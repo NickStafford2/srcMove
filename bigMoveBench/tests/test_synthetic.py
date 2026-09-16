@@ -10,6 +10,7 @@ from pathlib import Path
 from bigMoveBench.synthetic import (
     SYNTHETIC_DESTINATION_PATH,
     SYNTHETIC_SOURCE_PATH,
+    build_stable_synthetic_move_archive,
     build_synthetic_move_archive,
 )
 
@@ -145,48 +146,57 @@ class BigMoveBenchSyntheticTests(unittest.TestCase):
                 self.skipTest("srcdiff executable is unavailable")
             srcdiff = Path(discovered)
 
-        original, modified, _, _ = build_synthetic_move_archive(
-            "BCBMove1_2",
-            "  void moved() {\n    call();\n  }\n",
-            "  void moved() {\n    call();\n  }\n",
-        )
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            original_path = root / "original"
-            modified_path = root / "modified"
-            output_path = root / "diff.xml"
-            _write_archive(original_path, original)
-            _write_archive(modified_path, modified)
-            try:
-                result = subprocess.run(
-                    [
-                        str(srcdiff),
-                        str(original_path),
-                        str(modified_path),
-                        "-o",
-                        str(output_path),
-                    ],
-                    text=True,
-                    capture_output=True,
-                    check=False,
-                )
-            except OSError as error:
-                self.skipTest(f"srcdiff executable cannot run here: {error}")
-            self.assertEqual(result.returncode, 0, result.stderr)
-            diff_root = ET.parse(output_path).getroot()
-
         def local_name(tag: str) -> str:
             return tag.rsplit("}", 1)[-1]
 
-        for side in ("delete", "insert"):
-            regions = [
-                node for node in diff_root.iter() if local_name(node.tag) == side
-            ]
-            self.assertTrue(regions, f"srcDiff emitted no {side} region")
-            self.assertTrue(
-                any("moved" in "".join(region.itertext()) for region in regions),
-                f"srcDiff {side} regions do not contain the moved payload",
-            )
+        fragment = "  void moved() {\n    call();\n  }\n"
+        builders = {
+            "current": lambda: build_synthetic_move_archive(
+                "BCBMove1_2", fragment, fragment
+            ),
+            "stable": lambda: build_stable_synthetic_move_archive(
+                fragment, fragment
+            ),
+        }
+        for wrapper, builder in builders.items():
+            with (
+                self.subTest(wrapper=wrapper),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                original, modified, _, _ = builder()
+                root = Path(temporary)
+                original_path = root / "original"
+                modified_path = root / "modified"
+                output_path = root / "diff.xml"
+                _write_archive(original_path, original)
+                _write_archive(modified_path, modified)
+                try:
+                    result = subprocess.run(
+                        [
+                            str(srcdiff),
+                            str(original_path),
+                            str(modified_path),
+                            "-o",
+                            str(output_path),
+                        ],
+                        text=True,
+                        capture_output=True,
+                        check=False,
+                    )
+                except OSError as error:
+                    self.skipTest(f"srcdiff executable cannot run here: {error}")
+                self.assertEqual(result.returncode, 0, result.stderr)
+                diff_root = ET.parse(output_path).getroot()
+
+            for side in ("delete", "insert"):
+                regions = [
+                    node for node in diff_root.iter() if local_name(node.tag) == side
+                ]
+                self.assertTrue(regions, f"srcDiff emitted no {side} region")
+                self.assertTrue(
+                    any("moved" in "".join(region.itertext()) for region in regions),
+                    f"srcDiff {side} regions do not contain the moved payload",
+                )
 
 
 if __name__ == "__main__":

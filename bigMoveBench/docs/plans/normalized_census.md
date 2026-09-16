@@ -1,6 +1,7 @@
 # Normalized Census Execution Plan
 
-Status: design only. This document does not describe current behavior.
+Status: steps 1 and 2 are implemented. Stable wrapper objects exist, but the
+live suite does not use them yet; snapshots remain the current execution path.
 
 ## Goal
 
@@ -109,10 +110,12 @@ source of truth. Summary JSON and CSV are derived artifacts produced by queries.
 
 ## Implementation Steps
 
-1. **Design:** this document establishes ownership, identities, and the migration
-   boundary.
-2. **Object store:** add stable wrappers, content-addressed generated objects,
-   and tests showing storage scales with unique fragments rather than pairs.
+1. **Complete — design:** this document establishes ownership, identities, and
+   the migration boundary.
+2. **Complete — object store:** stable wrappers and content-addressed generated
+   objects are implemented in `synthetic.py` and `generated_objects.py`. Focused
+   tests show that storage scales with unique role/fragment objects rather than
+   pairs. This code is not connected to the live suite yet.
 3. **Plan database:** publish normalized plans and implement a serial runner using
    a reusable scratch archive. Keep the current workflow available for result
    comparison.
@@ -151,6 +154,6 @@ slice. Before adding workers, require all of the following:
 
 ## Next Task
 
-Implement step 2 only: introduce stable wrappers and the content-addressed
-generated-object store with focused unit tests. Do not add concurrency, change
-the scoring oracle, or remove the current workflow in that task.
+Implement step 3 without removing the current workflow: publish an immutable
+normalized plan database and add a serial scratch-workspace runner suitable for
+equivalence tests. Do not add concurrency or change the scoring oracle.

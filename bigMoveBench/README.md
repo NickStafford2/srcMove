@@ -12,6 +12,8 @@ the conversion, selection, execution, and scoring methodology.
 - `compile.py` builds or reuses the catalog implemented by `catalog.py`.
 - `selection.py` publishes deterministic pair-set samples or censuses.
 - `synthetic.py` converts one selected fragment pair into a two-file move.
+- `generated_objects.py` provides the stable, content-addressed wrapper store
+  planned for normalized census execution; the live suite does not use it yet.
 - `snapshot.py` converts a compiled selection into immutable source inputs.
 - `contracts.py` defines source-pair, semantic-eligibility, and adapter types.
 - `corpus.py` owns the input-snapshot, srcDiff-corpus, and srcMove-run stages.
