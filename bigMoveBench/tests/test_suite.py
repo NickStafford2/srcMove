@@ -101,7 +101,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             ), redirect_stdout(StringIO()), redirect_stderr(progress_output):
                 first_dir, first, first_passed = run_suite(args)
 
-            from benchmarks import corpus as corpus_module
+            from bigMoveBench import corpus as corpus_module
 
             real_sha256_file = corpus_module.sha256_file
 
@@ -120,10 +120,10 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 "bigMoveBench.selection.sha256_file",
                 side_effect=AssertionError("selection artifact was rehashed"),
             ), mock.patch(
-                "benchmarks.corpus._input_identity",
+                "bigMoveBench.corpus._input_identity",
                 side_effect=AssertionError("snapshot inputs were traversed"),
             ), mock.patch(
-                "benchmarks.corpus.sha256_file",
+                "bigMoveBench.corpus.sha256_file",
                 side_effect=reject_cached_payload_hash,
             ), redirect_stdout(StringIO()):
                 second_dir, second, second_passed = run_suite(args)

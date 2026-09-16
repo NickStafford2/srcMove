@@ -31,7 +31,7 @@ accepts explicit `--workload NAME=PATH` values instead. Result-producing tools
 use `--results-root`; Make targets use `BENCHMARK_CACHE_ROOT` and
 `BENCHMARK_RESULTS_ROOT` where applicable.
 
-The phased upgrade of reusable srcDiff corpora, provenance, failure incidents,
+The phased upgrade of reusable srcDiff data, provenance, failure incidents,
 dataset adapters, and publication runs is described in the
 [benchmarking upgrade plan](../doc/benchmarking_upgrade_plan.md).
 
@@ -51,7 +51,8 @@ normal tests neither download it nor depend on historical large-run counts.
 
 The [performance benchmark](../performance/README.md) reads explicit existing
 XML workloads in place and writes ignored local runs under the selected results
-root. It does not depend on the staged corpus workflow below.
+root. BigMoveBench owns its staged corpus workflow in
+[`bigMoveBench/corpus.py`](../bigMoveBench/corpus.py).
 
 Previously archived thesis results are historical evidence, not regression
 expectations for the refactored implementation.
@@ -72,62 +73,10 @@ and relevant CMake options. It records tests as `not_run`; building alone is not
 evidence that tests passed.
 
 Development and publication labels are part of observation manifests, but
-publication requirements are not enforced yet. The staged workflows record
-these observations; legacy coupled runners do not.
-
-## Staged corpus workflow
-
-`corpus.py` provides the shared input snapshot, attempt, corpus, and run stages.
-Reusable stages default to `benchmark-cache/`; runs default to
-`benchmark-results/`.
-Input snapshots and corpora use content-derived identifiers; runs use unique,
-append-only identifiers.
-
-An **input snapshot** is a frozen, checksummed old/new source pair saved for
-later srcDiff execution. It makes the exact source inputs reusable without
-depending on a mutable checkout or repeating repository export.
-
-### Current srcDiff language limitation
-
-srcDiff does not currently support Python input reliably and may terminate or
-emit unusable XML when Python files are present. The shared input-snapshot
-workflow therefore excludes `.py` files automatically and records every
-excluded path in the snapshot manifest. This is a srcDiff limitation, not a
-claim that Python is outside srcMove's intended scope.
-
-Every tool invocation owns a unique attempt directory. Its atomic terminal
-record keeps process termination separate from XML validation, retains bounded
-stdout/stderr with full-stream checksums, and records timeout cleanup. The
-temporary `started.json` checkpoint is removed after a terminal record is
-sealed. Only a normal zero exit with structurally valid, checksummed srcDiff XML
-can be promoted into a corpus. After promotion, the corpus copy is the sole
-owner of successful srcDiff XML; failed output remains with its attempt. Input
-snapshots and corpus XML are checksum-verified when loaded by ID or path.
-
-Coupled workflows pass `VerifiedSnapshot` and `VerifiedCorpus` values between
-stages. These values carry the already-validated directory, manifest, and
-manifest checksum, so the next stage does not reopen and rehash an artifact
-created or verified by the same process. Independent CLI stages still accept
-IDs and paths and establish a fresh verification boundary. Successful srcDiff
-XML is promoted with a same-filesystem hard link when possible, with a copy as
-the portability fallback.
-
-An existing corpus can be replayed with a different srcMove executable without
-the input snapshot's original checkout or `srcdiff` being available.
-
-BigMoveBench uses the same core through its
-[staged benchmark guide](../bigMoveBench/README.md). Its adapter adds only the
-versioned payload-exposure eligibility check and strict Type-1/Type-2 oracle.
-Fixture-backed unit tests cover corpus reuse across multiple srcMove builds and
-reconcile upstream failures, semantic ineligibility, misses, wrong
-classifications, and passes without installing BigCloneBench.
-
-Generation batches checkpoint every terminal case. Repeating `generate` with
-the same input snapshot, executable, and options skips recorded cases; use
-`--retry-failed` (and optionally repeatable `--case`) to append child attempts
-without replacing earlier evidence. `run` supports the same selection policy
-with `--resume-run RUN_ID`. Linux attempts record process-group peak RSS and
-cgroup OOM evidence when those interfaces are available.
+publication requirements are not enforced yet. Benchmark workflows record
+these observations; legacy coupled runners do not. BigMoveBench's
+[workflow guide](../bigMoveBench/README.md) is the canonical documentation for
+its input snapshots, srcDiff corpora, resumable attempts, and evaluation runs.
 
 ## Reporting wishlist
 

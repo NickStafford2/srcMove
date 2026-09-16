@@ -28,7 +28,7 @@ from bigMoveBench.selection import DEFAULT_SAMPLE_SIZE, create_selection
 from bigMoveBench.snapshot import materialize_compiled_selection
 from benchmarks.contracts import RunMode
 from benchmarks.process import write_json_atomic
-from benchmarks.progress import ProgressDisplay
+from bigMoveBench.progress import ProgressDisplay
 from benchmarks.paths import DEFAULT_CACHE_ROOT, DEFAULT_RESULTS_ROOT
 from benchmarks.provenance import observe_executable, utc_now
 from support.tooling import find_srcdiff, find_srcmove

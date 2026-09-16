@@ -20,14 +20,14 @@ from bigMoveBench.adapter import (
     compiled_selection_source_manifest,
 )
 from bigMoveBench.selection import load_selection
-from benchmarks.corpus import (
+from bigMoveBench.corpus import (
     VerifiedSnapshot,
     create_input_snapshot,
     load_input_snapshot,
 )
 from benchmarks.contracts import content_identifier
 from benchmarks.process import write_json_atomic
-from benchmarks.progress import ProgressDisplay
+from bigMoveBench.progress import ProgressDisplay
 from benchmarks.paths import DEFAULT_CACHE_ROOT
 
 

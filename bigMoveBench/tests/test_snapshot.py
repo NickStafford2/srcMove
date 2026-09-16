@@ -16,7 +16,7 @@ from bigMoveBench.cases import (
 )
 from bigMoveBench.catalog import compile_exports
 from bigMoveBench.selection import create_selection
-from benchmarks.corpus import create_input_snapshot, load_input_snapshot
+from bigMoveBench.corpus import create_input_snapshot, load_input_snapshot
 from bigMoveBench.tests.test_catalog import (
     BigCloneBenchCompiledDatasetTests,
     distinct_false_positive_row,

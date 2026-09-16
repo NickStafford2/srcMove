@@ -15,7 +15,7 @@ FAKE_TOOL = REPO_ROOT / "tests" / "fixtures" / "benchmark" / "fake_tool.py"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.corpus import (
+from bigMoveBench.corpus import (
     VerifiedCorpus,
     VerifiedSnapshot,
     create_input_snapshot,
@@ -26,7 +26,7 @@ from benchmarks.contracts import InputPair, SemanticResult, SemanticStatus
 
 
 class FixtureDirectoryAdapter:
-    """Minimal adapter used to exercise the shared corpus contracts."""
+    """Minimal adapter used to exercise the staged corpus contracts."""
 
     name = "directory-pair-fixture"
     version = 1
@@ -93,7 +93,7 @@ class CorpusPipelineTests(unittest.TestCase):
 
             self.assertIsInstance(snapshot, VerifiedSnapshot)
             with mock.patch(
-                "benchmarks.corpus._verify_input_snapshot",
+                "bigMoveBench.corpus._verify_input_snapshot",
                 side_effect=AssertionError("typed snapshot was reverified"),
             ):
                 corpus = generate_corpus(
@@ -109,7 +109,7 @@ class CorpusPipelineTests(unittest.TestCase):
                 timings["srcdiff_input_snapshot_verification_seconds"], 0.0
             )
             with mock.patch(
-                "benchmarks.corpus._verify_corpus",
+                "bigMoveBench.corpus._verify_corpus",
                 side_effect=AssertionError("typed corpus was reverified"),
             ):
                 run_corpus(
@@ -175,7 +175,7 @@ class CorpusPipelineTests(unittest.TestCase):
             second_activity: list[tuple[str, str]] = []
             second_timings: dict[str, float] = {}
             with mock.patch(
-                "benchmarks.corpus.recover_interrupted_attempts"
+                "bigMoveBench.corpus.recover_interrupted_attempts"
             ) as recovery:
                 generate_corpus(
                     data_root=generated,
@@ -283,7 +283,7 @@ class CorpusPipelineTests(unittest.TestCase):
             srcmove.chmod(0o755)
             mode.write_text("fail")
             with mock.patch(
-                "benchmarks.corpus.recover_interrupted_attempts"
+                "bigMoveBench.corpus.recover_interrupted_attempts"
             ) as recovery:
                 run_dir, failed = run_corpus(
                     data_root=generated,
@@ -295,7 +295,7 @@ class CorpusPipelineTests(unittest.TestCase):
             parent = failed["cases"][0]["attempt_id"]
             mode.write_text("success")
             with mock.patch(
-                "benchmarks.corpus.recover_interrupted_attempts"
+                "bigMoveBench.corpus.recover_interrupted_attempts"
             ) as recovery:
                 resumed_dir, resumed = run_corpus(
                     data_root=generated,
@@ -380,7 +380,7 @@ class CorpusPipelineTests(unittest.TestCase):
             )
             srcdiff = executable_copy(root, "srcdiff-valid-archive")
 
-            from benchmarks import corpus as corpus_module
+            from bigMoveBench import corpus as corpus_module
 
             real_execute_attempt = corpus_module.execute_attempt
             invocations = 0

@@ -29,7 +29,7 @@ from bigMoveBench.catalog import (
 )
 from benchmarks.paths import DEFAULT_CACHE_ROOT
 from benchmarks.contracts import canonical_json, content_identifier
-from benchmarks.progress import ProgressDisplay
+from bigMoveBench.progress import ProgressDisplay
 from benchmarks.provenance import sha256_file, utc_now
 
 

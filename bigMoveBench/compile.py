@@ -33,7 +33,7 @@ from bigMoveBench.catalog import (
 from bigMoveBench.cases import BCE_DIR, java_identity, preflight
 from benchmarks.paths import DEFAULT_CACHE_ROOT
 from benchmarks.process import write_json_atomic
-from benchmarks.progress import ProgressDisplay
+from bigMoveBench.progress import ProgressDisplay
 from benchmarks.provenance import sha256_file
 from support.tooling import format_process_failure, run_command
 

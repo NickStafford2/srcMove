@@ -74,19 +74,14 @@ to cross-match.
 catalogs by default. Use `--catalog contextual` for multi-file replacement and
 within-context statement cases, or `--catalog all` for everything.
 
-The unit suite also exercises benchmark attempts and corpus replay entirely
-offline with fake executables. These cases cover termination and XML failures,
-timeout process-group cleanup, bounded logs, interrupted-attempt recovery,
-content-stable identifiers, checksum enforcement, and replay without source
-trees or srcDiff. They also cover non-destructive filters, resumable batches,
-retry lineage, resource observations, and srcDiff replay/subset reduction.
-Repository-orchestrator fixtures verify that one command reuses immutable input
-snapshots and corpora, appends distinct srcMove runs and series records, and
-saves srcDiff failures without starting a misleading srcMove run.
-Tiny BigMoveBench fixtures additionally verify semantic eligibility, strict
-match-kind enforcement, append-only summaries, reconciled outcomes, and reuse
-of one immutable corpus across multiple fake srcMove builds. They do not require
-or download BigCloneBench.
+The core unit suite exercises generic process execution, XML validation,
+provenance, content identities, timeout cleanup, bounded logs, and interrupted
+attempt recovery. BigMoveBench's focused suite owns the offline snapshot,
+corpus, progress, replay, and orchestration tests. Its fake-executable fixtures
+cover checksum enforcement, resumable batches, retry lineage, semantic
+eligibility, strict match-kind enforcement, append-only summaries, reconciled
+outcomes, and reuse of immutable data across builds without installing or
+downloading BigCloneBench.
 
 Performance-runner fixtures compare fake srcMove builds over checked-in srcDiff
 XML. They verify reproducible position-balanced schedules, immutable workload

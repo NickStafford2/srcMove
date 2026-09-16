@@ -12,12 +12,14 @@ the conversion, selection, execution, and scoring methodology.
 - `compile.py` builds or reuses the catalog implemented by `catalog.py`.
 - `selection.py` publishes deterministic pair-set samples or censuses.
 - `snapshot.py` converts a compiled selection into immutable source inputs.
+- `corpus.py` owns the input-snapshot, srcDiff-corpus, and srcMove-run stages.
+- `progress.py` provides terminal-aware progress reporting for these commands.
 - `oracle.py` defines scoring; `evaluate.py` applies it to completed runs.
 - `pipeline.py` exposes individual development stages; `suite.py` is the
   primary combined benchmark command.
 - `tests/` and `docs/` contain BigMoveBench-specific verification and
-  documentation. Shared execution, provenance, and corpus machinery remains in
-  `benchmarks/`.
+  documentation. Generic execution, provenance, identity, and serialization
+  utilities remain in `benchmarks/`.
 
 The cache remains under `benchmark-cache/bigclonebench/` because it is a sealed
 representation of the upstream dataset. BigMoveBench suite summaries are stored
@@ -225,6 +227,15 @@ attempt artifacts, and the final digest lists up to five failing cases.
 
 The command creates or reuses the input snapshot and corpus, records every
 srcDiff attempt, and writes a new append-only srcMove evaluation run.
+
+Input snapshots and corpora use content-derived identifiers; evaluation runs
+use unique append-only identifiers. Each process invocation owns an attempt
+directory containing an atomic terminal record, bounded logs, timeout cleanup,
+and XML validation. Only successful, structurally valid srcDiff XML is promoted
+into a corpus. Loading a snapshot or corpus directly verifies its checksums.
+The workflow excludes Python files from srcDiff snapshots because srcDiff does
+not currently process them reliably, and records those exclusions in the
+snapshot manifest.
 
 For debugging, invoke the lower-level pipeline directly. The equivalent setup
 and coupled benchmark commands are:

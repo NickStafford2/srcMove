@@ -23,7 +23,7 @@ from bigMoveBench.evaluate import (
     write_evaluation,
 )
 from bigMoveBench.pipeline import _report_benchmark_result, parse_args
-from benchmarks.corpus import create_input_snapshot, generate_corpus, run_corpus
+from bigMoveBench.corpus import create_input_snapshot, generate_corpus, run_corpus
 from benchmarks.provenance import sha256_file
 
 

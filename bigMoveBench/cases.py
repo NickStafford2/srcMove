@@ -18,7 +18,7 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from benchmarks.progress import ProgressDisplay
+from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.dataset import (
     extract_lines,
     source_path as resolve_source_path,
