@@ -23,7 +23,7 @@ the conversion, selection, execution, and scoring methodology.
   documentation. Generic execution, provenance, identity, and serialization
   utilities remain in `benchmarks/`.
 
-The cache remains under `benchmark-cache/bigclonebench/` because it is a sealed
+The cache remains under `bigMoveBench/cache/bigclonebench/` because it is a sealed
 representation of the upstream dataset. BigMoveBench suite summaries are stored
 under `benchmark-results/bigMoveBench/`.
 The resulting pass rate is a strict synthetic detection-and-classification rate
@@ -59,11 +59,11 @@ make bigmovebench-compile
 ```
 
 The immutable dataset is stored below
-`benchmark-cache/bigclonebench/compiled/<dataset-id>/`. A small lookup index lets
+`bigMoveBench/cache/bigclonebench/compiled/<dataset-id>/`. A small lookup index lets
 later invocations reuse it after checking the database and selected source-file
 metadata. Reuse does not reopen H2, extract Java, or walk and hash every fragment.
 If catalog compilation fails or is interrupted after H2 export, checked exports
-remain below `benchmark-cache/bigclonebench/work/`; the next identical compile
+remain below `bigMoveBench/cache/bigclonebench/work/`; the next identical compile
 reuses them. Successful publication removes that temporary work cache. Progress
 is reported separately for import, fragment extraction, pair identity, and index
 construction, followed by publication validation.
@@ -85,7 +85,7 @@ the complete frame.
 
 Phase 2 selects directly from this SQLite catalog and never accesses H2. It
 publishes each content-identified selection under
-`benchmark-cache/bigclonebench/selections/<selection-id>/`. Create the complete
+`bigMoveBench/cache/bigclonebench/selections/<selection-id>/`. Create the complete
 deduplicated Type-1 frame with:
 
 ```bash

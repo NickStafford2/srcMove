@@ -227,7 +227,7 @@ Generated roots should be configurable, with an ignored local default. A
 conceptual layout is:
 
 ```text
-benchmark-cache/
+bigMoveBench/cache/
   input-snapshots/
     <input-snapshot-id>/
       manifest.json

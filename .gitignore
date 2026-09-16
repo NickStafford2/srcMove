@@ -12,8 +12,8 @@ context-export.toml
 examples/
 profile-results/
 benchmark-data/
-benchmark-cache/*
-!benchmark-cache/README.md
+bigMoveBench/cache/*
+!bigMoveBench/cache/README.md
 benchmark-results/*
 !benchmark-results/README.md
 performance/cache/workloads/

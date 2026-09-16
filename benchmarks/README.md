@@ -13,11 +13,11 @@ correctness tests in `tests/`.
 
 Generated benchmark storage is ignored by Git and split by purpose:
 
-- `benchmark-cache/` holds BigMoveBench inputs and intermediates: frozen source
-  snapshots, srcDiff attempts, verified srcDiff corpora, generation batches,
-  and compiled or selected BigCloneBench data.
+- `bigMoveBench/cache/` holds BigMoveBench inputs and intermediates: frozen
+  source snapshots, srcDiff attempts, verified srcDiff corpora, generation
+  batches, and compiled or selected BigCloneBench data.
 - `performance/cache/workloads/` is the ignored recommended location for
-  reusable performance workloads. It is independent of `benchmark-cache/`.
+  reusable performance workloads. It is independent of the BigMoveBench cache.
 - `benchmark-results/` holds completed srcMove evaluations, performance runs,
   history-scaling studies, and combined-suite summaries.
 

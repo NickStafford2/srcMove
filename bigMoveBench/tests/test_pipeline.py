@@ -134,7 +134,10 @@ class BigCloneBenchPipelineTests(unittest.TestCase):
         with mock.patch.object(sys, "argv", arguments):
             args = parse_args()
         self.assertEqual(args.stage, "benchmark")
-        self.assertEqual(args.cache_root.name, "benchmark-cache")
+        self.assertEqual(
+            args.cache_root,
+            REPO_ROOT / "bigMoveBench" / "cache",
+        )
         self.assertEqual(args.results_root.name, "benchmark-results")
         self.assertFalse(hasattr(args, "input_snapshot"))
         self.assertFalse(hasattr(args, "corpus"))
@@ -593,7 +596,7 @@ output_xml.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
                 root / "srcmove-build-b", srcmove_source + "\n# second build\n"
             )
 
-            cache_root = root / "benchmark-cache"
+            cache_root = root / "cache"
             results_root = root / "benchmark-results"
             adapter = BigCloneBenchAdapter(cases_dir, 1)
             _, input_snapshot = create_input_snapshot(
