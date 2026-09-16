@@ -13,8 +13,8 @@ the conversion, selection, execution, and scoring methodology.
 - `selection.py` publishes deterministic pair-set samples or censuses.
 - `synthetic.py` converts one selected fragment pair into a two-file move.
 - `generated_objects.py` provides the stable, content-addressed wrapper store
-  used by normalized census plans.
-- `plan.py` publishes normalized case/object tables and provides the serial,
+  used by normalized benchmark cases.
+- `benchmark_cases.py` publishes normalized case/object tables and provides the serial,
   reusable scratch-archive runner. The live suite does not use this path yet.
 - `snapshot.py` converts a compiled selection into immutable source inputs.
 - `contracts.py` defines source-pair, semantic-eligibility, and adapter types.
@@ -158,20 +158,22 @@ derive from fragment-content identity, and all contributing rows remain in each
 case's snapshot metadata. Materialization does not create a separate mutable
 case tree.
 
-The normalized census path can instead publish an immutable SQLite plan whose
-case rows reference shared generated objects:
+The normalized census path can instead publish immutable benchmark-case tables
+whose rows reference shared generated objects:
 
 ```bash
-make bigmovebench-plan \
+make bigmovebench-benchmark-cases \
   BIGCLONEBENCH_SELECTION_ID=<selection-id>
 ```
 
-Plans are stored under `bigMoveBench/cache/plans/<plan-id>/`; shared wrappers
-are stored once under `bigMoveBench/cache/generated-objects/`. The serial plan
-runner links each case's four objects into one temporary archive and reuses that
-archive for the next case. This is an experimental comparison path: `suite.py`
-continues to use immutable snapshots until the journal and equivalence gate are
-complete. See the [normalized census plan](docs/plans/normalized_census.md).
+Benchmark cases are stored under
+`bigMoveBench/cache/benchmark-cases/<benchmark-cases-id>/benchmark_cases.sqlite`;
+shared wrappers are stored once under `bigMoveBench/cache/generated-objects/`.
+The serial benchmark-case runner links each case's four objects into one
+temporary archive and reuses that archive for the next case. This is an
+experimental comparison path: `suite.py` continues to use immutable snapshots
+until the journal and equivalence gate are complete. See the
+[normalized census architecture](docs/plans/normalized_census.md).
 
 ## Combined Suite
 

@@ -8,9 +8,13 @@ import unittest
 from pathlib import Path
 
 from bigMoveBench.adapter import validate_srcdiff_semantics
+from bigMoveBench.benchmark_cases import (
+    SerialBenchmarkCaseRunner,
+    load_benchmark_cases,
+    publish_benchmark_cases,
+)
 from bigMoveBench.catalog import compile_exports
 from bigMoveBench.contracts import SemanticStatus
-from bigMoveBench.plan import SerialPlanRunner, load_plan, publish_plan
 from bigMoveBench.selection import create_selection
 from bigMoveBench.synthetic import (
     STABLE_WRAPPER_VERSION,
@@ -23,7 +27,7 @@ from bigMoveBench.tests import test_catalog, test_snapshot
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
-class NormalizedPlanTests(unittest.TestCase):
+class NormalizedBenchmarkCasesTests(unittest.TestCase):
     def publish_fixture(self, root: Path, pair_set: str = "type3"):
         _, compiled = test_snapshot.BigCloneBenchSnapshotTests().compile_fixture(root)
         selection_directory, selection, _ = create_selection(
@@ -33,18 +37,16 @@ class NormalizedPlanTests(unittest.TestCase):
             mode="census",
             role="tuning" if pair_set == "type3" else "evaluation",
         )
-        plan, disposition = publish_plan(
+        benchmark_cases, disposition = publish_benchmark_cases(
             data_root=root / "data", selection=selection_directory
         )
-        return compiled, selection, plan, disposition
+        return compiled, selection, benchmark_cases, disposition
 
     def publish_two_case_fixture(self, root: Path):
         fixture = test_catalog.BigCloneBenchCompiledDatasetTests()
         bce = fixture.create_bce(root)
         first = test_catalog.pair_row()
-        first.update(
-            {"pair_type": "type-3", "syntactic_type": 3}
-        )
+        first.update({"pair_type": "type-3", "syntactic_type": 3})
         second = test_catalog.distinct_false_positive_row(bce)
         second["pair_type"] = "type-3"
         exports = root / "exports"
@@ -58,7 +60,7 @@ class NormalizedPlanTests(unittest.TestCase):
                 "positive": exports / "positive.csv",
                 "known_false_positive": exports / "false.csv",
             },
-            compile_scope={"fixture": "normalized-plan-two-cases"},
+            compile_scope={"fixture": "normalized-benchmark-cases-two-cases"},
         )
         selection_directory, selection, _ = create_selection(
             compiled,
@@ -67,32 +69,40 @@ class NormalizedPlanTests(unittest.TestCase):
             mode="census",
             role="tuning",
         )
-        plan, disposition = publish_plan(
+        benchmark_cases, disposition = publish_benchmark_cases(
             data_root=root / "data", selection=selection_directory
         )
-        return compiled, selection, plan, disposition
+        return compiled, selection, benchmark_cases, disposition
 
-    def test_publishes_normalized_immutable_plan_and_reuses_it(self) -> None:
+    def test_publishes_normalized_immutable_cases_and_reuses_them(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            compiled, selection, plan, disposition = self.publish_fixture(root)
+            compiled, selection, benchmark_cases, disposition = self.publish_fixture(
+                root
+            )
 
             self.assertEqual(disposition, "created")
             self.assertEqual(
-                plan.manifest["counts"],
+                benchmark_cases.manifest["counts"],
                 {"cases": 1, "case_rows": 1, "generated_objects": 4},
             )
             self.assertEqual(
-                plan.manifest["compiled_dataset"]["dataset_id"],
+                benchmark_cases.manifest["compiled_dataset"]["dataset_id"],
                 compiled.dataset_id,
             )
             self.assertEqual(
-                plan.manifest["selection"]["selection_id"],
+                benchmark_cases.manifest["selection"]["selection_id"],
                 selection["selection_id"],
             )
-            self.assertEqual(plan.manifest["wrapper_version"], STABLE_WRAPPER_VERSION)
+            self.assertEqual(
+                benchmark_cases.manifest["wrapper_version"], STABLE_WRAPPER_VERSION
+            )
+            self.assertEqual(
+                benchmark_cases.manifest["artifacts"]["benchmark_cases"]["path"],
+                "benchmark_cases.sqlite",
+            )
 
-            database = plan.directory / "plan.sqlite"
+            database = benchmark_cases.directory / "benchmark_cases.sqlite"
             with sqlite3.connect(database) as connection:
                 case_columns = {
                     row[1] for row in connection.execute("PRAGMA table_info(cases)")
@@ -112,20 +122,28 @@ class NormalizedPlanTests(unittest.TestCase):
                     3,
                 )
 
-            reused, reused_disposition = publish_plan(
+            reused, reused_disposition = publish_benchmark_cases(
                 data_root=root / "data",
                 selection=selection["selection_id"],
             )
             self.assertEqual(reused_disposition, "reused")
-            self.assertEqual(reused.plan_id, plan.plan_id)
-            self.assertEqual(reused.directory, plan.directory)
-            load_plan(root / "data", plan.plan_id, verification="full")
+            self.assertEqual(
+                reused.benchmark_cases_id, benchmark_cases.benchmark_cases_id
+            )
+            self.assertEqual(reused.directory, benchmark_cases.directory)
+            load_benchmark_cases(
+                root / "data",
+                benchmark_cases.benchmark_cases_id,
+                verification="full",
+            )
 
     def test_full_verification_rejects_corrupted_object(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            _, _, plan, _ = self.publish_fixture(root)
-            with sqlite3.connect(plan.directory / "plan.sqlite") as connection:
+            _, _, benchmark_cases, _ = self.publish_fixture(root)
+            with sqlite3.connect(
+                benchmark_cases.directory / "benchmark_cases.sqlite"
+            ) as connection:
                 relative = connection.execute(
                     "SELECT object_path FROM generated_objects "
                     "ORDER BY object_id LIMIT 1"
@@ -134,20 +152,32 @@ class NormalizedPlanTests(unittest.TestCase):
             object_path.chmod(0o644)
             object_path.write_text("corrupt\n", encoding="utf-8")
 
-            with self.assertRaisesRegex(ValueError, "plan object is invalid"):
-                load_plan(root / "data", plan.plan_id, verification="full")
+            with self.assertRaisesRegex(
+                ValueError, "benchmark cases object is invalid"
+            ):
+                load_benchmark_cases(
+                    root / "data",
+                    benchmark_cases.benchmark_cases_id,
+                    verification="full",
+                )
 
     def test_serial_runner_reuses_one_four_file_scratch_archive(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            compiled, selection, plan, _ = self.publish_two_case_fixture(root)
-            self.assertEqual(plan.manifest["counts"]["cases"], 2)
-            self.assertEqual(plan.manifest["counts"]["generated_objects"], 6)
+            compiled, selection, benchmark_cases, _ = (
+                self.publish_two_case_fixture(root)
+            )
+            self.assertEqual(benchmark_cases.manifest["counts"]["cases"], 2)
+            self.assertEqual(
+                benchmark_cases.manifest["counts"]["generated_objects"], 6
+            )
             observed_roots: list[Path] = []
             observed_strata: list[str] = []
             observed_scratch: Path | None = None
 
-            with SerialPlanRunner(plan, scratch_root=root / "scratch") as runner:
+            with SerialBenchmarkCaseRunner(
+                benchmark_cases, scratch_root=root / "scratch"
+            ) as runner:
                 self.assertIsNotNone(runner._root)
                 observed_scratch = runner._root
 
@@ -192,9 +222,9 @@ class NormalizedPlanTests(unittest.TestCase):
     def test_serial_runner_requires_context_manager(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            _, _, plan, _ = self.publish_fixture(root, "type1")
+            _, _, benchmark_cases, _ = self.publish_fixture(root, "type1")
             with self.assertRaisesRegex(RuntimeError, "context manager"):
-                next(SerialPlanRunner(plan).cases())
+                next(SerialBenchmarkCaseRunner(benchmark_cases).cases())
 
     def test_serial_archive_passes_the_srcdiff_semantic_gate(self) -> None:
         srcdiff = REPO_ROOT.parent / "srcDiff" / "build" / "bin" / "srcdiff"
@@ -206,9 +236,9 @@ class NormalizedPlanTests(unittest.TestCase):
 
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            _, _, plan, _ = self.publish_fixture(root, "type3")
+            _, _, benchmark_cases, _ = self.publish_fixture(root, "type3")
             output = root / "srcdiff.xml"
-            with SerialPlanRunner(plan) as runner:
+            with SerialBenchmarkCaseRunner(benchmark_cases) as runner:
                 case = next(runner.cases())
                 try:
                     result = subprocess.run(
@@ -244,8 +274,8 @@ class NormalizedPlanTests(unittest.TestCase):
                 tempfile.TemporaryDirectory() as temporary,
             ):
                 root = Path(temporary)
-                _, _, plan, _ = self.publish_fixture(root, pair_set)
-                with SerialPlanRunner(plan) as runner:
+                _, _, benchmark_cases, _ = self.publish_fixture(root, pair_set)
+                with SerialBenchmarkCaseRunner(benchmark_cases) as runner:
                     cases = runner.cases()
                     case = next(cases)
                     self.assertEqual(case.metadata["case_kind"], case_kind)

@@ -1,4 +1,4 @@
-"""Content-addressed stable Java wrapper objects for normalized census plans."""
+"""Content-addressed stable Java wrappers for normalized benchmark cases."""
 
 from __future__ import annotations
 

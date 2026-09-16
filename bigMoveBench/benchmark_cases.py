@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Publish and inspect normalized BigMoveBench execution plans."""
+"""Publish and inspect normalized BigMoveBench case catalogs."""
 
 from __future__ import annotations
 
@@ -42,22 +42,22 @@ from bigMoveBench.synthetic import (
 )
 
 
-PLAN_SCHEMA_VERSION = 1
-PLAN_SQLITE_APPLICATION_ID = 0x424D5031
-PLAN_SQLITE_USER_VERSION = 1
+BENCHMARK_CASES_SCHEMA_VERSION = 1
+BENCHMARK_CASES_SQLITE_APPLICATION_ID = 0x424D4331
+BENCHMARK_CASES_SQLITE_USER_VERSION = 1
 PAIR_SETS = {"type1", "type2", "type3", "known-false-positive"}
 
 
 @dataclass(frozen=True)
-class VerifiedPlan:
+class VerifiedBenchmarkCases:
     directory: Path
     manifest: Mapping[str, Any]
     manifest_sha256: str
     data_root: Path
 
     @property
-    def plan_id(self) -> str:
-        return str(self.manifest["plan_id"])
+    def benchmark_cases_id(self) -> str:
+        return str(self.manifest["benchmark_cases_id"])
 
 
 def _resolve_selection(data_root: Path, selection: str | Path) -> Path:
@@ -91,15 +91,15 @@ def _generated_input_id(original: str, modified: str) -> str:
 def _schema(connection: sqlite3.Connection) -> None:
     connection.executescript(
         f"""
-PRAGMA application_id = {PLAN_SQLITE_APPLICATION_ID};
-PRAGMA user_version = {PLAN_SQLITE_USER_VERSION};
+PRAGMA application_id = {BENCHMARK_CASES_SQLITE_APPLICATION_ID};
+PRAGMA user_version = {BENCHMARK_CASES_SQLITE_USER_VERSION};
 PRAGMA foreign_keys = ON;
 PRAGMA journal_mode = OFF;
 PRAGMA synchronous = OFF;
 
-CREATE TABLE plan_metadata (
+CREATE TABLE benchmark_cases_metadata (
   singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
-  plan_id TEXT NOT NULL,
+  benchmark_cases_id TEXT NOT NULL,
   identity_sha256 TEXT NOT NULL CHECK (length(identity_sha256) = 64)
 ) STRICT;
 
@@ -259,9 +259,9 @@ def _logical_inventory_sha256(connection: sqlite3.Connection) -> str:
     return digest.hexdigest()
 
 
-def _plan_identity(selection: Mapping[str, Any]) -> dict[str, Any]:
+def _benchmark_cases_identity(selection: Mapping[str, Any]) -> dict[str, Any]:
     return {
-        "schema_version": PLAN_SCHEMA_VERSION,
+        "schema_version": BENCHMARK_CASES_SCHEMA_VERSION,
         "wrapper_version": STABLE_WRAPPER_VERSION,
         "compiled_dataset_id": selection["request"]["compiled_dataset_id"],
         "compiled_manifest_sha256": selection["compiled_dataset"][
@@ -273,76 +273,90 @@ def _plan_identity(selection: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
-def _resolve_plan(data_root: Path, identifier_or_path: str | Path) -> Path:
+def _resolve_benchmark_cases(
+    data_root: Path, identifier_or_path: str | Path
+) -> Path:
     supplied = Path(identifier_or_path)
     if supplied.is_dir():
         return supplied.expanduser().resolve()
-    return data_root / "plans" / str(identifier_or_path)
+    return data_root / "benchmark-cases" / str(identifier_or_path)
 
 
-def load_plan(
+def load_benchmark_cases(
     data_root: Path,
     identifier_or_path: str | Path,
     *,
     verification: str = "full",
-) -> VerifiedPlan:
-    """Load and validate one immutable normalized execution plan."""
+) -> VerifiedBenchmarkCases:
+    """Load and validate one immutable normalized benchmark-case catalog."""
 
     if verification not in {"identity", "full"}:
-        raise ValueError(f"unsupported plan verification: {verification}")
+        raise ValueError(f"unsupported benchmark cases verification: {verification}")
     data_root = data_root.expanduser().resolve()
-    directory = _resolve_plan(data_root, identifier_or_path)
+    directory = _resolve_benchmark_cases(data_root, identifier_or_path)
     if directory.is_symlink() or not directory.is_dir():
-        raise ValueError(f"normalized plan directory is unavailable: {directory}")
+        raise ValueError(
+            f"normalized benchmark cases directory is unavailable: {directory}"
+        )
     manifest_path = directory / "manifest.json"
-    database_path = directory / "plan.sqlite"
+    database_path = directory / "benchmark_cases.sqlite"
     for artifact in (manifest_path, database_path):
         if artifact.is_symlink() or not artifact.is_file():
-            raise ValueError(f"normalized plan artifact is unavailable: {artifact}")
+            raise ValueError(
+                f"normalized benchmark cases artifact is unavailable: {artifact}"
+            )
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if (
         not isinstance(manifest, dict)
-        or manifest.get("schema_version") != PLAN_SCHEMA_VERSION
+        or manifest.get("schema_version") != BENCHMARK_CASES_SCHEMA_VERSION
     ):
-        raise ValueError(f"invalid normalized plan manifest: {manifest_path}")
+        raise ValueError(
+            f"invalid normalized benchmark cases manifest: {manifest_path}"
+        )
     identity = manifest.get("identity")
     if not isinstance(identity, dict):
-        raise ValueError("normalized plan identity is missing or invalid")
-    expected_id = content_identifier("bmb-plan", identity)
+        raise ValueError("normalized benchmark cases identity is missing or invalid")
+    expected_id = content_identifier("bmb-benchmark-cases", identity)
     expected_identity_sha256 = hashlib.sha256(canonical_json(identity)).hexdigest()
     if (
-        manifest.get("plan_id") != expected_id
+        manifest.get("benchmark_cases_id") != expected_id
         or directory.name != expected_id
         or manifest.get("identity_sha256") != expected_identity_sha256
     ):
-        raise ValueError("normalized plan identity does not match")
-    artifact = manifest.get("artifacts", {}).get("database", {})
+        raise ValueError("normalized benchmark cases identity does not match")
+    artifact = manifest.get("artifacts", {}).get("benchmark_cases", {})
     if (
-        artifact.get("path") != "plan.sqlite"
+        artifact.get("path") != "benchmark_cases.sqlite"
         or database_path.stat().st_size != artifact.get("size_bytes")
     ):
-        raise ValueError("normalized plan database declaration does not match")
+        raise ValueError(
+            "normalized benchmark cases database declaration does not match"
+        )
     if verification == "full" and sha256_file(database_path) != artifact.get("sha256"):
-        raise ValueError("normalized plan database checksum does not match")
+        raise ValueError("normalized benchmark cases database checksum does not match")
 
     uri = f"{database_path.resolve().as_uri()}?mode=ro&immutable=1"
     with closing(sqlite3.connect(uri, uri=True)) as connection:
         application_id = connection.execute("PRAGMA application_id").fetchone()[0]
-        if application_id != PLAN_SQLITE_APPLICATION_ID:
-            raise ValueError("normalized plan application id is invalid")
+        if application_id != BENCHMARK_CASES_SQLITE_APPLICATION_ID:
+            raise ValueError("normalized benchmark cases application id is invalid")
         user_version = connection.execute("PRAGMA user_version").fetchone()[0]
-        if user_version != PLAN_SQLITE_USER_VERSION:
-            raise ValueError("normalized plan schema version is invalid")
+        if user_version != BENCHMARK_CASES_SQLITE_USER_VERSION:
+            raise ValueError("normalized benchmark cases schema version is invalid")
         metadata = connection.execute(
-            "SELECT plan_id, identity_sha256 FROM plan_metadata WHERE singleton=1"
+            "SELECT benchmark_cases_id, identity_sha256 "
+            "FROM benchmark_cases_metadata WHERE singleton=1"
         ).fetchone()
         if metadata != (expected_id, expected_identity_sha256):
-            raise ValueError("normalized plan database identity does not match")
+            raise ValueError(
+                "normalized benchmark cases database identity does not match"
+            )
         if verification == "full":
             integrity = connection.execute("PRAGMA integrity_check").fetchone()[0]
             if integrity != "ok":
                 raise ValueError(
-                    f"normalized plan database integrity failed: {integrity}"
+                    "normalized benchmark cases database integrity failed: "
+                    f"{integrity}"
                 )
             counts = manifest["counts"]
             observed_counts = {
@@ -358,11 +372,13 @@ def load_plan(
                 key: counts[key]
                 for key in ("cases", "case_rows", "generated_objects")
             }:
-                raise ValueError("normalized plan counts do not match")
+                raise ValueError("normalized benchmark cases counts do not match")
             if _logical_inventory_sha256(connection) != manifest.get(
                 "logical_inventory_sha256"
             ):
-                raise ValueError("normalized plan logical inventory does not match")
+                raise ValueError(
+                    "normalized benchmark cases logical inventory does not match"
+                )
             for object_id, object_path, size_bytes, sha256 in connection.execute(
                 "SELECT object_id, object_path, size_bytes, sha256 "
                 "FROM generated_objects ORDER BY object_id"
@@ -377,8 +393,10 @@ def load_plan(
                     or path.stat().st_mode & 0o222
                     or sha256_file(path) != sha256
                 ):
-                    raise ValueError(f"normalized plan object is invalid: {object_id}")
-    return VerifiedPlan(
+                    raise ValueError(
+                        f"normalized benchmark cases object is invalid: {object_id}"
+                    )
+    return VerifiedBenchmarkCases(
         directory=directory,
         manifest=manifest,
         manifest_sha256=sha256_file(manifest_path),
@@ -386,27 +404,29 @@ def load_plan(
     )
 
 
-def publish_plan(
+def publish_benchmark_cases(
     *, data_root: Path, selection: str | Path
-) -> tuple[VerifiedPlan, str]:
-    """Publish or reuse one immutable normalized plan for a selection."""
+) -> tuple[VerifiedBenchmarkCases, str]:
+    """Publish or reuse immutable normalized benchmark cases for a selection."""
 
     data_root = data_root.expanduser().resolve()
     selection_directory = _resolve_selection(data_root, selection)
     selection_manifest = load_selection(selection_directory, verification="identity")
-    identity = _plan_identity(selection_manifest)
-    plan_id = content_identifier("bmb-plan", identity)
-    final = data_root / "plans" / plan_id
+    identity = _benchmark_cases_identity(selection_manifest)
+    benchmark_cases_id = content_identifier("bmb-benchmark-cases", identity)
+    final = data_root / "benchmark-cases" / benchmark_cases_id
     if final.is_dir():
-        return load_plan(data_root, final, verification="full"), "reused"
+        return load_benchmark_cases(data_root, final, verification="full"), "reused"
 
     selection_manifest = load_selection(selection_directory, verification="full")
-    if _plan_identity(selection_manifest) != identity:
-        raise ValueError("selection identity changed during plan publication")
+    if _benchmark_cases_identity(selection_manifest) != identity:
+        raise ValueError(
+            "selection identity changed during benchmark cases publication"
+        )
     request = selection_manifest["request"]
     pair_set = request.get("pair_set")
     if pair_set not in PAIR_SETS:
-        raise ValueError(f"unsupported normalized plan pair set: {pair_set}")
+        raise ValueError(f"unsupported normalized benchmark pair set: {pair_set}")
     case_kind = (
         "known_false_positive"
         if pair_set == "known-false-positive"
@@ -426,11 +446,11 @@ def publish_plan(
     ):
         raise ValueError("selection compiled-dataset checksums do not match")
 
-    root = data_root / "plans"
+    root = data_root / "benchmark-cases"
     root.mkdir(parents=True, exist_ok=True)
     staging = root / f".staging-{uuid.uuid4().hex}"
     staging.mkdir()
-    database_path = staging / "plan.sqlite"
+    database_path = staging / "benchmark_cases.sqlite"
     object_store = GeneratedObjectStore(data_root)
     objects: dict[tuple[str, str | None], GeneratedObject] = {}
 
@@ -606,21 +626,23 @@ def publish_plan(
             logical_inventory_sha256 = _logical_inventory_sha256(connection)
             identity_sha256 = hashlib.sha256(canonical_json(identity)).hexdigest()
             connection.execute(
-                "INSERT INTO plan_metadata VALUES (1,?,?)",
-                (plan_id, identity_sha256),
+                "INSERT INTO benchmark_cases_metadata VALUES (1,?,?)",
+                (benchmark_cases_id, identity_sha256),
             )
             connection.commit()
             if connection.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
-                raise ValueError("normalized plan database failed integrity check")
+                raise ValueError(
+                    "normalized benchmark cases database failed integrity check"
+                )
 
-        database_artifact = {
-            "path": "plan.sqlite",
+        benchmark_cases_artifact = {
+            "path": "benchmark_cases.sqlite",
             "size_bytes": database_path.stat().st_size,
             "sha256": sha256_file(database_path),
         }
         manifest = {
-            "schema_version": PLAN_SCHEMA_VERSION,
-            "plan_id": plan_id,
+            "schema_version": BENCHMARK_CASES_SCHEMA_VERSION,
+            "benchmark_cases_id": benchmark_cases_id,
             "identity_sha256": hashlib.sha256(canonical_json(identity)).hexdigest(),
             "created_at": utc_now(),
             "identity": identity,
@@ -638,7 +660,7 @@ def publish_plan(
                 "case_rows": row_count,
                 "generated_objects": len(objects),
             },
-            "artifacts": {"database": database_artifact},
+            "artifacts": {"benchmark_cases": benchmark_cases_artifact},
         }
         (staging / "manifest.json").write_bytes(canonical_json(manifest) + b"\n")
         try:
@@ -647,35 +669,38 @@ def publish_plan(
             if not final.is_dir():
                 raise
             shutil.rmtree(staging)
-            return load_plan(data_root, final, verification="full"), "reused"
-        return load_plan(data_root, final, verification="full"), "created"
+            return (
+                load_benchmark_cases(data_root, final, verification="full"),
+                "reused",
+            )
+        return load_benchmark_cases(data_root, final, verification="full"), "created"
     except BaseException:
         if staging.exists():
             shutil.rmtree(staging)
         raise
 
 
-class SerialPlanRunner:
-    """Yield plan cases through one scratch archive that is reused serially."""
+class SerialBenchmarkCaseRunner:
+    """Yield benchmark cases through one reusable serial scratch archive."""
 
     def __init__(
         self,
-        plan: VerifiedPlan,
+        benchmark_cases: VerifiedBenchmarkCases,
         *,
         scratch_root: Path | None = None,
     ) -> None:
-        self.plan = plan
+        self.benchmark_cases = benchmark_cases
         self.scratch_root = scratch_root
         self._temporary: tempfile.TemporaryDirectory[str] | None = None
         self._root: Path | None = None
 
-    def __enter__(self) -> SerialPlanRunner:
+    def __enter__(self) -> SerialBenchmarkCaseRunner:
         parent = None
         if self.scratch_root is not None:
             parent = self.scratch_root.expanduser().resolve()
             parent.mkdir(parents=True, exist_ok=True)
         self._temporary = tempfile.TemporaryDirectory(
-            prefix="bigmovebench-plan-", dir=parent
+            prefix="bigmovebench-benchmark-cases-", dir=parent
         )
         self._root = Path(self._temporary.name)
         for revision in ("original", "modified"):
@@ -692,9 +717,9 @@ class SerialPlanRunner:
         self._root = None
 
     def _fragment_text(self, fragment_sha256: str) -> str:
-        dataset_id = self.plan.manifest["compiled_dataset"]["dataset_id"]
+        dataset_id = self.benchmark_cases.manifest["compiled_dataset"]["dataset_id"]
         directory = (
-            self.plan.data_root
+            self.benchmark_cases.data_root
             / "bigclonebench"
             / "compiled"
             / dataset_id
@@ -709,9 +734,11 @@ class SerialPlanRunner:
         return contents.decode("utf-8")
 
     def _link(self, object_path: str, destination: Path) -> None:
-        source = self.plan.data_root / object_path
+        source = self.benchmark_cases.data_root / object_path
         if source.is_symlink() or not source.is_file():
-            raise ValueError(f"normalized plan object is unavailable: {source}")
+            raise ValueError(
+                f"normalized benchmark cases object is unavailable: {source}"
+            )
         destination.unlink(missing_ok=True)
         try:
             os.link(source, destination)
@@ -720,8 +747,10 @@ class SerialPlanRunner:
 
     def cases(self) -> Iterator[InputPair]:
         if self._root is None:
-            raise RuntimeError("serial plan runner must be used as a context manager")
-        database_path = self.plan.directory / "plan.sqlite"
+            raise RuntimeError(
+                "serial benchmark-case runner must be used as a context manager"
+            )
+        database_path = self.benchmark_cases.directory / "benchmark_cases.sqlite"
         uri = f"{database_path.resolve().as_uri()}?mode=ro&immutable=1"
         query = """
 SELECT c.*,
@@ -765,7 +794,7 @@ ORDER BY c.ordinal
                     row["modified_fragment_sha256"]
                 )
                 metadata = {
-                    "source": "BigCloneBench normalized plan",
+                    "source": "BigCloneBench normalized benchmark cases",
                     "case_kind": row["case_kind"],
                     "clone_type": (
                         "known_false_positive"
@@ -784,10 +813,12 @@ ORDER BY c.ordinal
                     "functionality_id": row["representative_functionality_id"],
                     "function_id_one": row["representative_function_id_one"],
                     "function_id_two": row["representative_function_id_two"],
-                    "compiled_dataset_id": self.plan.manifest["compiled_dataset"][
-                        "dataset_id"
+                    "compiled_dataset_id": self.benchmark_cases.manifest[
+                        "compiled_dataset"
+                    ]["dataset_id"],
+                    "selection_id": self.benchmark_cases.manifest["selection"][
+                        "selection_id"
                     ],
-                    "selection_id": self.plan.manifest["selection"]["selection_id"],
                     "frame_id": row["frame_id"],
                     "generated_input_id": row["case_id"],
                     "synthetic_wrapper_version": STABLE_WRAPPER_VERSION,
@@ -839,15 +870,15 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     args = parse_args()
     try:
-        plan, disposition = publish_plan(
+        benchmark_cases, disposition = publish_benchmark_cases(
             data_root=args.cache_root, selection=args.selection
         )
-        print(f"BigMoveBench normalized plan: {disposition}")
-        print(f"plan_id={plan.plan_id}")
-        print(f"directory={plan.directory}")
+        print(f"BigMoveBench normalized benchmark cases: {disposition}")
+        print(f"benchmark_cases_id={benchmark_cases.benchmark_cases_id}")
+        print(f"directory={benchmark_cases.directory}")
         print(
-            f"cases={plan.manifest['counts']['cases']} "
-            f"objects={plan.manifest['counts']['generated_objects']}"
+            f"cases={benchmark_cases.manifest['counts']['cases']} "
+            f"objects={benchmark_cases.manifest['counts']['generated_objects']}"
         )
         return 0
     except (OSError, ValueError, sqlite3.Error, json.JSONDecodeError) as error:
