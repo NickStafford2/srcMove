@@ -25,7 +25,7 @@ from bigMoveBench.adapter import (
 )
 from bigMoveBench.evaluate import write_evaluation
 from bigMoveBench.cases import preflight
-from benchmarks.contracts import RunMode
+from benchmarking.contracts import RunMode
 from bigMoveBench.corpus import (
     VerifiedCorpus,
     VerifiedSnapshot,
@@ -37,7 +37,7 @@ from bigMoveBench.corpus import (
 )
 from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
-from benchmarks.paths import DEFAULT_RESULTS_ROOT
+from benchmarking.paths import DEFAULT_RESULTS_ROOT
 from support.tooling import find_srcdiff, find_srcmove
 
 

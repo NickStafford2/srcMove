@@ -1,4 +1,4 @@
-# srcMove Benchmarks
+# srcMove Benchmarking
 
 Benchmarks are experiments and are intentionally separate from deterministic
 correctness tests in `tests/`.
@@ -36,6 +36,9 @@ dataset adapters, and publication runs is described in the
 [benchmarking upgrade plan](../doc/benchmarking_upgrade_plan.md).
 
 ## Upgrade contracts
+
+This directory contains infrastructure shared by the independently owned
+benchmark suites listed above. It does not contain a benchmark suite itself.
 
 `contracts.py` defines the canonical content-identity encoding, shared
 process/XML/provenance status vocabulary, and development/publication labels.

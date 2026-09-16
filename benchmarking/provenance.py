@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from benchmarks.contracts import (
+from benchmarking.contracts import (
     CONTRACT_VERSION,
     ProvenanceStatus,
     RunMode,

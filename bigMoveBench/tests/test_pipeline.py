@@ -24,7 +24,7 @@ from bigMoveBench.evaluate import (
 )
 from bigMoveBench.pipeline import _report_benchmark_result, parse_args
 from bigMoveBench.corpus import create_input_snapshot, generate_corpus, run_corpus
-from benchmarks.provenance import sha256_file
+from benchmarking.provenance import sha256_file
 
 
 def write_executable(path: Path, source: str) -> Path:

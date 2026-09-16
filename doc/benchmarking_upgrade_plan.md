@@ -4,7 +4,7 @@
 
 This document is a plan, not a description of implemented behavior. The current
 commands and output formats remain documented in the
-[benchmark index](../benchmarks/README.md).
+[benchmark index](../benchmarking/README.md).
 
 BigCloneBench is not installed in the current workspace, and the large
 BigCloneBench and repository workloads have not been rerun since the current
@@ -86,8 +86,9 @@ merged.
 
 ### BigCloneBench-derived synthetic positive-case evaluation
 
-BigCloneBench belongs under `benchmarks/`, even though each generated case uses
-an oracle like a test. The current generated workload measures whether srcMove
+BigCloneBench belongs under `bigMoveBench/`; reusable benchmark infrastructure
+belongs under `benchmarking/`. Although each generated case uses an oracle like
+a test, the current generated workload measures whether srcMove
 recognizes whole-fragment synthetic moves constructed from selected Type-1 and
 Type-2 clone pairs. A benchmark does not have to measure only execution time.
 
@@ -172,9 +173,9 @@ oracle versions that produced them.
 9. **Separate tuning from evaluation.** Cases used to diagnose and tune srcMove
    must remain identifiable; a thesis claim should use a frozen census or a
    separately declared evaluation sample.
-10. **Keep one source of truth.** Methodology belongs in `doc/`; operational
-   commands belong in the relevant `benchmarks/**/README.md`; schemas belong
-   beside their implementation.
+10. **Keep one source of truth.** Methodology and operational commands belong
+   in each suite's documentation; shared infrastructure is documented in
+   `benchmarking/README.md`; schemas belong beside their implementation.
 11. **Prefer a strict current contract over benchmark backward compatibility.**
    Follow the [forward-only compatibility policy](#benchmark-compatibility-policy).
 

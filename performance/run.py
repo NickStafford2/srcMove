@@ -15,13 +15,13 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from benchmarks.contracts import RunMode
+from benchmarking.contracts import RunMode
 from performance.benchmark import (
     load_workloads,
     parse_named_path,
     run_performance,
 )
-from benchmarks.paths import DEFAULT_RESULTS_ROOT
+from benchmarking.paths import DEFAULT_RESULTS_ROOT
 from support.tooling import find_srcmove
 
 

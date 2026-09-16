@@ -17,8 +17,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from benchmarks.contracts import TerminationStatus, XmlStatus
-from benchmarks.provenance import observe_file, utc_now
+from benchmarking.contracts import TerminationStatus, XmlStatus
+from benchmarking.provenance import observe_file, utc_now
 
 
 ATTEMPT_SCHEMA_VERSION = 2

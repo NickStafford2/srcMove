@@ -109,4 +109,4 @@ BigCloneBench, performance measurements, and repository-scale workloads are
 experiments, not correctness test suites. Their small offline unit tests are
 included above, but benchmark executions use separate commands and are never
 started implicitly by `tests/run.py`. See the
-[benchmark index](../benchmarks/README.md).
+[benchmark index](../benchmarking/README.md).

@@ -9,7 +9,7 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 FIXTURE_ROOT = REPO_ROOT / "tests" / "fixtures" / "benchmark"
-from benchmarks.contracts import (
+from benchmarking.contracts import (
     CONTRACT_VERSION,
     ProvenanceStatus,
     RunMode,

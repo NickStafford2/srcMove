@@ -56,7 +56,7 @@ workspace at `../docs/workspace.md`.
 - [bigMoveBench/docs/methodology.md](bigMoveBench/docs/methodology.md):
   converting BigCloneBench clone pairs into srcMove tests
 - [tests/README.md](tests/README.md): test entry points and suite boundaries
-- [benchmarks/README.md](benchmarks/README.md): benchmark types and entry points
+- [benchmarking/README.md](benchmarking/README.md): benchmark types and entry points
 
 ## Git
 

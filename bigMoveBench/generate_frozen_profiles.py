@@ -31,8 +31,8 @@ from bigMoveBench.selection import (
     load_selection,
     type3_stratum,
 )
-from benchmarks.contracts import canonical_json
-from benchmarks.provenance import utc_now
+from benchmarking.contracts import canonical_json
+from benchmarking.provenance import utc_now
 
 
 def parse_args() -> argparse.Namespace:

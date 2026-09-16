@@ -13,8 +13,8 @@ RECEIPT_EMITTER = REPO_ROOT / "scripts" / "emit_build_receipt.py"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.contracts import RunMode
-from benchmarks.provenance import (
+from benchmarking.contracts import RunMode
+from benchmarking.provenance import (
     build_receipt_identifier,
     collect_run_observation,
     observe_executable,

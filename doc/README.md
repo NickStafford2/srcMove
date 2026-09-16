@@ -28,7 +28,7 @@ summaries or diagrams disagree with current behavior.
 - [Code rules](code_rules.md): local implementation conventions
 - [Correctness tests](../tests/README.md): test entry points, suite boundaries,
   and fixture conventions
-- [Benchmarks](../benchmarks/README.md): benchmark types and runners
+- [Benchmarks](../benchmarking/README.md): benchmark types and runners
 
 ## BigMoveBench research
 

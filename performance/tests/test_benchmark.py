@@ -13,7 +13,7 @@ INPUT_XML = REPO_ROOT / "tests" / "fixtures" / "benchmark" / "input.srcdiff.xml"
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.contracts import RunMode
+from benchmarking.contracts import RunMode
 from performance.benchmark import (
     build_schedule,
     inspect_workload,
@@ -21,7 +21,7 @@ from performance.benchmark import (
     run_measurement,
     run_performance,
 )
-from benchmarks.provenance import sha256_file
+from benchmarking.provenance import sha256_file
 
 
 def write_profile_tool(path: Path, milliseconds: float, fail: bool = False) -> Path:

@@ -28,9 +28,9 @@ from bigMoveBench.catalog import (
     load_compiled_dataset,
 )
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
-from benchmarks.contracts import canonical_json, content_identifier
+from benchmarking.contracts import canonical_json, content_identifier
 from bigMoveBench.progress import ProgressDisplay
-from benchmarks.provenance import sha256_file, utc_now
+from benchmarking.provenance import sha256_file, utc_now
 
 
 SELECTION_SCHEMA_VERSION = 1

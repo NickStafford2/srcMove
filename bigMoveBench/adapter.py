@@ -24,8 +24,8 @@ from bigMoveBench.contracts import (
     SemanticResult,
     SemanticStatus,
 )
-from benchmarks.contracts import content_identifier
-from benchmarks.provenance import sha256_file
+from benchmarking.contracts import content_identifier
+from benchmarking.provenance import sha256_file
 
 
 SEMANTIC_ORACLE_VERSION = 1

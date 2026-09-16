@@ -12,7 +12,7 @@ from bigMoveBench.selection import (
     create_selection,
     load_selection,
 )
-from benchmarks.provenance import sha256_file
+from benchmarking.provenance import sha256_file
 from bigMoveBench.tests.test_catalog import (
     BigCloneBenchCompiledDatasetTests,
     distinct_false_positive_row,

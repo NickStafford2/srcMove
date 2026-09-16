@@ -15,15 +15,15 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Mapping, Sequence
 
-from benchmarks.contracts import RunMode
-from benchmarks.process import execute_attempt, validate_srcdiff_xml, write_json_atomic
-from benchmarks.provenance import (
+from benchmarking.contracts import RunMode
+from benchmarking.process import execute_attempt, validate_srcdiff_xml, write_json_atomic
+from benchmarking.provenance import (
     collect_run_observation,
     observe_file,
     sha256_file,
     utc_now,
 )
-from benchmarks.statistics import describe
+from benchmarking.statistics import describe
 
 
 PERFORMANCE_RUN_SCHEMA_VERSION = 2

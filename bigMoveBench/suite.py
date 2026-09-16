@@ -26,12 +26,12 @@ from bigMoveBench.cases import BCE_DIR
 from bigMoveBench.pipeline import build_corpus, evaluate_corpus
 from bigMoveBench.selection import DEFAULT_SAMPLE_SIZE, create_selection
 from bigMoveBench.snapshot import materialize_compiled_selection
-from benchmarks.contracts import RunMode
-from benchmarks.process import write_json_atomic
+from benchmarking.contracts import RunMode
+from benchmarking.process import write_json_atomic
 from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
-from benchmarks.paths import DEFAULT_RESULTS_ROOT
-from benchmarks.provenance import observe_executable, utc_now
+from benchmarking.paths import DEFAULT_RESULTS_ROOT
+from benchmarking.provenance import observe_executable, utc_now
 from support.tooling import find_srcdiff, find_srcmove
 
 

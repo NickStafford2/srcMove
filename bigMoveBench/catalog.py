@@ -19,9 +19,9 @@ from bigMoveBench.dataset import (
     extract_bytes,
     source_path,
 )
-from benchmarks.contracts import canonical_json, content_identifier
-from benchmarks.process import write_json_atomic
-from benchmarks.provenance import sha256_file, utc_now
+from benchmarking.contracts import canonical_json, content_identifier
+from benchmarking.process import write_json_atomic
+from benchmarking.provenance import sha256_file, utc_now
 
 
 COMPILED_DATASET_SCHEMA_VERSION = 2

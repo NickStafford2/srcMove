@@ -20,7 +20,7 @@ from srcmove_history.benchmarks.scaling import (
     parse_jobs,
     run_trial as run_scaling_trial,
 )
-from benchmarks.provenance import sha256_file
+from benchmarking.provenance import sha256_file
 from srcmove_history.benchmarks.trial import (
     normalized_analysis_result,
     parse_args as parse_trial_args,

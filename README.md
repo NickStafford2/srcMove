@@ -195,7 +195,7 @@ ambiguity policy, and performance safeguards have one canonical description in
 - [Architecture](doc/architecture.md)
 - [srcMove History](srcmove_history/docs/README.md)
 - [Correctness tests](tests/README.md)
-- [Benchmarks](benchmarks/README.md)
+- [Benchmarks](benchmarking/README.md)
 - [BigMoveBench](bigMoveBench/README.md)
 
 Small deterministic XML fixtures live under `tests/regression/xml/cases/`.

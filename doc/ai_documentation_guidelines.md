@@ -57,7 +57,7 @@ Use these homes unless a more specific file already exists:
 - `bigMoveBench/docs/methodology.md`: converting BigCloneBench clone pairs
   into srcMove move tests
 - `tests/README.md`: correctness-test entry points and suite behavior
-- `benchmarks/**/README.md`: benchmark-specific setup, methodology, and runners
+- suite-specific `README.md` files: benchmark setup, methodology, and runners
 - `scripts/`: remaining reusable project automation that future agents should run instead of
   retyping long command sequences
 

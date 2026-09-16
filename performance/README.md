@@ -9,7 +9,7 @@ move-detection accuracy.
 - `tests/` contains this component's focused unit tests.
 
 The component reuses generic process-execution, provenance, atomic JSON, and
-statistical utilities from [`benchmarks/`](../benchmarks/README.md). Its
+statistical infrastructure from [`benchmarking/`](../benchmarking/README.md). Its
 workloads and local cache are independent of BigMoveBench and srcMove History.
 
 Store reusable large XML files under the ignored

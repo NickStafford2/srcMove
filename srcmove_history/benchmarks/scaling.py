@@ -34,10 +34,10 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
     if str(import_root) not in sys.path:
         sys.path.insert(0, str(import_root))
 
-from benchmarks.contracts import canonical_json
-from benchmarks.paths import DEFAULT_RESULTS_ROOT
-from benchmarks.process import write_json_atomic
-from benchmarks.provenance import (
+from benchmarking.contracts import canonical_json
+from benchmarking.paths import DEFAULT_RESULTS_ROOT
+from benchmarking.process import write_json_atomic
+from benchmarking.provenance import (
     observe_environment,
     observe_executable,
     observe_file,
@@ -45,7 +45,7 @@ from benchmarks.provenance import (
     sha256_file,
     utc_now,
 )
-from benchmarks.statistics import describe
+from benchmarking.statistics import describe
 from srcmove_history.benchmarks.reference_repositories import (
     ensure_reference_repository,
     load_reference_configuration,

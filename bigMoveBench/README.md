@@ -21,7 +21,7 @@ the conversion, selection, execution, and scoring methodology.
   primary combined benchmark command.
 - `tests/` and `docs/` contain BigMoveBench-specific verification and
   documentation. Generic execution, provenance, identity, and serialization
-  utilities remain in `benchmarks/`.
+  infrastructure remains in `benchmarking/`.
 
 The cache remains under `bigMoveBench/cache/bigclonebench/` because it is a sealed
 representation of the upstream dataset. BigMoveBench suite summaries are stored
@@ -336,7 +336,7 @@ to at least one judge and one confidence point. Use `--min-judges` and
 with positive Type-1/Type-2 selections.
 
 The scoring rules live in `oracle.py`; execution and artifact management remain
-in `pipeline.py` and the shared `benchmarks/` infrastructure. This separation
+in `pipeline.py` and the shared `benchmarking/` infrastructure. This separation
 keeps the oracle independent of process orchestration.
 
 ## Thesis Data Runs

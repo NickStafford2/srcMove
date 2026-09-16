@@ -18,8 +18,8 @@ from bigMoveBench.oracle import (
     text_matches_with_status,
 )
 from bigMoveBench.selection import TYPE3_STRATA
-from benchmarks.process import write_json_atomic
-from benchmarks.provenance import sha256_file, utc_now
+from benchmarking.process import write_json_atomic
+from benchmarking.provenance import sha256_file, utc_now
 
 
 SCORING_ORACLE_VERSION = 4
