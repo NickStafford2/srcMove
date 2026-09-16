@@ -18,10 +18,10 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from bigMoveBench.compile import ensure_compiled_dataset
+from bigMoveBench.execution import build_corpus, evaluate_corpus
 from bigMoveBench.evaluate import SCORING_ORACLE_VERSION
 from bigMoveBench.frozen_profiles import create_frozen_selection
-from bigMoveBench.cases import BCE_DIR
-from bigMoveBench.pipeline import build_corpus, evaluate_corpus
+from bigMoveBench.installation import BCE_DIR
 from bigMoveBench.selection import DEFAULT_SAMPLE_SIZE, create_selection
 from bigMoveBench.snapshot import materialize_compiled_selection
 from benchmarking.contracts import RunMode

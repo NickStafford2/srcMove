@@ -9,7 +9,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Any, Callable, Mapping
+from typing import Callable
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -17,21 +17,13 @@ REPO_ROOT = SCRIPT_DIR.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from bigMoveBench.adapter import (
-    SEMANTIC_ORACLE_VERSION,
-    BigCloneBenchAdapter,
-)
-from bigMoveBench.evaluate import write_evaluation
-from bigMoveBench.cases import preflight
+from bigMoveBench.adapter import BigCloneBenchAdapter
+from bigMoveBench.execution import build_corpus, evaluate_corpus
+from bigMoveBench.installation import BCE_DIR, preflight
 from benchmarking.contracts import RunMode
 from bigMoveBench.corpus import (
-    VerifiedCorpus,
     VerifiedSnapshot,
     create_input_snapshot,
-    generate_corpus,
-    load_corpus,
-    load_input_snapshot,
-    run_corpus,
 )
 from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
@@ -133,80 +125,6 @@ def _selection(args: argparse.Namespace) -> int | str:
     if args.known_false_positives:
         return "known_false_positive"
     return _syntactic_type(args.clone_type or "type1")
-
-
-def build_corpus(
-    *,
-    data_root: Path,
-    input_snapshot: VerifiedSnapshot | str | Path,
-    srcdiff: Path,
-    timeout_seconds: float,
-    retry_failed: bool,
-    activity_callback: Callable[[str, str], None] | None = None,
-    srcdiff_observation: Mapping[str, Any] | None = None,
-) -> VerifiedCorpus:
-    verified_snapshot = (
-        input_snapshot
-        if isinstance(input_snapshot, VerifiedSnapshot)
-        else load_input_snapshot(data_root, input_snapshot)
-    )
-    snapshot_manifest = verified_snapshot.manifest
-    compiled_snapshot = bool(
-        isinstance(snapshot_manifest.get("source"), Mapping)
-        and snapshot_manifest["source"].get("compiled_dataset_id")
-    )
-    return generate_corpus(
-        data_root=data_root,
-        input_snapshot=verified_snapshot,
-        srcdiff=srcdiff,
-        timeout_seconds=timeout_seconds,
-        use_position=True,
-        use_archive=compiled_snapshot,
-        retry_failed=retry_failed,
-        semantic_validator=BigCloneBenchAdapter.validate_semantics,
-        semantic_oracle={
-            "name": "bigclonebench-payload-exposure",
-            "version": SEMANTIC_ORACLE_VERSION,
-        },
-        activity_callback=activity_callback,
-        srcdiff_observation=srcdiff_observation,
-    )
-
-
-def evaluate_corpus(
-    *,
-    data_root: Path,
-    results_root: Path | None = None,
-    corpus: VerifiedCorpus | str | Path,
-    srcmove: Path,
-    timeout_seconds: float,
-    mode: RunMode,
-    activity_callback: Callable[[str, str], None] | None = None,
-    srcmove_observation: Mapping[str, Any] | None = None,
-) -> tuple[Path, dict, dict]:
-    verified_corpus = (
-        corpus if isinstance(corpus, VerifiedCorpus) else load_corpus(data_root, corpus)
-    )
-    run_dir, run_manifest = run_corpus(
-        data_root=data_root,
-        results_root=results_root,
-        corpus=verified_corpus,
-        srcmove=srcmove,
-        timeout_seconds=timeout_seconds,
-        mode=mode,
-        require_semantic_eligible=True,
-        activity_callback=activity_callback,
-        srcmove_observation=srcmove_observation,
-    )
-    corpus_dir = verified_corpus.directory
-    corpus_manifest = verified_corpus.manifest
-    summary = write_evaluation(
-        run_dir=run_dir,
-        run_manifest=run_manifest,
-        corpus_dir=corpus_dir,
-        corpus_manifest=corpus_manifest,
-    )
-    return run_dir, run_manifest, summary
 
 
 def _case_progress(progress: ProgressDisplay) -> Callable[[str, str], None]:
@@ -386,7 +304,7 @@ def main() -> int:
     exit_code = 0
     try:
         if args.stage == "preflight":
-            failures = preflight()
+            failures = preflight(BCE_DIR)
             if failures:
                 print(
                     "error: BigCloneBench is an external manual prerequisite; "

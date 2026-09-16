@@ -48,9 +48,12 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from unittest import mock
 
-
 REPO_ROOT = Path(__file__).resolve().parents[2]
 GENERATOR_PATH = REPO_ROOT / "bigMoveBench" / "cases.py"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from bigMoveBench import installation
 
 
 def load_generator_module():
@@ -99,12 +102,10 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
         self.assertNotIn("c.min_tokens >=", query)
 
     def test_preflight_reports_manual_prerequisites_without_downloading(self) -> None:
-        generator = load_generator_module()
-
         with tempfile.TemporaryDirectory() as tmp, mock.patch.object(
-            generator, "BCE_DIR", Path(tmp) / "missing-BigCloneEval"
-        ), mock.patch.object(generator.shutil, "which", return_value=None):
-            failures = generator.preflight()
+            installation.shutil, "which", return_value=None
+        ):
+            failures = installation.preflight(Path(tmp) / "missing-BigCloneEval")
 
         self.assertTrue(any("database" in failure for failure in failures))
         self.assertTrue(any("H2 driver" in failure for failure in failures))
@@ -112,8 +113,6 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
         self.assertIn("Java executable not found on PATH", failures)
 
     def test_preflight_rejects_an_empty_ijadataset_directory(self) -> None:
-        generator = load_generator_module()
-
         with tempfile.TemporaryDirectory() as tmp:
             bce_dir = Path(tmp) / "BigCloneEval"
             (bce_dir / "bigclonebenchdb").mkdir(parents=True)
@@ -121,17 +120,15 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
             (bce_dir / "libs").mkdir()
             (bce_dir / "libs" / "h2-1.3.176.jar").touch()
             (bce_dir / "ijadataset").mkdir()
-            with mock.patch.object(generator, "BCE_DIR", bce_dir), mock.patch.object(
-                generator.shutil, "which", return_value="/usr/bin/java"
+            with mock.patch.object(
+                installation.shutil, "which", return_value="/usr/bin/java"
             ):
-                failures = generator.preflight()
+                failures = installation.preflight(bce_dir)
 
         self.assertEqual(len(failures), 1)
         self.assertIn("IJaDataset Java corpus not found", failures[0])
 
     def test_preflight_accepts_reduced_ijadataset_layout(self) -> None:
-        generator = load_generator_module()
-
         with tempfile.TemporaryDirectory() as tmp:
             bce_dir = Path(tmp) / "BigCloneEval"
             (bce_dir / "bigclonebenchdb").mkdir(parents=True)
@@ -141,10 +138,10 @@ class BigCloneBenchGeneratorTests(unittest.TestCase):
             source_dir = bce_dir / "ijadataset" / "bcb_reduced" / "2" / "default"
             source_dir.mkdir(parents=True)
             (source_dir / "131818.java").touch()
-            with mock.patch.object(generator, "BCE_DIR", bce_dir), mock.patch.object(
-                generator.shutil, "which", return_value="/usr/bin/java"
+            with mock.patch.object(
+                installation.shutil, "which", return_value="/usr/bin/java"
             ):
-                failures = generator.preflight()
+                failures = installation.preflight(bce_dir)
 
         self.assertEqual(failures, [])
 

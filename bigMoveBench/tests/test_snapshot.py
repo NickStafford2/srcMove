@@ -10,7 +10,7 @@ from bigMoveBench.adapter import (
     CompiledBigCloneBenchAdapter,
     _type3_frame_strength,
 )
-from bigMoveBench.cases import (
+from bigMoveBench.synthetic import (
     SYNTHETIC_DESTINATION_PATH,
     SYNTHETIC_SOURCE_PATH,
 )

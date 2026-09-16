@@ -7,18 +7,21 @@ the conversion, selection, execution, and scoring methodology.
 
 ## Layout
 
-- `cases.py` reads the external BigCloneBench installation and materializes
-  configurable development cases.
+- `installation.py` locates and validates the external BigCloneBench data and
+  Java runtime.
 - `compile.py` builds or reuses the catalog implemented by `catalog.py`.
 - `selection.py` publishes deterministic pair-set samples or censuses.
+- `synthetic.py` converts one selected fragment pair into a two-file move.
 - `snapshot.py` converts a compiled selection into immutable source inputs.
 - `contracts.py` defines source-pair, semantic-eligibility, and adapter types.
 - `corpus.py` owns the input-snapshot, srcDiff-corpus, and srcMove-run stages.
+- `execution.py` configures those generic stages for BigMoveBench and applies
+  the benchmark evaluation.
 - `paths.py` owns the default BigMoveBench cache location.
 - `progress.py` provides terminal-aware progress reporting for these commands.
 - `oracle.py` defines scoring; `evaluate.py` applies it to completed runs.
-- `pipeline.py` exposes individual development stages; `suite.py` is the
-  primary combined benchmark command.
+- `suite.py` is the primary benchmark command. `cases.py` and `pipeline.py`
+  retain the older development workflow while it is being removed.
 - `tests/` and `docs/` contain BigMoveBench-specific verification and
   documentation. Generic execution, provenance, identity, and serialization
   infrastructure remains in `benchmarking/`.
@@ -335,9 +338,10 @@ to at least one judge and one confidence point. Use `--min-judges` and
 `bcb_fp_manifest.json`; cases use the `bcb_fp_` prefix, so they cannot collide
 with positive Type-1/Type-2 selections.
 
-The scoring rules live in `oracle.py`; execution and artifact management remain
-in `pipeline.py` and the shared `benchmarking/` infrastructure. This separation
-keeps the oracle independent of process orchestration.
+The scoring rules live in `oracle.py`; BigMoveBench orchestration lives in
+`execution.py`, while generic execution and artifact management remain in the
+shared `benchmarking/` infrastructure. This separation keeps the oracle
+independent of process orchestration.
 
 ## Thesis Data Runs
 

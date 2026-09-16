@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any, Mapping, Sequence
 
 from bigMoveBench.catalog import load_compiled_dataset
-from bigMoveBench.cases import (
+from bigMoveBench.synthetic import (
     build_synthetic_move_archive,
     indent_fragment,
 )

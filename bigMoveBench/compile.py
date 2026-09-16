@@ -28,7 +28,7 @@ from bigMoveBench.catalog import (
     record_compiled_dataset,
     verify_upstream_sources,
 )
-from bigMoveBench.cases import BCE_DIR, java_identity, preflight
+from bigMoveBench.installation import BCE_DIR, java_identity, preflight
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from benchmarking.storage import write_json_atomic
 from bigMoveBench.progress import ProgressDisplay
@@ -377,17 +377,7 @@ def ensure_compiled_dataset(
     if reusable is not None:
         return reusable, True
 
-    failures = preflight() if bce_dir == BCE_DIR.resolve() else []
-    required = (
-        bce_dir / "bigclonebenchdb" / "bcb.h2.db",
-        bce_dir / "libs" / "h2-1.3.176.jar",
-        bce_dir / "ijadataset",
-    )
-    failures.extend(
-        f"BigCloneBench compile prerequisite not found: {path}"
-        for path in required
-        if not path.exists()
-    )
+    failures = preflight(bce_dir)
     if failures:
         raise ValueError("\n  - ".join(failures))
 

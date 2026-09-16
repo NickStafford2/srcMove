@@ -4,7 +4,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -21,77 +20,33 @@ from bigMoveBench.dataset import (
     extract_lines,
     source_path as resolve_source_path,
 )
+from bigMoveBench.installation import (
+    BCE_DIR,
+    java_identity,
+    preflight as installation_preflight,
+    require_preflight as require_installation,
+)
+from bigMoveBench.synthetic import (
+    SYNTHETIC_DESTINATION_PATH,
+    SYNTHETIC_SOURCE_PATH,
+    build_synthetic_move_archive,
+    indent_fragment,
+)
 from benchmarking.tooling import format_process_failure, run_command
 
-BCE_DIR = SCRIPT_DIR / "data" / "BigCloneEval"
 DEFAULT_OUT = SCRIPT_DIR / "cases"
-SYNTHETIC_SOURCE_PATH = Path("source/input.java")
-SYNTHETIC_DESTINATION_PATH = Path("destination/input.java")
-
-
-def sha256_file(path: Path) -> str:
-    hasher = hashlib.sha256()
-    with path.open("rb") as stream:
-        for block in iter(lambda: stream.read(1024 * 1024), b""):
-            hasher.update(block)
-    return hasher.hexdigest()
 
 
 def preflight() -> list[str]:
-    """Return actionable missing-prerequisite messages without fetching data."""
+    """Compatibility wrapper for the legacy case-generation CLI."""
 
-    required = {
-        "BigCloneBench database": BCE_DIR / "bigclonebenchdb" / "bcb.h2.db",
-        "H2 driver": BCE_DIR / "libs" / "h2-1.3.176.jar",
-    }
-    failures = [
-        f"{label} not found: {path}"
-        for label, path in required.items()
-        if not path.exists()
-    ]
-    ijadataset = BCE_DIR / "ijadataset"
-    has_flat_sources = any(
-        next((ijadataset / kind).glob("*.java"), None) is not None
-        for kind in ("default", "sample", "selected")
-    )
-    has_reduced_sources = (
-        next(ijadataset.glob("bcb_reduced/*/*/*.java"), None) is not None
-    )
-    if not has_flat_sources and not has_reduced_sources:
-        failures.append(
-            "IJaDataset Java corpus not found: expected either "
-            f"{ijadataset}/{{default,sample,selected}}/*.java or "
-            f"{ijadataset}/bcb_reduced/<functionality>/"
-            "{default,sample,selected}/*.java"
-        )
-    if shutil.which("java") is None:
-        failures.append("Java executable not found on PATH")
-    return failures
+    return installation_preflight(BCE_DIR)
 
 
 def require_preflight() -> None:
-    failures = preflight()
-    if failures:
-        joined = "\n  - ".join(failures)
-        raise RuntimeError(
-            "BigCloneBench is an external manual prerequisite; it will not be "
-            "downloaded automatically.\n  - "
-            f"{joined}\nSee bigMoveBench/README.md for setup guidance."
-        )
+    """Compatibility wrapper for the legacy case-generation CLI."""
 
-
-def java_identity() -> dict[str, str]:
-    executable = shutil.which("java")
-    if executable is None:
-        return {"status": "unavailable"}
-    result = run_command([executable, "-version"])
-    version = (result.stderr or result.stdout).strip().splitlines()
-    resolved = Path(executable).resolve()
-    return {
-        "executable": resolved.name,
-        "sha256": sha256_file(resolved),
-        "version": version[0] if version else "unknown",
-    }
+    require_installation(BCE_DIR)
 
 
 @dataclass(frozen=True)
@@ -320,10 +275,6 @@ def load_clone_rows(
     ]
 
 
-def indent_fragment(fragment: str) -> str:
-    return "\n".join(f"  {line}" if line else "" for line in fragment.splitlines()) + "\n"
-
-
 def trimmed_text(value: str) -> str:
     # This is only a local reporting key. It is not BigCloneBench's Type-1/Type-2
     # normalization, and it must not be the default Type-1 dedupe criterion.
@@ -450,76 +401,8 @@ def default_candidate_limit(
     return max(limit, 10_000)
 
 
-def append_block(lines: list[str], block: str) -> tuple[int, int]:
-    block_lines = block.rstrip("\n").splitlines()
-    start_line = len(lines) + 1
-    lines.extend(block_lines)
-    return start_line, len(lines)
-
-
 def source_path(kind: str, name: str, functionality_id: int) -> Path:
     return resolve_source_path(BCE_DIR, kind, name, functionality_id)
-
-
-def _build_archive_unit(
-    class_name: str,
-    context_name: str,
-    context_value: int,
-    fragment: str | None,
-) -> tuple[str, tuple[int, int] | None]:
-    lines: list[str] = []
-    append_block(
-        lines,
-        f"""class {class_name} {{
-  private static final int {context_name} = {context_value};""",
-    )
-    fragment_range = append_block(lines, fragment) if fragment is not None else None
-    append_block(lines, "}")
-    return "\n".join(lines) + "\n", fragment_range
-
-
-def build_synthetic_move_archive(
-    class_name: str, generated_fragment1: str, generated_fragment2: str
-) -> tuple[
-    dict[Path, str],
-    dict[Path, str],
-    tuple[int, int],
-    tuple[int, int],
-]:
-    """Build one isolated two-file archive containing a cross-file move."""
-
-    original_source, original_range = _build_archive_unit(
-        f"{class_name}Source",
-        "SOURCE_CONTEXT",
-        100,
-        generated_fragment1,
-    )
-    modified_source, _ = _build_archive_unit(
-        f"{class_name}Source", "SOURCE_CONTEXT", 100, None
-    )
-    original_destination, _ = _build_archive_unit(
-        f"{class_name}Destination", "DESTINATION_CONTEXT", 200, None
-    )
-    modified_destination, modified_range = _build_archive_unit(
-        f"{class_name}Destination",
-        "DESTINATION_CONTEXT",
-        200,
-        generated_fragment2,
-    )
-    assert original_range is not None
-    assert modified_range is not None
-    return (
-        {
-            SYNTHETIC_SOURCE_PATH: original_source,
-            SYNTHETIC_DESTINATION_PATH: original_destination,
-        },
-        {
-            SYNTHETIC_SOURCE_PATH: modified_source,
-            SYNTHETIC_DESTINATION_PATH: modified_destination,
-        },
-        original_range,
-        modified_range,
-    )
 
 
 def _write_archive(root: Path, sources: dict[Path, str]) -> None:
