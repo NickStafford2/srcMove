@@ -192,8 +192,10 @@ each observational Type-3 case completed without upstream, tool, semantic, or
 oracle errors. Type-3 misses and wrong classifications do not change the exit
 status.
 
-Use `ROLE=tuning|evaluation`, `SEED=<integer>`, `SAMPLE_SIZE=<count>`, and
-`VERIFY_SOURCE=1` as needed. Normal development runs trust artifacts when they
+Use `PROFILE=small|medium` for the checked-in reproducible profiles and
+`PROFILE=full` for the complete deduplicated census. Use
+`ROLE=tuning|evaluation`, `PAIR_SET=<pair-set>`, and `VERIFY_SOURCE=1` as
+needed. Normal development runs trust artifacts when they
 were sealed: they validate manifest identities and hash `srcdiff` and `srcMove`
 once, but do not revisit the original dataset or rehash selection JSONL,
 snapshot sources, or corpus XML. `VERIFY_SOURCE=1` is the explicit upstream

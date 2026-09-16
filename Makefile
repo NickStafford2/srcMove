@@ -128,8 +128,7 @@ bigmovebench-suite:
 	@$(PYTHON) bigMoveBench/suite.py \
 		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
 		--results-root "$(BENCHMARK_RESULTS_ROOT)" \
-		--profile "$(PROFILE)" --role "$(ROLE)" --seed "$(SEED)" \
-		--sample-size "$(SAMPLE_SIZE)" \
+		--profile "$(PROFILE)" --role "$(ROLE)" \
 		$(if $(PAIR_SET),--pair-set "$(PAIR_SET)") \
 		$(if $(filter 1 yes true,$(VERIFY_SOURCE)),--verify-source) \
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \

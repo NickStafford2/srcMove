@@ -22,7 +22,7 @@ from bigMoveBench.execution import build_corpus, evaluate_corpus
 from bigMoveBench.evaluate import SCORING_ORACLE_VERSION
 from bigMoveBench.frozen_profiles import create_frozen_selection
 from bigMoveBench.installation import BCE_DIR
-from bigMoveBench.selection import DEFAULT_SAMPLE_SIZE, create_selection
+from bigMoveBench.selection import create_selection
 from bigMoveBench.snapshot import materialize_compiled_selection
 from benchmarking.contracts import RunMode
 from benchmarking.storage import write_json_atomic
@@ -53,7 +53,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
     parser.add_argument("--results-root", type=Path, default=DEFAULT_RESULTS_ROOT)
     parser.add_argument("--bce-dir", type=Path, default=BCE_DIR)
-    parser.add_argument("--mode", choices=("sample", "census"), default="sample")
     parser.add_argument(
         "--profile",
         choices=("small", "medium", "full"),
@@ -66,8 +65,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--role", choices=("tuning", "evaluation"), default="tuning"
     )
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--sample-size", type=int, default=DEFAULT_SAMPLE_SIZE)
     parser.add_argument(
         "--pair-set",
         choices=tuple(PAIR_SET_LABELS),
@@ -250,8 +247,6 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                         pair_set=pair_set,
                         mode="census",
                         role=args.role,
-                        sample_size=args.sample_size,
-                        seed=args.seed,
                         progress=progress,
                     )
                     if profile == "full"
@@ -379,8 +374,6 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
             "profile": profile,
             "mode": "census" if profile == "full" else "preset",
             "role": args.role,
-            "seed": args.seed,
-            "sample_size": args.sample_size,
             "verify_source": args.verify_source,
             "pair_set": selected_pair_set,
         },

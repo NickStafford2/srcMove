@@ -11,6 +11,7 @@ from unittest import mock
 from bigMoveBench.suite import (
     _pair_set_operational_pass,
     _print_report,
+    parse_args,
     run_suite,
 )
 from bigMoveBench.tests import test_snapshot as snapshot_fixtures
@@ -23,6 +24,24 @@ def write_executable(path: Path, source: str) -> Path:
 
 
 class BigCloneBenchSuiteTests(unittest.TestCase):
+    def test_suite_cli_exposes_profiles_without_ignored_sampling_options(self) -> None:
+        with mock.patch("sys.argv", ["suite.py"]):
+            args = parse_args()
+        self.assertEqual(args.profile, "small")
+        self.assertFalse(hasattr(args, "mode"))
+        self.assertFalse(hasattr(args, "seed"))
+        self.assertFalse(hasattr(args, "sample_size"))
+
+        for option, value in (
+            ("--mode", "census"),
+            ("--seed", "7"),
+            ("--sample-size", "10"),
+        ):
+            with self.subTest(option=option), mock.patch(
+                "sys.argv", ["suite.py", option, value]
+            ), redirect_stderr(StringIO()), self.assertRaises(SystemExit):
+                parse_args()
+
     def test_evaluation_role_rejects_type_three_before_compile(self) -> None:
         for pair_set in (None, "type3"):
             args = SimpleNamespace(role="evaluation", pair_set=pair_set)
@@ -87,10 +106,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 cache_root=root / "data",
                 results_root=root / "results",
                 bce_dir=bce,
-                mode="census",
                 role="tuning",
-                seed=7,
-                sample_size=10,
                 verify_source=False,
                 srcdiff=srcdiff,
                 srcmove=srcmove,
@@ -153,6 +169,9 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 {item["pair_set"] for item in first["pair_sets"]},
                 {"type1", "type2", "type3", "known-false-positive"},
             )
+            self.assertEqual(first["request"]["mode"], "census")
+            self.assertNotIn("seed", first["request"])
+            self.assertNotIn("sample_size", first["request"])
             self.assertTrue(
                 all(item["snapshot_disposition"] == "reused" for item in second["pair_sets"])
             )

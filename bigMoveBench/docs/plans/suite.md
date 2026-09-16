@@ -7,8 +7,9 @@ implementation distinguishes whole-fragment moves/clones from non-moves using
 BigCloneBench:
 
 ```bash
-make bigmovebench-suite MODE=sample
-make bigmovebench-suite MODE=census
+make bigmovebench-suite PROFILE=small
+make bigmovebench-suite PROFILE=medium
+make bigmovebench-suite PROFILE=full
 ```
 
 The suite must report accuracy and srcMove performance by benchmark category.
@@ -154,38 +155,38 @@ downstream corpora but not the compiled dataset.
 
 ## Suite Modes
 
-### Sample
+### Frozen profiles
 
-The default development mode is a deterministic, seeded, stratified sample. It
-must include every supported pair set and enough size, functionality, project,
-similarity, and raw-text strata to expose regressions quickly. The exact seed,
-frame, selected IDs, and exclusions are saved.
+The default development profiles are checked-in, deterministic selections.
+`PROFILE=small` selects 20 cases per pair set and `PROFILE=medium` selects 100.
+Type-3 cases are balanced across the four declared strength bands. Their fixed
+seed, selected frames, and source selection identities are saved in
+`bigMoveBench/frozen_profiles.jsonl`.
 
 ### Census
 
-Census mode evaluates every eligible unique generated test after default
+`PROFILE=full` evaluates every eligible unique generated test after default
 deduplication. It reports pre-deduplication rows, unique tests, exclusions, and
 all upstream/tool failures. Census means the complete declared eligible frame,
 not every row in the database regardless of size, internal status, confidence,
 or source availability.
 
-Both modes keep tuning and held-out evaluation selections separate.
+All profiles keep tuning and held-out evaluation selections separate.
 
 ## Command and Output Requirements
 
 The final command should compile or reuse missing stages automatically:
 
 ```bash
-make bigmovebench-suite MODE=sample
+make bigmovebench-suite PROFILE=small
 ```
 
 Useful overrides may include:
 
 ```text
-MODE=sample|census
+PROFILE=small|medium|full
 ROLE=tuning|evaluation
-JOBS=<bounded worker count>
-SEED=<integer>
+PAIR_SET=type1|type2|type3|known-false-positive
 VERIFY_SOURCE=0|1
 ```
 
