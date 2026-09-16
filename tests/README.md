@@ -76,9 +76,9 @@ within-context statement cases, or `--catalog all` for everything.
 
 The core unit suite exercises generic process execution, XML validation,
 provenance, content identities, timeout cleanup, bounded logs, and interrupted
-attempt recovery. BigMoveBench's focused suite owns the offline snapshot,
-corpus, progress, replay, and orchestration tests. Its fake-executable fixtures
-cover checksum enforcement, resumable batches, retry lineage, semantic
+attempt recovery. BigMoveBench's focused suite owns the workflow-contract,
+snapshot, corpus, progress, replay, and orchestration tests. Its fake-executable
+fixtures cover checksum enforcement, resumable batches, retry lineage, semantic
 eligibility, strict match-kind enforcement, append-only summaries, reconciled
 outcomes, and reuse of immutable data across builds without installing or
 downloading BigCloneBench.

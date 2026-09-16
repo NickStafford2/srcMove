@@ -13,7 +13,6 @@ from benchmarks.contracts import (
     CONTRACT_VERSION,
     ProvenanceStatus,
     RunMode,
-    SemanticStatus,
     TerminationStatus,
     XmlStatus,
     canonical_json,
@@ -52,11 +51,6 @@ class BenchmarkContractTests(unittest.TestCase):
                 "not_checked",
             ],
         )
-        self.assertEqual(
-            [status.value for status in SemanticStatus],
-            ["eligible", "ineligible", "not_applicable", "not_checked"],
-        )
-
     def test_canonical_identity_ignores_object_key_order(self) -> None:
         left = {"schema_version": 1, "cases": ["a", "b"], "scope": None}
         right = {"scope": None, "cases": ["a", "b"], "schema_version": 1}

@@ -12,6 +12,7 @@ the conversion, selection, execution, and scoring methodology.
 - `compile.py` builds or reuses the catalog implemented by `catalog.py`.
 - `selection.py` publishes deterministic pair-set samples or censuses.
 - `snapshot.py` converts a compiled selection into immutable source inputs.
+- `contracts.py` defines source-pair, semantic-eligibility, and adapter types.
 - `corpus.py` owns the input-snapshot, srcDiff-corpus, and srcMove-run stages.
 - `progress.py` provides terminal-aware progress reporting for these commands.
 - `oracle.py` defines scoring; `evaluate.py` applies it to completed runs.

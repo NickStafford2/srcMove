@@ -22,7 +22,7 @@ from bigMoveBench.corpus import (
     generate_corpus,
     run_corpus,
 )
-from benchmarks.contracts import InputPair, SemanticResult, SemanticStatus
+from bigMoveBench.contracts import InputPair, SemanticResult, SemanticStatus
 
 
 class FixtureDirectoryAdapter:

@@ -1,18 +1,10 @@
-"""Shared contracts for the benchmark orchestration upgrade.
-
-This module intentionally contains only the vocabulary and identity mechanism
-needed before artifacts start moving. Repository and BigCloneBench adapters
-must use these contracts instead of inventing dataset-specific equivalents.
-"""
+"""Status vocabulary and content identity shared by benchmark components."""
 
 from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import dataclass, field
 from enum import StrEnum
-from pathlib import Path
-from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
 
 
 CONTRACT_VERSION = 2
@@ -44,13 +36,6 @@ class XmlStatus(StrEnum):
     EMPTY = "empty"
     MALFORMED = "malformed"
     INVALID_STRUCTURE = "invalid_structure"
-    NOT_CHECKED = "not_checked"
-
-
-class SemanticStatus(StrEnum):
-    ELIGIBLE = "eligible"
-    INELIGIBLE = "ineligible"
-    NOT_APPLICABLE = "not_applicable"
     NOT_CHECKED = "not_checked"
 
 
@@ -87,61 +72,3 @@ def content_identifier(kind: str, payload: JsonValue) -> str:
         )
     digest = hashlib.sha256(canonical_json(payload)).hexdigest()
     return f"{kind}-sha256-{digest}"
-
-
-@dataclass(frozen=True)
-class InputPair:
-    """Dataset-neutral old/new source pair to freeze in an input snapshot."""
-
-    case_id: str
-    original: Path
-    modified: Path
-    metadata: Mapping[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class MaterializedInputPair:
-    """One input pair written directly into input-snapshot staging."""
-
-    case_id: str
-    original: Mapping[str, Any]
-    modified: Mapping[str, Any]
-    metadata: Mapping[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class SemanticResult:
-    """Dataset-specific eligibility after generic XML admission."""
-
-    status: SemanticStatus
-    details: Mapping[str, Any] = field(default_factory=dict)
-
-
-class DatasetAdapter(Protocol):
-    """Boundary between datasets and shared benchmark orchestration.
-
-    Adapters expose input pairs and perform only dataset-specific semantic checks.
-    Process execution, provenance, artifact storage, and reporting remain the
-    responsibility of the shared core.
-    """
-
-    name: str
-    version: int
-
-    def input_pairs(self) -> Sequence[InputPair]: ...
-
-    def validate_semantics(
-        self, case: InputPair, srcdiff_xml: Path
-    ) -> SemanticResult: ...
-
-
-@runtime_checkable
-class SnapshotMaterializingAdapter(Protocol):
-    """Adapter that writes canonical inputs without an intermediate copy."""
-
-    name: str
-    version: int
-
-    def materialize_input_pairs(
-        self, sources_root: Path, excluded_suffixes: Sequence[str]
-    ) -> Sequence[MaterializedInputPair]: ...

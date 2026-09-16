@@ -18,13 +18,13 @@ from bigMoveBench.selection import (
     load_selection,
     type3_stratum,
 )
-from benchmarks.contracts import (
+from bigMoveBench.contracts import (
     InputPair,
     MaterializedInputPair,
     SemanticResult,
     SemanticStatus,
-    content_identifier,
 )
+from benchmarks.contracts import content_identifier
 from benchmarks.provenance import sha256_file
 
 

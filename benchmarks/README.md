@@ -37,12 +37,10 @@ dataset adapters, and publication runs is described in the
 
 ## Upgrade contracts
 
-`contracts.py` is the versioned shared boundary for the upgrade. It defines the
-canonical content-identity encoding, process/XML/provenance status vocabulary,
-development/publication labels, and the narrow interface implemented by dataset
-adapters. Dataset adapters expose old/new input pairs and add semantic eligibility
-checks; they must not replace shared execution, provenance, storage, or
-reporting.
+`contracts.py` defines the canonical content-identity encoding, shared
+process/XML/provenance status vocabulary, and development/publication labels.
+BigMoveBench owns its source-pair, semantic-eligibility, and adapter contracts
+in [`bigMoveBench/contracts.py`](../bigMoveBench/contracts.py).
 
 Phase 0 characterization is entirely offline. Tiny source and srcDiff fixtures,
 a configurable fake executable, and strict BigMoveBench oracle tests live under

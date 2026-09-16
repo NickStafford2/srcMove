@@ -13,14 +13,16 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Iterator, Mapping, Sequence
 
-from benchmarks.contracts import (
-    canonical_json,
+from bigMoveBench.contracts import (
     DatasetAdapter,
     InputPair,
     SnapshotMaterializingAdapter,
-    RunMode,
     SemanticResult,
     SemanticStatus,
+)
+from benchmarks.contracts import (
+    RunMode,
+    canonical_json,
     content_identifier,
 )
 from benchmarks.process import (
