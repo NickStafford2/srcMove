@@ -13,7 +13,7 @@ if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarks.contracts import RunMode
-from benchmarks.performance import build_schedule, run_performance
+from performance.benchmark import build_schedule, run_performance
 from benchmarks.provenance import sha256_file
 
 

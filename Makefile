@@ -17,7 +17,7 @@ VERIFY_SOURCE ?= 0
 BIGCLONEBENCH_CASE_OPTIONS = $(if $(CANDIDATE_LIMIT),--candidate-limit "$(CANDIDATE_LIMIT)") $(if $(DEDUPE),--dedupe "$(DEDUPE)") $(if $(TEXT_CHANGE),--text-change "$(TEXT_CHANGE)")
 BIGCLONEBENCH_SELECTION = $(if $(filter 1 yes true,$(KNOWN_FALSE_POSITIVES))$(filter known-false-positive,$(CLONE_TYPE)),--known-false-positives,--clone-type "$(CLONE_TYPE)")
 
-.PHONY: help configure build test test-unit test-bigmovebench test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-snapshot bigmovebench-suite bigmovebench-cases bigmovebench
+.PHONY: help configure build test test-unit test-bigmovebench test-performance test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-snapshot bigmovebench-suite bigmovebench-cases bigmovebench
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -25,6 +25,7 @@ help:
 	@printf '  %-28s %s\n' 'make test' 'Build and run every correctness suite'
 	@printf '  %-28s %s\n' 'make test-unit' 'Run all Python unit tests'
 	@printf '  %-28s %s\n' 'make test-bigmovebench' 'Run focused BigMoveBench unit tests'
+	@printf '  %-28s %s\n' 'make test-performance' 'Run focused performance benchmark unit tests'
 	@printf '  %-28s %s\n' 'make test-srcmove-history' 'Run srcmove-history unit tests'
 	@printf '  %-28s %s\n' 'make test-xml' 'Build and run XML regression tests'
 	@printf '  %-28s %s\n' 'make test-source' 'Build and run source-pair regression tests'
@@ -50,10 +51,13 @@ test: build
 	$(PYTHON) tests/run.py
 
 test-unit:
-	$(PYTHON) tests/run.py --suite unit --suite bigmovebench
+	$(PYTHON) tests/run.py --suite unit --suite bigmovebench --suite performance
 
 test-bigmovebench:
 	$(PYTHON) tests/run.py --suite bigmovebench
+
+test-performance:
+	$(PYTHON) tests/run.py --suite performance
 
 test-srcmove-history:
 	$(PYTHON) tests/run.py --suite srcmove-history

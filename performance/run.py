@@ -16,7 +16,7 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
         sys.path.insert(0, str(import_root))
 
 from benchmarks.contracts import RunMode
-from benchmarks.performance import (
+from performance.benchmark import (
     load_inputs,
     parse_named_path,
     run_performance,

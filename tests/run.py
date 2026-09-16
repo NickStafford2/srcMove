@@ -21,13 +21,21 @@ from support.tooling import command_text, find_srcdiff, find_srcmove, run_comman
 SUITE_DESCRIPTIONS = {
     "unit": "core Python unit tests",
     "bigmovebench": "focused BigMoveBench unit tests",
+    "performance": "focused performance benchmark unit tests",
     "srcmove-history": "focused srcmove-history unit tests",
     "xml": "checked-in srcDiff XML regression fixtures",
     "source": "checked-in source pairs regenerated through srcdiff",
     "policy": "reviewer-editable move and not-move catalogs regenerated through srcdiff",
 }
 
-DEFAULT_SUITES = ("unit", "bigmovebench", "xml", "source", "policy")
+DEFAULT_SUITES = (
+    "unit",
+    "bigmovebench",
+    "performance",
+    "xml",
+    "source",
+    "policy",
+)
 
 
 @dataclass(frozen=True)
@@ -168,6 +176,25 @@ def test_steps(
             )
         )
 
+    if not args.cases and "performance" in suites:
+        steps.append(
+            TestStep(
+                "performance benchmark unit",
+                [
+                    sys.executable,
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    "performance/tests",
+                    "-t",
+                    ".",
+                    "-p",
+                    "test_*.py",
+                ],
+            )
+        )
+
     if not args.cases and "srcmove-history" in suites:
         steps.append(
             TestStep(
@@ -283,7 +310,7 @@ def main() -> int:
     print("=== Test Summary ===")
     print(f"steps run: {len(steps)}")
     print(f"failures : {failures}")
-    print("benchmarks: excluded; run BigMoveBench or history scaling separately")
+    print("benchmark executions: excluded; run benchmark commands separately")
     return 1 if failures else 0
 
 

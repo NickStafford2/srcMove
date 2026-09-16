@@ -6,7 +6,8 @@ The repository `Makefile` is the developer interface. From the repository root:
 make test                         # build, then run every correctness suite
 make test-unit                    # all Python unit tests
 make test-bigmovebench            # BigMoveBench unit tests only
-make test-srcmove-history     # srcmove-history unit tests only
+make test-performance             # performance benchmark unit tests only
+make test-srcmove-history         # srcmove-history unit tests only
 make test-xml                     # build, then run XML regressions
 make test-source                  # build, then run source-pair regressions
 make test-policy                  # build, then run move-policy catalogs
@@ -34,6 +35,8 @@ python3 tests/regression/policy/list.py --catalog contextual
 - `unit`: core Python unit tests.
 - `bigmovebench`: focused tests under `bigMoveBench/tests/`; run explicitly
   with `make test-bigmovebench` and included by `make test-unit`.
+- `performance`: focused tests under `performance/tests/`; run explicitly with
+  `make test-performance` and included by `make test-unit`.
 - `srcmove-history`: focused unit tests under
   `tests/unit/srcmove_history/`; run explicitly with
   `make test-srcmove-history`.
@@ -107,6 +110,8 @@ SRCMOVE_BIN=/path/to/srcMove python3 tests/run.py --suite xml
 
 ## Benchmarks
 
-BigCloneBench and repository-scale workloads are experiments, not correctness
-test suites. They have separate runners and are never included implicitly by
-`tests/run.py`. See the [benchmark index](../benchmarks/README.md).
+BigCloneBench, performance measurements, and repository-scale workloads are
+experiments, not correctness test suites. Their small offline unit tests are
+included above, but benchmark executions use separate commands and are never
+started implicitly by `tests/run.py`. See the
+[benchmark index](../benchmarks/README.md).

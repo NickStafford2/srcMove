@@ -35,7 +35,6 @@ for import_root in (REPO_ROOT, TESTS_ROOT):
         sys.path.insert(0, str(import_root))
 
 from benchmarks.contracts import canonical_json
-from benchmarks.performance import describe
 from benchmarks.paths import DEFAULT_RESULTS_ROOT
 from benchmarks.process import write_json_atomic
 from benchmarks.provenance import (
@@ -46,6 +45,7 @@ from benchmarks.provenance import (
     sha256_file,
     utc_now,
 )
+from benchmarks.statistics import describe
 from srcmove_history.benchmarks.reference_repositories import (
     ensure_reference_repository,
     load_reference_configuration,

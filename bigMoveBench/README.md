@@ -335,7 +335,7 @@ partition is implemented. Publication enforcement
 and archive verification belong to Phase 6; Phase 4 development runs already
 retain their manifests and summaries by run identifier. Generate the immutable
 srcDiff corpus first, then use the shared
-[performance workflow](../benchmarks/README.md#performance-measurements) to compare srcMove
+[performance benchmark](../performance/README.md) to compare srcMove
 builds without rerunning BigCloneBench or srcDiff.
 
 ## Validation

@@ -7,7 +7,7 @@ correctness tests in `tests/`.
   BigCloneBench clone pairs and known false positives.
 - [History scaling](../srcmove_history/benchmarks/README.md): controlled throughput measurements
   for production `srcmove_history` analyses.
-- `run_performance.py`: paired/interleaved performance measurements over
+- [Performance benchmark](../performance/README.md): paired/interleaved measurements over
   immutable srcDiff XML that capture both external process timings and
   `srcMove --profile` stage timings.
 
@@ -45,8 +45,8 @@ a configurable fake executable, and strict BigMoveBench oracle tests live under
 `bigMoveBench/tests/`. BigCloneBench remains an external manual prerequisite;
 normal tests neither download it nor depend on historical large-run counts.
 
-`benchmarks/run_performance.py` reads existing XML inputs and writes ignored
-local performance runs under the selected results root.
+The [performance benchmark](../performance/README.md) reads existing XML inputs
+and writes ignored local runs under the selected results root.
 
 Previously archived thesis results are historical evidence, not regression
 expectations for the refactored implementation.
@@ -123,54 +123,6 @@ the same input snapshot, executable, and options skips recorded cases; use
 without replacing earlier evidence. `run` supports the same selection policy
 with `--resume-run RUN_ID`. Linux attempts record process-group peak RSS and
 cgroup OOM evidence when those interfaces are available.
-
-## Performance measurements
-
-Use `srcMove --profile` directly when you want a quick view of which internal
-pipeline stages are slow in one run. It writes coarse
-`profile.<stage>_ms=<milliseconds>` lines to standard error.
-
-Use `run_performance.py` when you need repeatable performance evidence. It
-compares one or more named srcMove builds on identical checksummed inputs,
-captures the internal `--profile` lines, and records external wall time, CPU
-time, memory, provenance, and run artifacts. The first `--variant` is the
-comparison baseline. The recorded schedule keeps builds adjacent for each
-case/repetition, rotates their order, and uses the declared seed to make the
-schedule reproducible:
-
-```bash
-python3 benchmarks/run_performance.py \
-  --variant baseline=/path/to/baseline/srcMove \
-  --variant candidate=/path/to/candidate/srcMove \
-  --corpus CORPUS_ID \
-  --warmups 1 \
-  --repetitions 6 \
-  --seed 2026 \
-  --cache-policy warm_os_cache
-```
-
-Use repeatable `--case CASE_ID` to select accepted corpus cases. For a small
-standalone experiment, replace `--corpus` with repeatable
-`--input NAME=/path/to/input.srcdiff.xml`. Measured repetitions must be at least
-the number of variants so each build can occupy each schedule position.
-
-Each append-only run is stored below
-`benchmark-results/performance/runs/<run-id>/` with:
-
-- `run.json`: input and binary checksums, provenance, environment, policy, and
-  the complete schedule
-- `raw.csv`: warmup and measured attempts, including failures, external wall/CPU
-  time, Linux peak RSS when available, workload sizes, and srcMove internal
-  timings
-- `summary.json`: per-build and per-case median/MAD summaries plus paired deltas
-  and ratios against the baseline
-- `attempts/`: exact commands, bounded logs, result JSON, terminal records, and
-  failed output evidence. Successful output XML is checksummed and structurally
-  validated, then discarded to avoid multiplying large corpus storage.
-
-The cache policy is declared metadata; the runner does not flush or warm caches
-implicitly. A completed run can contain failed measurements, returns a nonzero
-CLI status when it does, and retains those failures in `raw.csv` and the summary.
 
 ## Reporting wishlist
 

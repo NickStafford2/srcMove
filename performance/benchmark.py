@@ -8,7 +8,6 @@ import os
 import random
 import re
 import resource
-import statistics
 import tempfile
 import uuid
 import xml.etree.ElementTree as ET
@@ -25,6 +24,7 @@ from benchmarks.provenance import (
     sha256_file,
     utc_now,
 )
+from benchmarks.statistics import describe
 
 
 PERFORMANCE_RUN_SCHEMA_VERSION = 1
@@ -376,19 +376,6 @@ def write_raw_csv(path: Path, rows: Sequence[Mapping[str, Any]]) -> None:
         except FileNotFoundError:
             pass
         raise
-
-
-def describe(values: Sequence[float]) -> dict[str, int | float | None]:
-    if not values:
-        return {"n": 0, "median": None, "mad": None, "min": None, "max": None}
-    median = statistics.median(values)
-    return {
-        "n": len(values),
-        "median": median,
-        "mad": statistics.median(abs(value - median) for value in values),
-        "min": min(values),
-        "max": max(values),
-    }
 
 
 def build_summary(
