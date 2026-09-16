@@ -2,7 +2,7 @@
 
 ## Supported IJaDataset Layouts
 
-The generator supports both IJaDataset layouts distributed for BigCloneBench.
+The compiler supports both IJaDataset layouts distributed for BigCloneBench.
 The full corpus uses flat source-kind directories:
 
 ```text
@@ -17,8 +17,8 @@ ijadataset/bcb_reduced/<functionality_id>/<source_kind>/<filename>
 ```
 
 The reduced layout contains the Java files referenced by BigCloneBench without
-the millions of unrelated files in the full IJaDataset. The generator uses each
-clone row's `functionality_id` to resolve reduced-corpus paths; case selection,
+the millions of unrelated files in the full IJaDataset. Compilation uses each
+clone row's `functionality_id` to resolve reduced-corpus paths; selection,
 source ranges, and extracted text otherwise remain unchanged. If both layouts
 are installed, the flat full-corpus file takes precedence.
 
@@ -237,18 +237,17 @@ This is different from raw text equality:
 - Two fragments can differ by names or literals and still be Type-2.
 - Type-3 and Type-4 rows allow larger syntactic or semantic differences.
 
-This distinction matters for srcMove because the local generator writes the
-extracted raw source text into synthetic `original.java` and `modified.java`
-files. srcMove then sees the raw source, not BigCloneBench's normalized
+This distinction matters for srcMove because snapshot materialization writes
+the extracted raw source text into synthetic source and destination files.
+srcMove then sees the raw source, not BigCloneBench's normalized
 comparison form. A BigCloneBench similarity score can tell us which benchmark
 bucket a pair belongs to, but srcMove still needs its own exact, Type-2, or
 future similarity matching logic to detect the synthetic move.
 
 Type-1 deserves special care for srcMove. BigCloneEval describes Type-1
 similarity as allowing formatting/comment differences, so a srcMove test
-framework should not dedupe Type-1 cases by a whitespace-insensitive key by
-default. Raw extracted text is the safer default dedupe unit; trimmed keys are
-useful only as secondary audit metadata.
+framework should not dedupe Type-1 cases by a whitespace-insensitive key.
+BigMoveBench therefore groups the exact unordered pair of fragment hashes.
 
 ## Practical Implication For srcMove
 
@@ -274,13 +273,11 @@ This transformation is useful, but its metrics must be described honestly:
 - Type-1 whitespace/comment behavior should be covered by raw-text-aware
   BigCloneBench cases plus focused hand-authored fixtures.
   Most currently selected Type-1 BigCloneBench cases have identical extracted
-  raw text on both sides. To test whether srcMove handles Type-1
-  formatting/comment changes, use `--text-change raw-different` for the rare
-  BigCloneBench rows that actually differ in raw text, and keep small
-  checked-in fixtures that deliberately exercise whitespace and comment changes.
+  raw text on both sides. Keep small checked-in fixtures that deliberately
+  exercise whitespace and comment changes.
 
 See [BigMoveBench methodology](methodology.md)
-for the current local generator and runner design.
+for the current compilation, selection, execution, and scoring design.
 
 ## Local Installation
 
@@ -290,7 +287,7 @@ Install BigCloneEval manually under:
 bigMoveBench/data/BigCloneEval/
 ```
 
-This is the path used by `bigMoveBench/cases.py`. The local
+This is the path used by `bigMoveBench/installation.py`. The local
 checkout should contain BigCloneEval's `ReadMe.md`, `libs/`, the BigCloneBench
 H2 database under `bigclonebenchdb/`, and either supported IJaDataset layout
 described above.

@@ -20,8 +20,7 @@ the conversion, selection, execution, and scoring methodology.
 - `paths.py` owns the default BigMoveBench cache location.
 - `progress.py` provides terminal-aware progress reporting for these commands.
 - `oracle.py` defines scoring; `evaluate.py` applies it to completed runs.
-- `suite.py` is the primary benchmark command. `cases.py` and `pipeline.py`
-  retain the older development workflow while it is being removed.
+- `suite.py` is the benchmark entry point.
 - `tests/` and `docs/` contain BigMoveBench-specific verification and
   documentation. Generic execution, provenance, identity, and serialization
   infrastructure remains in `benchmarking/`.
@@ -34,9 +33,6 @@ for the selected cases: Type-1 must report `exact`, Type-2 must report `type2`,
 Type-3 must report `type3`, and the position/text oracle must pass. Type-3
 recall is observational: misses remain measurements rather than operational
 suite failures. These rates are not general accuracy, recall, or precision.
-The generated case directories live under
-`bigMoveBench/cases/` and are ignored by git.
-
 Known-false-positive results use a separate whole-fragment rejection metric and
 are never combined with the positive rates. See the
 [conversion methodology](docs/methodology.md).
@@ -155,8 +151,8 @@ The command validates the selection and compiled catalog without opening H2,
 verifies each selected fragment object, and writes generated old/new Java files
 straight into the shared content-addressed input snapshot. Synthetic class names
 derive from fragment-content identity, and all contributing rows remain in each
-case's snapshot metadata. The mutable `bigMoveBench/cases/` tree is
-not read or written.
+case's snapshot metadata. Materialization does not create a separate mutable
+case tree.
 
 ## Combined Suite
 
@@ -202,141 +198,15 @@ were sealed: they validate manifest identities and hash `srcdiff` and `srcMove`
 once, but do not revisit the original dataset or rehash selection JSONL,
 snapshot sources, or corpus XML. `VERIFY_SOURCE=1` is the explicit upstream
 audit; it rehashes the original H2 database, H2 driver, and selected Java
-sources before accepting a compiled cache. The compile, select, snapshot,
-corpus, and evaluate commands remain available as debugging interfaces, and
-direct snapshot/corpus loads retain full checksum verification.
+sources before accepting a compiled cache. The compile, select, and snapshot
+commands remain available as debugging interfaces, and direct snapshot/corpus
+loads retain full checksum verification.
 
-The workflow keeps generated sources, reusable srcDiff XML, and srcMove runs
-separate. Generate a deterministic tuning slice:
-
-```bash
-make bigmovebench-cases LIMIT=10
-```
-
-Generate the slice and run the staged benchmark with the workspace's srcDiff
-and srcMove builds in one command:
-
-```bash
-make bigmovebench LIMIT=10
-```
-
-The case generator defaults to `CLONE_TYPE=type1`, `LIMIT=100`,
-`SELECTION_ROLE=tuning`, and `CASES_DIR=bigMoveBench/cases`.
-`CANDIDATE_LIMIT`, `DEDUPE`, and `TEXT_CHANGE` can also be set as needed.
-These targets are available from either `srcMove` or the SrcMLBuildTemplate
-workspace root and run inside Docker when invoked from the workspace root.
-Interactive runs use one updating progress line per phase, including the current
-case and elapsed time. Redirected output uses sparse progress checkpoints. Tool
-failures appear immediately; detailed stdout and stderr remain in the saved
-attempt artifacts, and the final digest lists up to five failing cases.
-
-The command creates or reuses the input snapshot and corpus, records every
-srcDiff attempt, and writes a new append-only srcMove evaluation run.
-
-Input snapshots and corpora use content-derived identifiers; evaluation runs
-use unique append-only identifiers. Each process invocation owns an attempt
-directory containing an atomic terminal record, bounded logs, timeout cleanup,
-and XML validation. Only successful, structurally valid srcDiff XML is promoted
-into a corpus. Loading a snapshot or corpus directly verifies its checksums.
-The workflow excludes Python files from srcDiff snapshots because srcDiff does
-not currently process them reliably, and records those exclusions in the
-snapshot manifest.
-
-For debugging, invoke the lower-level pipeline directly. The equivalent setup
-and coupled benchmark commands are:
-
-```bash
-python3 bigMoveBench/pipeline.py preflight
-python3 bigMoveBench/pipeline.py cases \
-  --clone-type type1 --limit 10 --selection-role tuning
-python3 bigMoveBench/pipeline.py benchmark \
-  --clone-type type1 --cases-dir bigMoveBench/cases \
-  --srcdiff /workspace/srcDiff/build/bin/srcdiff \
-  --srcmove /workspace/srcMove/build/srcMove
-```
-
-To debug individual stages, create the input snapshot, corpus, and evaluation
-separately:
-
-```bash
-python3 bigMoveBench/pipeline.py snapshot --clone-type type1
-python3 bigMoveBench/pipeline.py corpus INPUT_SNAPSHOT_ID \
-  --srcdiff /path/to/srcdiff
-python3 bigMoveBench/pipeline.py evaluate CORPUS_ID \
-  --srcmove /path/to/srcMove
-```
-
-After corpus creation, any number of srcMove builds can be evaluated without
-BigCloneBench, its source files, or `srcdiff` being available.
-
-Each evaluation writes `summary.json` and `cases.csv` below its unique
-`benchmark-results/runs/<run-id>/` directory. Reports are never written to one
-shared summary path. The summary reconciles upstream failures, srcDiff semantic
-ineligibility, srcMove tool failures, misses, wrong classifications, other
-oracle failures, and strict passes. It reports both the end-to-end rate over all
-selected cases and the conditional rate over srcDiff-eligible cases.
-
-For Type-3, case metadata and `cases.csv` retain the frame's conservative BOTH
-similarity and strength stratum. `summary.json` reports outcomes, detection,
-strict classification, and rates separately for each strength stratum. Balanced
-sample rates are explicitly labeled unweighted and are never presented as a
-population-weighted estimate.
-
-The selected count can be below the requested limit after dedupe and filtering.
-The selection manifest declares the exact query and parameters, ordered row
-identifiers, input and tool checksums, pair direction, dedupe policy, and
-whether the cases are tuning or evaluation data. The default ordered
-convenience slice makes no claim about the wider BigCloneBench population.
-
-By default, generated cases are deduped by exact raw extracted fragment pairs:
-
-```bash
-python3 bigMoveBench/pipeline.py cases \
-  --dedupe raw-text-pair --limit 10
-```
-
-Raw text is the default because BigCloneBench Type-1 allows whitespace and
-comment differences. Collapsing those differences would remove useful Type-1
-move tests. Use `--dedupe none` only when you specifically want row-based
-BigCloneBench coverage, including duplicates.
-
-To focus on the rare Type-1 rows where the extracted fragments are not raw-text
-identical:
-
-```bash
-python3 bigMoveBench/pipeline.py cases \
-  --clone-type type1 --text-change raw-different
-```
-
-Run a smaller Type-2 sample:
-
-```bash
-python3 bigMoveBench/pipeline.py cases --clone-type type2 --limit 10
-```
-
-Generate and run known false positives as negative cases:
-
-```bash
-make bigmovebench CLONE_TYPE=known-false-positive LIMIT=10
-```
-
-The equivalent direct commands are:
-
-```bash
-python3 bigMoveBench/pipeline.py cases \
-  --known-false-positives --limit 10
-python3 bigMoveBench/pipeline.py benchmark \
-  --known-false-positives --cases-dir bigMoveBench/cases \
-  --srcdiff /workspace/srcDiff/build/bin/srcdiff \
-  --srcmove /workspace/srcMove/build/srcMove
-```
-
-The negative selection reads `false_positives`, retains the smaller joined
-function token count as reporting metadata without filtering on it, and defaults
-to at least one judge and one confidence point. Use `--min-judges` and
-`--min-confidence` when generating a stricter slice. Its manifest is
-`bcb_fp_manifest.json`; cases use the `bcb_fp_` prefix, so they cannot collide
-with positive Type-1/Type-2 selections.
+Each suite run keeps immutable generated-source snapshots, reusable srcDiff
+corpora, and append-only srcMove evaluations separate. Input snapshots and
+corpora use content-derived identifiers; evaluation runs use unique identifiers.
+Each process invocation records bounded logs, terminal status, timeout cleanup,
+and XML validation.
 
 The scoring rules live in `oracle.py`; BigMoveBench orchestration lives in
 `execution.py`, while generic execution and artifact management remain in the
@@ -346,7 +216,7 @@ independent of process orchestration.
 ## Thesis Data Runs
 
 For thesis or paper data, freeze the declared evaluation selection separately
-from tuning cases with `--selection-role evaluation`. Type-3 is currently
+from tuning cases with `ROLE=evaluation`. Type-3 is currently
 tuning/observational only: evaluation selection is rejected until a held-out
 partition is implemented. Publication enforcement
 and archive verification belong to Phase 6; Phase 4 development runs already

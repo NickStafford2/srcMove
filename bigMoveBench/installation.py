@@ -3,13 +3,19 @@
 from __future__ import annotations
 
 import shutil
+import sys
 from pathlib import Path
+
+
+PACKAGE_ROOT = Path(__file__).resolve().parent
+REPO_ROOT = PACKAGE_ROOT.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarking.provenance import sha256_file
 from benchmarking.tooling import run_command
 
 
-PACKAGE_ROOT = Path(__file__).resolve().parent
 BCE_DIR = PACKAGE_ROOT / "data" / "BigCloneEval"
 
 
@@ -73,3 +79,22 @@ def java_identity() -> dict[str, str]:
         "sha256": sha256_file(resolved),
         "version": version[0] if version else "unknown",
     }
+
+
+def main() -> int:
+    failures = preflight()
+    if failures:
+        print(
+            "error: BigCloneBench prerequisites are unavailable:",
+            file=sys.stderr,
+        )
+        for failure in failures:
+            print(f"  - {failure}", file=sys.stderr)
+        print("See bigMoveBench/README.md for setup guidance.", file=sys.stderr)
+        return 2
+    print("BigCloneBench preflight passed")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

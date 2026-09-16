@@ -13,8 +13,13 @@ from bigMoveBench.suite import (
     _print_report,
     run_suite,
 )
-from bigMoveBench.tests.test_pipeline import write_executable
 from bigMoveBench.tests import test_snapshot as snapshot_fixtures
+
+
+def write_executable(path: Path, source: str) -> Path:
+    path.write_text(source, encoding="utf-8")
+    path.chmod(0o755)
+    return path
 
 
 class BigCloneBenchSuiteTests(unittest.TestCase):

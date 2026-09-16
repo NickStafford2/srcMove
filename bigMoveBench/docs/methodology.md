@@ -177,7 +177,7 @@ Before a thesis evaluation, choose and freeze one of two defensible designs:
 
 The selection manifest must preserve the exact query and parameters, database
 checksum, ordered eligible and selected row IDs, pre/post-deduplication counts,
-sampling seed and strata when applicable, and generator/oracle versions. Report
+sampling seed and strata when applicable, and wrapper/oracle versions. Report
 functionality coverage and distinct raw-text-pair coverage so repeated clone rows
 cannot masquerade as independent variety.
 
@@ -205,49 +205,35 @@ BigCloneBench row and its multiplicity remain attached as provenance.
 
 ## Practical Test Layout
 
-Generate into a separate directory so the large suite is not mixed with small
-hand-authored e2e fixtures:
+The canonical workflow publishes content-addressed artifacts rather than a
+mutable directory of generated cases:
 
 ```text
-bigMoveBench/
-  cases/
-    bcb_t2_000001/
-      metadata.json
-      original/
-        source/input.java
-        destination/input.java
-      modified/
-        source/input.java
-        destination/input.java
+bigMoveBench/cache/
+  bigclonebench/
+    compiled/<dataset-id>/
+    selections/<selection-id>/
+  input-snapshots/<snapshot-id>/
+  corpora/<corpus-id>/
 ```
 
-`metadata.json` should record BigCloneBench IDs, source file locations, original
-BigCloneBench line ranges, generated synthetic line ranges, similarity fields,
-stable dedupe keys, and the exact deleted/inserted fragment text. The large-suite
-runner should validate by generated line ranges and counts instead of requiring
-stable srcMove UUIDs or absolute xpaths.
+Selection frames retain BigCloneBench row and function identities, similarity
+fields, fragment hashes, and pair direction. Snapshot metadata adds the exact
+deleted and inserted text plus generated line ranges. Evaluation uses those
+ranges and texts rather than requiring stable srcMove UUIDs or absolute xpaths.
 
-The generator defaults to `--dedupe raw-text-pair`, so a run selects distinct
-extracted fragment pairs before writing cases. Raw text is intentional for
-Type-1: BigCloneEval describes Type-1 similarity as allowing strict
-pretty-printing plus whitespace/comment/formatting variation, and srcMove should
-still be tested against those differences. `--dedupe none` is available for
-row-based BigCloneBench coverage, and `--dedupe trimmed-text-pair` is available
-only for auditing near-identical extracted text.
+Selection defaults to `--dedupe exact-unordered-fragment-pair`, which groups
+rows by the two extracted fragment hashes without erasing whitespace or comment
+differences. `--dedupe none` remains available for row-based audits. Reverse
+directions and duplicate source rows remain attached to the selected frame as
+evidence rather than producing repeated executions.
 
 Do not assume the BigCloneBench Type-1 frame contains thousands of
 formatting-only variants. With `syntactic_type = 1`, no token-size threshold,
 and `internal = FALSE`, the compiled catalog has 47,146 available rows but only
 951 unique unordered raw-fragment pairs. Most distinct pairs still contain
-identical extracted fragment text on both sides. Use `--text-change
-raw-different` when reviewing the small subset whose extracted fragments differ,
-and keep hand-authored whitespace/comment fixtures for targeted Type-1
-whitespace behavior.
-
-Each generator run writes a per-type manifest listing the selected case
-directories. The runner consumes that manifest instead of scanning all old
-ignored case directories, so a deduped run cannot be polluted by stale generated
-cases from a previous larger run.
+identical extracted fragment text on both sides. Keep hand-authored
+whitespace/comment fixtures for targeted Type-1 whitespace behavior.
 
 ## Known False-Positive Conversion
 
@@ -322,13 +308,13 @@ checkpoint time separately from tool execution.
 - BigCloneBench labels clones, not historical edits. The generated suite measures
   whether srcMove can recognize a synthetic move whose payload is drawn from a
   known clone pair.
-- The generator keeps positive clone rows and known-false-positive rows in
+- Selection keeps positive clone rows and known-false-positive rows in
   separate selections and reports. Negative cases measure rejection of the
   complete synthetic fragment pair; they are not part of the positive metric.
 - BigCloneBench pair rows can heavily repeat the same fragment texts. Report both
   row counts and distinct raw-text-pair counts when using these cases as a metric.
-- H2 embedded database access is single-process. Run BigCloneBench generator or
-  analysis commands serially; parallel queries can fail with a database lock.
+- H2 embedded database access is single-process. Run BigCloneBench compilation
+  or analysis commands serially; parallel queries can fail with a database lock.
 - Interpret BigCloneBench source ranges as LF-delimited line numbers. Some
   IJaDataset files contain standalone carriage-return characters inside comments,
   and treating those as line breaks shifts later extracted fragments.
@@ -341,5 +327,5 @@ checkpoint time separately from tool execution.
   extracted fragments should be filtered out.
 - Type-3 strict classification remains observational until srcMove grows a
   similarity matcher designed for it. Type-4 is not a required positive.
-- Keep the generator deterministic. A stable SQL `ORDER BY` makes failures
-  reproducible and lets you compare recall across srcMove versions.
+- Keep compilation and selection deterministic. Stable identities and ordering
+  make failures reproducible and support comparisons across srcMove versions.
