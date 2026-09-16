@@ -13,17 +13,15 @@ from typing import Callable
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
-TESTS_ROOT = REPO_ROOT / "tests"
-for import_root in (REPO_ROOT, TESTS_ROOT):
-    if str(import_root) not in sys.path:
-        sys.path.insert(0, str(import_root))
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.dataset import (
     extract_lines,
     source_path as resolve_source_path,
 )
-from support.tooling import format_process_failure, run_command
+from benchmarking.tooling import format_process_failure, run_command
 
 BCE_DIR = SCRIPT_DIR / "data" / "BigCloneEval"
 DEFAULT_OUT = SCRIPT_DIR / "cases"

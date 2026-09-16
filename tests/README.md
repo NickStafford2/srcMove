@@ -93,7 +93,7 @@ owns deterministic correctness-test selection and execution.
 
 ## Tool Selection
 
-All test and benchmark entry points use `tests/support/tooling.py` for executable
+All test and benchmark entry points use `benchmarking/tooling.py` for executable
 discovery and command execution. Explicit CLI paths take precedence, followed
 by `SRCMOVE_BIN` or `SRCDIFF_BIN`, workspace build outputs, and finally `PATH`.
 Override either tool when needed:

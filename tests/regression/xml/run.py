@@ -9,8 +9,10 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 TESTS_ROOT = SCRIPT_DIR.parents[1]
-if str(TESTS_ROOT) not in sys.path:
-    sys.path.insert(0, str(TESTS_ROOT))
+REPO_ROOT = TESTS_ROOT.parent
+for import_root in (REPO_ROOT, TESTS_ROOT):
+    if str(import_root) not in sys.path:
+        sys.path.insert(0, str(import_root))
 
 from support.cases import (
     TEST_RESULTS_ROOT,
@@ -23,7 +25,7 @@ from support.validation import (
     load_json,
     validate_results,
 )
-from support.tooling import find_srcmove, format_process_failure, run_command
+from benchmarking.tooling import find_srcmove, format_process_failure, run_command
 
 
 def parse_args() -> argparse.Namespace:

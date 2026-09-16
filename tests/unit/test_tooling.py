@@ -7,11 +7,11 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-TESTS_ROOT = Path(__file__).resolve().parents[1]
-if str(TESTS_ROOT) not in sys.path:
-    sys.path.insert(0, str(TESTS_ROOT))
+REPO_ROOT = Path(__file__).resolve().parents[2]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
-from support.tooling import (
+from benchmarking.tooling import (
     command_text,
     environment_with_tool,
     find_srcdiff,
@@ -36,7 +36,7 @@ class ToolDiscoveryTests(unittest.TestCase):
             _ = make_executable(root / "build" / "srcMove")
 
             with patch.dict(os.environ, {}, clear=True), patch(
-                "support.tooling.shutil.which", return_value=None
+                "benchmarking.tooling.shutil.which", return_value=None
             ):
                 self.assertEqual(find_srcmove(root, explicit), explicit)
 
@@ -51,7 +51,7 @@ class ToolDiscoveryTests(unittest.TestCase):
             path_srcdiff = make_executable(workspace / "path" / "srcdiff")
 
             with patch.dict(os.environ, {}, clear=True), patch(
-                "support.tooling.shutil.which", return_value=str(path_srcdiff)
+                "benchmarking.tooling.shutil.which", return_value=str(path_srcdiff)
             ):
                 self.assertEqual(find_srcdiff(repo_root), workspace_srcdiff)
 
@@ -62,7 +62,7 @@ class ToolDiscoveryTests(unittest.TestCase):
 
             with patch.dict(
                 os.environ, {"SRCMOVE_BIN": str(override)}, clear=True
-            ), patch("support.tooling.shutil.which", return_value=None):
+            ), patch("benchmarking.tooling.shutil.which", return_value=None):
                 self.assertEqual(find_srcmove(root), override)
 
     def test_invalid_explicit_path_does_not_fall_back(self) -> None:
@@ -71,7 +71,7 @@ class ToolDiscoveryTests(unittest.TestCase):
             _ = make_executable(root / "build" / "srcMove")
 
             with patch.dict(os.environ, {}, clear=True), patch(
-                "support.tooling.shutil.which", return_value=None
+                "benchmarking.tooling.shutil.which", return_value=None
             ):
                 self.assertIsNone(find_srcmove(root, root / "missing" / "srcMove"))
 

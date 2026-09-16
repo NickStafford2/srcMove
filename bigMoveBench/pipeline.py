@@ -14,10 +14,8 @@ from typing import Any, Callable, Mapping
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
-TESTS_ROOT = REPO_ROOT / "tests"
-for import_root in (REPO_ROOT, TESTS_ROOT):
-    if str(import_root) not in sys.path:
-        sys.path.insert(0, str(import_root))
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from bigMoveBench.adapter import (
     SEMANTIC_ORACLE_VERSION,
@@ -38,7 +36,7 @@ from bigMoveBench.corpus import (
 from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from benchmarking.paths import DEFAULT_RESULTS_ROOT
-from support.tooling import find_srcdiff, find_srcmove
+from benchmarking.tooling import find_srcdiff, find_srcmove
 
 
 DEFAULT_CASES_ROOT = SCRIPT_DIR / "cases"

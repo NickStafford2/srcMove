@@ -29,10 +29,8 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parents[1]
 REFERENCE_ROOT = REPO_ROOT / "reference-repositories"
 REFERENCE_REGISTRY = REFERENCE_ROOT / "repositories.json"
-TESTS_ROOT = REPO_ROOT / "tests"
-for import_root in (REPO_ROOT, TESTS_ROOT):
-    if str(import_root) not in sys.path:
-        sys.path.insert(0, str(import_root))
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from benchmarking.contracts import canonical_json
 from benchmarking.paths import DEFAULT_RESULTS_ROOT
@@ -52,7 +50,7 @@ from srcmove_history.benchmarks.reference_repositories import (
     normalize_repository_subdirectory,
 )
 from srcmove_history.git import select_older_first_parent_history
-from support.tooling import find_srcdiff, find_srcmove
+from benchmarking.tooling import find_srcdiff, find_srcmove
 
 
 SCALING_STUDY_SCHEMA_VERSION = 2

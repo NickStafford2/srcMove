@@ -1,1 +1,1 @@
-"""Shared infrastructure for srcMove tests and benchmarks."""
+"""Infrastructure used only by srcMove tests."""

@@ -10,11 +10,10 @@ def main() -> int:
     script_path = Path(__file__).resolve()
     canonical_dir = script_path.parent
     project_root = canonical_dir.parents[2]
-    tests_root = project_root / "tests"
-    if str(tests_root) not in sys.path:
-        sys.path.insert(0, str(tests_root))
+    if str(project_root) not in sys.path:
+        sys.path.insert(0, str(project_root))
 
-    from support.tooling import find_srcdiff, run_command
+    from benchmarking.tooling import find_srcdiff, run_command
 
     src_dir = canonical_dir / "sources"
     out_dir = canonical_dir / "generated"

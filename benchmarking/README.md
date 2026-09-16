@@ -42,6 +42,8 @@ benchmark suites listed above. It does not contain a benchmark suite itself.
 
 `contracts.py` defines the canonical content-identity encoding, shared
 process/XML/provenance status vocabulary, and development/publication labels.
+`tooling.py` provides the common executable-discovery and simple command helpers
+used by test and benchmark entry points.
 BigMoveBench owns its source-pair, semantic-eligibility, and adapter contracts
 in [`bigMoveBench/contracts.py`](../bigMoveBench/contracts.py).
 

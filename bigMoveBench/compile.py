@@ -16,10 +16,8 @@ from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
-TESTS_ROOT = REPO_ROOT / "tests"
-for import_root in (REPO_ROOT, TESTS_ROOT):
-    if str(import_root) not in sys.path:
-        sys.path.insert(0, str(import_root))
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
 
 from bigMoveBench.catalog import (
     VerifiedCompiledDataset,
@@ -35,7 +33,7 @@ from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from benchmarking.process import write_json_atomic
 from bigMoveBench.progress import ProgressDisplay
 from benchmarking.provenance import sha256_file
-from support.tooling import format_process_failure, run_command
+from benchmarking.tooling import format_process_failure, run_command
 
 
 EXPORT_CACHE_SCHEMA_VERSION = 1

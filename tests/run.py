@@ -11,11 +11,12 @@ from pathlib import Path
 
 TESTS_ROOT = Path(__file__).resolve().parent
 REPO_ROOT = TESTS_ROOT.parent
-if str(TESTS_ROOT) not in sys.path:
-    sys.path.insert(0, str(TESTS_ROOT))
+for import_root in (REPO_ROOT, TESTS_ROOT):
+    if str(import_root) not in sys.path:
+        sys.path.insert(0, str(import_root))
 
 from support.cases import REGRESSION_SUITES, regression_case_names
-from support.tooling import command_text, find_srcdiff, find_srcmove, run_command
+from benchmarking.tooling import command_text, find_srcdiff, find_srcmove, run_command
 
 
 SUITE_DESCRIPTIONS = {
