@@ -72,7 +72,7 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
 add_executable(srcMove ${SRC_FILES})
 configure_srcmove_target(srcMove)
 
-set(SRCMOVE_RECEIPT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/benchmarks/emit_build_receipt.py")
+set(SRCMOVE_RECEIPT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/emit_build_receipt.py")
 set(SRCMOVE_SOURCE_LOCK "${WORKSPACE_ROOT}/workspace.lock.json")
 set(SRCMOVE_BUILD_ENTRY_POINT "cmake --build ${CMAKE_BINARY_DIR} --target srcMove")
 if(CMAKE_BUILD_TYPE STREQUAL "")
