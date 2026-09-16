@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import io
 import tempfile
 import unittest
+from contextlib import redirect_stdout
 from pathlib import Path
 from unittest import mock
 
@@ -54,6 +56,29 @@ class BigCloneBenchInstallationTests(unittest.TestCase):
                 failures = installation.preflight(bce_dir)
 
         self.assertEqual(failures, [])
+
+    def test_successful_cli_lists_every_verified_prerequisite(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            bce_dir = Path(temporary) / "BigCloneEval"
+            database = bce_dir / "bigclonebenchdb" / "bcb.h2.db"
+            driver = bce_dir / "libs" / "h2-1.3.176.jar"
+            source = bce_dir / "ijadataset" / "default" / "example.java"
+            for path in (database, driver, source):
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.touch()
+            output = io.StringIO()
+            with mock.patch.object(
+                installation.shutil, "which", return_value="/usr/bin/java"
+            ), redirect_stdout(output):
+                status = installation.main(bce_dir)
+
+        self.assertEqual(status, 0)
+        rendered = output.getvalue()
+        self.assertIn("BigCloneBench preflight passed", rendered)
+        self.assertIn(f"[ok] Database:   {database}", rendered)
+        self.assertIn(f"[ok] H2 driver:  {driver}", rendered)
+        self.assertIn(f"[ok] IJaDataset: {bce_dir / 'ijadataset'} (flat layout)", rendered)
+        self.assertIn("[ok] Java:", rendered)
 
 
 if __name__ == "__main__":

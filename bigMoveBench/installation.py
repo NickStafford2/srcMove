@@ -19,6 +19,19 @@ from benchmarking.tooling import run_command
 BCE_DIR = PACKAGE_ROOT / "data" / "BigCloneEval"
 
 
+def _corpus_layouts(bce_dir: Path) -> list[str]:
+    ijadataset = bce_dir / "ijadataset"
+    layouts = []
+    if any(
+        next((ijadataset / kind).glob("*.java"), None) is not None
+        for kind in ("default", "sample", "selected")
+    ):
+        layouts.append("flat")
+    if next(ijadataset.glob("bcb_reduced/*/*/*.java"), None) is not None:
+        layouts.append("reduced")
+    return layouts
+
+
 def preflight(bce_dir: Path = BCE_DIR) -> list[str]:
     """Return actionable missing-prerequisite messages without fetching data."""
 
@@ -33,14 +46,7 @@ def preflight(bce_dir: Path = BCE_DIR) -> list[str]:
         if not path.exists()
     ]
     ijadataset = bce_dir / "ijadataset"
-    has_flat_sources = any(
-        next((ijadataset / kind).glob("*.java"), None) is not None
-        for kind in ("default", "sample", "selected")
-    )
-    has_reduced_sources = (
-        next(ijadataset.glob("bcb_reduced/*/*/*.java"), None) is not None
-    )
-    if not has_flat_sources and not has_reduced_sources:
+    if not _corpus_layouts(bce_dir):
         failures.append(
             "IJaDataset Java corpus not found: expected either "
             f"{ijadataset}/{{default,sample,selected}}/*.java or "
@@ -81,8 +87,9 @@ def java_identity() -> dict[str, str]:
     }
 
 
-def main() -> int:
-    failures = preflight()
+def main(bce_dir: Path = BCE_DIR) -> int:
+    bce_dir = bce_dir.expanduser().resolve()
+    failures = preflight(bce_dir)
     if failures:
         print(
             "error: BigCloneBench prerequisites are unavailable:",
@@ -92,7 +99,14 @@ def main() -> int:
             print(f"  - {failure}", file=sys.stderr)
         print("See bigMoveBench/README.md for setup guidance.", file=sys.stderr)
         return 2
+    layouts = " + ".join(_corpus_layouts(bce_dir))
+    java = shutil.which("java")
+    assert java is not None
     print("BigCloneBench preflight passed")
+    print(f"  [ok] Database:   {bce_dir / 'bigclonebenchdb' / 'bcb.h2.db'}")
+    print(f"  [ok] H2 driver:  {bce_dir / 'libs' / 'h2-1.3.176.jar'}")
+    print(f"  [ok] IJaDataset: {bce_dir / 'ijadataset'} ({layouts} layout)")
+    print(f"  [ok] Java:       {Path(java).resolve()}")
     return 0
 
 
