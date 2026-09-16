@@ -72,7 +72,7 @@ these observations; legacy coupled runners do not.
 
 ## Staged corpus workflow
 
-`pipeline.py` provides the shared input snapshot, attempt, corpus, and run stages.
+`corpus.py` provides the shared input snapshot, attempt, corpus, and run stages.
 Reusable stages default to `benchmark-cache/`; runs default to
 `benchmark-results/`.
 Input snapshots and corpora use content-derived identifiers; runs use unique,
