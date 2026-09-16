@@ -8,11 +8,11 @@ import unittest
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.repositories.reference import (
+from srcmove_history.benchmarks.reference_repositories import (
     ensure_reference_repository,
     load_reference_configuration,
     normalize_repository_subdirectory,

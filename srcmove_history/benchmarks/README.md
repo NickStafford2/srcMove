@@ -1,7 +1,7 @@
 # History Scaling Benchmark
 
 This directory contains the controlled throughput benchmark for the production
-[`srcmove_history`](../../srcmove_history/docs/runtime.md) analyzer. The former
+[`srcmove_history`](../docs/runtime.md) analyzer. The former
 two-revision repository benchmark has been retired; use `srcmove-history
 compare OLD NEW` for an intentional endpoint comparison.
 

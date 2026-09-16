@@ -8,11 +8,11 @@ import unittest
 from pathlib import Path
 
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
+REPO_ROOT = Path(__file__).resolve().parents[3]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarks.repositories.benchmark_history_scaling import (
+from srcmove_history.benchmarks.scaling import (
     _trial_data_storage,
     build_schedule,
     build_summary,
@@ -21,7 +21,7 @@ from benchmarks.repositories.benchmark_history_scaling import (
     run_trial as run_scaling_trial,
 )
 from benchmarks.provenance import sha256_file
-from benchmarks.repositories.srcmove_history_trial import (
+from srcmove_history.benchmarks.trial import (
     normalized_analysis_result,
     parse_args as parse_trial_args,
     run_trial as run_analysis_trial,
@@ -65,7 +65,7 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
             study_dir = root / "study"
             (study_dir / "trials").mkdir(parents=True)
             adapter = (
-                REPO_ROOT / "benchmarks/repositories/srcmove_history_trial.py"
+                REPO_ROOT / "srcmove_history/benchmarks/trial.py"
             )
 
             result = run_scaling_trial(

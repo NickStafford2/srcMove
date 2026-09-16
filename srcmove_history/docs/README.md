@@ -26,6 +26,6 @@ is the authority for behavior verified by the current implementation.
 - [Storage estimate](notes/storage_estimate.md)
 
 Benchmark-specific setup remains in
-[`benchmarks/repositories/README.md`](../../benchmarks/repositories/README.md).
+[`srcmove_history/benchmarks/README.md`](../benchmarks/README.md).
 Benchmarks may invoke `srcmove_history`, but they do not define its state or
 execution semantics.

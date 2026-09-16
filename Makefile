@@ -86,7 +86,7 @@ history-scaling:
 	@test -n "$(START)" || { echo 'error: START is required'; exit 2; }
 	@test -n "$(COUNT)" || { echo 'error: COUNT is required'; exit 2; }
 	@test -n "$(JOBS)" || { echo 'error: JOBS is required'; exit 2; }
-	@$(PYTHON) benchmarks/repositories/benchmark_history_scaling.py "$(CASE)" \
+	@$(PYTHON) srcmove_history/benchmarks/scaling.py "$(CASE)" \
 		--start "$(START)" --count "$(COUNT)" --jobs "$(JOBS)" \
 		$(if $(REPETITIONS),--repetitions "$(REPETITIONS)") \
 		$(if $(WARMUPS),--warmups "$(WARMUPS)") \

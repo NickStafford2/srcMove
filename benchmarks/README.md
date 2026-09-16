@@ -5,7 +5,7 @@ correctness tests in `tests/`.
 
 - [BigMoveBench](../bigMoveBench/README.md): srcMove's benchmark derived from
   BigCloneBench clone pairs and known false positives.
-- [History scaling](repositories/README.md): controlled throughput measurements
+- [History scaling](../srcmove_history/benchmarks/README.md): controlled throughput measurements
   for production `srcmove_history` analyses.
 - `run_performance.py`: paired/interleaved performance measurements over
   immutable srcDiff XML that capture both external process timings and

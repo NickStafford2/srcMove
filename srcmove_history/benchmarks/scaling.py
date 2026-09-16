@@ -46,7 +46,7 @@ from benchmarks.provenance import (
     sha256_file,
     utc_now,
 )
-from benchmarks.repositories.reference import (
+from srcmove_history.benchmarks.reference_repositories import (
     ensure_reference_repository,
     load_reference_configuration,
     normalize_repository_subdirectory,
@@ -393,7 +393,7 @@ def run_trial(
         analysis_result_path = trial_data_root / "analysis-result.json"
         command = [
             sys.executable,
-            str(SCRIPT_DIR / "srcmove_history_trial.py"),
+            str(SCRIPT_DIR / "trial.py"),
             "--analysis-root",
             str(analysis_root),
             "--output",
@@ -802,7 +802,7 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
             "implementation": {
                 "scaling_runner": observe_file(Path(__file__)),
                 "history_trial_adapter": observe_file(
-                    SCRIPT_DIR / "srcmove_history_trial.py"
+                    SCRIPT_DIR / "trial.py"
                 ),
             },
         },
@@ -814,8 +814,8 @@ def run_study(args: argparse.Namespace) -> tuple[Path, dict[str, Any]]:
         "srcdiff executable": (srcdiff, sha256_file(srcdiff)),
         "srcMove executable": (srcmove, sha256_file(srcmove)),
         "history trial adapter": (
-            SCRIPT_DIR / "srcmove_history_trial.py",
-            sha256_file(SCRIPT_DIR / "srcmove_history_trial.py"),
+            SCRIPT_DIR / "trial.py",
+            sha256_file(SCRIPT_DIR / "trial.py"),
         ),
     }
     try:
