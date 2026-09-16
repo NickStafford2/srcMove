@@ -60,12 +60,15 @@ class GeneratedObjectStoreTests(unittest.TestCase):
             self.assertIn(
                 "class BigMoveBenchDestination", destination.path.read_text()
             )
+            self.assertFalse(source.path.stat().st_mode & 0o222)
+            self.assertFalse(destination.path.stat().st_mode & 0o222)
 
     def test_rejects_corrupted_published_object(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             store = GeneratedObjectStore(Path(temporary))
             fragment = "void moved() {}\n"
             published = store.publish(STABLE_SOURCE_ROLE, fragment)
+            published.path.chmod(0o644)
             published.path.write_text("corrupted\n", encoding="utf-8")
 
             with self.assertRaisesRegex(ValueError, "content mismatch"):

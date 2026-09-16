@@ -97,6 +97,8 @@ class GeneratedObjectStore:
             finally:
                 temporary.unlink(missing_ok=True)
 
+        path.chmod(0o444)
+
         return GeneratedObject(
             object_id=object_id,
             wrapper_version=STABLE_WRAPPER_VERSION,

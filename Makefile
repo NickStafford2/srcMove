@@ -12,7 +12,7 @@ SEED ?= 0
 SAMPLE_SIZE ?= 100
 ROLE ?= tuning
 VERIFY_SOURCE ?= 0
-.PHONY: help configure build test test-unit test-bigmovebench test-performance test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-snapshot bigmovebench-suite
+.PHONY: help configure build test test-unit test-bigmovebench test-performance test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-plan bigmovebench-snapshot bigmovebench-suite
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -31,6 +31,7 @@ help:
 	@printf '  %-28s %s\n' 'make bigmovebench-compile' 'Compile or reuse the local BigCloneBench catalog'
 	@printf '  %-28s %s\n' 'make bigmovebench-conflicts' 'Explain content identities excluded for conflicting labels'
 	@printf '  %-28s %s\n' 'make bigmovebench-select' 'Publish a selection from the compiled catalog'
+	@printf '  %-28s %s\n' 'make bigmovebench-plan' 'Publish a normalized plan from a selection'
 	@printf '  %-28s %s\n' 'make bigmovebench-snapshot' 'Materialize an immutable compiled-selection snapshot'
 	@printf '  %-28s %s\n' 'make bigmovebench-suite' 'Run BigMoveBench PROFILE=small|medium (full is slow)'
 
@@ -118,6 +119,11 @@ bigmovebench-select:
 		--role "$(SELECTION_ROLE)" --seed "$(SEED)" \
 		--sample-size "$(SAMPLE_SIZE)" \
 		$(if $(DEDUPE),--dedupe "$(DEDUPE)")
+
+bigmovebench-plan:
+	@test -n "$(BIGCLONEBENCH_SELECTION_ID)" || { echo 'error: BIGCLONEBENCH_SELECTION_ID is required'; exit 2; }
+	@$(PYTHON) bigMoveBench/plan.py "$(BIGCLONEBENCH_SELECTION_ID)" \
+		--cache-root "$(BENCHMARK_CACHE_ROOT)"
 
 bigmovebench-snapshot:
 	@test -n "$(BIGCLONEBENCH_SELECTION_ID)" || { echo 'error: BIGCLONEBENCH_SELECTION_ID is required'; exit 2; }

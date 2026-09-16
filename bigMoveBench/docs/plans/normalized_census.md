@@ -1,7 +1,8 @@
 # Normalized Census Execution Plan
 
-Status: steps 1 and 2 are implemented. Stable wrapper objects exist, but the
-live suite does not use them yet; snapshots remain the current execution path.
+Status: steps 1 through 3 are implemented as a parallel, non-default path.
+Plans and the serial scratch runner exist, but the live suite does not use them;
+snapshots remain the current execution path.
 
 ## Goal
 
@@ -116,9 +117,9 @@ source of truth. Summary JSON and CSV are derived artifacts produced by queries.
    objects are implemented in `synthetic.py` and `generated_objects.py`. Focused
    tests show that storage scales with unique role/fragment objects rather than
    pairs. This code is not connected to the live suite yet.
-3. **Plan database:** publish normalized plans and implement a serial runner using
-   a reusable scratch archive. Keep the current workflow available for result
-   comparison.
+3. **Complete — plan database:** `plan.py` publishes normalized immutable plans
+   and provides a serial callback runner backed by one reusable four-file
+   scratch archive. The current workflow remains available for comparison.
 4. **Journal and streaming evaluation:** replace per-case manifest rewrites with
    transactional attempts and query-derived summaries; verify interruption and
    resume behavior.
@@ -154,6 +155,8 @@ slice. Before adding workers, require all of the following:
 
 ## Next Task
 
-Implement step 3 without removing the current workflow: publish an immutable
-normalized plan database and add a serial scratch-workspace runner suitable for
-equivalence tests. Do not add concurrency or change the scoring oracle.
+Implement step 4 without removing the current workflow: add a transactional
+attempt journal and stream srcDiff, semantic-gate, srcMove, and oracle results
+through the serial runner. Derive summaries from journal queries. Do not add
+parallelism or change the scoring oracle. Stop after step 4 so the verification
+gate can be exercised before any worker model is designed.
