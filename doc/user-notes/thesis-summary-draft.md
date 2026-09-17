@@ -1,3 +1,11 @@
+# Historical Thesis Summary Draft
+
+> This is preserved early thesis prose, not a statement of current behavior.
+> Several claims below predate the current deterministic Type-3 matcher and
+> evaluation infrastructure. Use the maintained
+> [thesis outline](thesis/README.md) and verified architecture documentation
+> when writing new thesis material.
+
 This document is a summary of the most essential information. I am adding this to my master's thesis.
 
 # Summary

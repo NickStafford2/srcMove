@@ -49,8 +49,11 @@ summaries or diagrams disagree with current behavior.
 - [Parallel programming upgrade plan](parallel_programming_upgrade_plan.md):
   staged design for bounded archive-level parallelism on large srcDiff inputs
 - [Backlog](backlog.md): open questions and candidate improvements
-- [`user-notes/`](user-notes/): thesis outlines, terminology, hypotheses, and
-  other exploratory material that does not define current behavior
+- [Master's thesis working draft](user-notes/thesis/README.md): chapter-level
+  prose, research questions, evidence gates, and writing tasks for srcMove,
+  BigMoveBench, srcVisual, srcMove History, and performance
+- [`user-notes/`](user-notes/): terminology, hypotheses, and other exploratory
+  material that does not define current behavior
 - [Thesis summary draft](user-notes/thesis-summary-draft.md): preserved thesis
   prose and aspirational research framing; not authoritative implementation
   documentation

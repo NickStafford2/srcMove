@@ -1,4 +1,8 @@
-# Repository for my master's thesis
+# Separate repository for the rendered thesis and publication artifacts
 thesis/
+
+# The tracked chapter outline belongs to srcMove's non-authoritative notes.
+!user-notes/thesis/
+!user-notes/thesis/**
 
 user-notes/papers/*.pdf
