@@ -322,5 +322,7 @@ string formatting differences introduced by the synthetic wrapper.
 Type-2 is a strict test mode. If current srcMove does not detect a generated
 BigCloneBench Type-2 pair, the command exits nonzero and reports the missed move.
 
-Type-3 and Type-4 moves are not supported. The syntactic type stored on a known
+Type-3 matching is implemented, but BigMoveBench currently treats its results
+as tuning/observational until a held-out evaluation partition is available.
+Type-4 moves are not supported. The syntactic type stored on a known
 false-positive row is descriptive metadata, not a positive move expectation.
