@@ -6,13 +6,14 @@ BENCHMARK_CACHE_ROOT ?= bigMoveBench/cache
 BENCHMARK_RESULTS_ROOT ?= benchmark-results
 BIGCLONEBENCH_DATASET ?=
 BIGCLONEBENCH_SELECTION_ID ?=
+BIGMOVEBENCH_CASES_ID ?=
 MODE ?= sample
 PROFILE ?= small
 SEED ?= 0
 SAMPLE_SIZE ?= 100
 ROLE ?= tuning
 VERIFY_SOURCE ?= 0
-.PHONY: help configure build test test-unit test-bigmovebench test-performance test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-snapshot bigmovebench-suite
+.PHONY: help configure build test test-unit test-bigmovebench test-performance test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-normalized-run bigmovebench-snapshot bigmovebench-suite
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -32,6 +33,7 @@ help:
 	@printf '  %-28s %s\n' 'make bigmovebench-conflicts' 'Explain content identities excluded for conflicting labels'
 	@printf '  %-28s %s\n' 'make bigmovebench-select' 'Publish a selection from the compiled catalog'
 	@printf '  %-28s %s\n' 'make bigmovebench-benchmark-cases' 'Publish normalized cases from a selection'
+	@printf '  %-28s %s\n' 'make bigmovebench-normalized-run' 'Run normalized cases through the serial journal'
 	@printf '  %-28s %s\n' 'make bigmovebench-snapshot' 'Materialize an immutable compiled-selection snapshot'
 	@printf '  %-28s %s\n' 'make bigmovebench-suite' 'Run BigMoveBench PROFILE=small|medium (full is slow)'
 
@@ -124,6 +126,16 @@ bigmovebench-benchmark-cases:
 	@test -n "$(BIGCLONEBENCH_SELECTION_ID)" || { echo 'error: BIGCLONEBENCH_SELECTION_ID is required'; exit 2; }
 	@$(PYTHON) bigMoveBench/benchmark_cases.py "$(BIGCLONEBENCH_SELECTION_ID)" \
 		--cache-root "$(BENCHMARK_CACHE_ROOT)"
+
+bigmovebench-normalized-run:
+	@test -n "$(BIGMOVEBENCH_CASES_ID)" || { echo 'error: BIGMOVEBENCH_CASES_ID is required'; exit 2; }
+	@$(PYTHON) bigMoveBench/normalized_execution.py "$(BIGMOVEBENCH_CASES_ID)" \
+		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
+		--results-root "$(BENCHMARK_RESULTS_ROOT)" \
+		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
+		--srcmove /workspace/srcMove/build/srcMove \
+		$(if $(RESUME_RUN),--resume-run "$(RESUME_RUN)") \
+		$(if $(filter 1 yes true,$(RETRY_FAILED)),--retry-failed)
 
 bigmovebench-snapshot:
 	@test -n "$(BIGCLONEBENCH_SELECTION_ID)" || { echo 'error: BIGCLONEBENCH_SELECTION_ID is required'; exit 2; }

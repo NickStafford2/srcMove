@@ -1,8 +1,9 @@
 # Normalized Census Architecture and Roadmap
 
-Status: steps 1 through 3 are implemented as a parallel, non-default path.
-Normalized benchmark cases and the serial scratch runner exist, but the live
-suite does not use them; snapshots remain the current execution path.
+Status: steps 1 through 4 are implemented as a parallel, non-default path.
+Normalized benchmark cases, the serial scratch runner, and the transactional
+execution journal exist, but the live suite does not use them; snapshots remain
+the current execution path. Step 5's verification gate has not been run.
 
 ## Goal
 
@@ -122,9 +123,13 @@ source of truth. Summary JSON and CSV are derived artifacts produced by queries.
    immutable benchmark cases and provides a serial callback runner backed by one
    reusable four-file scratch archive. The current workflow remains available
    for comparison.
-4. **Journal and streaming evaluation:** replace per-case manifest rewrites with
-   transactional attempts and query-derived summaries; verify interruption and
-   resume behavior.
+4. **Complete — journal and streaming evaluation:** `normalized_execution.py`
+   streams srcDiff, the semantic gate, srcMove, and the unchanged scoring oracle
+   through `SerialBenchmarkExecutionRunner`. Each terminal logical attempt is
+   one SQLite transaction, and both `summary.json` and `cases.csv` are bounded,
+   query-derived artifacts. Focused unit tests cover transaction recovery and
+   idempotent resume mechanics; step 5 retains the forced-process-termination
+   gate.
 5. **Stop and verify before parallelism:** compare current and normalized results
    on both frozen profiles, run a larger synthetic scale test, inspect disk and
    memory growth, and exercise forced interruption/restart. Resolve discrepancies
@@ -158,8 +163,8 @@ slice. Before adding workers, require all of the following:
 
 ## Next Task
 
-Implement step 4 without removing the current workflow: add a transactional
-attempt journal and stream srcDiff, semantic-gate, srcMove, and oracle results
-through the serial benchmark-case runner. Derive summaries from journal queries.
-Do not add parallelism or change the scoring oracle. Stop after step 4 so the
-verification gate can be exercised before any worker model is designed.
+Exercise step 5's verification gate on both frozen profiles and the synthetic
+scale workload. Reconcile every selected case and oracle outcome against the
+current snapshot workflow, measure memory and journal growth, and preserve the
+forced-interruption evidence. Do not design or add parallel workers until every
+gate item passes.

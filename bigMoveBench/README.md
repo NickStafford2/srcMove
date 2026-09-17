@@ -14,8 +14,10 @@ the conversion, selection, execution, and scoring methodology.
 - `synthetic.py` converts one selected fragment pair into a two-file move.
 - `generated_objects.py` provides the stable, content-addressed wrapper store
   used by normalized benchmark cases.
-- `benchmark_cases.py` publishes normalized case/object tables and provides the serial,
-  reusable scratch-archive runner. The live suite does not use this path yet.
+- `benchmark_cases.py` publishes normalized case/object tables and provides the
+  serial, reusable scratch-archive runner.
+- `normalized_execution.py` journals the normalized serial evaluation. The live
+  suite does not use this comparison path yet.
 - `snapshot.py` converts a compiled selection into immutable source inputs.
 - `contracts.py` defines source-pair, semantic-eligibility, and adapter types.
 - `corpus.py` owns the input-snapshot, srcDiff-corpus, and srcMove-run stages.
@@ -172,7 +174,21 @@ shared wrappers are stored once under `bigMoveBench/cache/generated-objects/`.
 The serial benchmark-case runner links each case's four objects into one
 temporary archive and reuses that archive for the next case. This is an
 experimental comparison path: `suite.py` continues to use immutable snapshots
-until the journal and equivalence gate are complete. See the
+until the equivalence gate is complete. Execute a published case catalog with:
+
+```bash
+make bigmovebench-normalized-run \
+  BIGMOVEBENCH_CASES_ID=<benchmark-cases-id>
+```
+
+The normalized runner records one logical attempt per case in
+`benchmark-results/bigMoveBench/runs/<run-id>/execution.sqlite`. It commits
+srcDiff admission, semantic eligibility, srcMove completion, and the unchanged
+scoring-oracle outcome together, then derives `summary.json` and `cases.csv`
+from journal queries. A resumed run seals unfinished rows as interrupted and
+skips every case with an already committed terminal attempt; use
+`RESUME_RUN=<run-dir>` to resume and `RETRY_FAILED=1` only to retry terminal tool
+or oracle failures. See the
 [normalized census architecture](docs/plans/normalized_census.md).
 
 ## Combined Suite

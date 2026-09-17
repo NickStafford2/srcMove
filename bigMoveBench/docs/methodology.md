@@ -296,14 +296,12 @@ cases where the exact same function pair carries both labels.
 
 ### Full-census execution cost
 
-The current srcDiff and srcMove corpus loops execute cases serially. They also
-rewrite the complete accumulated JSON batch or run manifest after every case.
-That checkpoint design is robust for small runs but its repeated whole-manifest
-serialization approaches quadratic I/O as a census grows. Before a multimillion
-Type-3 run, replace it with an append-only JSONL or SQLite execution journal,
-periodic compact checkpoints, deterministic shards, and bounded parallel
-workers. Preserve per-case resume and failure evidence while measuring
-checkpoint time separately from tool execution.
+The current snapshot workflow's serial corpus loops rewrite the accumulated JSON
+batch or run manifest after every case, so they remain a comparison path rather
+than the full-census execution model. The normalized path described in
+[`plans/normalized_census.md`](plans/normalized_census.md) commits each case to a
+SQLite journal. It must pass the equivalence, scaling, and interruption gate
+before a multimillion-case census or bounded parallel workers are introduced.
 
 - BigCloneBench labels clones, not historical edits. The generated suite measures
   whether srcMove can recognize a synthetic move whose payload is drawn from a
