@@ -9,7 +9,11 @@ an unrelated deletion and insertion, obscuring a relationship that is useful
 when reviewing, understanding, or studying software changes. This thesis
 introduces **srcMove**, a deterministic C++ post-processor that recovers move
 relationships from the structured source representation already embedded in
-srcDiff XML. srcMove selects statement-or-larger structural candidates,
+srcDiff XML. The thesis proposes a general Type-1 through Type-4 taxonomy that
+classifies how source fragments change while relocating and separates
+transformation type from granularity, spatial scope, cardinality, operation,
+temporal scope, and evidence. srcMove operationalizes the first three types by
+selecting statement-or-larger structural candidates,
 constructs canonical representations, and classifies accepted deletion and
 insertion relationships as exact, consistently normalized Type-2, or bounded
 Type-3 matches. It supports archive inputs so that relationships may cross file
@@ -42,4 +46,6 @@ languages, workloads, and oracles.
   cases in the final result wording.
 - TODO: Decide whether the repository-history observation is important enough
   to retain in the abstract.
+- TODO: Retain the taxonomy contribution only after the related-work review has
+  established its precise novelty and relationship to existing terminology.
 - TODO: Verify the university's word limit and required keyword format.

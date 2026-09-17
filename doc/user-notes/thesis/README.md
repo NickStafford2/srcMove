@@ -50,6 +50,7 @@ change the contribution-centered argument.
 
 | Contribution | Primary question | Placement |
 | --- | --- | --- |
+| Move taxonomy | How should source-code moves be classified independently of one detector, dataset, or implementation? | Section 2.3 |
 | srcMove | Can structured deletion/insertion regions be classified and annotated as source-code moves? | Chapter 4 |
 | BigMoveBench | How can detection, classification, and whole-fragment rejection be evaluated reproducibly at scale? | Chapter 5 |
 | srcVisual | How can structured differences and cross-file move relationships be inspected coherently? | Chapter 6 |
@@ -85,6 +86,9 @@ rules below:
 - Planned features are never written in the present tense.
 - Primary literature and original project/data documentation are preferred over
   secondary summaries.
+- Novelty claims for the move taxonomy require a dedicated literature review;
+  similarity to clone terminology must be acknowledged without conflating
+  clones and moves.
 - Prose advances the thesis argument; repository operation instructions remain
   in the canonical project documentation and are linked rather than copied.
 

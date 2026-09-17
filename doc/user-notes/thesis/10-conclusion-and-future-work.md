@@ -75,21 +75,25 @@ implemented and tested inspection requirements.]`
 
 Subject to the final evaluation, the thesis contributions are:
 
-1. **srcMove:** a deterministic C++ move-annotation pipeline for single-file
+1. **A proposed move taxonomy:** general Type-1 through Type-4 definitions for
+   classifying how source fragments change while relocating, separated from
+   orthogonal dimensions such as granularity, scope, cardinality, operation,
+   temporal scope, evidence, and ambiguity. `[NOVELTY REVIEW NEEDED]`
+2. **srcMove:** a deterministic C++ move-annotation pipeline for single-file
    and archive srcDiff XML, including cross-file matches and explicit Type-1,
    Type-2, and bounded Type-3 classifications.
-2. **srcReader integration improvements:** general reader/writer capabilities
+3. **srcReader integration improvements:** general reader/writer capabilities
    required by the srcMove pipeline, documented with their exact APIs, tests,
    commits, and upstream status. `[DETAILS NEEDED]`
-3. **BigMoveBench:** a reproducible system for compiling, selecting,
+4. **BigMoveBench:** a reproducible system for compiling, selecting,
    materializing, validating, executing, and reporting synthetic move
    experiments derived from BigCloneBench evidence.
-4. **srcVisual:** a companion application that derives synchronized XML, tree,
+5. **srcVisual:** a companion application that derives synchronized XML, tree,
    source, diff, and move views from one final annotated dataset.
-5. **srcMove History:** a resumable repository-history analyzer that records
+6. **srcMove History:** a resumable repository-history analyzer that records
    normalized move evidence across adjacent revisions and explicit endpoint
    comparisons.
-6. **Performance and provenance infrastructure:** controlled workload,
+7. **Performance and provenance infrastructure:** controlled workload,
    measurement, scaling, process-supervision, and build-identification support
    for evaluating the toolchain.
 
@@ -169,6 +173,17 @@ repositories or XML, srcVisual would require threat modeling, process and
 filesystem isolation, resource limits, input-size constraints, dependency
 hardening, and operational monitoring.
 
+### 10.4.8 Taxonomy validation and publication
+
+The proposed move taxonomy merits evaluation independently of srcMove. A
+follow-up study should conduct a systematic literature review, publish an
+annotation manual with positive and boundary examples, and ask independent
+reviewers to classify moves by type and orthogonal dimensions. Agreement and
+disagreement analysis would reveal which definitions are reproducible and which
+require refinement. The resulting taxonomy, example corpus, and validation
+could form a standalone paper rather than remaining only terminology embedded
+inside a detector thesis.
+
 ## 10.5 Closing statement
 
 The durable contribution of this work is an explicit, inspectable layer of move
@@ -189,4 +204,3 @@ the frozen evidence inserted into the placeholders above.
 - Remove any future-work item already implemented before submission.
 - Condense this chapter after results are final; the submitted conclusion should
   emphasize findings rather than repeat implementation detail.
-

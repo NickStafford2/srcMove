@@ -32,6 +32,16 @@ windows are the units for performance. Adjacent revision pairs and reported
 move groups are the units for history observations. These units must not be
 combined into one accuracy measure.
 
+The Type-1 through Type-4 move taxonomy is a conceptual contribution that
+precedes these detector-specific research questions. The taxonomy classifies
+the transformation being claimed; RQ1 evaluates how srcMove operationalizes
+Types 1 through 3 under its declared representations and oracles. A complete
+validation of the taxonomy itself would require a separate literature analysis,
+annotation guide, curated examples, and an agreement study among independent
+reviewers. Unless that study is included, the thesis should present the
+taxonomy as a proposed framework and avoid claiming that its boundaries have
+already been empirically validated.
+
 ## 3.2 RQ1: Synthetic detection and classification
 
 > **RQ1:** How effectively does srcMove detect and correctly classify synthetic

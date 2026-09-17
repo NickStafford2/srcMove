@@ -133,27 +133,32 @@ undifferentiated accuracy number.
 
 Subject to the final evaluation, this thesis makes the following contributions.
 
-1. **A deterministic move-annotation pipeline for srcDiff XML.** srcMove
+1. **A general taxonomy of source-code moves.** The thesis proposes Type-1
+   through Type-4 definitions based on how a fragment changes while relocating,
+   together with orthogonal dimensions for granularity, scope, cardinality,
+   operation, time, evidence, and ambiguity. The taxonomy is independent of one
+   detector; srcMove operationalizes only the first three types.
+2. **A deterministic move-annotation pipeline for srcDiff XML.** srcMove
    selects meaningful structural candidates and annotates exact, consistently
    normalized Type-2, and bounded Type-3 move relationships, including
    relationships across file units.
-2. **A reproducible synthetic evaluation method.** BigMoveBench transforms
+3. **A reproducible synthetic evaluation method.** BigMoveBench transforms
    labeled BigCloneBench fragment pairs into controlled cross-file revisions,
    records provenance, verifies srcDiff eligibility, and applies a strict
    whole-fragment detection-and-classification oracle.
-3. **Explicit separation of evaluation boundaries.** The evaluation reports
+4. **Explicit separation of evaluation boundaries.** The evaluation reports
    generated-case outcomes separately from conditional srcMove outcomes,
    treats known-false-positive rejection as narrower than general precision,
    and keeps tuning, publication, and historical exploratory evidence distinct.
-4. **A repository-history analysis system.** srcMove History runs the toolchain
+5. **A repository-history analysis system.** srcMove History runs the toolchain
    across adjacent Git revisions so detected events can be studied without
    reducing a long interval to a single endpoint comparison. Its findings are
    observational unless an independent ground-truth oracle is supplied.
-5. **A synchronized inspection interface.** srcVisual derives XML, tree,
+6. **A synchronized inspection interface.** srcVisual derives XML, tree,
    source, diff, and move views from one normalized annotated payload, making
    cross-file relationships inspectable without treating visualization as
    evidence of detector correctness.
-6. **Performance and provenance infrastructure.** Named workloads, stage
+7. **Performance and provenance infrastructure.** Named workloads, stage
    timings, process measurements, history-scaling experiments, and executable
    provenance support repeatable analysis of toolchain cost.
 

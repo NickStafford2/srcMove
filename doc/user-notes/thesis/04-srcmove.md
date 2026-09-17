@@ -18,6 +18,11 @@ from that input. The implementation is best understood as a deterministic
 classification and annotation pipeline over srcDiff regions, not as a general
 purpose differencer or a reconstruction of developer intent.
 
+Chapter 2 proposes Type-1 through Type-4 as a general taxonomy of moves. This
+chapter describes srcMove's particular operationalization of Types 1 through 3.
+The implementation thresholds and canonical forms make those concepts
+executable, but they do not define the only valid detector for each type.
+
 ## 4.2 Requirements and design goals
 
 The design grew from several requirements that are difficult to satisfy with a
@@ -371,8 +376,9 @@ match them. Its default granularity also excludes tiny fragments by design, so
 the absence of a reported token-level move is not necessarily a detector
 failure.
 
-The three match kinds are structural and lexical approximations. Type-4 clone
-variation is unsupported. Type-3 uses a fixed bounded-LCS rule rather than a
+The three implemented match kinds are structural and lexical approximations.
+Type-4 move continuity is outside srcMove's current scope. Type-3 uses a fixed
+bounded-LCS rule rather than a
 probabilistic confidence model, behavioral equivalence analysis, or learned
 similarity function. Context such as locality, repository history, and call
 relationships does not presently influence selection. Exact groups can express
