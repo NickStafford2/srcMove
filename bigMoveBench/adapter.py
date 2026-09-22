@@ -136,7 +136,6 @@ def compiled_selection_source_manifest(
             "functionality_group_count": None,
             "selection": {
                 "id": selection_manifest["selection_id"],
-                "role": request["role"],
                 "method": request["mode"],
                 "seed": (
                     request["sample"]["seed"]
@@ -152,7 +151,7 @@ class CompiledBigCloneBenchAdapter:
     """Materialize Phase 2 selections directly from the compiled fragment store."""
 
     name = "bigclonebench"
-    version = 6
+    version = 7
 
     def __init__(
         self,

@@ -34,7 +34,7 @@ from benchmarking.provenance import sha256_file, utc_now
 
 
 SELECTION_SCHEMA_VERSION = 1
-SELECTOR_VERSION = 2
+SELECTOR_VERSION = 3
 GENERATED_INPUT_IDENTITY_VERSION = 1
 DEFAULT_SAMPLE_SIZE = 100
 TYPE3_STRATA = (
@@ -673,7 +673,6 @@ def create_selection(
     data_root: Path,
     pair_set: str,
     mode: str,
-    role: str,
     dedupe: str = "exact-unordered-fragment-pair",
     sample_size: int = DEFAULT_SAMPLE_SIZE,
     seed: int = 0,
@@ -685,13 +684,6 @@ def create_selection(
         raise ValueError(f"unsupported pair set: {pair_set}")
     if mode not in {"sample", "census"}:
         raise ValueError(f"unsupported selection mode: {mode}")
-    if role not in {"tuning", "evaluation"}:
-        raise ValueError(f"unsupported selection role: {role}")
-    if pair_set == "type3" and role == "evaluation":
-        raise ValueError(
-            "Type-3 evaluation selection is unavailable: a held-out partition "
-            "has not been implemented; use role=tuning for observational runs"
-        )
     if dedupe not in DEDUPE_POLICIES:
         raise ValueError(f"unsupported dedupe policy: {dedupe}")
     if sample_size <= 0:
@@ -703,7 +695,6 @@ def create_selection(
         "compiled_manifest_sha256": compiled.manifest_sha256,
         "pair_set": pair_set,
         "mode": mode,
-        "role": role,
         "dedupe": dedupe,
         "direction": (
             "fragment-sha256-ascending"
@@ -1007,7 +998,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cache-root", type=Path, default=DEFAULT_CACHE_ROOT)
     parser.add_argument("--pair-set", choices=tuple(PAIR_SETS), required=True)
     parser.add_argument("--mode", choices=("sample", "census"), default="sample")
-    parser.add_argument("--role", choices=("tuning", "evaluation"), default="tuning")
     parser.add_argument("--dedupe", choices=DEDUPE_POLICIES, default=DEDUPE_POLICIES[0])
     parser.add_argument("--sample-size", type=int, default=DEFAULT_SAMPLE_SIZE)
     parser.add_argument("--seed", type=int, default=0)
@@ -1028,7 +1018,6 @@ def main() -> int:
                 data_root=args.cache_root,
                 pair_set=args.pair_set,
                 mode=args.mode,
-                role=args.role,
                 dedupe=args.dedupe,
                 sample_size=args.sample_size,
                 seed=args.seed,

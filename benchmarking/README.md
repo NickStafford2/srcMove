@@ -121,8 +121,7 @@ cases:
 - report true positives, false positives, false negatives, precision, recall,
   and F1, split by Type-1 and Type-2 cases;
 - report the number selected, excluded, semantically ineligible, executed, and
-  successfully scored so every accuracy denominator is auditable;
-- keep tuning and evaluation results separate and label them prominently.
+  successfully scored so every accuracy denominator is auditable.
 
 For performance and reliability:
 

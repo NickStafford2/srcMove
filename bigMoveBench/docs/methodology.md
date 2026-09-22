@@ -101,8 +101,8 @@ over its own normalized comparison form; srcMove uses its own srcML-derived
 statement/block and token sequences. A sound comparison should therefore report
 rank correlation, error or score differences, and detection/classification rates
 by BigCloneBench strength band rather than assuming equal numeric scores have
-identical meaning. Threshold tuning and final evaluation must use separate
-declared selections. See [the BigCloneBench data notes](bigclonebench.md#similarity_line--similarity_token)
+identical meaning. Report the declared selection and active srcMove threshold
+with every result. See [the BigCloneBench data notes](bigclonebench.md#similarity_line--similarity_token)
 for the upstream score interpretation.
 
 ## srcDiff Eligibility Boundary
@@ -323,9 +323,7 @@ before a multimillion-case census or bounded parallel workers are introduced.
 - Many BigCloneBench fragments depend on imports or surrounding class members.
   srcDiff/srcML parsing generally does not require compilation, but malformed
   extracted fragments should be filtered out.
-- Type-3 strict classification is observational until the workflow has a
-  frozen held-out evaluation partition; the current srcMove similarity matcher
-  is exercised for tuning and exploratory runs. Type-4 is not a required
-  positive and is not supported.
+- Type-3 strict classification is observational rather than a required passing
+  category. Type-4 is not a required positive and is not supported.
 - Keep compilation and selection deterministic. Stable identities and ordering
   make failures reproducible and support comparisons across srcMove versions.

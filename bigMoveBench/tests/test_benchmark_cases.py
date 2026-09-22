@@ -35,7 +35,6 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
             data_root=root / "data",
             pair_set=pair_set,
             mode="census",
-            role="tuning" if pair_set == "type3" else "evaluation",
         )
         benchmark_cases, disposition = publish_benchmark_cases(
             data_root=root / "data", selection=selection_directory
@@ -67,7 +66,6 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
             data_root=root / "data",
             pair_set="type3",
             mode="census",
-            role="tuning",
         )
         benchmark_cases, disposition = publish_benchmark_cases(
             data_root=root / "data", selection=selection_directory

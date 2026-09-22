@@ -171,7 +171,7 @@ all upstream/tool failures. Census means the complete declared eligible frame,
 not every row in the database regardless of size, internal status, confidence,
 or source availability.
 
-All profiles keep tuning and held-out evaluation selections separate.
+The profiles differ only in size. They are not tuning/evaluation partitions.
 
 ## Command and Output Requirements
 
@@ -185,7 +185,6 @@ Useful overrides may include:
 
 ```text
 PROFILE=small|medium|full
-ROLE=tuning|evaluation
 PAIR_SET=type1|type2|type3|known-false-positive
 VERIFY_SOURCE=0|1
 ```

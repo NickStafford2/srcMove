@@ -72,7 +72,6 @@ class BigCloneBenchSnapshotTests(unittest.TestCase):
             data_root=root / "data",
             pair_set=pair_set,
             mode="census",
-            role="tuning" if pair_set == "type3" else "evaluation",
         )
         # Phase 3 must need neither the original H2 database nor generated cases.
         (bce / "bigclonebenchdb" / "bcb.h2.db").unlink()
@@ -200,7 +199,6 @@ class BigCloneBenchSnapshotTests(unittest.TestCase):
                 data_root=root / "data",
                 pair_set="type1",
                 mode="census",
-                role="tuning",
             )
             frame = json.loads((selection_dir / "frames.jsonl").read_text().splitlines()[0])
             fragment_sha = frame["direction"]["original_fragment_sha256"]

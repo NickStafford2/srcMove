@@ -1,7 +1,6 @@
 PYTHON ?= python3
 CMAKE ?= cmake
 CLONE_TYPE ?= type1
-SELECTION_ROLE ?= tuning
 BENCHMARK_CACHE_ROOT ?= bigMoveBench/cache
 BENCHMARK_RESULTS_ROOT ?= benchmark-results
 BIGCLONEBENCH_DATASET ?=
@@ -11,7 +10,6 @@ MODE ?= sample
 PROFILE ?= small
 SEED ?= 0
 SAMPLE_SIZE ?= 100
-ROLE ?= tuning
 VERIFY_SOURCE ?= 0
 .PHONY: help configure build test test-unit test-bigmovebench test-performance test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-normalized-run bigmovebench-snapshot bigmovebench-suite
 
@@ -118,7 +116,7 @@ bigmovebench-select:
 	@$(PYTHON) bigMoveBench/selection.py "$(BIGCLONEBENCH_DATASET)" \
 		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
 		--pair-set "$(CLONE_TYPE)" --mode "$(MODE)" \
-		--role "$(SELECTION_ROLE)" --seed "$(SEED)" \
+		--seed "$(SEED)" \
 		--sample-size "$(SAMPLE_SIZE)" \
 		$(if $(DEDUPE),--dedupe "$(DEDUPE)")
 
@@ -146,7 +144,7 @@ bigmovebench-suite:
 	@$(PYTHON) bigMoveBench/suite.py \
 		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
 		--results-root "$(BENCHMARK_RESULTS_ROOT)" \
-		--profile "$(PROFILE)" --role "$(ROLE)" \
+		--profile "$(PROFILE)" \
 		$(if $(PAIR_SET),--pair-set "$(PAIR_SET)") \
 		$(if $(filter 1 yes true,$(VERIFY_SOURCE)),--verify-source) \
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \

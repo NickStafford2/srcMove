@@ -63,9 +63,6 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
-        "--role", choices=("tuning", "evaluation"), default="tuning"
-    )
-    parser.add_argument(
         "--pair-set",
         choices=tuple(PAIR_SET_LABELS),
         help="Run only one pair set (default: run the full suite).",
@@ -201,11 +198,6 @@ def _pair_result(
 def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
     selected_pair_set = getattr(args, "pair_set", None)
     profile = getattr(args, "profile", "full")
-    if args.role == "evaluation" and selected_pair_set in {None, "type3"}:
-        raise ValueError(
-            "Type-3 evaluation suite is unavailable: a held-out partition has "
-            "not been implemented; use ROLE=tuning or exclude Type-3"
-        )
     cache_root = args.cache_root.expanduser().resolve()
     results_root = args.results_root.expanduser().resolve()
     srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
@@ -246,7 +238,6 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                         data_root=cache_root,
                         pair_set=pair_set,
                         mode="census",
-                        role=args.role,
                         progress=progress,
                     )
                     if profile == "full"
@@ -255,7 +246,6 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                         data_root=cache_root,
                         pair_set=pair_set,
                         profile=profile,
-                        role=args.role,
                     )
                 )
             )
@@ -373,7 +363,6 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
         "request": {
             "profile": profile,
             "mode": "census" if profile == "full" else "preset",
-            "role": args.role,
             "verify_source": args.verify_source,
             "pair_set": selected_pair_set,
         },

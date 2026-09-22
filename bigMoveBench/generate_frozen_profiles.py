@@ -155,7 +155,6 @@ def generate(args: argparse.Namespace) -> tuple[Path, dict[str, int]]:
                 data_root=args.cache_root,
                 pair_set=pair_set,
                 mode="sample",
-                role="tuning",
                 sample_size=100,
                 seed=args.seed,
             )
@@ -163,7 +162,6 @@ def generate(args: argparse.Namespace) -> tuple[Path, dict[str, int]]:
         if (
             request["pair_set"] != pair_set
             or request["mode"] != "sample"
-            or request["role"] != "tuning"
             or request["sample"]["seed"] != args.seed
             or request["sample"]["size"] != 100
             or manifest["counts"]["selected_frames"] != 100

@@ -46,7 +46,6 @@ def create_frozen_selection(
     data_root: Path,
     pair_set: str,
     profile: str,
-    role: str,
 ) -> tuple[Path, Mapping[str, Any], bool]:
     preset, rows = _rows(profile, pair_set)
     identity = preset["compiled_dataset"]
@@ -57,17 +56,13 @@ def create_frozen_selection(
     }
     if identity != expected_identity:
         raise ValueError("frozen profiles belong to a different compiled dataset")
-    if pair_set == "type3" and role == "evaluation":
-        raise ValueError("Type-3 evaluation requires a held-out partition; use role=tuning")
-
     request = {
-        "selector_version": "frozen-profile-v1",
+        "selector_version": "frozen-profile-v2",
         "compiled_dataset_id": compiled.dataset_id,
         "compiled_manifest_sha256": compiled.manifest_sha256,
         "pair_set": pair_set,
         "mode": "preset",
         "profile": profile,
-        "role": role,
         "dedupe": "exact-unordered-fragment-pair",
         "direction": "fragment-sha256-ascending",
         "sample": {

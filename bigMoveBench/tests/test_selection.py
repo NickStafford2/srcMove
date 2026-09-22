@@ -117,7 +117,6 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 data_root=root / "data",
                 pair_set="type1",
                 mode="census",
-                role="evaluation",
             )
 
             self.assertFalse(reused)
@@ -155,7 +154,6 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 data_root=root / "data",
                 pair_set="type1",
                 mode="census",
-                role="evaluation",
             )
             self.assertTrue(second_reused)
             self.assertEqual(second_directory, directory)
@@ -201,7 +199,6 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                     data_root=root / "data",
                     pair_set="known-false-positive",
                     mode="census",
-                    role="tuning",
                     dedupe=dedupe,
                 )
                 self.assertEqual(manifest["counts"]["selected_frames"], 0)
@@ -238,7 +235,6 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                     data_root=root / "data",
                     pair_set="type1",
                     mode="sample",
-                    role="tuning",
                     sample_size=1,
                     seed=0,
                     dedupe=dedupe,
@@ -268,7 +264,6 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 data_root=root / "data",
                 pair_set="type1",
                 mode="sample",
-                role="tuning",
                 sample_size=1,
                 seed=17,
             )
@@ -277,21 +272,18 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 data_root=root / "data",
                 pair_set="type2",
                 mode="census",
-                role="tuning",
             )
             type3_dir, type3, _ = create_selection(
                 compiled,
                 data_root=root / "data",
                 pair_set="type3",
                 mode="census",
-                role="tuning",
             )
             negative_dir, negative, _ = create_selection(
                 compiled,
                 data_root=root / "data",
                 pair_set="known-false-positive",
                 mode="census",
-                role="tuning",
             )
 
             self.assertEqual(
@@ -314,7 +306,6 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 data_root=root / "data",
                 pair_set="type1",
                 mode="census",
-                role="tuning",
                 dedupe="none",
             )
             self.assertEqual(manifest["counts"]["selected_frames"], 2)
@@ -331,7 +322,6 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 data_root=root / "publication-one",
                 pair_set="type3",
                 mode="sample",
-                role="tuning",
                 sample_size=4,
                 seed=73,
             )
@@ -340,7 +330,6 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 data_root=root / "publication-two",
                 pair_set="type3",
                 mode="sample",
-                role="tuning",
                 sample_size=4,
                 seed=73,
             )
@@ -372,7 +361,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 first["counts"]["content_label_conflict_excluded_frames"], 1
             )
 
-    def test_type3_small_sample_and_evaluation_role_are_rejected(self) -> None:
+    def test_type3_sample_smaller_than_the_strata_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             compiled = self.compile_type3_fixture(root)
@@ -382,17 +371,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                     data_root=root / "small",
                     pair_set="type3",
                     mode="sample",
-                    role="tuning",
                     sample_size=3,
-                )
-            with self.assertRaisesRegex(ValueError, "held-out partition"):
-                create_selection(
-                    compiled,
-                    data_root=root / "evaluation",
-                    pair_set="type3",
-                    mode="sample",
-                    role="evaluation",
-                    sample_size=4,
                 )
 
     def test_type3_allocation_rejects_empty_strata_and_redistributes_caps(self) -> None:

@@ -42,16 +42,6 @@ class BigCloneBenchSuiteTests(unittest.TestCase):
             ), redirect_stderr(StringIO()), self.assertRaises(SystemExit):
                 parse_args()
 
-    def test_evaluation_role_rejects_type_three_before_compile(self) -> None:
-        for pair_set in (None, "type3"):
-            args = SimpleNamespace(role="evaluation", pair_set=pair_set)
-            with mock.patch(
-                "bigMoveBench.suite.ensure_compiled_dataset"
-            ) as compile_dataset:
-                with self.assertRaisesRegex(ValueError, "held-out partition"):
-                    run_suite(args)
-            compile_dataset.assert_not_called()
-
     def test_type_three_recall_is_observational_but_errors_fail(self) -> None:
         counts = {
             "selected": 2,
@@ -106,7 +96,6 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 cache_root=root / "data",
                 results_root=root / "results",
                 bce_dir=bce,
-                role="tuning",
                 verify_source=False,
                 srcdiff=srcdiff,
                 srcmove=srcmove,

@@ -95,8 +95,7 @@ deduplicated Type-1 frame with:
 
 ```bash
 make bigmovebench-select \
-  BIGCLONEBENCH_DATASET=<dataset-id> CLONE_TYPE=type1 MODE=census \
-  SELECTION_ROLE=evaluation
+  BIGCLONEBENCH_DATASET=<dataset-id> CLONE_TYPE=type1 MODE=census
 ```
 
 Use `CLONE_TYPE=type2`, `CLONE_TYPE=type3`, or
@@ -108,7 +107,7 @@ all four required bands (redistributing unavailable quota), then rank within
 each band. A frame with multiple catalog rows uses their minimum strength.
 Type-3 sample sizes below four, or catalogs missing a band, are rejected. Sample
 nonselections are aggregate manifest counts for Type-3 rather than one JSONL
-record per frame. The seed, role, sample size, pair set, and dedupe policy are
+record per frame. The seed, sample size, pair set, and dedupe policy are
 part of selection identity. The default
 `DEDUPE=exact-unordered-fragment-pair` retains one direction chosen by ascending
 fragment SHA-256; `DEDUPE=none` is the row-based audit mode.
@@ -231,8 +230,8 @@ status.
 
 Use `PROFILE=small|medium` for the checked-in reproducible profiles and
 `PROFILE=full` for the complete deduplicated census. Use
-`ROLE=tuning|evaluation`, `PAIR_SET=<pair-set>`, and `VERIFY_SOURCE=1` as
-needed. Normal development runs trust artifacts when they
+`PAIR_SET=<pair-set>` and `VERIFY_SOURCE=1` as needed. Normal development runs
+trust artifacts when they
 were sealed: they validate manifest identities and hash `srcdiff` and `srcMove`
 once, but do not revisit the original dataset or rehash selection JSONL,
 snapshot sources, or corpus XML. `VERIFY_SOURCE=1` is the explicit upstream
@@ -254,14 +253,12 @@ independent of process orchestration.
 
 ## Thesis Data Runs
 
-For thesis or paper data, freeze the declared evaluation selection separately
-from tuning cases with `ROLE=evaluation`. Type-3 is currently
-tuning/observational only: evaluation selection is rejected until a held-out
-partition is implemented. Publication enforcement
-and archive verification belong to Phase 6; Phase 4 development runs already
-retain their manifests and summaries by run identifier. BigMoveBench data is
-not reused for runtime experiments. Use independent, large, pre-existing
-srcDiff XML workloads with the
+For thesis or paper data, freeze the declared selection, dataset, oracle, and
+srcMove build used for the reported run. Type-3 remains observational rather
+than a required passing category. Publication enforcement and archive
+verification belong to Phase 6; Phase 4 development runs already retain their
+manifests and summaries by run identifier. BigMoveBench data is not reused for
+runtime experiments. Use independent, large, pre-existing srcDiff XML workloads with the
 [performance benchmark](../performance/README.md) when comparing srcMove
 builds.
 
@@ -323,6 +320,6 @@ Type-2 is a strict test mode. If current srcMove does not detect a generated
 BigCloneBench Type-2 pair, the command exits nonzero and reports the missed move.
 
 Type-3 matching is implemented, but BigMoveBench currently treats its results
-as tuning/observational until a held-out evaluation partition is available.
+as observational rather than requiring every Type-3 case to pass.
 Type-4 moves are not supported. The syntactic type stored on a known
 false-positive row is descriptive metadata, not a positive move expectation.
