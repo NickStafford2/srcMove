@@ -170,9 +170,10 @@ oracle versions that produced them.
 8. **Build one orchestration core.** Repository and BigCloneBench workflows are
    adapters over the same input snapshot, attempt, corpus, run, and reporting
    abstractions.
-9. **Separate tuning from evaluation.** Cases used to diagnose and tune srcMove
-   must remain identifiable; a thesis claim should use a frozen census or a
-   separately declared evaluation sample.
+9. **State the benchmark claim precisely.** BigMoveBench is a conformance and
+   characterization suite over its declared BigCloneBench-derived cases, not an
+   estimate of performance on unseen code. Freeze the dataset, selection,
+   oracle, and srcMove build for every reported thesis run.
 10. **Keep one source of truth.** Methodology and operational commands belong
    in each suite's documentation; shared infrastructure is documented in
    `benchmarking/README.md`; schemas belong beside their implementation.
@@ -576,8 +577,8 @@ Java identities, exact query and parameters, ordered selected row identifiers,
 selected source-file checksums, extraction/decoding policy, generator checksum,
 and oracle checksum. If cases are directed from fragment one to fragment two,
 say so; if direction is intended to be irrelevant, canonicalize or evaluate both
-directions. Results used during algorithm tuning remain labeled as tuning data
-and are not silently reused as a held-out thesis evaluation.
+directions. Report the final dataset, selection, oracle, and srcMove build
+without presenting the result as an estimate for unseen code.
 
 ### Repository evaluation
 
@@ -721,7 +722,7 @@ it is not a new benchmark design.
 - Store each run summary under its run identifier instead of overwriting one
   shared `summary.csv`.
 - Define the eligible population, pair direction, census or sampling method,
-  tuning/evaluation split, and selection-manifest fields before reporting a rate.
+  and selection-manifest fields before reporting a rate.
 - Preserve reproducible selection and version the positional/text and srcDiff
   semantic-eligibility oracles.
 - Report the strict synthetic positive-case detection-and-classification rate
@@ -890,9 +891,10 @@ the final consolidation phase:
 - **Sampling bias:** ordered first-N BigCloneBench rows can overrepresent repeated
   functionality. Use a declared census or seeded stratified sample and report
   distinct text-pair and functionality coverage.
-- **Benchmark overfitting:** promoting failures into regressions can tune srcMove
-  to the evaluation set. Label tuning cases and freeze a separate evaluation
-  census or sample before the thesis run.
+- **Limited external generalization:** benchmark-driven development can improve
+  agreement with BigCloneBench without proving performance on unseen code.
+  Describe the result as conformance to the declared benchmark and use the
+  repository-history study as separate observational evidence.
 - **srcDiff confounding:** valid XML may omit the intended candidate. Preserve
   end-to-end and conditional srcMove results with semantic eligibility explicit.
 - **Timeout censoring:** timeouts can make a faster tool appear more reliable or
@@ -935,7 +937,7 @@ the final consolidation phase:
 - input snapshot source retention, licensing boundaries, corpus distribution, and
   archival location for thesis reproducibility
 - BigCloneBench census or sampling frame, pair direction, randomization seed,
-  strata, and tuning/evaluation separation
+  and strata
 - annotation and sampling protocol for real-world precision review
 - conversion and negative oracle for BigCloneBench known false-positive pairs
 - exact Linux revisions and whether the first large run targets a subsystem

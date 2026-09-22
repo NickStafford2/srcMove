@@ -171,7 +171,7 @@ all upstream/tool failures. Census means the complete declared eligible frame,
 not every row in the database regardless of size, internal status, confidence,
 or source availability.
 
-The profiles differ only in size. They are not tuning/evaluation partitions.
+The profiles differ only in size.
 
 ## Command and Output Requirements
 
