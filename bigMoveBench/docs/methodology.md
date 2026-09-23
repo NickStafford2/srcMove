@@ -129,7 +129,7 @@ pipeline keeps these outcomes distinct:
 The per-run summary reports both the end-to-end strict pass rate over generated
 cases and the conditional srcMove detection-and-classification rate over
 srcDiff-eligible cases. The eligibility and scoring oracle versions are recorded
-in the corpus and run artifacts.
+in the benchmark-case and execution artifacts.
 
 ## Exploratory Query and Thesis Selection
 
@@ -182,10 +182,9 @@ functionality coverage and distinct raw-text-pair coverage so repeated clone row
 cannot masquerade as independent variety.
 
 BigCloneBench treats clone pairs as unordered, but the synthetic edit has a
-direction. The evaluation must declare whether `(A, B)` means only deleting A and
-inserting B, whether both directions are evaluated, or whether a canonical
-direction is chosen. Keep cases used to tune srcMove identifiable and freeze a
-separate evaluation census or sample for the final thesis result.
+direction. BigMoveBench uses one deterministic canonical direction per exact
+unordered fragment-content pair and retains reverse rows as provenance rather
+than executing the same generated input twice.
 
 The current compiled external dataset contains 8,648,734 available labeled pair
 rows: 47,146 Type-1 rows, 4,223 Type-2 rows, 8,323,944 Type-3 rows, and 273,421
@@ -213,14 +212,20 @@ bigMoveBench/cache/
   bigclonebench/
     compiled/<dataset-id>/
     selections/<selection-id>/
-  input-snapshots/<snapshot-id>/
-  corpora/<corpus-id>/
+  generated-objects/<object-id>.java
+  benchmark-cases/<benchmark-cases-id>/benchmark_cases.sqlite
+
+benchmark-results/bigMoveBench/runs/<run-id>/
+  execution.sqlite
+  summary.json
+  cases.csv
 ```
 
 Selection frames retain BigCloneBench row and function identities, similarity
-fields, fragment hashes, and pair direction. Snapshot metadata adds the exact
-deleted and inserted text plus generated line ranges. Evaluation uses those
-ranges and texts rather than requiring stable srcMove UUIDs or absolute xpaths.
+fields, fragment hashes, and pair direction. The benchmark-case database adds
+the generated-object references, exact deleted and inserted text, and generated
+line ranges. Evaluation uses those ranges and texts rather than requiring stable
+srcMove UUIDs or absolute xpaths.
 
 Selection defaults to `--dedupe exact-unordered-fragment-pair`, which groups
 rows by the two extracted fragment hashes without erasing whitespace or comment
@@ -296,12 +301,11 @@ cases where the exact same function pair carries both labels.
 
 ### Full-census execution cost
 
-The current snapshot workflow's serial corpus loops rewrite the accumulated JSON
-batch or run manifest after every case, so they remain a comparison path rather
-than the full-census execution model. The normalized path described in
-[`plans/normalized_census.md`](plans/normalized_census.md) commits each case to a
-SQLite journal. It must pass the equivalence, scaling, and interruption gate
-before a multimillion-case census or bounded parallel workers are introduced.
+The current runner is serial and commits one compact attempt per case to SQLite.
+This avoids permanent four-file case directories and repeated whole-run JSON
+rewrites. A multimillion-case Type-3 census still needs measured runtime and
+storage work; profiling and bounded parallelism are future performance work, not
+a second scientific workflow.
 
 - BigCloneBench labels clones, not historical edits. The generated suite measures
   whether srcMove can recognize a synthetic move whose payload is drawn from a

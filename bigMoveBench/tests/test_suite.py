@@ -14,7 +14,7 @@ from bigMoveBench.suite import (
     parse_args,
     run_suite,
 )
-from bigMoveBench.tests import test_snapshot as snapshot_fixtures
+from bigMoveBench.tests import test_benchmark_cases as benchmark_case_fixtures
 
 
 def write_executable(path: Path, source: str) -> Path:
@@ -56,13 +56,10 @@ class BigCloneBenchSuiteTests(unittest.TestCase):
         counts["srcmove_tool_failure"] = 1
         self.assertFalse(_pair_set_operational_pass("type3", counts))
 
-    def test_suite_threads_stage_ids_and_reuses_snapshots_and_corpora(self) -> None:
+    def test_suite_uses_normalized_cases_and_preserves_combined_report(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
-            fixture = snapshot_fixtures.BigCloneBenchSnapshotTests(
-                methodName="test_materializes_type_one_directly_and_reuses_snapshot"
-            )
-            bce, compiled = fixture.compile_fixture(root)
+            bce, compiled = benchmark_case_fixtures.compile_fixture(root)
             srcdiff = write_executable(
                 root / "srcdiff",
                 """#!/usr/bin/env python3
@@ -111,31 +108,10 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             ), redirect_stdout(StringIO()), redirect_stderr(progress_output):
                 first_dir, first, first_passed = run_suite(args)
 
-            from bigMoveBench import corpus as corpus_module
-
-            real_sha256_file = corpus_module.sha256_file
-
-            def reject_cached_payload_hash(path: Path) -> str:
-                if path.suffix in {".java", ".xml"}:
-                    raise AssertionError(f"cached payload was rehashed: {path}")
-                return real_sha256_file(path)
-
             with mock.patch(
                 "bigMoveBench.suite.ensure_compiled_dataset",
                 return_value=(compiled, True),
-            ), mock.patch(
-                "bigMoveBench.adapter.load_compiled_dataset",
-                side_effect=AssertionError("compiled catalog reopened on snapshot reuse"),
-            ), mock.patch(
-                "bigMoveBench.selection.sha256_file",
-                side_effect=AssertionError("selection artifact was rehashed"),
-            ), mock.patch(
-                "bigMoveBench.corpus._input_identity",
-                side_effect=AssertionError("snapshot inputs were traversed"),
-            ), mock.patch(
-                "bigMoveBench.corpus.sha256_file",
-                side_effect=reject_cached_payload_hash,
-            ), redirect_stdout(StringIO()):
+            ), redirect_stdout(StringIO()), redirect_stderr(StringIO()):
                 second_dir, second, second_passed = run_suite(args)
 
             self.assertFalse(first_passed)
@@ -150,7 +126,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                     for item in first["pair_sets"]
                 )
             )
-            self.assertTrue((args.cache_root / "corpora").is_dir())
+            self.assertTrue((args.cache_root / "benchmark-cases").is_dir())
             self.assertTrue((first_dir / "summary.json").is_file())
             self.assertTrue((second_dir / "summary.json").is_file())
             self.assertEqual(len(first["pair_sets"]), 4)
@@ -162,10 +138,10 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             self.assertNotIn("seed", first["request"])
             self.assertNotIn("sample_size", first["request"])
             self.assertTrue(
-                all(item["snapshot_disposition"] == "reused" for item in second["pair_sets"])
-            )
-            self.assertTrue(
-                all(item["corpus_disposition"] == "reused" for item in second["pair_sets"])
+                all(
+                    item["benchmark_cases_disposition"] == "reused"
+                    for item in second["pair_sets"]
+                )
             )
             self.assertEqual(
                 len({item["run_id"] for item in first["pair_sets"]}), 4
@@ -180,9 +156,12 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             self.assertEqual(type3["assessment"]["mode"], "observational")
             self.assertTrue(type3["assessment"]["operational_pass"])
             progress_report = progress_output.getvalue()
-            self.assertIn("[srcMove execution] failed: 1/1 100%", progress_report)
-            self.assertIn("passed 0/1 selected; missed 1", progress_report)
-            self.assertIn("passed 1/1 selected; false acceptances 0", progress_report)
+            self.assertIn(
+                "[normalized execution] complete: 1/1 100%",
+                progress_report,
+            )
+            self.assertIn("srcmove_miss", progress_report)
+            self.assertIn("oracle_pass", progress_report)
             output = StringIO()
             with redirect_stdout(output):
                 _print_report(first_dir, first)

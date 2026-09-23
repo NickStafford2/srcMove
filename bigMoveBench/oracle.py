@@ -318,8 +318,8 @@ def assess_positive_case(
         expected_from_range = expected_to_range = (0, -1)
 
     ranges_by_move: dict[str, dict[str, list[tuple[int, int]]]] = {}
-    # The corpus runner intentionally discards a validated XML artifact when
-    # srcMove reports zero moves. A present artifact must still be well formed.
+    # The runner may have no XML artifact when srcMove reports zero moves.
+    # A present artifact must still be well formed.
     if results.get("move_count") != 0 or srcmove_xml.exists():
         try:
             ranges_by_move = moved_position_ranges(srcmove_xml)

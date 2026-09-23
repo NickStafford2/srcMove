@@ -237,8 +237,8 @@ This is different from raw text equality:
 - Two fragments can differ by names or literals and still be Type-2.
 - Type-3 and Type-4 rows allow larger syntactic or semantic differences.
 
-This distinction matters for srcMove because snapshot materialization writes
-the extracted raw source text into synthetic source and destination files.
+This distinction matters for srcMove because case materialization writes the
+extracted raw source text into synthetic source and destination files.
 srcMove then sees the raw source, not BigCloneBench's normalized
 comparison form. A BigCloneBench similarity score can tell us which benchmark
 bucket a pair belongs to, but srcMove still needs its own exact, Type-2, or

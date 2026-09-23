@@ -38,12 +38,11 @@ summaries or diagrams disagree with current behavior.
   methodology for generating synthetic move cases
 - [BigMoveBench runner](../bigMoveBench/README.md): operational
   setup and commands
+- [BigMoveBench execution architecture](../bigMoveBench/docs/execution.md):
+  database-backed case storage, execution journaling, and scalability roadmap
 
 ## Planning and non-authoritative notes
 
-- [BigMoveBench suite plan](../bigMoveBench/docs/plans/suite.md): deduplicated Type-1,
-  Type-2, Type-3-strength, weak/semantic, and known-false-positive evaluation
-  over a compiled reusable dataset
 - [Benchmarking upgrade plan](benchmarking_upgrade_plan.md): staged design for
   reproducible accuracy, performance, reliability, and thesis data runs
 - [Parallel programming upgrade plan](parallel_programming_upgrade_plan.md):

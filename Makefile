@@ -6,13 +6,12 @@ BENCHMARK_RESULTS_ROOT ?= benchmark-results
 BIGCLONEBENCH_DATASET ?=
 BIGCLONEBENCH_SELECTION_ID ?=
 BIGMOVEBENCH_CASES_ID ?=
-BIGMOVEBENCH_REFERENCE_SUMMARY ?=
 MODE ?= sample
 PROFILE ?= small
 SEED ?= 0
 SAMPLE_SIZE ?= 100
 VERIFY_SOURCE ?= 0
-.PHONY: help configure build test test-unit test-bigmovebench test-performance test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-normalized-run bigmovebench-equivalence bigmovebench-snapshot bigmovebench-suite
+.PHONY: help configure build test test-unit test-bigmovebench test-performance test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-normalized-run bigmovebench-suite
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -33,8 +32,6 @@ help:
 	@printf '  %-28s %s\n' 'make bigmovebench-select' 'Publish a selection from the compiled catalog'
 	@printf '  %-28s %s\n' 'make bigmovebench-benchmark-cases' 'Publish normalized cases from a selection'
 	@printf '  %-28s %s\n' 'make bigmovebench-normalized-run' 'Run normalized cases through the serial journal'
-	@printf '  %-28s %s\n' 'make bigmovebench-equivalence' 'Compare normalized results with a suite summary'
-	@printf '  %-28s %s\n' 'make bigmovebench-snapshot' 'Materialize an immutable compiled-selection snapshot'
 	@printf '  %-28s %s\n' 'make bigmovebench-suite' 'Run BigMoveBench PROFILE=small|medium (full is slow)'
 
 configure:
@@ -136,19 +133,6 @@ bigmovebench-normalized-run:
 		--srcmove /workspace/srcMove/build/srcMove \
 		$(if $(RESUME_RUN),--resume-run "$(RESUME_RUN)") \
 		$(if $(filter 1 yes true,$(RETRY_FAILED)),--retry-failed)
-
-bigmovebench-equivalence:
-	@test -n "$(BIGMOVEBENCH_REFERENCE_SUMMARY)" || { echo 'error: BIGMOVEBENCH_REFERENCE_SUMMARY is required'; exit 2; }
-	@$(PYTHON) bigMoveBench/equivalence.py "$(BIGMOVEBENCH_REFERENCE_SUMMARY)" \
-		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
-		--results-root "$(BENCHMARK_RESULTS_ROOT)" \
-		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
-		--srcmove /workspace/srcMove/build/srcMove
-
-bigmovebench-snapshot:
-	@test -n "$(BIGCLONEBENCH_SELECTION_ID)" || { echo 'error: BIGCLONEBENCH_SELECTION_ID is required'; exit 2; }
-	@$(PYTHON) bigMoveBench/snapshot.py "$(BIGCLONEBENCH_SELECTION_ID)" \
-		--cache-root "$(BENCHMARK_CACHE_ROOT)"
 
 bigmovebench-suite:
 	@$(PYTHON) bigMoveBench/suite.py \

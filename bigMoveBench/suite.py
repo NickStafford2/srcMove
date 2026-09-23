@@ -4,7 +4,7 @@
 from __future__ import annotations
 
 import argparse
-import json
+import sqlite3
 import sys
 import time
 import uuid
@@ -17,14 +17,13 @@ REPO_ROOT = SCRIPT_DIR.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
+from bigMoveBench.benchmark_cases import publish_benchmark_cases
 from bigMoveBench.compile import ensure_compiled_dataset
-from bigMoveBench.execution import build_corpus, evaluate_corpus
 from bigMoveBench.evaluate import SCORING_ORACLE_VERSION
 from bigMoveBench.frozen_profiles import create_frozen_selection
 from bigMoveBench.installation import BCE_DIR
+from bigMoveBench.normalized_execution import SerialBenchmarkExecutionRunner
 from bigMoveBench.selection import create_selection
-from bigMoveBench.snapshot import materialize_compiled_selection
-from benchmarking.contracts import RunMode
 from benchmarking.storage import write_json_atomic
 from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
@@ -81,47 +80,6 @@ def _timed(call: Callable[[], Any]) -> tuple[Any, float]:
     return result, time.monotonic() - started
 
 
-def _activity(
-    progress: ProgressDisplay,
-) -> tuple[Callable[[str, str], None], dict[str, int]]:
-    counts = {"running": 0, "reused": 0, "completed": 0, "failed": 0}
-    completed = 0
-
-    def report(activity: str, case_id: str) -> None:
-        nonlocal completed
-        if activity in counts:
-            counts[activity] += 1
-        if activity == "running":
-            progress.update(completed, detail=case_id)
-        elif activity in {"accepted", "completed", "reused", "failed"}:
-            completed += 1
-            progress.update(completed, detail=case_id)
-
-    return report, counts
-
-
-def _attempt_resources(run_dir: Path, run_manifest: Mapping[str, Any]) -> dict[str, Any]:
-    process_seconds = 0.0
-    peak_rss: int | None = None
-    for case in run_manifest.get("cases", []):
-        attempt_id = case.get("attempt_id")
-        if not isinstance(attempt_id, str):
-            continue
-        path = run_dir / "attempts" / attempt_id / "attempt.json"
-        try:
-            attempt = json.loads(path.read_text(encoding="utf-8"))
-        except (OSError, json.JSONDecodeError):
-            continue
-        elapsed = attempt.get("process_elapsed_seconds")
-        if isinstance(elapsed, (int, float)):
-            process_seconds += float(elapsed)
-        resource = attempt.get("resource_usage", {})
-        observed_peak = resource.get("peak_rss_bytes")
-        if isinstance(observed_peak, int):
-            peak_rss = max(peak_rss or 0, observed_peak)
-    return {"process_seconds": process_seconds, "peak_rss_bytes": peak_rss}
-
-
 def _operational_failures(counts: Mapping[str, int]) -> int:
     return sum(counts[name] for name in OPERATIONAL_FAILURES)
 
@@ -140,17 +98,13 @@ def _pair_result(
     label: str,
     selection_manifest: Mapping[str, Any],
     selection_reused: bool,
-    snapshot: Any,
-    snapshot_disposition: str,
-    corpus: Any,
-    corpus_disposition: str,
+    benchmark_cases: Any,
+    benchmark_cases_disposition: str,
     run_dir: Path,
-    run_manifest: Mapping[str, Any],
     summary: Mapping[str, Any],
     timings: Mapping[str, float],
 ) -> dict[str, Any]:
     counts = summary["counts"]
-    resources = _attempt_resources(run_dir, run_manifest)
     detected = counts["oracle_pass"] + counts["wrong_classification"]
     operational_failures = _operational_failures(counts)
     observational = pair_set == "type3"
@@ -161,11 +115,9 @@ def _pair_result(
         "label": label,
         "selection_id": selection_manifest["selection_id"],
         "selection_reused": selection_reused,
-        "input_snapshot_id": snapshot.snapshot_id,
-        "snapshot_disposition": snapshot_disposition,
-        "corpus_id": corpus.corpus_id,
-        "corpus_disposition": corpus_disposition,
-        "run_id": run_manifest["run_id"],
+        "benchmark_cases_id": benchmark_cases.benchmark_cases_id,
+        "benchmark_cases_disposition": benchmark_cases_disposition,
+        "run_id": summary["run_id"],
         "run_directory": str(run_dir),
         "counts": dict(counts),
         "assessment": {
@@ -191,7 +143,17 @@ def _pair_result(
         },
         "selection_counts": dict(selection_manifest["counts"]),
         "type3_strength_strata": dict(type3_strength) if observational else {},
-        "timings": {**dict(timings), **resources},
+        "timings": {
+            **dict(timings),
+            "srcdiff_process_seconds": summary["timings"][
+                "srcdiff_process_seconds"
+            ],
+            "srcmove_process_seconds": summary["timings"][
+                "srcmove_process_seconds"
+            ],
+            "process_seconds": summary["timings"]["srcmove_process_seconds"],
+            "peak_rss_bytes": summary["resources"]["peak_rss_bytes"],
+        },
     }
 
 
@@ -221,13 +183,15 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
     (srcmove_observation, srcmove_observation_seconds) = _timed(
         lambda: observe_executable(srcmove)
     )
+    suite_id = f"suite-{utc_now().replace(':', '').replace('+', '-')}-{uuid.uuid4()}"
+    suite_dir = results_root / "bigMoveBench" / "suite-runs" / suite_id
     pair_results: list[dict[str, Any]] = []
-
     pair_sets = (
         ((selected_pair_set, PAIR_SET_LABELS[selected_pair_set]),)
         if selected_pair_set is not None
         else PAIR_SETS
     )
+
     for pair_set, label in pair_sets:
         selection_mode = "census" if profile == "full" else profile
         with ProgressDisplay("selection", detail=f"{label} {selection_mode}") as progress:
@@ -255,109 +219,48 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                 completion="reused" if selection_reused else "created",
             )
 
-        (snapshot_result, snapshot_seconds) = _timed(
-            lambda selection=selection_dir: materialize_compiled_selection(
-                data_root=cache_root, selection=selection
+        (benchmark_cases_result, benchmark_cases_seconds) = _timed(
+            lambda selection=selection_dir: publish_benchmark_cases(
+                data_root=cache_root,
+                selection=selection,
             )
         )
-        snapshot, snapshot_disposition = snapshot_result
-
-        with ProgressDisplay(
-            "srcDiff", total=snapshot.manifest["counts"]["selected"], detail=label
-        ) as progress:
-            callback, activity = _activity(progress)
-            (corpus, corpus_seconds) = _timed(
-                lambda: build_corpus(
-                    data_root=cache_root,
-                    input_snapshot=snapshot,
-                    srcdiff=srcdiff,
-                    timeout_seconds=args.srcdiff_timeout,
-                    retry_failed=False,
-                    activity_callback=callback,
-                    srcdiff_observation=srcdiff_observation,
-                )
-            )
-            corpus_disposition = "created" if activity["running"] else "reused"
-            progress.finish(
-                f"{corpus.manifest['counts']['semantic_eligible']:,} eligible",
-                completion=corpus_disposition,
-            )
-
-        eligible = corpus.manifest["counts"]["semantic_eligible"]
-        with ProgressDisplay(
-            "srcMove execution", total=eligible, detail=label
-        ) as progress:
-            callback, _ = _activity(progress)
-            (evaluation, evaluation_seconds) = _timed(
-                lambda: evaluate_corpus(
-                    data_root=cache_root,
-                    results_root=results_root,
-                    corpus=corpus,
-                    srcmove=srcmove,
-                    timeout_seconds=args.srcmove_timeout,
-                    mode=RunMode.DEVELOPMENT,
-                    activity_callback=callback,
-                    srcmove_observation=srcmove_observation,
-                )
-            )
-            run_dir, run_manifest, summary = evaluation
-            counts = summary["counts"]
-            passed = counts["oracle_pass"]
-            selected = counts["selected"]
-            if pair_set == "known-false-positive":
-                outcome_detail = (
-                    f"passed {passed:,}/{selected:,} selected; "
-                    f"false acceptances {counts['srcmove_false_positive']:,}"
-                )
-            elif pair_set == "type3":
-                strata = summary.get("strata", {}).get("type3_strength", {})
-                band_detail = "; ".join(
-                    f"{name} {values['strictly_classified']}/{values['selected']} strict, "
-                    f"{values['detected']}/{values['selected']} detected"
-                    for name, values in strata.items()
-                )
-                interpretation = (
-                    "balanced strength sample"
-                    if profile != "full"
-                    else "observational census"
-                )
-                outcome_detail = f"{interpretation}; {band_detail}"
-            else:
-                outcome_detail = (
-                    f"passed {passed:,}/{selected:,} selected; "
-                    f"missed {counts['srcmove_miss']:,}"
-                )
-            progress.finish(
-                outcome_detail,
-                success=_pair_set_operational_pass(pair_set, counts),
-            )
-
+        benchmark_cases, benchmark_cases_disposition = benchmark_cases_result
+        run_id = f"{suite_id}-{pair_set}"
+        run_dir = results_root / "bigMoveBench" / "runs" / run_id
+        (evaluation, execution_seconds) = _timed(
+            lambda: SerialBenchmarkExecutionRunner(
+                benchmark_cases,
+                run_dir=run_dir,
+                srcdiff=srcdiff,
+                srcmove=srcmove,
+                srcdiff_timeout_seconds=args.srcdiff_timeout,
+                srcmove_timeout_seconds=args.srcmove_timeout,
+                srcdiff_observation=srcdiff_observation,
+                srcmove_observation=srcmove_observation,
+            ).run()
+        )
+        _, summary = evaluation
         pair_results.append(
             _pair_result(
                 pair_set=pair_set,
                 label=label,
                 selection_manifest=selection_manifest,
                 selection_reused=selection_reused,
-                snapshot=snapshot,
-                snapshot_disposition=snapshot_disposition,
-                corpus=corpus,
-                corpus_disposition=corpus_disposition,
+                benchmark_cases=benchmark_cases,
+                benchmark_cases_disposition=benchmark_cases_disposition,
                 run_dir=run_dir,
-                run_manifest=run_manifest,
                 summary=summary,
                 timings={
                     "selection_seconds": selection_seconds,
-                    "snapshot_seconds": snapshot_seconds,
-                    "srcdiff_stage_seconds": corpus_seconds,
-                    "srcmove_stage_seconds": evaluation_seconds,
+                    "benchmark_cases_seconds": benchmark_cases_seconds,
+                    "execution_seconds": execution_seconds,
                 },
             )
         )
 
-    suite_id = f"suite-{utc_now().replace(':', '').replace('+', '-')}-{uuid.uuid4()}"
-    suite_dir = results_root / "bigMoveBench" / "suite-runs" / suite_id
     suite = {
-        "schema_version": 1,
+        "schema_version": 2,
         "suite_id": suite_id,
         "created_at": utc_now(),
         "request": {
@@ -507,10 +410,10 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
             " " * 26
             + f"selection {_seconds(timings['selection_seconds'])} "
             f"({'reused' if result['selection_reused'] else 'created'}); "
-            f"snapshot {_seconds(timings['snapshot_seconds'])} "
-            f"({result['snapshot_disposition']}); "
-            f"srcDiff {_seconds(timings['srcdiff_stage_seconds'])} "
-            f"({result['corpus_disposition']})"
+            f"cases {_seconds(timings['benchmark_cases_seconds'])} "
+            f"({result['benchmark_cases_disposition']}); "
+            f"execution {_seconds(timings['execution_seconds'])}; "
+            f"srcDiff {_seconds(timings['srcdiff_process_seconds'])}"
         )
 
     unique_tests = sum(item["counts"]["selected"] for item in suite["pair_sets"])
@@ -553,7 +456,7 @@ def main() -> int:
         directory, suite, passed = run_suite(args)
         _print_report(directory, suite)
         return 0 if passed else 1
-    except (OSError, RuntimeError, ValueError) as error:
+    except (OSError, RuntimeError, sqlite3.Error, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
 

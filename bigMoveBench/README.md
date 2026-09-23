@@ -13,16 +13,12 @@ the conversion, selection, execution, and scoring methodology.
 - `selection.py` publishes deterministic pair-set samples or censuses.
 - `synthetic.py` converts one selected fragment pair into a two-file move.
 - `generated_objects.py` provides the stable, content-addressed wrapper store
-  used by normalized benchmark cases.
-- `benchmark_cases.py` publishes normalized case/object tables and provides the
+  used by benchmark cases.
+- `benchmark_cases.py` publishes case/object tables and provides the
   serial, reusable scratch-archive runner.
-- `normalized_execution.py` journals the normalized serial evaluation. The live
-  suite does not use this comparison path yet.
-- `snapshot.py` converts a compiled selection into immutable source inputs.
-- `contracts.py` defines source-pair, semantic-eligibility, and adapter types.
-- `corpus.py` owns the input-snapshot, srcDiff-corpus, and srcMove-run stages.
-- `execution.py` configures those generic stages for BigMoveBench and applies
-  the benchmark evaluation.
+- `normalized_execution.py` runs cases and records each attempt in SQLite.
+- `contracts.py` defines the small source-pair and semantic-result value types.
+- `adapter.py` applies the srcDiff semantic-eligibility check.
 - `paths.py` owns the default BigMoveBench cache location.
 - `progress.py` provides terminal-aware progress reporting for these commands.
 - `oracle.py` defines scoring; `evaluate.py` applies it to completed runs.
@@ -143,24 +139,8 @@ Pass `BIGCLONEBENCH_DATASET=<dataset-id>` if the local compiled index contains
 more than one dataset. The report shows the contributing labels, syntactic types,
 and function IDs and confirms how many conflicts reuse the same BigCloneBench
 function pair.
-Reusing a selection validates all artifact checksums. Phase 3 materializes a
-Type-1, Type-2, Type-3, or known-false-positive selection directly from the
-compiled fragment store:
-
-```bash
-make bigmovebench-snapshot \
-  BIGCLONEBENCH_SELECTION_ID=<selection-id>
-```
-
-The command validates the selection and compiled catalog without opening H2,
-verifies each selected fragment object, and writes generated old/new Java files
-straight into the shared content-addressed input snapshot. Synthetic class names
-derive from fragment-content identity, and all contributing rows remain in each
-case's snapshot metadata. Materialization does not create a separate mutable
-case tree.
-
-The normalized census path can instead publish immutable benchmark-case tables
-whose rows reference shared generated objects:
+Phase 3 publishes an immutable benchmark-case database whose rows reference
+shared generated wrapper objects:
 
 ```bash
 make bigmovebench-benchmark-cases \
@@ -170,10 +150,8 @@ make bigmovebench-benchmark-cases \
 Benchmark cases are stored under
 `bigMoveBench/cache/benchmark-cases/<benchmark-cases-id>/benchmark_cases.sqlite`;
 shared wrappers are stored once under `bigMoveBench/cache/generated-objects/`.
-The serial benchmark-case runner links each case's four objects into one
-temporary archive and reuses that archive for the next case. This is an
-experimental comparison path: `suite.py` continues to use immutable snapshots
-until the equivalence gate is complete. Execute a published case catalog with:
+The serial runner links each case's four objects into one temporary archive and
+reuses that archive for the next case. Execute a published case database with:
 
 ```bash
 make bigmovebench-normalized-run \
@@ -188,12 +166,12 @@ from journal queries. A resumed run seals unfinished rows as interrupted and
 skips every case with an already committed terminal attempt; use
 `RESUME_RUN=<run-dir>` to resume and `RETRY_FAILED=1` only to retry terminal tool
 or oracle failures. See the
-[normalized census architecture](docs/plans/normalized_census.md).
+[execution architecture](docs/execution.md).
 
 ## Combined Suite
 
-Run every currently supported pair set without copying any dataset, selection,
-snapshot, or corpus identifier:
+Run every currently supported pair set without copying any intermediate
+identifier:
 
 ```bash
 make bigmovebench-suite PROFILE=small
@@ -201,12 +179,10 @@ make bigmovebench-suite PROFILE=medium
 ```
 
 The command compiles or reuses the dataset, publishes or reuses a deterministic
-selection for Type 1, Type 2, Type 3, and known false positives, reuses immutable
-snapshots and srcDiff corpora when their inputs and tool identity are unchanged,
-then creates a separate srcMove evaluation for each pair set. Results are never
-blended into one accuracy percentage. Combined run metadata is saved below
-`benchmark-results/bigMoveBench/suite-runs/` and links to each append-only
-evaluation run.
+selection and benchmark-case database for Type 1, Type 2, Type 3, and known
+false positives, then evaluates each pair set. Results are never blended into
+one accuracy percentage. Combined metadata is saved below
+`benchmark-results/bigMoveBench/suite-runs/` and links to each execution journal.
 
 Every compiled case is an isolated two-file archive. Both revisions retain
 `source/input.java` and `destination/input.java`; the payload is removed from a
@@ -233,34 +209,30 @@ Use `PROFILE=small|medium` for the checked-in reproducible profiles and
 `PAIR_SET=<pair-set>` and `VERIFY_SOURCE=1` as needed. Normal development runs
 trust artifacts when they
 were sealed: they validate manifest identities and hash `srcdiff` and `srcMove`
-once, but do not revisit the original dataset or rehash selection JSONL,
-snapshot sources, or corpus XML. `VERIFY_SOURCE=1` is the explicit upstream
+once, but do not revisit the original dataset or rehash every selected source.
+`VERIFY_SOURCE=1` is the explicit upstream
 audit; it rehashes the original H2 database, H2 driver, and selected Java
-sources before accepting a compiled cache. The compile, select, and snapshot
-commands remain available as debugging interfaces, and direct snapshot/corpus
-loads retain full checksum verification.
+sources before accepting a compiled cache. The compile, select,
+benchmark-case, and normalized-run commands remain available as diagnostic
+interfaces.
 
-Each suite run keeps immutable generated-source snapshots, reusable srcDiff
-corpora, and append-only srcMove evaluations separate. Input snapshots and
-corpora use content-derived identifiers; evaluation runs use unique identifiers.
-Each process invocation records bounded logs, terminal status, timeout cleanup,
-and XML validation.
+Each suite run keeps immutable benchmark inputs separate from its append-only
+execution journal. Benchmark cases use content-derived identifiers; execution
+runs use unique identifiers. Each process invocation records bounded logs,
+terminal status, timeout cleanup, and XML validation.
 
-The scoring rules live in `oracle.py`; BigMoveBench orchestration lives in
-`execution.py`, while generic execution and artifact management remain in the
-shared `benchmarking/` infrastructure. This separation keeps the oracle
-independent of process orchestration.
+The scoring rules live in `oracle.py` and `evaluate.py`; orchestration lives in
+`suite.py` and `normalized_execution.py`. The oracle remains independent of
+process orchestration.
 
 ## Thesis Data Runs
 
 For thesis or paper data, freeze the declared selection, dataset, oracle, and
 srcMove build used for the reported run. Type-3 remains observational rather
-than a required passing category. Publication enforcement and archive
-verification belong to Phase 6; Phase 4 development runs already retain their
-manifests and summaries by run identifier. BigMoveBench data is not reused for
-runtime experiments. Use independent, large, pre-existing srcDiff XML workloads with the
-[performance benchmark](../performance/README.md) when comparing srcMove
-builds.
+than a required passing category. Runs retain their manifests and summaries by
+identifier. BigMoveBench data is not reused for runtime experiments. Use
+independent, large, pre-existing srcDiff XML workloads with the
+[performance benchmark](../performance/README.md) when comparing srcMove builds.
 
 ## Validation
 
@@ -273,8 +245,9 @@ builds.
   incorrectly treat every shared child subtree as a whole-pair false positive.
 - One reported move must link both complete generated texts, and the XML
   delete/insert annotations carrying that move's ID and link attributes must
-  overlap the synthetic ranges stored in `metadata.json`. Positions belonging
-  to another move cannot satisfy the oracle; unrelated extra moves are allowed.
+  overlap the synthetic ranges stored in the benchmark-case database. Positions
+  belonging to another move cannot satisfy the oracle; unrelated extra moves
+  are allowed.
 - The reported delete and insert raw texts must match their own expected
   generated fragment texts after wrapper indentation normalization. Type-2 does
   not require the delete text to equal the insert text.
@@ -289,28 +262,6 @@ is considered only when either side contains the Unicode replacement character
 `�` or the common mojibake spelling `ï¿½`; the runner then tries a Latin-1 to
 UTF-8 repair and normalizes `ï¿½` back to `�`. It does not ignore ordinary text,
 comment, whitespace, or identifier differences.
-
-The summary's `failure_class` column groups common outcomes:
-
-- `pass_strict`: the case passed strict validation.
-- `pass_encoding_tolerant`: the case passed only after the encoding-damage
-  tolerance.
-- `no_move_raw_different`: srcMove reported no move and the BigCloneBench
-  fragments are not raw-text-identical. These usually need manual review because
-  comments, formatting, or a bad extracted range may explain the mismatch.
-- `no_move_raw_identical`: srcMove reported no move even though the extracted
-  fragments are raw-text-identical.
-- `too_many_expected_child_moves`: srcMove found moves inside the expected
-  BigCloneBench fragment instead of one move for the whole fragment.
-- `anchor_only_false_positive`: legacy bucket for runs generated with method
-  anchors where srcMove reported only synthetic wrapper anchor moves, not the
-  BigCloneBench fragment.
-- `mixed_anchor_and_payload_moves`: legacy bucket for runs generated with method
-  anchors where srcMove reported at least one wrapper anchor move alongside
-  other moves.
-- `text_mismatch`, `tool_failure`, `invalid_results`, `validation_failure`, and
-  `unknown_failure`: fallback buckets for runner/tool failures or results that
-  do not match a more specific BigCloneBench pattern.
 
 The runner invokes `srcdiff` with `--position` so `srcmove.xml` contains
 `pos:start` / `pos:end` attributes. This makes the oracle independent of raw

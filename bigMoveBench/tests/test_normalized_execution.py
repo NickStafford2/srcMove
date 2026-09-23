@@ -128,6 +128,22 @@ class NormalizedExecutionTests(unittest.TestCase):
             self.assertEqual(summary["status"], "completed")
             self.assertEqual(summary["counts"]["selected"], 2)
             self.assertEqual(summary["counts"]["oracle_pass"], 2)
+            self.assertEqual(summary["counts"]["strict_passes"], 2)
+            self.assertEqual(
+                summary["rates"][
+                    "conditional_srcmove_detection_and_classification"
+                ],
+                1.0,
+            )
+            self.assertEqual(
+                sum(
+                    group["selected"]
+                    for group in summary["strata"]["type3_strength"].values()
+                ),
+                2,
+            )
+            self.assertIn("srcdiff_process_seconds", summary["timings"])
+            self.assertIn("peak_rss_bytes", summary["resources"])
             self.assertNotIn("case_outcomes", summary)
             with closing(
                 sqlite3.connect(run_dir / "execution.sqlite")

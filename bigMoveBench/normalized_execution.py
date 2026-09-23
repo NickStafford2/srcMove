@@ -42,6 +42,7 @@ from bigMoveBench.evaluate import (
 )
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from bigMoveBench.progress import ProgressDisplay
+from bigMoveBench.selection import TYPE3_STRATA
 
 
 EXECUTION_JOURNAL_SCHEMA_VERSION = 1
@@ -497,19 +498,92 @@ ORDER BY c.ordinal
         return {"path": path.name, "sha256": sha256_file(path)}
 
     def summary(
-        self, *, selected: int, cases_csv: Mapping[str, Any]
+        self,
+        *,
+        selected: int,
+        cases_csv: Mapping[str, Any],
+        benchmark_cases_database: Path,
     ) -> dict[str, Any]:
         counts = {outcome: 0 for outcome in OUTCOMES}
         strict_passes = tolerant_passes = 0
-        for row in self.latest_results():
-            outcome = str(row["outcome"])
-            counts[outcome] += 1
-            validation = json.loads(row["text_validation_json"] or "{}")
-            if outcome == "oracle_pass":
-                if "encoding_tolerant" in validation.values():
-                    tolerant_passes += 1
-                else:
-                    strict_passes += 1
+        negative_zero_move_passes = negative_incidental_move_passes = 0
+        srcdiff_process_seconds = srcmove_process_seconds = 0.0
+        peak_rss_bytes: int | None = None
+        type3_groups: dict[str, dict[str, Any]] = {}
+        self.connection.execute(
+            "ATTACH DATABASE ? AS benchmark_cases",
+            (str(benchmark_cases_database.resolve()),),
+        )
+        try:
+            query = """
+SELECT c.type3_strength_stratum, c.case_kind, a.*
+FROM benchmark_cases.cases AS c
+JOIN attempts AS a ON a.case_id=c.case_id AND a.status='terminal'
+WHERE NOT EXISTS (
+  SELECT 1 FROM attempts AS newer
+  WHERE newer.case_id=a.case_id AND newer.status='terminal'
+    AND newer.attempt_ordinal > a.attempt_ordinal
+)
+ORDER BY c.ordinal
+"""
+            for row in self.connection.execute(query):
+                outcome = str(row["outcome"])
+                counts[outcome] += 1
+                validation = json.loads(row["text_validation_json"] or "{}")
+                results = json.loads(row["oracle_results_json"] or "{}")
+                if outcome == "oracle_pass":
+                    if row["case_kind"] == "known_false_positive":
+                        if results.get("move_count", 0) == 0:
+                            negative_zero_move_passes += 1
+                        else:
+                            negative_incidental_move_passes += 1
+                    elif "encoding_tolerant" in validation.values():
+                        tolerant_passes += 1
+                    else:
+                        strict_passes += 1
+                for stage in ("srcdiff", "srcmove"):
+                    record = json.loads(row[f"{stage}_record_json"] or "{}")
+                    elapsed = record.get("process_elapsed_seconds")
+                    if isinstance(elapsed, (int, float)):
+                        if stage == "srcdiff":
+                            srcdiff_process_seconds += float(elapsed)
+                        else:
+                            srcmove_process_seconds += float(elapsed)
+                    observed_peak = record.get("resource_usage", {}).get(
+                        "peak_rss_bytes"
+                    )
+                    if isinstance(observed_peak, int):
+                        peak_rss_bytes = max(peak_rss_bytes or 0, observed_peak)
+                strength = row["type3_strength_stratum"]
+                if strength:
+                    group = type3_groups.setdefault(
+                        str(strength),
+                        {
+                            "selected": 0,
+                            "detected": 0,
+                            "strictly_classified": 0,
+                            "outcomes": {name: 0 for name in OUTCOMES},
+                        },
+                    )
+                    group["selected"] += 1
+                    group["detected"] += int(
+                        outcome in {"oracle_pass", "wrong_classification"}
+                    )
+                    group["strictly_classified"] += int(outcome == "oracle_pass")
+                    group["outcomes"][outcome] += 1
+        finally:
+            self.connection.execute("DETACH DATABASE benchmark_cases")
+        for group in type3_groups.values():
+            denominator = group["selected"]
+            group["detection_rate"] = group["detected"] / denominator
+            group["strict_classification_rate"] = (
+                group["strictly_classified"] / denominator
+            )
+        type3_strength = {
+            name: type3_groups[name]
+            for name, _, _ in TYPE3_STRATA
+            if name in type3_groups
+        }
         completed = sum(counts.values())
         eligible = completed - counts["upstream_failure"] - counts[
             "srcdiff_semantic_ineligible"
@@ -525,11 +599,48 @@ ORDER BY c.ordinal
         pair_set = json.loads(metadata["provenance_json"])["benchmark_cases"][
             "pair_set"
         ]
-        rate_name = (
-            "end_to_end_whole_fragment_rejection"
+        negative_counts = (
+            {
+                "negative_zero_move_passes": negative_zero_move_passes,
+                "negative_incidental_move_passes": negative_incidental_move_passes,
+            }
             if pair_set == "known-false-positive"
-            else "end_to_end_detection_and_classification"
+            else {}
         )
+        if pair_set == "known-false-positive":
+            rates = {
+                "end_to_end_whole_fragment_rejection": (
+                    counts["oracle_pass"] / selected if selected else None
+                ),
+                "conditional_srcmove_whole_fragment_rejection": (
+                    counts["oracle_pass"] / eligible if eligible else None
+                ),
+                "end_to_end_whole_fragment_false_positive": (
+                    counts["srcmove_false_positive"] / selected
+                    if selected
+                    else None
+                ),
+                "conditional_srcmove_whole_fragment_false_positive": (
+                    counts["srcmove_false_positive"] / eligible
+                    if eligible
+                    else None
+                ),
+            }
+        else:
+            rates = {
+                "end_to_end_detection_and_classification": (
+                    counts["oracle_pass"] / selected if selected else None
+                ),
+                "conditional_srcmove_detection_and_classification": (
+                    counts["oracle_pass"] / eligible if eligible else None
+                ),
+                "end_to_end_strict_text_detection_and_classification": (
+                    strict_passes / selected if selected else None
+                ),
+                "conditional_srcmove_strict_text_detection_and_classification": (
+                    strict_passes / eligible if eligible else None
+                ),
+            }
         summary = {
             "schema_version": 1,
             "created_at": utc_now(),
@@ -554,14 +665,19 @@ ORDER BY c.ordinal
                 **counts,
                 "strict_passes": strict_passes,
                 "encoding_tolerant_passes": tolerant_passes,
+                **negative_counts,
             },
-            "rates": {
-                rate_name: counts["oracle_pass"] / selected if selected else None
-            },
+            "rates": rates,
             "journal": {
                 "path": self.path.name,
                 "attempts": attempts,
             },
+            "strata": {"type3_strength": type3_strength},
+            "timings": {
+                "srcdiff_process_seconds": srcdiff_process_seconds,
+                "srcmove_process_seconds": srcmove_process_seconds,
+            },
+            "resources": {"peak_rss_bytes": peak_rss_bytes},
             "cases_csv": dict(cases_csv),
         }
         return summary
@@ -838,7 +954,13 @@ class SerialBenchmarkExecutionRunner:
                         self.benchmark_cases.directory / "benchmark_cases.sqlite"
                     ),
                 )
-                summary = journal.summary(selected=selected, cases_csv=cases_csv)
+                summary = journal.summary(
+                    selected=selected,
+                    cases_csv=cases_csv,
+                    benchmark_cases_database=(
+                        self.benchmark_cases.directory / "benchmark_cases.sqlite"
+                    ),
+                )
                 write_json_atomic(self.run_dir / "summary.json", summary)
                 progress.finish(
                     f"{executed} executed, {reused} reused, {failed} failed"

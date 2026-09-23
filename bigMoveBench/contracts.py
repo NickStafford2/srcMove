@@ -1,11 +1,11 @@
-"""Contracts for BigMoveBench's staged dataset workflow."""
+"""Small value types shared by BigMoveBench execution stages."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Mapping, Protocol, Sequence, runtime_checkable
+from typing import Any, Mapping
 
 
 class SemanticStatus(StrEnum):
@@ -17,21 +17,11 @@ class SemanticStatus(StrEnum):
 
 @dataclass(frozen=True)
 class InputPair:
-    """Old/new source pair to freeze in a BigMoveBench input snapshot."""
+    """One materialized old/new source pair being evaluated."""
 
     case_id: str
     original: Path
     modified: Path
-    metadata: Mapping[str, Any] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class MaterializedInputPair:
-    """One pair written directly into BigMoveBench snapshot staging."""
-
-    case_id: str
-    original: Mapping[str, Any]
-    modified: Mapping[str, Any]
     metadata: Mapping[str, Any] = field(default_factory=dict)
 
 
@@ -41,28 +31,3 @@ class SemanticResult:
 
     status: SemanticStatus
     details: Mapping[str, Any] = field(default_factory=dict)
-
-
-class DatasetAdapter(Protocol):
-    """Supply source pairs and validate their BigMoveBench eligibility."""
-
-    name: str
-    version: int
-
-    def input_pairs(self) -> Sequence[InputPair]: ...
-
-    def validate_semantics(
-        self, case: InputPair, srcdiff_xml: Path
-    ) -> SemanticResult: ...
-
-
-@runtime_checkable
-class SnapshotMaterializingAdapter(Protocol):
-    """Write canonical inputs directly into snapshot staging."""
-
-    name: str
-    version: int
-
-    def materialize_input_pairs(
-        self, sources_root: Path, excluded_suffixes: Sequence[str]
-    ) -> Sequence[MaterializedInputPair]: ...

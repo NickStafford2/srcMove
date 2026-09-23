@@ -5,9 +5,10 @@ import sqlite3
 import subprocess
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
-from bigMoveBench.adapter import validate_srcdiff_semantics
+from bigMoveBench.adapter import _type3_frame_strength, validate_srcdiff_semantics
 from bigMoveBench.benchmark_cases import (
     SerialBenchmarkCaseRunner,
     load_benchmark_cases,
@@ -21,15 +22,53 @@ from bigMoveBench.synthetic import (
     SYNTHETIC_DESTINATION_PATH,
     SYNTHETIC_SOURCE_PATH,
 )
-from bigMoveBench.tests import test_catalog, test_snapshot
+from bigMoveBench.tests import test_catalog
 
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 
+def compile_fixture(root: Path):
+    fixture = test_catalog.BigCloneBenchCompiledDatasetTests()
+    bce = fixture.create_bce(root)
+    exports = root / "exports"
+    exports.mkdir()
+    type_one = test_catalog.pair_row()
+    type_two = test_catalog.pair_row()
+    type_two.update({"syntactic_type": 2, "pair_type": "type-2"})
+    type_three = test_catalog.pair_row()
+    type_three.update({"syntactic_type": 3, "pair_type": "type-3"})
+    test_catalog.write_export(
+        exports / "positive.csv", [type_one, type_two, type_three]
+    )
+    false_positive = test_catalog.distinct_false_positive_row(bce)
+    false_positive["syntactic_type"] = 3
+    test_catalog.write_export(exports / "false.csv", [false_positive])
+    compiled = compile_exports(
+        bce_dir=bce,
+        data_root=root / "data",
+        exports={
+            "positive": exports / "positive.csv",
+            "known_false_positive": exports / "false.csv",
+        },
+        compile_scope={"fixture": "normalized-benchmark-cases"},
+    )
+    return bce, compiled
+
+
 class NormalizedBenchmarkCasesTests(unittest.TestCase):
+    def test_type_three_frame_strength_is_conservative_across_rows(self) -> None:
+        strength, stratum = _type3_frame_strength(
+            [
+                {"similarity": {"line": 0.96, "token": 0.94}},
+                {"similarity": {"line": 0.89, "token": 0.91}},
+            ]
+        )
+        self.assertEqual(strength, 0.89)
+        self.assertEqual(stratum, "strong")
+
     def publish_fixture(self, root: Path, pair_set: str = "type3"):
-        _, compiled = test_snapshot.BigCloneBenchSnapshotTests().compile_fixture(root)
+        _, compiled = compile_fixture(root)
         selection_directory, selection, _ = create_selection(
             compiled,
             data_root=root / "data",
@@ -101,7 +140,7 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
             )
 
             database = benchmark_cases.directory / "benchmark_cases.sqlite"
-            with sqlite3.connect(database) as connection:
+            with closing(sqlite3.connect(database)) as connection:
                 case_columns = {
                     row[1] for row in connection.execute("PRAGMA table_info(cases)")
                 }
@@ -139,8 +178,10 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             _, _, benchmark_cases, _ = self.publish_fixture(root)
-            with sqlite3.connect(
-                benchmark_cases.directory / "benchmark_cases.sqlite"
+            with closing(
+                sqlite3.connect(
+                    benchmark_cases.directory / "benchmark_cases.sqlite"
+                )
             ) as connection:
                 relative = connection.execute(
                     "SELECT object_path FROM generated_objects "

@@ -13,46 +13,10 @@ if str(REPO_ROOT) not in sys.path:
 
 from bigMoveBench.evaluate import (
     _score_completed_case,
-    _summarize_type3_strength,
 )
 
 
 class BigMoveBenchEvaluationTests(unittest.TestCase):
-    def test_type_three_strength_summary_separates_detection_and_classification(self) -> None:
-        rows = [
-            {
-                "clone_type": "type3",
-                "type3_strength_stratum": "very_strong",
-                "outcome": "oracle_pass",
-            },
-            {
-                "clone_type": "type3",
-                "type3_strength_stratum": "very_strong",
-                "outcome": "wrong_classification",
-            },
-            {
-                "clone_type": "type3",
-                "type3_strength_stratum": "weak",
-                "outcome": "srcmove_miss",
-            },
-        ]
-
-        strata = _summarize_type3_strength(rows)
-
-        self.assertEqual(list(strata), ["very_strong", "weak"])
-        self.assertEqual(strata["very_strong"]["selected"], 2)
-        self.assertEqual(strata["very_strong"]["detected"], 2)
-        self.assertEqual(strata["very_strong"]["strictly_classified"], 1)
-        self.assertEqual(strata["very_strong"]["detection_rate"], 1.0)
-        self.assertEqual(
-            strata["very_strong"]["strict_classification_rate"], 0.5
-        )
-        self.assertEqual(
-            strata["very_strong"]["outcomes"]["wrong_classification"], 1
-        )
-        self.assertEqual(strata["weak"]["detection_rate"], 0.0)
-
-
     def test_type_two_scoring_requires_type2_match_kind(self) -> None:
         metadata = {
             "syntactic_type": 2,
