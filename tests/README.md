@@ -76,12 +76,10 @@ within-context statement cases, or `--catalog all` for everything.
 
 The core unit suite exercises generic process execution, XML validation,
 provenance, content identities, timeout cleanup, bounded logs, and interrupted
-attempt recovery. BigMoveBench's focused suite owns the workflow-contract,
-snapshot, corpus, progress, replay, and orchestration tests. Its fake-executable
-fixtures cover checksum enforcement, resumable batches, retry lineage, semantic
-eligibility, strict match-kind enforcement, append-only summaries, reconciled
-outcomes, and reuse of immutable data across builds without installing or
-downloading BigCloneBench.
+attempt recovery. BigMoveBench's focused suite covers catalog compilation,
+selection, generated objects, benchmark-case publication, progress, the
+execution journal, resume and retry behavior, semantic eligibility, and oracle
+outcomes without downloading or installing BigCloneBench.
 
 Performance-runner fixtures compare fake srcMove builds over checked-in srcDiff
 XML. They verify reproducible position-balanced schedules, immutable workload

@@ -24,7 +24,8 @@ this checkout is embedded in SrcMLBuildTemplate, the parent's
 
 ## Documentation
 
-Follow [AI Documentation Guidelines](doc/ai_documentation_guidelines.md).
+Follow [Documentation Maintenance and Recursive
+Improvement](doc/ai_documentation_guidelines.md).
 
 In short: improve documentation when you learn something useful, but write each
 durable fact once in the correct place. Link to the canonical doc instead of

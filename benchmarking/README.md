@@ -1,136 +1,75 @@
 # srcMove Benchmarking
 
-Benchmarks are experiments and are intentionally separate from deterministic
-correctness tests in `tests/`.
+Benchmarks are experiments and are separate from the deterministic correctness
+tests in [`tests/`](../tests/README.md).
 
-- [BigMoveBench](../bigMoveBench/README.md): srcMove's benchmark derived from
-  BigCloneBench clone pairs and known false positives.
-- [History scaling](../srcmove_history/benchmarks/README.md): controlled throughput measurements
-  for production `srcmove_history` analyses.
-- [Performance benchmark](../performance/README.md): paired/interleaved
-  measurements over named, pre-existing srcDiff XML workloads that capture
-  external process timings and `srcMove --profile` stage timings.
+- [BigMoveBench](../bigMoveBench/README.md) measures detection and
+  classification on synthetic moves derived from BigCloneBench relationships.
+- [Performance](../performance/README.md) compares srcMove executables over
+  fixed, pre-existing srcDiff XML workloads.
+- [History scaling](../srcmove_history/benchmarks/README.md) measures production
+  `srcmove_history` throughput.
 
-Generated benchmark storage is ignored by Git and split by purpose:
+Each suite owns its methodology, commands, and output schema. Results from the
+three suites answer different questions and must not be combined into one score.
+BigMoveBench data is not a runtime benchmark, and repository-history move counts
+are not accuracy measurements without an independent oracle.
 
-- `bigMoveBench/cache/` holds BigMoveBench inputs and intermediates: frozen
-  source snapshots, srcDiff attempts, verified srcDiff corpora, generation
-  batches, and compiled or selected BigCloneBench data.
-- `performance/cache/workloads/` is the ignored recommended location for
-  reusable performance workloads. It is independent of the BigMoveBench cache.
-- `benchmark-results/` holds completed srcMove evaluations, performance runs,
-  history-scaling studies, and combined-suite summaries.
+## Shared infrastructure
 
-A corpus is a reusable set of validated srcDiff XML inputs. A generation batch
-is the resumable record of the srcDiff attempts that produced one. Neither is a
-thesis result. Treat completed manifests under `benchmark-results/` and their
-referenced immutable cache inputs as the authoritative result.
+This directory provides the small set of contracts reused by the benchmark
+suites:
 
-Dataset-oriented CLI tools expose `--cache-root` where applicable. Performance
-accepts explicit `--workload NAME=PATH` values instead. Result-producing tools
-use `--results-root`; Make targets use `BENCHMARK_CACHE_ROOT` and
-`BENCHMARK_RESULTS_ROOT` where applicable.
+- `execution.py`: attempt lifecycle, process supervision, and recovery
+- `provenance.py`: source, executable, build-receipt, and environment evidence
+- `srcdiff_validation.py`: structural admission of srcDiff XML
+- `identity.py`: deterministic content encoding and identifiers
+- `statistics.py`: shared summary calculations
+- `storage.py`: atomic JSON persistence
+- `tooling.py`: executable discovery and command helpers
 
-The phased upgrade of reusable srcDiff data, provenance, failure incidents,
-dataset adapters, and publication runs is described in the
-[benchmarking upgrade plan](../doc/benchmarking_upgrade_plan.md).
+BigMoveBench owns its dataset compilation, selection, synthetic conversion,
+case database, semantic eligibility, oracle, execution journal, and reports.
+The performance runner owns its workload schedule and paired measurements.
+History scaling owns its repository-analysis workloads.
 
-## Upgrade contracts
+## Storage and provenance
 
-This directory contains infrastructure shared by the independently owned
-benchmark suites listed above. It does not contain a benchmark suite itself.
+Generated data is ignored by Git:
 
-`contracts.py` defines shared process/XML/provenance status vocabulary and
-development/publication labels; `identity.py` defines deterministic content
-encoding and identifiers.
-`execution.py` owns benchmark-attempt lifecycle and recovery;
-`srcmove_runtime/process_supervision.py` owns bounded logs, process groups, and
-resource observation shared with `srcmove_history`; `srcdiff_validation.py` owns
-structural XML admission; and `storage.py` owns atomic JSON persistence.
-`tooling.py` provides the common executable-discovery and simple command helpers
-used by test and benchmark entry points.
-BigMoveBench owns its source-pair, semantic-eligibility, and adapter contracts
-in [`bigMoveBench/contracts.py`](../bigMoveBench/contracts.py).
+- `bigMoveBench/cache/` stores compiled BigCloneBench evidence, selections,
+  generated objects, benchmark-case databases, and the optional development
+  srcDiff cache.
+- `performance/cache/workloads/` is the recommended local location for reusable
+  srcDiff XML performance inputs.
+- `benchmark-results/` stores append-only BigMoveBench, performance, and history
+  results.
 
-Phase 0 characterization is entirely offline. Tiny source and srcDiff fixtures,
-a configurable fake executable, and strict BigMoveBench oracle tests live under
-`bigMoveBench/tests/`. BigCloneBench remains an external manual prerequisite;
-normal tests neither download it nor depend on historical large-run counts.
+Result-producing tools record executable and input identities. A build receipt
+can bind a binary to observed source state; a path, nearby checkout, or version
+string alone cannot. Development caches and historical runs retain their
+declared limitations and must not be promoted silently to thesis evidence.
 
-The [performance benchmark](../performance/README.md) reads explicit existing
-XML workloads in place and writes ignored local runs under the selected results
-root. BigMoveBench owns its staged corpus workflow in
-[`bigMoveBench/corpus.py`](../bigMoveBench/corpus.py).
+## Reporting and interpretation
 
-Previously archived thesis results are historical evidence, not regression
-expectations for the refactored implementation.
+Every reported result should make its population, unit, denominator, selection
+policy, exclusions, tool revisions, and artifact identity explicit.
 
-## Provenance foundation
+- BigMoveBench reports selected, excluded, srcDiff-ineligible, executed, and
+  scored cases separately. Detection and classification are distinct outcomes,
+  and positive and known-false-positive results are not combined.
+- Repository evaluation reports exact revisions, selected scope, file and byte
+  inventory, exclusions, tool failures, resource use, and observed move counts.
+  Move counts alone do not establish accuracy.
+- Performance comparisons retain raw observations and failures as well as
+  summaries. Use checksummed workloads, warmups, repeated measurements,
+  paired/interleaved execution, median and dispersion, wall and CPU time, peak
+  RSS, and recorded cache and machine conditions.
 
-`provenance.py` provides read-only collection of repository state, relevant
-untracked source checksums, executable and input checksums, and a small host
-environment snapshot. It validates a build receipt when one exists but never
-infers that a nearby binary came from the current checkout. Binary verification
-and current-checkout agreement are reported separately.
+Preserve upstream srcDiff failures and semantic ineligibility instead of
+reclassifying them as srcMove misses. Preserve timeouts and failed measurements
+as data instead of silently dropping them from denominators.
 
-The supported CMake build writes
-`<srcMove executable>.build-receipt.json` immediately after linking `srcMove`.
-The receipt binds the executable checksum to the observed srcMove/srcReader
-source state, workspace-lock checksum when available, compiler, configuration,
-and relevant CMake options. It records tests as `not_run`; building alone is not
-evidence that tests passed.
-
-Development and publication labels are part of observation manifests, but
-publication requirements are not enforced yet. Benchmark workflows record
-these observations; legacy coupled runners do not. BigMoveBench's
-[workflow guide](../bigMoveBench/README.md) is the canonical documentation for
-its input snapshots, srcDiff corpora, resumable attempts, and evaluation runs.
-
-## Reporting wishlist
-
-These are desired thesis-facing outputs, not claims about fields already present
-in every summary. Some underlying counts are recorded today but still need to be
-calculated and presented consistently.
-
-Highest priority:
-
-- **Moved-region share:** report `annotated_region_count / regions_total` as a
-  percentage, always alongside both counts. This answers what proportion of
-  srcDiff's inserted and deleted regions srcMove classified as belonging to a
-  move. Keep move-group and move-pair counts separate because they use different
-  units.
-- **Change composition:** report inserted regions, deleted regions, total changed
-  regions, and unchanged or whitespace-only elements excluded from the
-  denominator.
-- **Move structure:** report one-to-one, many-region, exact, Type-2, ambiguous,
-  insertion-only, deletion-only, and copy-or-repeat groups, with counts and
-  percentages.
-- **Move size distribution:** report moved lines or tokens per move using median,
-  quartiles, range, and a small histogram. A few very large moves should not
-  obscure the typical detected move.
-- **Scale-normalized results:** report moves and moved regions per thousand
-  changed lines or per thousand diff regions, together with files and source
-  lines examined. This makes projects of different sizes comparable.
-- **Per-project distributions:** retain every project/revision-pair result and
-  summarize across projects with medians and quartiles. Do not rely only on one
-  pooled total dominated by the largest repository.
-
-For datasets with a trustworthy oracle, such as the controlled BigCloneBench
-cases:
-
-- report true positives, false positives, false negatives, precision, recall,
-  and F1, split by Type-1 and Type-2 cases;
-- report the number selected, excluded, semantically ineligible, executed, and
-  successfully scored so every accuracy denominator is auditable.
-
-For performance and reliability:
-
-- report srcDiff and srcMove wall time and peak memory separately, plus srcMove
-  throughput normalized by input bytes and diff-region count;
-- report repeated-run medians, variability, paired deltas, and practical effect
-  sizes when comparing srcMove builds;
-- report srcDiff failures, invalid XML, timeouts, srcMove failures, and excluded
-  files as first-class results rather than silently dropping them;
-- attach workload identity to every performance table and the applicable
-  dataset identity to every accuracy table, together with executable,
-  configuration, environment, and source revision identifiers.
+For current commands and interpretation rules, use the suite documentation
+linked above. Large benchmark executions are never started by the normal test
+runner.

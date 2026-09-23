@@ -80,20 +80,14 @@ output artifact that the benchmark does not otherwise consume.
 - The old snapshot/corpus implementation and migration comparison command were
   removed so there is only one supported workflow.
 
-## Remaining Scalability Work
+## Performance status
 
-These are performance improvements to the same workflow, not alternative ways
-to define or score the benchmark:
-
-1. Profile representative cases to identify the actual runtime bottleneck.
-2. Measure journal and retained-output growth at useful, bounded scales.
-3. Test recovery after forced termination during srcDiff and srcMove.
-4. Compact retained tool output if it dominates storage.
-5. Add bounded parallel workers only after profiling shows that process
-   execution is the bottleneck and transactional claiming is proven safe.
-
-The scientific questions and labels do not change when these optimizations are
-added.
+The current workflow is intentionally serial. Results-only srcMove execution,
+streamed database access, reusable scratch archives, and bounded retained logs
+removed the known avoidable costs without changing the experiment. No further
+BigMoveBench performance project is active. If throughput becomes a constraint
+again, use the optional runner profiler below on current binaries before
+reopening parallel execution or storage changes.
 
 ## Optional Development Cache
 

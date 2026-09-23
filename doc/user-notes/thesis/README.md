@@ -6,8 +6,9 @@ the primary research contribution. `srcVisual` is a supporting contribution
 that makes structured differences and cross-file move annotations inspectable.
 
 Only thesis-quality material belongs here. Scratch notes, unverified ideas,
-temporary benchmark observations, and implementation handoffs belong elsewhere
-in `doc/user-notes/`, `doc/handoffs/`, or the relevant backlog.
+and temporary benchmark observations belong in `doc/user-notes/`. Concrete
+unfinished implementation tasks may use `doc/handoffs/`; broader unresolved
+work belongs in the relevant backlog.
 
 ## Working thesis statement
 
@@ -46,6 +47,28 @@ The final university template may split background from related work or require
 a separate general methodology chapter. Those formatting decisions do not
 change the contribution-centered argument.
 
+## Structure and design decisions
+
+- The thesis is contribution-centered because srcMove, BigMoveBench, srcVisual,
+  and srcMove History answer different questions and require different evidence.
+  A single implementation/results split would obscure those boundaries.
+- srcMove is the primary contribution. srcVisual supports inspection, while
+  srcReader changes remain part of the srcMove implementation story unless the
+  evidence later supports a separate contribution claim.
+- The proposed move taxonomy currently lives in background and related work so
+  it can define terms before the srcMove chapter. It may become a separate
+  chapter if the literature review and validation plan establish it as an
+  independent conceptual contribution.
+- BigMoveBench has its own chapter because synthetic benchmark construction and
+  oracle validity require explanation separate from detector implementation.
+- srcMove History remains distinct from BigMoveBench because it provides
+  observational evidence from real revisions rather than labeled accuracy data.
+- Performance remains a separate chapter so runtime and scalability claims are
+  not confused with detection quality.
+- Repository documentation is the source of truth for current software
+  behavior. The thesis selects and interprets that behavior in support of its
+  research argument.
+
 ## Contribution map
 
 | Contribution | Primary question | Placement |
@@ -63,6 +86,28 @@ traditional system/method/results organization. Keeping the artifacts separate
 now makes their individual research questions and evidence requirements visible
 and prevents BigMoveBench, srcMove History, or the performance work from being
 reduced to implementation footnotes.
+
+## Current thesis work
+
+- Complete the literature review and replace citation placeholders with primary
+  sources, especially for the move taxonomy and scalable clone detection.
+- Decide whether the move taxonomy remains Section 2.3 or becomes a standalone
+  chapter, then update numbering and cross-references consistently.
+- Freeze the final BigMoveBench populations, samples, oracle versions, and
+  tuning/evaluation boundary before reporting results.
+- Run and archive the final srcMove, BigMoveBench, srcMove History, performance,
+  and selected srcVisual evaluations.
+- Replace result, figure, table, and artifact placeholders only from frozen
+  evidence.
+- Decide the defensible srcVisual evaluation claim; do not imply a usability
+  result without a study.
+- Reconcile terminology, research-question traceability, threats to validity,
+  and conclusions across all chapters.
+- Remove drafting instructions and unresolved placeholders before export.
+
+Use the [Thesis Review Guide](review_guide.md) for future structural, evidence,
+clarity, and style reviews. Chapter-specific TODOs remain in their relevant
+files; this list records only work affecting the thesis as a whole.
 
 ## Quality gate
 

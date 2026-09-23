@@ -1,13 +1,14 @@
-# AI Documentation Guidelines
+# Documentation Maintenance and Recursive Improvement
 
 Future AI agents should improve this repository's documentation, codebase, and AI
 tooling as part of normal work. Do it incrementally and keep every fact in one
 clear home.
 
-The purpose of this document is to encourage recursive self improvement. We want
-the next AI to read the docs with a better, more concise understanding. We do not
-Want endless bloat. Do not write to much or too little. Think about if this is
-something a future reader would need to know.
+The purpose is recursive improvement: each substantial investigation should
+leave the repository easier for the next human or AI to understand. That does
+not mean recording every action or preserving every task brief. Keep information
+that will save future investigation, remove material superseded by current
+behavior, and prefer a concise source of truth over accumulated history.
 
 ## Core Rule
 
@@ -30,6 +31,9 @@ Suggest or make a documentation update when you discover:
 Keep the update close to the work. For example, benchmark conversion belongs in
 benchmark docs, test fixture rules belong in test docs, and broad AI workflow
 rules belong in this file.
+
+Documentation cleanup is also improvement. When behavior changes, correct or
+remove stale plans, commands, examples, and links as part of the same work.
 
 ## Avoid Duplication
 
@@ -58,8 +62,13 @@ Use these homes unless a more specific file already exists:
   into srcMove move tests
 - `tests/README.md`: correctness-test entry points and suite behavior
 - suite-specific `README.md` files: benchmark setup, methodology, and runners
-- `scripts/`: remaining reusable project automation that future agents should run instead of
-  retyping long command sequences
+- `doc/backlog.md`: unresolved ideas that do not yet justify a design document
+- `doc/user-notes/thesis/README.md`: thesis structure, design rationale, and
+  thesis-wide work still needed
+- `doc/user-notes/thesis/review_guide.md`: how to review the thesis without
+  inventing evidence or duplicating technical documentation
+- `scripts/`: reusable project automation that future agents should run instead
+  of retyping long command sequences
 
 If no clear home exists, create a narrowly named doc and add exactly one pointer
 to it from `doc/README.md`.
@@ -76,6 +85,44 @@ Prefer concise, operational notes:
 
 Mark uncertainty explicitly. Do not convert a one-off observation into a rule
 unless it has been verified or the limitation is important enough to preserve.
+
+## Plans and handoffs
+
+A plan is useful when future implementation still depends on non-obvious design
+constraints or decision gates. Keep it clearly labeled as proposed or dormant,
+and update its status when implementation changes its assumptions. Delete a plan
+when all useful behavior and rationale have moved into canonical documentation.
+
+Use `doc/handoffs/` only for a concrete unfinished task that a future session is
+expected to resume. A useful handoff states the objective, current evidence,
+scope boundaries, relevant files, unresolved decisions, and verification. It
+must not become the only source for durable architecture or user intent.
+
+When a task finishes:
+
+1. move verified behavior and rationale into the canonical topic document;
+2. move genuinely unresolved follow-up work into the backlog or a maintained
+   plan;
+3. delete the completed handoff rather than archiving it indefinitely; and
+4. check for links that still point to the removed task state.
+
+Do not delete a large plan or handoff merely because its immediate task ended.
+First identify any reusable constraints, rejected alternatives, evidence rules,
+or future ideas that do not exist elsewhere.
+
+## Review checklist
+
+For a focused documentation cleanup:
+
+1. inventory documentation and inbound links;
+2. classify each file as canonical behavior, maintained plan, exploratory note,
+   active handoff, or obsolete task state;
+3. compare behavior claims and commands with the current implementation;
+4. consolidate duplicate durable facts into one home;
+5. preserve useful unresolved work before deleting its old container;
+6. validate local links and run `git diff --check`; and
+7. summarize material deletions so the user can review what was intentionally
+   retired.
 
 ## Self-Improvement Loop
 

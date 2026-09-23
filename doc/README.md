@@ -29,6 +29,8 @@ summaries or diagrams disagree with current behavior.
 - [Correctness tests](../tests/README.md): test entry points, suite boundaries,
   and fixture conventions
 - [Benchmarks](../benchmarking/README.md): benchmark types and runners
+- [Performance benchmark](../performance/README.md): repeatable comparisons of
+  srcMove builds over fixed srcDiff XML workloads
 
 ## BigMoveBench research
 
@@ -39,15 +41,18 @@ summaries or diagrams disagree with current behavior.
 - [BigMoveBench runner](../bigMoveBench/README.md): operational
   setup and commands
 - [BigMoveBench execution architecture](../bigMoveBench/docs/execution.md):
-  database-backed case storage, execution journaling, and scalability roadmap
+  database-backed case storage, execution journaling, recovery, and profiling
 
-## Planning and non-authoritative notes
+## Research notes and planned work
 
-- [Benchmarking upgrade plan](benchmarking_upgrade_plan.md): staged design for
-  reproducible accuracy, performance, reliability, and thesis data runs
-- [Parallel programming upgrade plan](parallel_programming_upgrade_plan.md):
-  staged design for bounded archive-level parallelism on large srcDiff inputs
+- [Performance optimization status](performance_optimization_strategy.md):
+  completed work, remaining opportunities, and evidence required before another
+  optimization
+- [Dormant archive parallelism plan](parallel_programming_upgrade_plan.md):
+  bounded concurrency design for large multi-file srcDiff archives
 - [Backlog](backlog.md): open questions and candidate improvements
+- [Active handoffs](handoffs/README.md): narrowly scoped unfinished tasks, when
+  any exist
 - [Master's thesis working draft](user-notes/thesis/README.md): chapter-level
   prose, research questions, evidence gates, and writing tasks for srcMove,
   BigMoveBench, srcVisual, srcMove History, and performance
@@ -56,19 +61,13 @@ summaries or diagrams disagree with current behavior.
 - [Thesis summary draft](user-notes/thesis-summary-draft.md): preserved thesis
   prose and aspirational research framing; not authoritative implementation
   documentation
-- [Notes migrated from the former documentation index](user-notes/legacy_doc_readme_notes.md):
-  historical design questions preserved when this file became an index
-
-The files under `handoffs/` contain temporary or historical task state. They
-are not canonical documentation; verified findings should be incorporated into
-the relevant document above.
 
 ## Guidance for AI agents
 
 - [Repository agent guidance](../AGENTS.md): scope, required entry points, test
   rules, and Git constraints
-- [AI documentation guidelines](ai_documentation_guidelines.md): how to record
-  durable discoveries without creating duplicate sources of truth
+- [Documentation maintenance](ai_documentation_guidelines.md): recursive
+  improvement, source-of-truth rules, and the plan/handoff lifecycle
 
 AI agents should use the same architecture, testing, and methodology documents
 as human contributors. Agent-specific files define operating constraints, not
