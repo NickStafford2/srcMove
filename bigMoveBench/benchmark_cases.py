@@ -689,9 +689,11 @@ class SerialBenchmarkCaseRunner:
         benchmark_cases: VerifiedBenchmarkCases,
         *,
         scratch_root: Path | None = None,
+        profile_enabled: bool = False,
     ) -> None:
         self.benchmark_cases = benchmark_cases
         self.scratch_root = scratch_root
+        self.profile_enabled = profile_enabled
         self._temporary: tempfile.TemporaryDirectory[str] | None = None
         self._root: Path | None = None
         self.last_profile: dict[str, Any] | None = None
@@ -741,13 +743,26 @@ class SerialBenchmarkCaseRunner:
             raise ValueError(
                 f"normalized benchmark cases object is unavailable: {source}"
             )
-        destination.unlink(missing_ok=True)
         try:
             os.link(source, destination)
             return True
         except OSError:
             destination.symlink_to(source)
             return False
+
+    def clear_scratch(self) -> int:
+        if self._root is None:
+            raise RuntimeError(
+                "serial benchmark-case runner must be used as a context manager"
+            )
+        removed = 0
+        for revision in ("original", "modified"):
+            for relative in (SYNTHETIC_SOURCE_PATH, SYNTHETIC_DESTINATION_PATH):
+                path = self._root / revision / relative
+                if path.exists() or path.is_symlink():
+                    path.unlink()
+                    removed += 1
+        return removed
 
     def cases(self) -> Iterator[InputPair]:
         if self._root is None:
@@ -783,15 +798,24 @@ ORDER BY c.ordinal
             cursor = connection.execute(query)
             ordinal = 0
             while True:
-                case_started_ns = time.perf_counter_ns()
-                lookup_started_ns = time.perf_counter_ns()
+                case_started_ns = (
+                    time.perf_counter_ns() if self.profile_enabled else 0
+                )
+                lookup_started_ns = (
+                    time.perf_counter_ns() if self.profile_enabled else 0
+                )
                 row = cursor.fetchone()
-                lookup_ms = (
-                    time.perf_counter_ns() - lookup_started_ns
-                ) / 1_000_000.0
                 if row is None:
                     break
-                scratch_started_ns = time.perf_counter_ns()
+                lookup_ms = (
+                    (time.perf_counter_ns() - lookup_started_ns) / 1_000_000.0
+                    if self.profile_enabled
+                    else 0.0
+                )
+                self.clear_scratch()
+                scratch_started_ns = (
+                    time.perf_counter_ns() if self.profile_enabled else 0
+                )
                 original = self._root / "original"
                 modified = self._root / "modified"
                 original_source = original / SYNTHETIC_SOURCE_PATH
@@ -868,19 +892,20 @@ ORDER BY c.ordinal
                         "to_end_line": row["to_end_line"],
                     },
                 }
-                scratch_ms = (
-                    time.perf_counter_ns() - scratch_started_ns
-                ) / 1_000_000.0
-                self.last_profile = {
-                    "case_id": row["case_id"],
-                    "ordinal": ordinal,
-                    "started_ns": case_started_ns,
-                    "phases_ms": {
-                        "runner.case_lookup_ms": lookup_ms,
-                        "runner.scratch_prepare_ms": scratch_ms,
-                    },
-                    "counters": {"runner.hard_links": hard_links},
-                }
+                if self.profile_enabled:
+                    scratch_ms = (
+                        time.perf_counter_ns() - scratch_started_ns
+                    ) / 1_000_000.0
+                    self.last_profile = {
+                        "case_id": row["case_id"],
+                        "ordinal": ordinal,
+                        "started_ns": case_started_ns,
+                        "phases_ms": {
+                            "runner.case_lookup_ms": lookup_ms,
+                            "runner.scratch_prepare_ms": scratch_ms,
+                        },
+                        "counters": {"runner.hard_links": hard_links},
+                    }
                 ordinal += 1
                 yield InputPair(
                     case_id=row["case_id"],

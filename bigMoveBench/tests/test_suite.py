@@ -102,6 +102,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 srcdiff_timeout=2.0,
                 srcmove_timeout=2.0,
                 pair_set=None,
+                profile_runner=root / "profiles" / "first.jsonl",
             )
 
             progress_output = StringIO()
@@ -111,6 +112,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             ), redirect_stdout(StringIO()), redirect_stderr(progress_output):
                 first_dir, first, first_passed = run_suite(args)
 
+            args.profile_runner = root / "profiles" / "second.jsonl"
             with mock.patch(
                 "bigMoveBench.suite.ensure_compiled_dataset",
                 return_value=(compiled, True),
@@ -133,6 +135,19 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             self.assertTrue((first_dir / "summary.json").is_file())
             self.assertTrue((second_dir / "summary.json").is_file())
             self.assertEqual(len(first["pair_sets"]), 4)
+            self.assertEqual(
+                sorted(path.name for path in (root / "profiles").iterdir()),
+                sorted(
+                    f"{prefix}-{pair_set}.jsonl"
+                    for prefix in ("first", "second")
+                    for pair_set in (
+                        "type1",
+                        "type2",
+                        "type3",
+                        "known-false-positive",
+                    )
+                ),
+            )
             self.assertEqual(
                 {item["pair_set"] for item in first["pair_sets"]},
                 {"type1", "type2", "type3", "known-false-positive"},

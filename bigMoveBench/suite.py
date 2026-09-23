@@ -257,6 +257,12 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
         benchmark_cases, benchmark_cases_disposition = benchmark_cases_result
         run_id = f"{suite_id}-{pair_set}"
         run_dir = results_root / "bigMoveBench" / "runs" / run_id
+        runner_profile_path = getattr(args, "profile_runner", None)
+        if runner_profile_path is not None and selected_pair_set is None:
+            runner_profile_path = runner_profile_path.with_name(
+                f"{runner_profile_path.stem}-{pair_set}"
+                f"{runner_profile_path.suffix}"
+            )
         (evaluation, execution_seconds) = _timed(
             lambda: SerialBenchmarkExecutionRunner(
                 benchmark_cases,
@@ -269,7 +275,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                 srcmove_observation=srcmove_observation,
                 srcdiff_cache=srcdiff_cache,
                 refresh_srcdiff_cache=refresh_cache,
-                runner_profile_path=getattr(args, "profile_runner", None),
+                runner_profile_path=runner_profile_path,
             ).run()
         )
         _, summary = evaluation

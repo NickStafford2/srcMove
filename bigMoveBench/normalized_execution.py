@@ -58,6 +58,7 @@ RETRYABLE_FAILURES = {
 }
 FAILED_OUTCOMES = RETRYABLE_FAILURES | {"srcdiff_semantic_ineligible"}
 ActivityCallback = Callable[[str, str], None]
+TransactionCallback = Callable[[float], None]
 CASE_CSV_FIELDS = (
     "case_id",
     "ordinal",
@@ -269,7 +270,13 @@ class ExecutionJournal:
             (case_id,),
         ).fetchone()
 
-    def begin(self, case_id: str, identity_sha256: str) -> tuple[str, int]:
+    def begin(
+        self,
+        case_id: str,
+        identity_sha256: str,
+        *,
+        transaction_callback: TransactionCallback | None = None,
+    ) -> tuple[str, int]:
         ordinal = int(
             self.connection.execute(
                 "SELECT COALESCE(MAX(attempt_ordinal), -1) + 1 FROM attempts "
@@ -278,6 +285,9 @@ class ExecutionJournal:
             ).fetchone()[0]
         )
         attempt_id = f"attempt-{uuid.uuid4()}"
+        transaction_started = (
+            time.perf_counter() if transaction_callback is not None else None
+        )
         with self.connection:
             self.connection.execute(
                 "INSERT INTO attempts "
@@ -285,9 +295,17 @@ class ExecutionJournal:
                 "status, started_at) VALUES (?,?,?,?,?,?)",
                 (attempt_id, case_id, ordinal, identity_sha256, "running", utc_now()),
             )
+        if transaction_callback is not None and transaction_started is not None:
+            transaction_callback(time.perf_counter() - transaction_started)
         return attempt_id, ordinal
 
-    def finish(self, attempt_id: str, record: Mapping[str, Any]) -> None:
+    def finish(
+        self,
+        attempt_id: str,
+        record: Mapping[str, Any],
+        *,
+        transaction_callback: TransactionCallback | None = None,
+    ) -> None:
         values = (
             utc_now(),
             record["outcome"],
@@ -306,6 +324,9 @@ class ExecutionJournal:
             _json(record.get("oracle_results", {})),
             attempt_id,
         )
+        transaction_started = (
+            time.perf_counter() if transaction_callback is not None else None
+        )
         with self.connection:
             cursor = self.connection.execute(
                 "UPDATE attempts SET status='terminal', completed_at=?, outcome=?, "
@@ -319,6 +340,8 @@ class ExecutionJournal:
             )
         if cursor.rowcount != 1:
             raise ValueError(f"normalized attempt is not running: {attempt_id}")
+        if transaction_callback is not None and transaction_started is not None:
+            transaction_callback(time.perf_counter() - transaction_started)
 
     def completed_case_count(self) -> int:
         return int(
@@ -791,56 +814,21 @@ class SerialBenchmarkExecutionRunner:
         if self.activity_callback is not None:
             self.activity_callback(status, case_id)
 
-    def _profile_phase(self, name: str, started: float) -> None:
-        if self._runner_profiler is not None:
+    def _profile_start(self) -> float | None:
+        return time.perf_counter() if self._runner_profiler is not None else None
+
+    def _profile_phase(self, name: str, started: float | None) -> None:
+        if self._runner_profiler is not None and started is not None:
             self._runner_profiler.add_phase(name, time.perf_counter() - started)
 
-    def _attempt_profile_callback(
-        self, stage: str
-    ) -> Callable[[str, float, Mapping[str, int]], None] | None:
-        if self._runner_profiler is None:
-            return None
-
-        def record(
-            name: str, seconds: float, counters: Mapping[str, int]
-        ) -> None:
-            assert self._runner_profiler is not None
-            if name == "process_supervision":
-                self._runner_profiler.add_phase(
-                    f"runner.{stage}_supervision_ms", seconds
-                )
-            elif name == "xml_validation":
-                self._runner_profiler.add_phase(
-                    f"runner.{stage}_validation_ms", seconds
-                )
-            elif name == "attempt_setup":
-                self._runner_profiler.add_phase("runner.attempt_setup_ms", seconds)
-            elif name == "attempt_started_write":
-                # The child is already running while this recovery record is
-                # written, so retain it as an overlapping diagnostic rather
-                # than adding it to the exclusive attempt-write phase.
-                self._runner_profiler.add_phase(
-                    "runner.attempt_started_write_ms", seconds
-                )
-            else:
-                self._runner_profiler.add_phase("runner.attempt_write_ms", seconds)
-                self._runner_profiler.add_phase(f"runner.{name}_ms", seconds)
-            profiled_counters = {
-                f"runner.{key}": value for key, value in counters.items()
-            }
-            if name == "xml_validation" and "validation_bytes" in counters:
-                profiled_counters[
-                    f"runner.{stage}_validation_bytes"
-                ] = counters["validation_bytes"]
-            if name in {"attempt_started_write", "attempt_terminal_write"}:
-                label = name.removeprefix("attempt_").removesuffix("_write")
-                if "json_bytes" in counters:
-                    profiled_counters[
-                        f"runner.attempt_{label}_json_bytes"
-                    ] = counters["json_bytes"]
-            self._runner_profiler.add_counters(profiled_counters)
-
-        return record
+    def _record_sqlite_transaction(self, seconds: float) -> None:
+        if self._runner_profiler is not None:
+            self._runner_profiler.add_phase(
+                "runner.sqlite_transaction_ms", seconds
+            )
+            self._runner_profiler.add_counters(
+                {"runner.sqlite_transactions": 1}
+            )
 
     def _attempt_identity(self, case_id: str) -> str:
         value = {
@@ -917,7 +905,9 @@ class SerialBenchmarkExecutionRunner:
             "benchmark_cases_manifest_sha256": self.benchmark_cases.manifest_sha256,
         }
         srcdiff_root = self.run_dir / "tool-attempts" / "srcdiff"
-        cache_started = time.perf_counter()
+        cache_started = (
+            self._profile_start() if self.srcdiff_cache is not None else None
+        )
         cached = self._restore_cached_srcdiff(case, context)
         if self.srcdiff_cache is not None:
             self._profile_phase("runner.srcdiff_cache_ms", cache_started)
@@ -951,7 +941,11 @@ class SerialBenchmarkExecutionRunner:
                 xml_validator=lambda path: validate_srcdiff_xml(path, "archive"),
                 output_filename="srcdiff.xml",
                 context=context,
-                profile_callback=self._attempt_profile_callback("srcdiff"),
+                profile_callback=(
+                    self._runner_profiler.attempt_callback("srcdiff")
+                    if self._runner_profiler is not None
+                    else None
+                ),
             )
             if self.srcdiff_cache is not None:
                 cache_record = {
@@ -997,7 +991,7 @@ class SerialBenchmarkExecutionRunner:
             self._runner_profiler.add_phase(
                 "runner.srcdiff_process_ms", float(srcdiff_process_seconds)
             )
-        semantic_started = time.perf_counter()
+        semantic_started = self._profile_start()
         semantic = validate_srcdiff_semantics(case, srcdiff_dir / "srcdiff.xml")
         self._profile_phase("runner.semantic_validation_ms", semantic_started)
         result["semantic_status"] = semantic.status.value
@@ -1027,7 +1021,11 @@ class SerialBenchmarkExecutionRunner:
                 "srcdiff_attempt_id": srcdiff_record["attempt_id"],
                 "srcdiff_sha256": srcdiff_record["xml"].get("sha256"),
             },
-            profile_callback=self._attempt_profile_callback("srcmove"),
+            profile_callback=(
+                self._runner_profiler.attempt_callback("srcmove")
+                if self._runner_profiler is not None
+                else None
+            ),
         )
         srcmove_process_seconds = srcmove_record.get("process_elapsed_seconds")
         if self._runner_profiler is not None and isinstance(
@@ -1037,7 +1035,7 @@ class SerialBenchmarkExecutionRunner:
                 "runner.srcmove_process_ms", float(srcmove_process_seconds)
             )
         results_path = srcmove_dir / "results.json"
-        results_validation_started = time.perf_counter()
+        results_validation_started = self._profile_start()
         try:
             _read_object(results_path)
             results_valid = True
@@ -1059,7 +1057,7 @@ class SerialBenchmarkExecutionRunner:
         if not completed:
             return result
 
-        scoring_started = time.perf_counter()
+        scoring_started = self._profile_start()
         outcome, failures, text_validation, oracle_results = _score_completed_case(
             metadata=dict(case.metadata),
             results_path=results_path,
@@ -1079,19 +1077,25 @@ class SerialBenchmarkExecutionRunner:
     def run(self) -> tuple[Path, dict[str, Any]]:
         self.run_dir.mkdir(parents=True, exist_ok=True)
         if self.runner_profile_path is not None:
-            self._runner_profiler = RunnerProfiler(self.runner_profile_path)
+            profile_path = self.runner_profile_path.expanduser().resolve()
+            if profile_path == self.run_dir or self.run_dir in profile_path.parents:
+                raise ValueError(
+                    "runner profile path must be outside the execution run directory"
+                )
+            self._runner_profiler = RunnerProfiler(profile_path)
         journal_path = self.run_dir / "execution.sqlite"
         run_id = self.run_dir.name
         selected = int(self.benchmark_cases.manifest["counts"]["cases"])
         pair_set = str(self.benchmark_cases.manifest["selection"]["pair_set"])
-        journal = ExecutionJournal(
-            journal_path,
-            benchmark_cases=self.benchmark_cases,
-            configuration=self.configuration,
-            provenance=self.provenance,
-            run_id=run_id,
-        )
+        journal: ExecutionJournal | None = None
         try:
+            journal = ExecutionJournal(
+                journal_path,
+                benchmark_cases=self.benchmark_cases,
+                configuration=self.configuration,
+                provenance=self.provenance,
+                run_id=run_id,
+            )
             with ProgressDisplay(
                 "normalized execution",
                 total=selected,
@@ -1109,16 +1113,11 @@ class SerialBenchmarkExecutionRunner:
                 journal.mark_running()
                 visited = executed = reused = failed = 0
                 with SerialBenchmarkCaseRunner(
-                    self.benchmark_cases, scratch_root=self.scratch_root
+                    self.benchmark_cases,
+                    scratch_root=self.scratch_root,
+                    profile_enabled=self._runner_profiler is not None,
                 ) as cases:
                     for case in cases.cases():
-                        if self._runner_profiler is not None:
-                            prepared = cases.last_profile
-                            if prepared is None or prepared["case_id"] != case.case_id:
-                                raise RuntimeError(
-                                    "benchmark-case profile identity does not match"
-                                )
-                            self._runner_profiler.begin_case(**prepared)
                         previous = journal.latest_terminal(case.case_id)
                         should_retry = bool(
                             previous is not None
@@ -1132,23 +1131,51 @@ class SerialBenchmarkExecutionRunner:
                             progress.update(
                                 visited, detail=f"reused {case.case_id}"
                             )
-                            if self._runner_profiler is not None:
-                                self._runner_profiler.finish_case("reused")
+                            cases.clear_scratch()
                             continue
+                        if self._runner_profiler is not None:
+                            prepared = cases.last_profile
+                            if prepared is None or prepared["case_id"] != case.case_id:
+                                raise RuntimeError(
+                                    "benchmark-case profile identity does not match"
+                                )
+                            self._runner_profiler.begin_case(
+                                **prepared, run_id=run_id
+                            )
                         progress.update(visited, detail=f"running {case.case_id}")
-                        begin_started = time.perf_counter()
-                        attempt_id, _ = journal.begin(
-                            case.case_id, self._attempt_identity(case.case_id)
+                        attempt_identity = self._attempt_identity(case.case_id)
+                        attempt_id, attempt_ordinal = journal.begin(
+                            case.case_id,
+                            attempt_identity,
+                            transaction_callback=(
+                                self._record_sqlite_transaction
+                                if self._runner_profiler is not None
+                                else None
+                            ),
                         )
-                        self._profile_phase("runner.sqlite_commit_ms", begin_started)
+                        if self._runner_profiler is not None:
+                            self._runner_profiler.identify_attempt(
+                                attempt_id, attempt_ordinal
+                            )
                         self._activity("running", case.case_id)
                         record = self._execute_case(case, attempt_id)
-                        finish_started = time.perf_counter()
-                        journal.finish(attempt_id, record)
-                        self._profile_phase("runner.sqlite_commit_ms", finish_started)
+                        journal.finish(
+                            attempt_id,
+                            record,
+                            transaction_callback=(
+                                self._record_sqlite_transaction
+                                if self._runner_profiler is not None
+                                else None
+                            ),
+                        )
+                        cleanup_started = self._profile_start()
+                        removed_links = cases.clear_scratch()
                         if self._runner_profiler is not None:
+                            self._profile_phase(
+                                "runner.scratch_cleanup_ms", cleanup_started
+                            )
                             self._runner_profiler.add_counters(
-                                {"runner.sqlite_transactions": 2}
+                                {"runner.scratch_links_removed": removed_links}
                             )
                             self._runner_profiler.finish_case(record["outcome"])
                         executed += 1
@@ -1187,7 +1214,8 @@ class SerialBenchmarkExecutionRunner:
                 )
                 return self.run_dir, summary
         finally:
-            journal.close()
+            if journal is not None:
+                journal.close()
             if self._runner_profiler is not None:
                 self._runner_profiler.close()
                 self._runner_profiler = None

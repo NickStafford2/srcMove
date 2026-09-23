@@ -114,7 +114,7 @@ def execute_attempt(
 
     if log_limit < 2:
         raise ValueError("log limit must be at least two bytes")
-    setup_started = time.perf_counter()
+    setup_started = time.perf_counter() if profile_callback is not None else None
     attempt_id = f"attempt-{uuid.uuid4()}"
     attempt_dir = attempts_root / attempt_id
     attempt_dir.mkdir(parents=True, exist_ok=False)
@@ -144,19 +144,23 @@ def execute_attempt(
     }
     attempt_started = time.monotonic()
 
-    def profile(name: str, started: float, counters: Mapping[str, int]) -> None:
-        if profile_callback is not None:
+    def profile(
+        name: str, started: float | None, counters: Mapping[str, int]
+    ) -> None:
+        if profile_callback is not None and started is not None:
             profile_callback(name, time.perf_counter() - started, counters)
 
     profile("attempt_setup", setup_started, {"attempt_directories": 1})
 
     def record_started(identity: ProcessIdentity) -> None:
-        write_started = time.perf_counter()
+        write_started = (
+            time.perf_counter() if profile_callback is not None else None
+        )
         started["pid"] = identity.pid
         started["process_group"] = identity.process_group
         write_json_atomic(attempt_dir / "started.json", started)
-        elapsed = time.perf_counter() - write_started
-        if profile_callback is not None:
+        if profile_callback is not None and write_started is not None:
+            elapsed = time.perf_counter() - write_started
             profile_callback(
                 "attempt_started_write",
                 elapsed,
@@ -187,7 +191,9 @@ def execute_attempt(
         write_json_atomic(attempt_dir / "attempt.json", record)
         (attempt_dir / "started.json").unlink(missing_ok=True)
 
-    supervision_started = time.perf_counter()
+    supervision_started = (
+        time.perf_counter() if profile_callback is not None else None
+    )
     result = run_supervised_process(
         command,
         cwd=cwd,
@@ -198,7 +204,7 @@ def execute_attempt(
         on_started=record_started,
         on_interrupted=record_interrupted,
     )
-    if profile_callback is not None:
+    if profile_callback is not None and supervision_started is not None:
         profile_callback(
             "process_supervision",
             max(
@@ -210,7 +216,7 @@ def execute_attempt(
         )
     termination = _termination(result)
     resource_usage = _resource_usage(result)
-    capture_started = time.perf_counter()
+    capture_started = time.perf_counter() if profile_callback is not None else None
     stdout = _persist_capture(attempt_dir, "stdout.bin", result.stdout)
     stderr = _persist_capture(attempt_dir, "stderr.bin", result.stderr)
     profile(
@@ -223,7 +229,9 @@ def execute_attempt(
             + int(stderr["retained_bytes"]),
         },
     )
-    validation_started = time.perf_counter()
+    validation_started = (
+        time.perf_counter() if profile_callback is not None else None
+    )
     xml = xml_validator(output_path)
     profile(
         "xml_validation",
@@ -261,7 +269,9 @@ def execute_attempt(
         "output_retention": "retained",
         "admitted": admitted,
     }
-    terminal_write_started = time.perf_counter()
+    terminal_write_started = (
+        time.perf_counter() if profile_callback is not None else None
+    )
     write_json_atomic(attempt_dir / "attempt.json", record)
     profile(
         "attempt_terminal_write",

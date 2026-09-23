@@ -101,17 +101,29 @@ workflow does not read the cache.
 The normalized runner and combined suite accept `--profile-runner PATH`. The
 option is disabled by default and does not alter selection, execution,
 validation, scoring, the execution journal, or derived report schemas. When
-enabled, it appends one compact JSON object per completed case to `PATH` and
-flushes each complete line, so completed records remain readable after an
-interruption and a resumed run can continue the same file.
+enabled, it writes one compact JSON object per newly executed case attempt to
+`PATH`; cases skipped during resume do not create duplicate records. Each
+record includes the run and attempt identities. The output must not already
+exist, and it must be outside the authoritative execution run directory. Use a
+new profile path when resuming an interrupted execution run; cases skipped
+during that resume produce no records in the new file. When the combined suite
+runs all pair sets, it inserts the pair-set name before the supplied filename
+suffix and writes one JSONL file per pair set.
 
 The records separate srcDiff and srcMove process windows from Python-only
 supervision overhead, structural and semantic validation, scoring, scratch
-materialization, attempt persistence, and SQLite commits. They also retain
-counts and byte volumes for hard links, validation inputs, logs, JSON writes,
-attempt directories, and transactions. The `runner.attempt_started_write_ms`
+materialization and cleanup, attempt persistence, and SQLite transactions.
+They also retain counts and byte volumes for hard links, validation inputs,
+logs, JSON writes, attempt directories, and transactions. The
+`runner.attempt_started_write_ms`
 diagnostic overlaps the corresponding child-process window and therefore must
 not be added to the exclusive wall-time phases.
+
+The profiler is absent from normal execution and report schemas. An invalid
+output path fails before the execution journal is opened. If output fails after
+execution begins, the runner warns, disables further profiling, and continues
+the benchmark. Complete lines before a possible partial final line remain
+usable.
 
 For example, profile the frozen Type-3 small workload from the workspace root:
 
@@ -124,5 +136,7 @@ For example, profile the frozen Type-3 small workload from the workspace root:
 A bounded 20-case run on 2026-09-23 found that child-process windows accounted
 for about 62% of measured per-case wall time. Atomic attempt persistence was
 the largest exclusive Python phase; terminal attempt-record writes accounted
-for about 84% of that phase. This is operational profiling evidence, not a
+for about 84% of that phase. The entire persistence phase was only 7.9% of
+measured case wall time, so eliminating it completely would cap the observed
+single-worker speedup near 1.09x. This is operational profiling evidence, not a
 scientific benchmark result or a justification for changing recovery semantics.
