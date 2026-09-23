@@ -7,6 +7,8 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any
 
+from benchmarking.contracts import XmlStatus
+from benchmarking.provenance import observe_file
 from bigMoveBench.oracle import (
     _validate_results_schema,
     assess_positive_case,
@@ -15,7 +17,7 @@ from bigMoveBench.oracle import (
 )
 
 
-SCORING_ORACLE_VERSION = 4
+SCORING_ORACLE_VERSION = 5
 OUTCOMES = (
     "upstream_failure",
     "srcdiff_semantic_ineligible",
@@ -35,11 +37,42 @@ def _read_json(path: Path) -> dict[str, Any]:
     return value
 
 
+def validate_results_output(path: Path) -> dict[str, Any]:
+    """Validate the results-only artifact before admitting a srcMove attempt."""
+
+    artifact = observe_file(path)
+    if artifact["status"] != "observed":
+        return {"status": XmlStatus.MISSING.value}
+    base = {
+        "size_bytes": artifact["size_bytes"],
+        "sha256": artifact["sha256"],
+    }
+    if artifact["size_bytes"] == 0:
+        return {"status": XmlStatus.EMPTY.value, **base}
+    try:
+        results = _read_json(path)
+    except (OSError, json.JSONDecodeError, ValueError) as error:
+        return {
+            "status": XmlStatus.MALFORMED.value,
+            "error": str(error),
+            **base,
+        }
+    failures = _validate_results_schema(results, require_xpaths=True)
+    if failures:
+        return {
+            "status": XmlStatus.INVALID_STRUCTURE.value,
+            "errors": failures,
+            **base,
+        }
+    return {"status": XmlStatus.VALID.value, **base}
+
+
 def _score_completed_case(
     *,
     metadata: dict[str, Any],
     results_path: Path,
-    srcmove_xml: Path,
+    srcmove_xml: Path | None = None,
+    srcdiff_xml: Path | None = None,
 ) -> tuple[str, list[str], dict[str, str], dict[str, Any]]:
     try:
         results = _read_json(results_path)
@@ -54,7 +87,9 @@ def _score_completed_case(
         text_validation = {"from": "not_checked", "to": "not_checked"}
         failures = _validate_results_schema(results)
         moves = results.get("moves")
-        if results.get("move_count") != 0 or srcmove_xml.exists():
+        if srcmove_xml is not None and (
+            results.get("move_count") != 0 or srcmove_xml.exists()
+        ):
             try:
                 ET.parse(srcmove_xml)
             except (OSError, ET.ParseError) as error:
@@ -130,8 +165,9 @@ def _score_completed_case(
     assessment = assess_positive_case(
         metadata=metadata,
         results=results,
-        srcmove_xml=srcmove_xml,
         syntactic_type=syntactic_type,
+        srcmove_xml=srcmove_xml,
+        srcdiff_xml=srcdiff_xml,
     )
     if assessment.detected_move_id is not None:
         results["_oracle_detected_move_id"] = assessment.detected_move_id

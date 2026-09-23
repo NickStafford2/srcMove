@@ -7,7 +7,7 @@ flowchart LR
     E --> F["srcDiff<br/>produce XML changes"]
     F --> G{"Semantic gate:<br/>did srcDiff expose the<br/>expected delete + insert?"}
     G -->|No| H["Record upstream<br/>ineligible/error"]
-    G -->|Yes| I["srcMove<br/>detect moves"]
-    I --> J["BigMoveBench oracle<br/>score the result"]
+    G -->|Yes| I["srcMove results-only<br/>detect moves"]
+    I --> J["BigMoveBench oracle<br/>resolve result XPaths in srcDiff XML<br/>and score the result"]
     J --> K["Per-category report<br/>and preserved artifacts"]
 ```

@@ -28,6 +28,7 @@ TOOL_OBSERVATION = {
 class FakeToolAttempts:
     def __init__(self, interrupt_stage: str | None = None) -> None:
         self.calls: list[str] = []
+        self.commands: list[tuple[str, list[str]]] = []
         self.interrupt_stage = interrupt_stage
 
     def __call__(self, **kwargs):
@@ -52,7 +53,7 @@ class FakeToolAttempts:
                 {"log_writes": 0, "log_bytes": 0},
             )
             profile_callback(
-                "xml_validation", 0.005, {"validation_bytes": 128}
+                "output_validation", 0.005, {"validation_bytes": 128}
             )
             profile_callback(
                 "attempt_terminal_write",
@@ -63,6 +64,9 @@ class FakeToolAttempts:
         attempt_dir = kwargs["attempts_root"] / attempt_id
         attempt_dir.mkdir(parents=True)
         output = attempt_dir / kwargs["output_filename"]
+        self.commands.append(
+            (stage, [str(part) for part in kwargs["command_factory"](output)])
+        )
         output.write_text(
             (
                 "<unit xmlns='http://www.srcML.org/srcML/src' "
@@ -220,6 +224,18 @@ class NormalizedExecutionTests(unittest.TestCase):
                     ).fetchone()[0]
                 )
                 self.assertNotIn("runner_profile", configuration)
+                self.assertEqual(
+                    configuration["srcmove"]["output_mode"], "results_only"
+                )
+            srcmove_commands = [
+                command for stage, command in tools.commands if stage == "srcmove"
+            ]
+            self.assertEqual(len(srcmove_commands), 2)
+            for command in srcmove_commands:
+                self.assertEqual(command[-3], "--results")
+                self.assertTrue(command[-2].endswith("/results.json"))
+                self.assertEqual(command[-1], "--results-only")
+                self.assertFalse(any(value.endswith("srcmove.xml") for value in command))
             csv_lines = (run_dir / "cases.csv").read_text(
                 encoding="utf-8"
             ).splitlines()

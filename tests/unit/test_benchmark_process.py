@@ -55,7 +55,7 @@ class ProcessAttemptTests(unittest.TestCase):
             "cwd": root,
             "timeout_seconds": 2.0,
             "timeout_grace_seconds": 0.05,
-            "xml_validator": single_file_validator,
+            "output_validator": single_file_validator,
             "output_filename": "partial.srcdiff.xml",
         }
         arguments.update(overrides)
@@ -77,6 +77,23 @@ class ProcessAttemptTests(unittest.TestCase):
                 attempt["resource_usage"]["peak_rss_status"],
                 {"observed", "unavailable"},
             )
+
+    def test_output_validation_key_supports_non_xml_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            attempt_dir, attempt = self.run_attempt(
+                Path(temporary_directory),
+                "valid-single",
+                output_validation_key="results",
+            )
+
+            self.assertEqual(attempt["schema_version"], 3)
+            self.assertEqual(attempt["output_validation_key"], "results")
+            self.assertEqual(attempt["results"]["status"], "valid")
+            self.assertNotIn("xml", attempt)
+            persisted = json.loads(
+                (attempt_dir / "attempt.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(persisted, attempt)
 
     def test_resource_sampler_shares_one_scan_across_active_groups(self) -> None:
         sampler = _ProcessGroupResourceSampler(sample_seconds=0.001)
@@ -221,7 +238,7 @@ class ProcessAttemptTests(unittest.TestCase):
                 ],
                 cwd=root,
                 timeout_seconds=1.0,
-                xml_validator=single_file_validator,
+                output_validator=single_file_validator,
                 output_filename="partial.srcdiff.xml",
             )
 
@@ -266,7 +283,7 @@ class ProcessAttemptTests(unittest.TestCase):
                 command_factory=lambda output: [sys.executable, str(script), str(output)],
                 cwd=root,
                 timeout_seconds=2.0,
-                xml_validator=single_file_validator,
+                output_validator=single_file_validator,
                 output_filename="partial.srcdiff.xml",
                 log_limit=40,
             )
@@ -300,7 +317,7 @@ class ProcessAttemptTests(unittest.TestCase):
                 command_factory=lambda output: [sys.executable, str(script), str(output)],
                 cwd=root,
                 timeout_seconds=2.0,
-                xml_validator=single_file_validator,
+                output_validator=single_file_validator,
                 output_filename="partial.srcdiff.xml",
             )
 
@@ -337,6 +354,32 @@ class ProcessAttemptTests(unittest.TestCase):
                 recovered["termination"]["status"], "orchestration_interrupted"
             )
             self.assertFalse(recovered["admitted"])
+
+    def test_recovery_preserves_non_xml_validation_key(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            attempts = Path(temporary_directory) / "attempts"
+            abandoned = attempts / "attempt-abandoned"
+            abandoned.mkdir(parents=True)
+            write_json_atomic(
+                abandoned / "started.json",
+                {
+                    "schema_version": 3,
+                    "attempt_id": "attempt-abandoned",
+                    "case_id": "tiny",
+                    "output_path": "results.json",
+                    "output_validation_key": "results",
+                },
+            )
+            (abandoned / "results.json").write_text("{}", encoding="utf-8")
+
+            self.assertEqual(
+                recover_interrupted_attempts(attempts), ["attempt-abandoned"]
+            )
+            recovered = json.loads(
+                (abandoned / "attempt.json").read_text(encoding="utf-8")
+            )
+            self.assertEqual(recovered["results"]["status"], "not_checked")
+            self.assertNotIn("xml", recovered)
 
 
 if __name__ == "__main__":

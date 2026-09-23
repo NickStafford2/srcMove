@@ -41,8 +41,9 @@ For each case, the serial runner:
 2. links them into one reusable scratch archive at the stable source and
    destination paths;
 3. runs srcDiff and checks that the intended delete and insert are exposed;
-4. runs srcMove when that semantic check passes;
-5. scores the result with the unchanged BigMoveBench oracle;
+4. runs srcMove in results-only mode when that semantic check passes;
+5. resolves the reported move XPaths against the admitted srcDiff XML and
+   scores the result with the BigMoveBench oracle;
 6. commits the attempt and outcome in one SQLite transaction; and
 7. clears and reuses the scratch archive.
 
@@ -63,10 +64,18 @@ attempts are recorded as interrupted rather than silently lost.
 6. Retries create new attempts; they do not overwrite evidence.
 7. Case collections and results are streamed in bounded batches.
 
+BigMoveBench retains `results.json`, not annotated srcMove XML. The JSON
+contains the move identity, classification, text, and source/destination
+XPaths needed by the oracle. Resolving those XPaths against the already
+admitted srcDiff XML preserves the positional overlap check while avoiding an
+output artifact that the benchmark does not otherwise consume.
+
 ## Verified Migration
 
 - The old and new workflows matched on all 80 small-profile cases.
 - They matched on all 400 medium-profile cases.
+- XPath-derived position ranges matched annotated-output ranges on all 400
+  medium-profile cases before the runner switched to results-only execution.
 - The suite now uses the database-backed runner directly.
 - The old snapshot/corpus implementation and migration comparison command were
   removed so there is only one supported workflow.

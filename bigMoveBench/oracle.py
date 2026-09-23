@@ -11,6 +11,9 @@ from typing import Any
 
 TextValidation = dict[str, str]
 MV_NAMESPACE = "http://www.srcML.org/srcMove"
+SRC_NAMESPACE = "http://www.srcML.org/srcML/src"
+DIFF_NAMESPACE = "http://www.srcML.org/srcDiff"
+XPATH_NAMESPACES = {"src": SRC_NAMESPACE, "diff": DIFF_NAMESPACE}
 
 
 @dataclass(frozen=True)
@@ -135,6 +138,65 @@ def moved_position_ranges(
     return ranges
 
 
+def reported_position_ranges(
+    srcdiff_xml: Path,
+    results: Any,
+) -> dict[str, dict[str, list[tuple[int, int]]]]:
+    """Resolve move-result XPaths against the admitted srcDiff artifact."""
+
+    if not isinstance(results, dict) or not isinstance(results.get("moves"), list):
+        raise ValueError("results.json moves must be a list")
+    root = ET.parse(srcdiff_xml).getroot()
+    ranges: dict[str, dict[str, list[tuple[int, int]]]] = {}
+    for move in results["moves"]:
+        if not isinstance(move, dict):
+            raise ValueError("results.json move must be an object")
+        move_id = move.get("move_id")
+        if not isinstance(move_id, str) or not move_id:
+            raise ValueError("results.json move is missing a move id")
+        move_ranges = ranges.setdefault(
+            move_id, {"delete": [], "insert": []}
+        )
+        for field, kind in (
+            ("from_xpaths", "delete"),
+            ("to_xpaths", "insert"),
+        ):
+            xpaths = move.get(field)
+            if not isinstance(xpaths, list) or not all(
+                isinstance(xpath, str) and xpath.startswith("/")
+                for xpath in xpaths
+            ):
+                raise ValueError(f"move {move_id!r} has invalid {field}")
+            for xpath in xpaths:
+                try:
+                    nodes = root.findall(f".{xpath}", XPATH_NAMESPACES)
+                except SyntaxError as error:
+                    raise ValueError(
+                        f"move {move_id!r} has invalid {field} XPath: {error}"
+                    ) from error
+                if len(nodes) != 1:
+                    raise ValueError(
+                        f"move {move_id!r} {field} XPath resolved to "
+                        f"{len(nodes)} nodes"
+                    )
+                pos_start = attr_by_local_name(nodes[0], "start")
+                pos_end = attr_by_local_name(nodes[0], "end")
+                if pos_start is None or pos_end is None:
+                    raise ValueError(
+                        f"move {move_id!r} {field} node is missing a position range"
+                    )
+                start_line = parse_pos_line(pos_start, kind)
+                end_line = parse_pos_line(pos_end, kind)
+                if start_line is None or end_line is None:
+                    raise ValueError(
+                        f"move {move_id!r} {field} node has an invalid position range"
+                    )
+                move_ranges[kind].append(
+                    (min(start_line, end_line), max(start_line, end_line))
+                )
+    return ranges
+
+
 def ranges_overlap(left: tuple[int, int], right: tuple[int, int]) -> bool:
     return left[0] <= right[1] and right[0] <= left[1]
 
@@ -211,7 +273,9 @@ def validate_reported_text(
     text_validation[side] = status
 
 
-def _validate_results_schema(results: Any) -> list[str]:
+def _validate_results_schema(
+    results: Any, *, require_xpaths: bool = False
+) -> list[str]:
     failures: list[str] = []
     if not isinstance(results, dict):
         return ["results.json root must be an object"]
@@ -251,6 +315,16 @@ def _validate_results_schema(results: Any) -> list[str]:
                 isinstance(value, str) for value in values
             ):
                 failures.append(f"{prefix}.{field}: expected a list of strings")
+        if require_xpaths:
+            for field in ("from_xpaths", "to_xpaths"):
+                values = move.get(field)
+                if not isinstance(values, list) or not all(
+                    isinstance(value, str) and value.startswith("/")
+                    for value in values
+                ):
+                    failures.append(
+                        f"{prefix}.{field}: expected a list of absolute XPaths"
+                    )
 
     match_kinds = results.get("match_kinds")
     if not isinstance(match_kinds, dict):
@@ -271,8 +345,9 @@ def assess_positive_case(
     *,
     metadata: dict[str, Any],
     results: Any,
-    srcmove_xml: Path,
     syntactic_type: int,
+    srcmove_xml: Path | None = None,
+    srcdiff_xml: Path | None = None,
 ) -> PositiveOracleAssessment:
     operational_failures = _validate_results_schema(results)
     detection_failures: list[str] = []
@@ -318,13 +393,21 @@ def assess_positive_case(
         expected_from_range = expected_to_range = (0, -1)
 
     ranges_by_move: dict[str, dict[str, list[tuple[int, int]]]] = {}
-    # The runner may have no XML artifact when srcMove reports zero moves.
-    # A present artifact must still be well formed.
-    if results.get("move_count") != 0 or srcmove_xml.exists():
+    # BigMoveBench resolves result XPaths against the admitted srcDiff input.
+    # The annotated-output path remains for checked-in XML regression fixtures.
+    move_count = results.get("move_count") if isinstance(results, dict) else None
+    if move_count != 0 and srcdiff_xml is not None:
+        try:
+            ranges_by_move = reported_position_ranges(srcdiff_xml, results)
+        except (OSError, ET.ParseError, ValueError) as error:
+            operational_failures.append(f"srcdiff.xml position error: {error}")
+    elif srcmove_xml is not None and (move_count != 0 or srcmove_xml.exists()):
         try:
             ranges_by_move = moved_position_ranges(srcmove_xml)
         except (OSError, ET.ParseError, ValueError) as error:
             operational_failures.append(f"srcmove.xml parse error: {error}")
+    elif move_count != 0:
+        operational_failures.append("position evidence is unavailable")
 
     if operational_failures:
         return PositiveOracleAssessment(

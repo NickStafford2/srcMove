@@ -43,8 +43,8 @@ def output_path(arguments: list[str]) -> Path | None:
         if option in arguments:
             index = arguments.index(option)
             return Path(arguments[index + 1])
-    if "--results" in arguments and len(arguments) >= 2:
-        return Path(arguments[1])
+    if "--results" in arguments:
+        return Path(arguments[arguments.index("--results") + 1])
     return None
 
 
@@ -67,13 +67,14 @@ def main() -> int:
     print("fake-tool diagnostic", file=sys.stderr)
 
     if outcome in {"success", "valid-single", "valid-archive"}:
-        if destination is not None:
+        if destination is not None and "--results-only" not in arguments:
             write_xml(destination, archive=outcome == "valid-archive")
         if "--results" in arguments:
             results = Path(arguments[arguments.index("--results") + 1])
             results.write_text(
                 '{"move_count":0,"move_group_count":0,'
-                '"move_pair_count":0,"annotated_region_count":0}\n',
+                '"move_pair_count":0,"annotated_region_count":0,'
+                '"match_kinds":{},"moves":[]}\n',
                 encoding="utf-8",
             )
         return 0

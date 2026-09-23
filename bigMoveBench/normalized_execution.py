@@ -23,7 +23,11 @@ REPO_ROOT = SCRIPT_DIR.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 
-from benchmarking.execution import execute_attempt, recover_interrupted_attempts
+from benchmarking.execution import (
+    ATTEMPT_SCHEMA_VERSION,
+    execute_attempt,
+    recover_interrupted_attempts,
+)
 from benchmarking.identity import canonical_json
 from benchmarking.provenance import observe_executable, sha256_file, utc_now
 from benchmarking.srcdiff_validation import validate_srcdiff_xml
@@ -40,6 +44,7 @@ from bigMoveBench.evaluate import (
     OUTCOMES,
     SCORING_ORACLE_VERSION,
     _score_completed_case,
+    validate_results_output,
 )
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from bigMoveBench.progress import ProgressDisplay
@@ -95,13 +100,6 @@ def _json(value: Any) -> str:
 
 def _relative(path: Path, parent: Path) -> str:
     return path.resolve().relative_to(parent.resolve()).as_posix()
-
-
-def _read_object(path: Path) -> dict[str, Any]:
-    value = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(value, dict):
-        raise ValueError(f"JSON root must be an object: {path}")
-    return value
 
 
 def _schema(connection: sqlite3.Connection) -> None:
@@ -780,7 +778,10 @@ class SerialBenchmarkExecutionRunner:
                 "timeout_seconds": srcdiff_timeout_seconds,
                 "semantic_oracle_version": SEMANTIC_ORACLE_VERSION,
             },
-            "srcmove": {"timeout_seconds": srcmove_timeout_seconds},
+            "srcmove": {
+                "timeout_seconds": srcmove_timeout_seconds,
+                "output_mode": "results_only",
+            },
             "scoring_oracle_version": SCORING_ORACLE_VERSION,
             "development_srcdiff_cache": {
                 "enabled": srcdiff_cache is not None,
@@ -871,7 +872,7 @@ class SerialBenchmarkExecutionRunner:
         os.replace(temporary, output)
         timestamp = utc_now()
         record = {
-            "schema_version": 2,
+            "schema_version": ATTEMPT_SCHEMA_VERSION,
             "attempt_id": attempt_id,
             "stage": "srcdiff",
             "case_id": case.case_id,
@@ -886,6 +887,7 @@ class SerialBenchmarkExecutionRunner:
             "stderr": {"status": "not_run"},
             "xml": xml,
             "output_path": output.name,
+            "output_validation_key": "xml",
             "output_retention": "retained",
             "admitted": True,
             "context": dict(context),
@@ -938,7 +940,7 @@ class SerialBenchmarkExecutionRunner:
                 ],
                 cwd=case.original.parent,
                 timeout_seconds=self.srcdiff_timeout_seconds,
-                xml_validator=lambda path: validate_srcdiff_xml(path, "archive"),
+                output_validator=lambda path: validate_srcdiff_xml(path, "archive"),
                 output_filename="srcdiff.xml",
                 context=context,
                 profile_callback=(
@@ -1008,18 +1010,20 @@ class SerialBenchmarkExecutionRunner:
             command_factory=lambda output: [
                 str(self.srcmove),
                 str(srcdiff_dir / "srcdiff.xml"),
-                str(output),
                 "--results",
-                str(output.parent / "results.json"),
+                str(output),
+                "--results-only",
             ],
             cwd=self.run_dir,
             timeout_seconds=self.srcmove_timeout_seconds,
-            xml_validator=lambda path: validate_srcdiff_xml(path, "archive"),
-            output_filename="srcmove.xml",
+            output_validator=validate_results_output,
+            output_filename="results.json",
+            output_validation_key="results",
             context=context
             | {
                 "srcdiff_attempt_id": srcdiff_record["attempt_id"],
                 "srcdiff_sha256": srcdiff_record["xml"].get("sha256"),
+                "srcmove_output_mode": "results_only",
             },
             profile_callback=(
                 self._runner_profiler.attempt_callback("srcmove")
@@ -1035,16 +1039,7 @@ class SerialBenchmarkExecutionRunner:
                 "runner.srcmove_process_ms", float(srcmove_process_seconds)
             )
         results_path = srcmove_dir / "results.json"
-        results_validation_started = self._profile_start()
-        try:
-            _read_object(results_path)
-            results_valid = True
-        except (OSError, ValueError, json.JSONDecodeError):
-            results_valid = False
-        self._profile_phase(
-            "runner.srcmove_validation_ms", results_validation_started
-        )
-        completed = bool(srcmove_record["admitted"] and results_valid)
+        completed = bool(srcmove_record["admitted"])
         result.update(
             {
                 "outcome": "srcmove_tool_failure",
@@ -1061,7 +1056,7 @@ class SerialBenchmarkExecutionRunner:
         outcome, failures, text_validation, oracle_results = _score_completed_case(
             metadata=dict(case.metadata),
             results_path=results_path,
-            srcmove_xml=srcmove_dir / "srcmove.xml",
+            srcdiff_xml=srcdiff_dir / "srcdiff.xml",
         )
         self._profile_phase("runner.scoring_ms", scoring_started)
         result.update(

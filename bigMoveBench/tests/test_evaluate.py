@@ -13,10 +13,105 @@ if str(REPO_ROOT) not in sys.path:
 
 from bigMoveBench.evaluate import (
     _score_completed_case,
+    validate_results_output,
 )
 
 
 class BigMoveBenchEvaluationTests(unittest.TestCase):
+    def test_results_output_validation_rejects_bad_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            path = Path(temporary_directory) / "results.json"
+            self.assertEqual(validate_results_output(path)["status"], "missing")
+            for contents, status in (
+                ("", "empty"),
+                ("not json", "malformed"),
+                ("[]", "malformed"),
+                ("{}", "invalid_structure"),
+                (
+                    json.dumps(
+                        {"move_count": 0, "match_kinds": {}, "moves": []}
+                    ),
+                    "valid",
+                ),
+            ):
+                with self.subTest(status=status):
+                    path.write_text(contents, encoding="utf-8")
+                    self.assertEqual(
+                        validate_results_output(path)["status"], status
+                    )
+
+    def test_results_only_scoring_resolves_positions_from_srcdiff(self) -> None:
+        metadata = {
+            "syntactic_type": 1,
+            "expected": {
+                "from_generated_text": "void moved() {}",
+                "to_generated_text": "void moved() {}",
+                "from_start_line": 3,
+                "from_end_line": 3,
+                "to_start_line": 7,
+                "to_end_line": 7,
+            },
+        }
+        results = {
+            "move_count": 1,
+            "match_kinds": {"exact": 1},
+            "moves": [
+                {
+                    "move_id": "m1",
+                    "match_kind": "exact",
+                    "from_xpaths": [
+                        "/src:unit[@filename='source/input.java']"
+                        "/src:class[1]/src:block[1]/diff:delete[1]"
+                        "/src:function[src:name='moved']"
+                    ],
+                    "to_xpaths": [
+                        "/src:unit[@filename='destination/input.java']"
+                        "/src:class[1]/src:block[1]/diff:insert[1]"
+                        "/src:function[src:name='moved']"
+                    ],
+                    "from_raw_texts": ["void moved() {}"],
+                    "to_raw_texts": ["void moved() {}"],
+                }
+            ],
+        }
+        srcdiff = (
+            "<unit xmlns='http://www.srcML.org/srcML/src' "
+            "xmlns:diff='http://www.srcML.org/srcDiff' "
+            "xmlns:pos='http://www.srcML.org/srcML/position'>"
+            "<unit filename='source/input.java'><class><block><diff:delete>"
+            "<function pos:start='3:1' pos:end='3:20'><name>moved</name>"
+            "</function></diff:delete></block></class></unit>"
+            "<unit filename='destination/input.java'><class><block><diff:insert>"
+            "<function pos:start='7:1' pos:end='7:20'><name>moved</name>"
+            "</function></diff:insert></block></class></unit>"
+            "</unit>"
+        )
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            results_path = root / "results.json"
+            results_path.write_text(json.dumps(results), encoding="utf-8")
+            srcdiff_path = root / "srcdiff.xml"
+            srcdiff_path.write_text(srcdiff, encoding="utf-8")
+
+            self.assertEqual(validate_results_output(results_path)["status"], "valid")
+            outcome, failures, _, _ = _score_completed_case(
+                metadata=metadata,
+                results_path=results_path,
+                srcdiff_xml=srcdiff_path,
+            )
+            self.assertEqual(outcome, "oracle_pass")
+            self.assertEqual(failures, [])
+
+            results["moves"][0]["from_xpaths"] = ["/src:unit[@filename='missing']"]
+            results_path.write_text(json.dumps(results), encoding="utf-8")
+            outcome, failures, _, _ = _score_completed_case(
+                metadata=metadata,
+                results_path=results_path,
+                srcdiff_xml=srcdiff_path,
+            )
+            self.assertEqual(outcome, "oracle_failure")
+            self.assertTrue(any("resolved to 0 nodes" in failure for failure in failures))
+
     def test_type_two_scoring_requires_type2_match_kind(self) -> None:
         metadata = {
             "syntactic_type": 2,

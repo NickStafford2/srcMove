@@ -126,6 +126,12 @@ pipeline keeps these outcomes distinct:
 - srcMove ran on an eligible input but missed the expected move
 - srcMove satisfied the positional, text, and match-kind oracle
 
+srcMove runs with `--results-only`. The scoring oracle uses the reported move
+XPaths to resolve source and destination nodes in the admitted srcDiff XML,
+then applies the same line-range overlap checks formerly read from annotated
+srcMove XML. The JSON move identities, classifications, and texts remain the
+other half of the dual oracle.
+
 The per-run summary reports both the end-to-end strict pass rate over generated
 cases and the conditional srcMove detection-and-classification rate over
 srcDiff-eligible cases. The eligibility and scoring oracle versions are recorded

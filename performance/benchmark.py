@@ -245,7 +245,7 @@ def run_measurement(
         command_factory=command,
         cwd=run_dir,
         timeout_seconds=timeout_seconds,
-        xml_validator=lambda path: validate_srcdiff_xml(
+        output_validator=lambda path: validate_srcdiff_xml(
             path, str(workload_observation["xml_shape"])
         ),
         output_filename="srcmove.xml",

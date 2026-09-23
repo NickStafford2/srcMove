@@ -23,11 +23,11 @@ from srcmove_runtime.process_supervision import (
 )
 
 
-ATTEMPT_SCHEMA_VERSION = 2
+ATTEMPT_SCHEMA_VERSION = 3
 DEFAULT_LOG_LIMIT = 16 * 1024 * 1024
 DEFAULT_TIMEOUT_GRACE_SECONDS = 5.0
 CommandFactory = Callable[[Path], Sequence[str | os.PathLike[str]]]
-XmlValidator = Callable[[Path], dict[str, Any]]
+OutputValidator = Callable[[Path], dict[str, Any]]
 ProfileCallback = Callable[[str, float, Mapping[str, int]], None]
 
 
@@ -100,8 +100,9 @@ def execute_attempt(
     command_factory: CommandFactory,
     cwd: Path,
     timeout_seconds: float,
-    xml_validator: XmlValidator,
+    output_validator: OutputValidator,
     output_filename: str,
+    output_validation_key: str = "xml",
     log_limit: int = DEFAULT_LOG_LIMIT,
     timeout_grace_seconds: float = DEFAULT_TIMEOUT_GRACE_SECONDS,
     parent_attempt_id: str | None = None,
@@ -114,6 +115,8 @@ def execute_attempt(
 
     if log_limit < 2:
         raise ValueError("log limit must be at least two bytes")
+    if not output_validation_key:
+        raise ValueError("output validation key must not be empty")
     setup_started = time.perf_counter() if profile_callback is not None else None
     attempt_id = f"attempt-{uuid.uuid4()}"
     attempt_dir = attempts_root / attempt_id
@@ -136,6 +139,7 @@ def execute_attempt(
         "retry_ordinal": retry_ordinal,
         "context": dict(context or {}),
         "output_path": output_filename,
+        "output_validation_key": output_validation_key,
         "environment": {
             key: effective_environment.get(key)
             for key in ("PATH", "LANG", "LC_ALL", "TZ")
@@ -185,7 +189,7 @@ def execute_attempt(
             "resource_usage": _resource_usage(result),
             "stdout": stdout,
             "stderr": stderr,
-            "xml": {"status": XmlStatus.NOT_CHECKED.value},
+            output_validation_key: {"status": XmlStatus.NOT_CHECKED.value},
             "admitted": False,
         }
         write_json_atomic(attempt_dir / "attempt.json", record)
@@ -232,16 +236,20 @@ def execute_attempt(
     validation_started = (
         time.perf_counter() if profile_callback is not None else None
     )
-    xml = xml_validator(output_path)
+    output_validation = output_validator(output_path)
     profile(
-        "xml_validation",
+        "output_validation",
         validation_started,
-        {"validation_bytes": int(xml.get("size_bytes") or 0)},
+        {
+            "validation_bytes": int(
+                output_validation.get("size_bytes") or 0
+            )
+        },
     )
     admitted = (
         termination["status"] == TerminationStatus.EXITED.value
         and termination.get("exit_code") == 0
-        and xml["status"] == XmlStatus.VALID.value
+        and output_validation["status"] == XmlStatus.VALID.value
         and result.capture_complete
     )
     record = {
@@ -264,7 +272,7 @@ def execute_attempt(
         "log_capture_complete": result.capture_complete,
         "stdout": stdout,
         "stderr": stderr,
-        "xml": xml,
+        output_validation_key: output_validation,
         "output_path": output_filename,
         "output_retention": "retained",
         "admitted": admitted,
@@ -336,6 +344,9 @@ def recover_interrupted_attempts(attempts_root: Path) -> list[str]:
         process_id = started.get("pid")
         if isinstance(process_id, int) and process_exists(process_id):
             continue
+        output_validation_key = str(
+            started.get("output_validation_key", "xml")
+        )
         record = {
             **started,
             "completed_at": utc_now(),
@@ -346,7 +357,7 @@ def recover_interrupted_attempts(attempts_root: Path) -> list[str]:
             "stdout": {"status": "unavailable"},
             "stderr": {"status": "unavailable"},
             "elapsed_seconds": None,
-            "xml": {
+            output_validation_key: {
                 "status": XmlStatus.NOT_CHECKED.value,
                 "partial_artifact": observe_file(
                     attempt_dir / started.get("output_path", "partial.srcdiff.xml")

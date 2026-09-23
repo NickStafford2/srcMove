@@ -93,7 +93,7 @@ class RunnerProfiler:
         ) -> None:
             if name == "process_supervision":
                 self.add_phase(f"runner.{stage}_supervision_ms", seconds)
-            elif name == "xml_validation":
+            elif name == "output_validation":
                 self.add_phase(f"runner.{stage}_validation_ms", seconds)
             elif name == "attempt_setup":
                 self.add_phase("runner.attempt_setup_ms", seconds)
@@ -109,7 +109,7 @@ class RunnerProfiler:
             profiled_counters = {
                 f"runner.{key}": value for key, value in counters.items()
             }
-            if name == "xml_validation" and "validation_bytes" in counters:
+            if name == "output_validation" and "validation_bytes" in counters:
                 profiled_counters[
                     f"runner.{stage}_validation_bytes"
                 ] = counters["validation_bytes"]
