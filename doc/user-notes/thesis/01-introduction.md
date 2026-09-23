@@ -97,14 +97,14 @@ views. These responsibilities remain separate: srcMove is a command-line
 post-processor rather than an extension embedded in srcDiff, and srcVisual
 consumes rather than defines the annotation semantics.
 
-Within srcMove, the implemented pipeline performs four main operations. First,
-it streams the input and records each deletion and insertion with its file
-ownership, nesting, source text, XML nodes, and location. Second, it selects
-candidate regions. The default policy starts from leaf diff regions, excludes
-whitespace-only and low-information fragments, and prefers complete structural
-children such as functions, classes, declarations, conditionals, loops, and
-statements. Third, it constructs cached canonical representations and attempts
-matching in a fixed order:
+Within srcMove, the implemented pipeline performs three main operations. First,
+it makes one streaming pass that recognizes each deletion and insertion, tracks
+its file ownership and nesting, applies the candidate policy, and constructs
+the matching representations incrementally. The default policy starts from
+leaf diff regions, excludes whitespace-only and low-information fragments, and
+prefers complete structural children such as functions, classes, declarations,
+conditionals, loops, and statements. Second, it attempts matching in a fixed
+order:
 
 - **exact (Type 1)** matches preserve meaningful tokens and srcML structure
   while ignoring comments and formatting-only content;
@@ -116,8 +116,10 @@ matching in a fixed order:
 
 Type-1 and Type-2 matching use hashes only as indexes; full canonical content is
 checked before a group is accepted. Type-3 comparison is restricted by element
-kind and size, then selects accepted edges deterministically. Finally, a second
-streaming pass preserves the input document and adds the move annotations.
+kind and size, then selects accepted edges deterministically. Finally, a normal
+annotated-XML run makes a second streaming pass that preserves the input
+document and adds the move annotations. Results-only execution instead builds
+the JSON record from candidate-owned evidence and skips that output pass.
 Chapter 4 gives the complete implementation account; the canonical technical
 description remains `doc/architecture.md` while this thesis is drafted.
 

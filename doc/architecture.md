@@ -27,21 +27,31 @@ srcMove remains a separate CLI and does not require integration into srcDiff.
 
 The pipeline is coordinated by [`src/pipeline.cpp`](../src/pipeline.cpp).
 
-### 1. Parse diff regions
+### 1. Stream the input and construct candidates
 
-[`src/parse/diff_region.cpp`](../src/parse/diff_region.cpp) makes one pass over
-the input and records every `diff:delete` and `diff:insert` region. Each record
-includes its file, nesting relationship, node span, XPath, raw text, captured
-srcML nodes, and cached matching representations.
+The production path in
+[`src/region_filter.cpp`](../src/region_filter.cpp) makes one streaming pass over
+the input. It distinguishes single-file and archive srcDiff shapes, tracks the
+file ownership and nesting of each `diff:delete` and `diff:insert`, and builds
+move candidates as XML events arrive. That file ownership permits a deletion in
+one file to match an insertion in another.
 
-The parser explicitly distinguishes single-file and archive srcDiff shapes.
-That file ownership is what permits a delete in one file to match an insert in
-another.
+Candidate construction and canonicalization are part of this same pass. For
+each active region or structural child, the stream accumulates raw text, node
+span, XPath, and the state needed to build the matching representations. When a
+region or child closes, its completed candidate owns the representations needed
+by later matching; the pipeline does not retain a captured copy of its srcML
+event sequence. Under the default leaf-only policy, opening a nested diff region
+also releases the parent region's candidate-construction state.
 
-### 2. Select move candidates
+[`src/parse/diff_region.cpp`](../src/parse/diff_region.cpp) retains the older
+captured-region path for focused tests and callers that explicitly need region
+objects. It is not used by the production pipeline.
 
-[`src/region_filter.cpp`](../src/region_filter.cpp) applies the default candidate
-policy:
+### 2. Apply the candidate policy during the stream
+
+The streaming path applies the default candidate policy while regions and
+structural children are completed:
 
 - start from leaf diff regions
 - exclude whitespace-only payloads and fragments smaller than a complete
@@ -58,19 +68,21 @@ complete construct meeting the same evidence floor. The CLI option
 `--min-granularity fragment` restores raw diff-fragment candidates for
 specialized analysis; it is not the default.
 
-### 3. Canonicalize and group
+### 3. Build matching representations and groups
 
-[`src/parse/canonical_subtree.cpp`](../src/parse/canonical_subtree.cpp) converts
-captured srcML events into cached canonical representations. The Type-1 form
-ignores the outer diff wrapper, comments, `diff:ws` elements, and formatting-only
-text while retaining identifiers, literals, keywords, operators, and srcML
-structure. The Type-2 identity is a compact lexical form: it consistently
-numbers direct srcML `<name>` tokens by first occurrence, replaces literals
-with their category (`integer`, `floating`, `string`, `character`, `boolean`,
-or `null`), and ignores empty statements as well as comments and formatting.
-Other source tokens and operators remain unchanged. Group keys also include the
-candidate's srcML element kind, so lexically identical constructs of different
-kinds do not collapse into one group.
+The incremental builder in
+[`src/parse/canonical_subtree.cpp`](../src/parse/canonical_subtree.cpp) feeds
+each candidate's XML events through coordinated builders for all cached
+matching representations. The Type-1 form ignores the outer diff wrapper,
+comments, `diff:ws` elements, and formatting-only text while retaining
+identifiers, literals, keywords, operators, and srcML structure. The Type-2
+identity is a compact lexical form: it consistently numbers direct srcML
+`<name>` tokens by first occurrence, replaces literals with their category
+(`integer`, `floating`, `string`, `character`, `boolean`, or `null`), and
+ignores empty statements as well as comments and formatting. Other source
+tokens and operators remain unchanged. Group keys also include the candidate's
+srcML element kind, so lexically identical constructs of different kinds do not
+collapse into one group.
 
 Candidates are bucketed with 64-bit FNV-1a hashes of that canonical form. A hash
 is only an index: groups are split and confirmed using the full canonical text,
@@ -111,11 +123,11 @@ selected greedily one-to-one. This makes output deterministic. Type-1 and
 Type-2 selection always precede Type-3, and an ambiguous exact Type-2 identity
 is never relabeled as the weaker Type-3 kind.
 
-### 4. Annotate the XML
+### 4. Produce annotations or results
 
-The writer makes a second XML pass and preserves unmodified input nodes. For
-each group containing both deletes and inserts, it adds the srcMove namespace
-and annotates matched start tags with:
+For a normal annotated-XML run, the writer makes a second XML pass and preserves
+unmodified input nodes. For each group containing both deletes and inserts, it
+adds the srcMove namespace and annotates matched start tags with:
 
 - `mv:id`: the shared move-group identifier
 - `mv:to`: destination XPath or XPath union on a deletion
@@ -124,7 +136,8 @@ and annotates matched start tags with:
 Annotations may be placed on a structural child inside a diff wrapper rather
 than on the wrapper itself. The optional `--results` output records move groups,
 match kinds, source/destination XPaths, raw texts, candidate counts, and group
-classifications as JSON.
+classifications as JSON. With `--results-only`, srcMove materializes that JSON
+evidence from candidate-owned XPaths and skips the second XML pass entirely.
 
 ## Matching and group semantics
 
@@ -143,12 +156,14 @@ does not yet infer a unique pairing within an ambiguous many-to-many group.
 
 ## Performance model
 
-Parsing and writing are streaming passes, while collected regions, candidates,
-and compact candidate-id groups remain in memory. Hash indexing and exact-text
-partitioning avoid constructing the full delete-by-insert Cartesian product for
-Type 1 and Type 2. Cached normalized segment and token hashes, element-kind
-partitioning, per-representation size windows, and early-exit LCS constrain
-Type-3 work. The
+Parsing, candidate selection, and canonicalization share one streaming input
+pass. The pipeline retains completed candidates, their cached representations,
+lightweight region bookkeeping, and compact candidate-id groups, but not a full
+XML tree or captured node subtrees. Normal annotation uses a second streaming
+pass; `--results-only` omits it. Hash indexing and exact-text partitioning avoid
+constructing the full delete-by-insert Cartesian product for Type 1 and Type 2.
+Cached normalized segment and token hashes, element-kind partitioning,
+per-representation size windows, and early-exit LCS constrain Type-3 work. The
 implementation exposes coarse `--profile` timings for repeatable pipeline
 measurements.
 

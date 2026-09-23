@@ -61,9 +61,11 @@ elements embedded in srcML. A single-file input has one source unit, while an
 archive has an outer unit containing file units. In the archive form, the
 `filename` associated with each inner unit supplies the ownership needed to
 connect a deletion in one file to an insertion in another. During the first
-pass, srcMove records this file identity together with the region's nesting
-relationship, node span, XPath, raw text, captured srcML events, and cached
-matching forms.
+pass, srcMove tracks this file identity together with each region's nesting
+relationship while incrementally building candidate spans, XPaths, raw text,
+and matching forms. Once a candidate is complete, the production pipeline
+retains those derived values rather than a captured copy of its srcML event
+sequence.
 
 The output remains a srcDiff document. srcMove adds the namespace
 `http://www.srcML.org/srcMove` and places three attributes on selected source
@@ -95,25 +97,26 @@ move unit.
 
 ## 4.4 Pipeline overview
 
-srcMove makes two streaming passes over the XML with an in-memory matching
-phase between them. The first pass discovers evidence; the second writes the
-original document with planned annotations.
+For a normal annotated-XML run, srcMove makes two streaming passes with an
+in-memory matching phase between them. Results-only execution uses the first
+pass and the matching phase but omits the output pass.
 
-1. **Parse diff regions.** The parser records every deletion and insertion,
-   including nested regions and archive-file ownership.
-2. **Select candidates.** The region filter begins with leaf diff regions,
-   rejects unsuitable fragments, and expands eligible wrappers into preferred
-   structural children where appropriate.
-3. **Canonicalize candidates.** Each candidate receives cached exact, Type-2,
-   and Type-3 representations.
-4. **Build groups in evidence order.** Exact matches are selected first,
+1. **Stream regions and construct candidates.** As XML events arrive, srcMove
+   tracks deletion and insertion nesting and archive-file ownership. It applies
+   the leaf-region policy, rejects unsuitable fragments, recognizes preferred
+   structural children, and incrementally builds the exact, Type-2, and Type-3
+   representations. Completed candidates retain their spans, XPaths, raw text,
+   and cached matching forms, not captured XML subtrees.
+2. **Build groups in evidence order.** Exact matches are selected first,
    followed by Type-2 identities and then Type-3 similarities among candidates
    not already consumed.
-5. **Resolve overlap and ambiguity.** Selection prevents a broad parent and its
+3. **Resolve overlap and ambiguity.** Selection prevents a broad parent and its
    nested child from both describing the same evidence, and applies explicit
    rules to repeated candidates.
-6. **Annotate and summarize.** The writer performs a second pass, preserves
-   unmodified nodes, inserts move attributes, and can emit a JSON result record.
+4. **Produce output.** In normal mode, the writer performs a second pass,
+   preserves unmodified nodes, and inserts move attributes. With
+   `--results-only`, srcMove materializes the JSON result from candidate-owned
+   evidence without rereading and rewriting the XML.
 
 This ordering is part of the algorithm rather than a presentation convenience.
 A candidate supported by exact evidence should not be relabeled by a weaker
@@ -281,11 +284,14 @@ and unmatched cardinalities, including their directional XPath sets.
 ## 4.9 Streaming implementation and performance model
 
 srcMove is implemented in C++17 and uses libxml2 through srcReader's streaming
-reader/writer facilities. Parsing and writing are streaming operations, but the
-program retains region metadata, captured candidate events, canonical forms,
-and group membership between the two passes. The architecture therefore avoids
-constructing a complete in-memory XML tree while still keeping state
-proportional to the candidates required for global matching.
+reader/writer facilities. The production input path fuses region recognition,
+candidate selection, raw-text collection, and canonicalization into one XML
+stream. It retains completed candidates, their canonical forms, lightweight
+region bookkeeping, and group membership for global matching, but not captured
+candidate event sequences or a complete in-memory XML tree. Under the default
+leaf-only policy, the stream also releases a parent region's
+candidate-construction state when a nested diff region makes that parent
+ineligible.
 
 For exact and Type-2 matching, hash indexes and full-representation partitioning
 avoid an unrestricted delete-by-insert Cartesian product. Type-3 is inherently
@@ -295,11 +301,14 @@ an early-exit two-row LCS. The `--profile` option exposes coarse stage timings
 for repeatable measurement. Chapter 8 evaluates those costs on independent
 workloads; this chapter limits itself to mechanisms intended to constrain them.
 
-The two-pass design also separates matching from serialization. Selection can
-refer to stable candidate identifiers and XPath evidence during the in-memory
-phase, while the writer can reproduce the original stream and add only the
-attributes in the annotation plan. This separation supports inspectability and
-reduces the risk that matching logic accidentally rewrites unrelated XML.
+For annotated output, the two-pass design separates matching from
+serialization. Selection can refer to stable candidate identifiers and XPath
+evidence during the in-memory phase, while the writer can reproduce the
+original stream and add only the attributes in the annotation plan. This
+separation supports inspectability and reduces the risk that matching logic
+accidentally rewrites unrelated XML. Consumers that need only machine-readable
+results can use `--results-only` to skip serialization while preserving the
+same matching phase.
 
 ## 4.10 Supporting srcReader improvements
 
