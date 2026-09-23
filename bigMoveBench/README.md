@@ -263,9 +263,9 @@ independent, large, pre-existing srcDiff XML workloads with the
   generated source and target fragments. Zero moves passes. Smaller incidental
   child moves also pass and are reported separately; requiring zero moves would
   incorrectly treat every shared child subtree as a whole-pair false positive.
-- One reported move must link both complete generated texts, and the XML
-  delete/insert annotations carrying that move's ID and link attributes must
-  overlap the synthetic ranges stored in the benchmark-case database. Positions
+- One reported move must link both complete generated texts, and its reported
+  source/destination XPaths must resolve to srcDiff nodes that overlap the
+  synthetic ranges stored in the benchmark-case database. Position evidence
   belonging to another move cannot satisfy the oracle; unrelated extra moves
   are allowed.
 - The reported delete and insert raw texts must match their own expected
@@ -283,9 +283,10 @@ is considered only when either side contains the Unicode replacement character
 UTF-8 repair and normalizes `ï¿½` back to `�`. It does not ignore ordinary text,
 comment, whitespace, or identifier differences.
 
-The runner invokes `srcdiff` with `--position` so `srcmove.xml` contains
-`pos:start` / `pos:end` attributes. This makes the oracle independent of raw
-string formatting differences introduced by the synthetic wrapper.
+The runner invokes `srcdiff` with `--position` so the admitted srcDiff XML
+contains `pos:start` / `pos:end` attributes. srcMove runs with `--results-only`,
+and the oracle resolves each result's XPaths against that XML. This preserves
+the positional check without retaining annotated srcMove XML.
 
 Type-2 is a strict test mode. If current srcMove does not detect a generated
 BigCloneBench Type-2 pair, the command exits nonzero and reports the missed move.

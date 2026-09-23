@@ -85,21 +85,60 @@ srcML-derived exact, normalized, and bounded-LCS representations. The
 evaluation can test whether these categories align in practice, but it must not
 assume that they are interchangeable.
 
+### 5.3.1 BigCloneBench, BigCloneEval, and BigMoveBench
+
+BigCloneBench, BigCloneEval, and BigMoveBench have related inputs but different
+experimental units. BigCloneBench supplies a graph of labeled relationships
+among fragments in IJaDataset. In the standard BigCloneEval workflow, a clone
+detector analyzes the source corpus, usually reusing parsed or indexed fragment
+representations, and emits detected pairs. BigCloneEval imports those detections
+and matches them against the reference relationships. Millions of benchmark
+relationships therefore do not normally imply millions of independent detector
+process executions.
+
+BigMoveBench asks a different question and performs different work. Each
+deduplicated relationship selected for execution becomes an independent
+synthetic before/after edit. The current runner materializes that edit, invokes
+srcDiff, applies the semantic eligibility gate, invokes srcMove when eligible,
+and scores and journals the result. A complete Type-3 census would consequently
+execute millions of two-tool pipelines rather than one corpus-level detector
+run. Its elapsed time cannot be compared directly with a paper that reports one
+indexed clone-detection pass over IJaDataset.
+
+| Dimension | BigCloneBench with BigCloneEval | BigMoveBench |
+| --- | --- | --- |
+| Reference unit | Labeled relationship between existing fragments | Directed synthetic before/after case derived from a relationship |
+| Detector input | Source corpus or deterministic corpus partitions | One generated two-file revision pair per case |
+| Typical reuse | Parsing, tokenization, and indexes reused across the corpus | Immutable wrapper objects are reused, but srcDiff and srcMove execute per case |
+| Evaluation | Match imported detector output against reference pairs | Check upstream eligibility, whole-fragment identity, position, text, and match kind |
+| Primary claim | Clone-detector recall for a declared reference population | Synthetic move detection and classification for a declared generated population |
+| Runtime meaning | Corpus analysis plus import and reference matching | Sum of generation materialization, two tool stages, validation, scoring, and persistence |
+
+This difference is not merely an implementation detail. It prevents a
+BigMoveBench case count from being interpreted as though it were the number of
+source fragments analyzed by a conventional clone detector, and it motivates a
+declared sampling design when a full per-relationship census is not practical.
+
 **TODO (citations):** Cite the primary BigCloneBench, BigCloneEval, IJaDataset,
-and clone-taxonomy publications, and record the exact local dataset release and
-checksum used for the final study.
+clone-taxonomy, and scalable clone-detection publications. Support the workflow
+comparison above from the primary BigCloneEval description rather than from
+tool marketing or elapsed-time tables alone. Record the exact local dataset
+release and checksum used for the final study.
 
 ## 5.4 Staged, content-addressed architecture
 
-The principal workflow is:
+The supported workflow is:
 
 ```text
 compile external dataset
         -> select execution frames
-        -> freeze generated input snapshot
-        -> produce reusable srcDiff corpus
-        -> execute and evaluate srcMove
-        -> derive summaries
+        -> publish immutable benchmark cases and shared generated objects
+        -> materialize one case in a reusable scratch archive
+        -> run srcDiff and apply the semantic eligibility gate
+        -> run srcMove in results-only mode
+        -> resolve result XPaths in the admitted srcDiff XML
+        -> score and commit one logical attempt
+        -> derive summaries from the execution journal
 ```
 
 Compilation imports the external H2 data into a srcMove-owned SQLite catalog,
@@ -109,25 +148,30 @@ than repeatedly querying H2. It publishes the requested pair set, role, sampling
 or census policy, deduplication rule, and contributing evidence as an immutable
 selection artifact.
 
-Snapshot generation converts selected frames into old/new Java sources and
-records the exact fragment texts and expected line ranges. The corpus stage runs
-srcDiff and stores its output independently of any particular srcMove revision.
-The evaluation stage can therefore compare srcMove versions against the same
-input and srcDiff evidence. Evaluation runs are append-only and receive unique
-identifiers; content-derived inputs and corpora can be reused only when their
-declared identities match.
+Benchmark-case publication converts selected frames into rows that reference
+content-addressed old/new wrapper objects. The case database records the exact
+fragment texts, expected generated line ranges, direction, wrapper version, and
+oracle configuration. It does not permanently expand every case into four Java
+files. During execution, the serial runner links one case's objects into stable
+source and destination paths in a reusable scratch archive, then clears that
+archive before the next case.
+
+After srcDiff admission and semantic eligibility checks, srcMove runs with
+`--results-only`. BigMoveBench retains `results.json` rather than annotated
+srcMove XML. Each result contains the move identity, classification, source and
+destination text, and XPaths needed by the oracle. The oracle resolves those
+XPaths against the already admitted srcDiff XML, preserving the position check
+without generating a second annotated XML document. One SQLite transaction
+commits the case outcome and its tool evidence; `summary.json` and `cases.csv`
+are derived reports rather than independent sources of truth.
 
 This separation prevents a change in the detector from silently regenerating a
 different population. It also lets an investigator inspect a failure at the
-appropriate boundary: selection evidence, generated Java, srcDiff XML, srcMove
-JSON, or the oracle's classification.
-
-BigMoveBench currently has two execution paths. The live suite uses immutable
-snapshots and reusable corpora. A normalized census path stores shared generated
-objects and benchmark cases in SQLite and journals one logical attempt per case.
-That normalized path is an experimental comparison path until its equivalence,
-scaling, and interruption gates are complete; it should not be described as the
-production basis of the final results unless those gates have passed.
+appropriate boundary: selection evidence, benchmark-case definition, generated
+objects, admitted srcDiff XML, srcMove JSON, or the oracle's classification.
+The former expanded snapshot/corpus workflow was removed after small- and
+medium-profile equivalence checks. The database-backed runner is now the single
+supported execution architecture.
 
 **TODO (figure):** Draw the artifact graph, showing which identities are
 content-derived, which runs are append-only, and where external data, srcDiff,
@@ -253,17 +297,16 @@ oracle pass.
 A positive case passes only when one reported move links both complete generated
 fragments and reports the expected match kind. Type-1 expects `exact`, Type-2
 expects `type2`, and the declared Type-3 experiment expects `type3`. Position
-evidence and XML annotations are correlated with the JSON result through the
-same move identifier; positions from different reported moves cannot be combined
-to manufacture a pass.
+evidence is obtained by resolving that result's source and destination XPaths
+against the admitted srcDiff XML. Position evidence from different reported
+moves cannot be combined to manufacture a pass.
 
 The deletion raw text must match the expected source fragment and the insertion
 raw text must match the expected destination fragment after wrapper-indentation
 normalization. Type-2 and Type-3 do not require the two sides to equal each
-other. The annotated deletion and insertion carrying the selected `mv:id` and
-directional link attributes must overlap the expected generated ranges. Other
-reported moves do not invalidate the intended match, but they are retained as
-diagnostic evidence.
+other. The resolved deletion and insertion nodes must overlap the expected
+generated ranges. Other reported moves do not invalidate the intended match,
+but they are retained as diagnostic evidence.
 
 Text comparison is strict except for a narrowly reported repair of obvious
 replacement-character encoding damage. A result that passes only under this
@@ -296,26 +339,27 @@ results.
 ## 5.9 Resumability and provenance
 
 Large evaluations must survive interruption without changing the experiment.
-BigMoveBench gives compiled datasets, selections, snapshots, and corpora stable
-identities derived from their inputs and policies. It records artifact hashes
-and validates them at stage boundaries. Evaluation runs are append-only rather
-than content-addressed because two executions over the same inputs are distinct
-observations.
+BigMoveBench gives compiled datasets, selections, generated objects, and
+benchmark-case databases stable identities derived from their inputs and
+policies. It records artifact hashes and validates them at stage boundaries.
+Evaluation runs are append-only rather than content-addressed because two
+executions over the same inputs are distinct observations.
 
 Each process invocation records bounded logs, completion status, timeout
-handling, and XML validation. The normalized runner strengthens resumption by
-committing one logical attempt per case to SQLite, sealing unfinished attempts
-as interrupted, and skipping already committed terminal attempts unless a
-retry policy is requested. The live snapshot suite and normalized path must not
-be treated as equivalent until their outputs have passed the declared
-equivalence gate.
+handling, and output validation. The runner commits one logical attempt per
+case to SQLite, seals unfinished attempts as interrupted, and skips already
+committed terminal attempts unless a retry policy is requested. Retries append
+new attempts rather than overwriting earlier evidence. The execution database
+is the recovery source of truth; summaries and CSV files can be regenerated
+from it.
 
 For publication, provenance must connect every number to the external dataset,
-selection request, generated-input identity, srcDiff corpus, srcMove binary,
-oracle version, source revisions, build receipts, and execution environment.
-Development runs already retain many of these manifests and summaries, but the
-final archive must be verified as a publication artifact rather than assumed to
-be complete because a local run finished successfully.
+selection request, generated-object and benchmark-case identities, admitted
+srcDiff evidence, srcMove binary, oracle version, source revisions, build
+receipts, and execution environment. Development runs already retain many of
+these manifests and summaries, but the final archive must be verified as a
+publication artifact rather than assumed to be complete because a local run
+finished successfully.
 
 **TODO (publication gate):** Specify and execute archive verification, including
 checksums for the dataset, H2 driver, selected source files, executables,
@@ -349,6 +393,17 @@ intervals are appropriate only when they follow from the actual selection
 design. A balanced Type-3 strength sample needs stratum-specific reporting or
 population weights; its raw aggregate must not be presented as population
 recall.
+
+The execution design also affects the feasible population. BigCloneEval can
+compare one imported detector result set against millions of reference
+relationships, whereas BigMoveBench presently invokes srcDiff and srcMove for
+every selected relationship. Unless bounded parallel execution or a batch
+interface is validated without changing the oracle, the final Type-3 study
+should use a frozen probability sample sized for the intended stratum-level
+estimates rather than assume that the complete multimillion-case census is the
+only rigorous design. The sample-size justification, finite-population
+correction if applicable, and any population weighting belong in the final
+method, not in post-result interpretation.
 
 BigMoveBench data should not double as the performance workload. Cached artifacts
 and many small synthetic cases answer detection questions, while Chapter 8 uses
@@ -437,7 +492,8 @@ and execution cost.
 - **TODO (dataset):** Freeze and cite the exact external database, source tree,
   compiled catalog, and checksums.
 - **TODO (methods):** Freeze selection roles, exclusions, seeds, directions,
-  oracle versions, and the Type-3 tuning/evaluation boundary.
+  oracle versions, the Type-3 tuning/evaluation boundary, and the statistical
+  justification for any Type-3 sample in place of the full census.
 - **TODO (figures):** Produce the artifact graph, synthetic archive example,
   eligibility flowchart, and population-reduction diagram.
 - **TODO (results):** Run and archive the publication evaluations, then populate

@@ -52,10 +52,11 @@ For each selected clone pair:
 6. Run `srcDiff original/ modified/ --position` in archive mode.
 7. Verify that srcDiff exposed the intended synthetic payload as usable
    delete/insert regions.
-8. Run `srcMove` over eligible srcDiff XML.
+8. Run `srcMove` over eligible srcDiff XML with `--results-only`.
 9. Score whether any single reported move links both complete generated fragment
-   texts and that same move's XML delete/insert annotations overlap the expected
-   line ranges. Other reported moves are incidental evidence, not a rejection.
+   texts and its reported source/destination XPaths resolve to srcDiff nodes that
+   overlap the expected line ranges. Other reported moves are incidental
+   evidence, not a rejection.
 
 Each generated revision contains the same two relative paths,
 `source/input.java` and `destination/input.java`. srcDiff therefore compares the
@@ -67,7 +68,8 @@ like a cross-file move.
 The current evaluation uses a strict detection-and-classification oracle:
 Type-1 cases must classify the intended whole-fragment move as `exact`, Type-2
 as `type2`, and Type-3 as `type3`. Position and per-side text validation are
-correlated to that move by its result `move_id` and XML `mv:id`/link attributes.
+correlated to the same JSON result; the result's XPaths supply its position
+evidence from the admitted srcDiff XML.
 Detecting the intended payload with the wrong match kind is useful failure
 evidence, but it is not counted as a pass. Type-3 recall is observational. The
 benchmark deliberately uses BigCloneBench as the best available large labeled
