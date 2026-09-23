@@ -5,7 +5,9 @@
  */
 #include <algorithm>
 #include <cctype>
+#include <chrono>
 #include <optional>
+#include <stdexcept>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -14,6 +16,7 @@
 #include "move_candidate.hpp"
 #include "parse/canonical_subtree.hpp"
 #include "parse/diff_region.hpp"
+#include "profile.hpp"
 #include "region_filter.hpp"
 
 namespace srcmove {
@@ -184,6 +187,433 @@ extract_preferred_child_candidates(const diff_region           &region,
   }
 
   return out;
+}
+
+namespace {
+
+using stream_clock = std::chrono::steady_clock;
+
+// The pipeline path below builds candidates while srcReader advances. It keeps
+// only canonicalization state and completed candidates; the region-based path
+// remains available for focused tests and callers that need captured XML.
+
+struct streamed_child {
+  canonical_forms_builder forms;
+  std::string              raw_text;
+  std::string              xpath;
+  std::string              full_name;
+  std::size_t              start_idx      = 0;
+  int                      depth          = 0;
+  bool                     type2_eligible = false;
+};
+
+struct streamed_region {
+  move_candidate::Kind kind;
+  std::string          filename;
+  std::size_t          start_idx = 0;
+  std::size_t          parent_id = kNoParent;
+  std::string          start_xpath;
+  std::string          raw_text;
+  std::optional<canonical_forms_builder> forms;
+  std::optional<streamed_child>           child;
+  std::vector<move_candidate>             preferred_candidates;
+  std::size_t complete_construct_count = 0;
+  bool        has_diff_child           = false;
+  bool        pre_marked               = false;
+};
+
+struct streaming_profile_stats {
+  std::uint64_t reader_events      = 0;
+  std::uint64_t start_events       = 0;
+  std::uint64_t end_events         = 0;
+  std::uint64_t text_events        = 0;
+  std::uint64_t other_events       = 0;
+  std::uint64_t regions_opened     = 0;
+  std::uint64_t region_node_visits = 0;
+  std::uint64_t child_node_visits  = 0;
+  std::uint64_t xpath_calls        = 0;
+  double        xpath_ms           = 0.0;
+};
+
+std::string streaming_xpath(srcml_reader &reader,
+                            streaming_profile_stats *stats) {
+  if (stats == nullptr) {
+    return reader.get_current_xpath();
+  }
+  const auto start = stream_clock::now();
+  std::string xpath = reader.get_current_xpath();
+  ++stats->xpath_calls;
+  stats->xpath_ms +=
+      std::chrono::duration<double, std::milli>(stream_clock::now() - start)
+          .count();
+  return xpath;
+}
+
+void record_stream_event(const srcml_node &node,
+                         streaming_profile_stats *stats) {
+  if (stats == nullptr) {
+    return;
+  }
+  ++stats->reader_events;
+  if (node.is_start()) {
+    ++stats->start_events;
+  } else if (node.is_end()) {
+    ++stats->end_events;
+  } else if (node.is_text()) {
+    ++stats->text_events;
+  } else {
+    ++stats->other_events;
+  }
+}
+
+bool keep_streamed_region(const streamed_region       &region,
+                          const region_filter_options &opt) {
+  if (opt.skip_pre_marked && region.pre_marked) {
+    return false;
+  }
+  switch (opt.policy) {
+  case region_filter_policy::leaf_only:
+    return !region.has_diff_child;
+  case region_filter_policy::top_level_only:
+    return region.parent_id == kNoParent;
+  case region_filter_policy::all_regions:
+    return true;
+  }
+  return false;
+}
+
+void finish_streamed_child(streamed_region             &region,
+                           std::size_t                   end_idx,
+                           const region_filter_options &opt) {
+  streamed_child child = std::move(*region.child);
+  region.child.reset();
+
+  if (!passes_region_text_filters(child.raw_text, opt)) {
+    return;
+  }
+  ++region.complete_construct_count;
+
+  canonical_forms forms = child.forms.finish();
+  if (!passes_statement_evidence(forms.normalized_tokens, opt)) {
+    return;
+  }
+
+  move_candidate candidate(
+      region.kind, child.start_idx, region.filename, std::move(child.raw_text),
+      std::move(forms.exact), std::move(forms.type2_canonical),
+      std::move(forms.normalized_lines), std::move(forms.normalized_tokens),
+      child.type2_eligible);
+  candidate.xpath     = std::move(child.xpath);
+  candidate.full_name = std::move(child.full_name);
+  candidate.end_idx   = end_idx;
+  candidate.role      = move_candidate::Role::structural_child;
+  region.preferred_candidates.push_back(std::move(candidate));
+}
+
+void consume_streamed_child(streamed_region             &region,
+                            const srcml_node             &node,
+                            srcml_reader                 &reader,
+                            std::size_t                   node_index,
+                            const region_filter_options &opt,
+                            streaming_profile_stats     *stats) {
+  if (!opt.expand_structural_children) {
+    return;
+  }
+
+  if (!region.child) {
+    if (!node.is_start() || !is_preferred_child_candidate_name(node.name)) {
+      return;
+    }
+    streamed_child child;
+    child.xpath          = streaming_xpath(reader, stats);
+    child.full_name      = node.full_name();
+    child.start_idx      = node_index;
+    child.depth          = 1;
+    child.type2_eligible = is_type2_eligible_name(node.name);
+    child.forms.consume(node);
+    region.child.emplace(std::move(child));
+    if (stats != nullptr) {
+      ++stats->child_node_visits;
+    }
+    return;
+  }
+
+  streamed_child &child = *region.child;
+  child.forms.consume(node);
+  if (node.is_text() && node.content) {
+    child.raw_text += *node.content;
+  }
+  if (stats != nullptr) {
+    ++stats->child_node_visits;
+  }
+
+  if (node.is_start()) {
+    ++child.depth;
+  } else if (node.is_end()) {
+    --child.depth;
+  }
+  if (child.depth == 0) {
+    finish_streamed_child(region, node_index, opt);
+  }
+}
+
+void finish_streamed_region(
+    streamed_region &region, std::size_t region_id, std::size_t end_idx,
+    const region_filter_options &opt,
+    std::vector<std::vector<move_candidate>> &candidate_sets) {
+  if (!keep_streamed_region(region, opt)) {
+    return;
+  }
+  if (region.child) {
+    throw std::runtime_error("diff region ended inside a candidate subtree");
+  }
+  if (!region.forms) {
+    throw std::runtime_error("selected diff region has no canonical state");
+  }
+
+  canonical_forms forms = region.forms->finish();
+  std::vector<move_candidate> &out = candidate_sets.at(region_id);
+
+  const bool fragment_mode =
+      opt.min_granularity == minimum_move_granularity::fragment;
+  const bool semantic_wrapper = region.complete_construct_count > 0;
+  const bool wrapper_has_evidence =
+      forms.normalized_tokens.size() >= opt.min_statement_tokens;
+  if (passes_region_text_filters(region.raw_text, opt) &&
+      (fragment_mode || (semantic_wrapper && wrapper_has_evidence))) {
+    move_candidate candidate(
+        region.kind, region.start_idx, region.filename, region.raw_text,
+        forms.exact, forms.type2_canonical, forms.normalized_lines,
+        forms.normalized_tokens, false);
+    candidate.xpath   = region.start_xpath;
+    candidate.end_idx = end_idx;
+    if (region.complete_construct_count == 1) {
+      candidate.role = move_candidate::Role::single_child_wrapper;
+    } else if (region.complete_construct_count > 1) {
+      candidate.role = move_candidate::Role::multi_child_wrapper;
+    } else {
+      candidate.role = move_candidate::Role::diff_wrapper;
+    }
+    out.push_back(std::move(candidate));
+  }
+
+  out.insert(out.end(),
+             std::make_move_iterator(region.preferred_candidates.begin()),
+             std::make_move_iterator(region.preferred_candidates.end()));
+}
+
+} // namespace
+
+candidate_collection
+collect_candidates_streaming(srcml_reader                &reader,
+                             const region_filter_options &opt,
+                             profile_report              *profile) {
+  streaming_profile_stats profile_storage;
+  streaming_profile_stats *stats =
+      profile == nullptr ? nullptr : &profile_storage;
+
+  std::vector<streamed_region> regions;
+  std::vector<std::size_t> open_regions;
+  std::vector<std::vector<move_candidate>> candidate_sets;
+  regions.reserve(256);
+  open_regions.reserve(32);
+  candidate_sets.reserve(256);
+
+  auto open_region = [&](move_candidate::Kind kind, const srcml_node &node,
+                         const std::string &filename,
+                         std::size_t node_index) {
+    const std::size_t parent_id =
+        open_regions.empty() ? kNoParent : open_regions.back();
+    if (parent_id != kNoParent) {
+      streamed_region &parent = regions[parent_id];
+      parent.has_diff_child = true;
+      if (opt.policy == region_filter_policy::leaf_only) {
+        parent.forms.reset();
+        parent.child.reset();
+        parent.preferred_candidates.clear();
+        parent.raw_text.clear();
+      }
+    }
+
+    streamed_region region{kind};
+    region.filename    = filename;
+    region.start_idx   = node_index;
+    region.parent_id   = parent_id;
+    region.start_xpath = streaming_xpath(reader, stats);
+    region.forms.emplace();
+    region.pre_marked  = node.get_attribute_value("move") != nullptr;
+
+    regions.push_back(std::move(region));
+    candidate_sets.emplace_back();
+    open_regions.push_back(regions.size() - 1);
+    if (stats != nullptr) {
+      ++stats->regions_opened;
+    }
+  };
+
+  auto consume_node = [&](const srcml_node &node, const std::string &filename,
+                          std::size_t node_index) {
+    const std::string full_name = node.full_name();
+    const auto        kind      = diff_kind_from_full_name(full_name);
+    std::size_t opened_id = kNoParent;
+    if (node.is_start() && kind) {
+      open_region(*kind, node, filename, node_index);
+      opened_id = open_regions.back();
+    }
+
+    std::size_t closing_id = kNoParent;
+    if (node.is_end() && kind) {
+      if (open_regions.empty() || regions[open_regions.back()].kind != *kind) {
+        throw std::runtime_error("mismatched diff nesting");
+      }
+      closing_id = open_regions.back();
+    }
+
+    for (std::size_t region_id : open_regions) {
+      streamed_region &region = regions[region_id];
+      if (!region.forms) {
+        continue;
+      }
+      region.forms->consume(node);
+      if (node.is_text() && node.content) {
+        region.raw_text += *node.content;
+      }
+      if (stats != nullptr) {
+        ++stats->region_node_visits;
+      }
+      if (region_id != opened_id && region_id != closing_id) {
+        consume_streamed_child(region, node, reader, node_index, opt, stats);
+      }
+    }
+
+    if (closing_id != kNoParent) {
+      streamed_region &region = regions[closing_id];
+      finish_streamed_region(region, closing_id, node_index, opt,
+                             candidate_sets);
+      region.forms.reset();
+      region.child.reset();
+      region.raw_text.clear();
+      region.start_xpath.clear();
+      region.filename.clear();
+      region.preferred_candidates.clear();
+      open_regions.pop_back();
+    }
+  };
+
+  auto it  = reader.begin();
+  auto end = reader.end();
+  if (!(it != end) || !it->is_start() || it->name != "unit") {
+    throw std::runtime_error("expected root <unit> as first node");
+  }
+
+  std::size_t node_index = 0;
+  record_stream_event(*it, stats);
+  const std::string *root_filename = it->get_attribute_value("filename");
+  if (root_filename != nullptr && root_filename->empty()) {
+    throw std::runtime_error("root single-file unit: expected unit@filename");
+  }
+  const bool archive = root_filename == nullptr;
+  bool       in_file      = !archive;
+  bool       document_done = false;
+  std::string filename = archive ? std::string() : *root_filename;
+  ++it;
+  ++node_index;
+
+  while (it != end) {
+    const srcml_node &node = *it;
+    record_stream_event(node, stats);
+
+    if (document_done) {
+      ++it;
+      ++node_index;
+      continue;
+    }
+
+    if (archive && !in_file) {
+      if (node.is_start()) {
+        if (node.name != "unit") {
+          throw std::runtime_error("unexpected start tag at archive level: " +
+                                   node.full_name());
+        }
+        const std::string *value = node.get_attribute_value("filename");
+        if (value == nullptr || value->empty()) {
+          throw std::runtime_error(
+              "archive child file unit: expected unit@filename");
+        }
+        filename = *value;
+        in_file = true;
+      } else if (node.is_end()) {
+        if (node.name != "unit") {
+          throw std::runtime_error("unexpected end tag at archive level: " +
+                                   node.full_name());
+        }
+        document_done = true;
+      }
+      ++it;
+      ++node_index;
+      continue;
+    }
+
+    if (node.is_start() && node.name == "unit") {
+      throw std::runtime_error("unexpected nested <unit> inside file unit: " +
+                               filename);
+    }
+    if (node.is_end() && node.name == "unit") {
+      if (!open_regions.empty()) {
+        throw std::runtime_error(
+            "file unit ended before all diff regions were closed: " +
+            filename);
+      }
+      in_file = false;
+      filename.clear();
+      if (!archive) {
+        document_done = true;
+      }
+      ++it;
+      ++node_index;
+      continue;
+    }
+
+    consume_node(node, filename, node_index);
+    ++it;
+    ++node_index;
+  }
+
+  if (!open_regions.empty()) {
+    throw std::runtime_error("unexpected EOF while reading diff region");
+  }
+  if (!document_done) {
+    throw std::runtime_error("unexpected EOF while reading srcDiff document");
+  }
+
+  candidate_collection result;
+  result.regions_total = regions.size();
+  for (auto &set : candidate_sets) {
+    result.candidates.insert(
+        result.candidates.end(), std::make_move_iterator(set.begin()),
+        std::make_move_iterator(set.end()));
+  }
+
+  if (profile != nullptr) {
+    profile->add_ms("parse.xpath", profile_storage.xpath_ms);
+    profile->add_counter("parse.reader_events", profile_storage.reader_events);
+    profile->add_counter("parse.start_events", profile_storage.start_events);
+    profile->add_counter("parse.end_events", profile_storage.end_events);
+    profile->add_counter("parse.text_events", profile_storage.text_events);
+    profile->add_counter("parse.other_events", profile_storage.other_events);
+    profile->add_counter("parse.diff_regions_opened",
+                         profile_storage.regions_opened);
+    profile->add_counter("parse.xpath_calls", profile_storage.xpath_calls);
+    profile->add_counter("parse.streaming_region_node_visits",
+                         profile_storage.region_node_visits);
+    profile->add_counter("parse.streaming_child_node_visits",
+                         profile_storage.child_node_visits);
+    profile->add_counter("parse.streaming_candidates",
+                         result.candidates.size());
+    profile->add_counter("parse.captured_node_insertions", 0);
+    profile->add_counter("parse.duplicate_capture_insertions", 0);
+  }
+  return result;
 }
 
 // Converts selected diff_region -> move_candidate for registry.

@@ -15,6 +15,8 @@
 
 namespace srcmove {
 
+class profile_report;
+
 // -----------------------------------------
 // Region model collected from srcDiff
 // -----------------------------------------
@@ -49,6 +51,16 @@ struct region_filter_options {
 };
 
 region_filter_options get_default_filter_options();
+
+struct candidate_collection {
+  std::vector<move_candidate> candidates;
+  std::size_t                 regions_total = 0;
+};
+
+candidate_collection
+collect_candidates_streaming(srcml_reader                &reader,
+                             const region_filter_options &opt,
+                             profile_report              *profile = nullptr);
 
 std::vector<move_candidate>
 filter_regions_for_registry(const std::vector<diff_region> &regions,

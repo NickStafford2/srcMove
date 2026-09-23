@@ -120,22 +120,17 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
                      profile_report    *profile) {
   scoped_profile_timer total_timer(profile, "pipeline.total");
 
-  std::vector<diff_region> regions;
-  {
-    scoped_profile_timer timer(profile, "pipeline.parse_regions");
-    srcml_reader         reader(srcdiff_in_filename);
-    regions = collect_all_regions(reader, profile);
-  }
-
   std::vector<move_candidate> candidates;
-  const std::size_t regions_total = regions.size();
+  std::size_t                 regions_total = 0;
   {
-    scoped_profile_timer timer(profile, "pipeline.filter_candidates");
+    scoped_profile_timer  timer(profile, "pipeline.parse_regions");
+    srcml_reader          reader(srcdiff_in_filename);
     region_filter_options filter_options = get_default_filter_options();
     filter_options.min_granularity = options.min_granularity;
-    // O(diff regions + captured nodes) for the selected regions. Canonical text
-    // collection dominates the constant factor.
-    candidates = filter_regions_for_registry(regions, filter_options);
+    candidate_collection collection =
+        collect_candidates_streaming(reader, filter_options, profile);
+    candidates = std::move(collection.candidates);
+    regions_total = collection.regions_total;
   }
 
   candidate_registry registry;
@@ -146,10 +141,6 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     registry.add_candidates_for_file(srcdiff_in_filename,
                                      std::move(candidates));
   }
-
-  // Candidate entries own everything needed by matching and output. Release
-  // captured XML before grouping so large diff archives do not retain both.
-  std::vector<diff_region>().swap(regions);
 
   content_groups groups;
   {

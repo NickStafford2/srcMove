@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -30,6 +31,25 @@ struct canonical_forms {
   std::string                type2_canonical;
   std::vector<std::uint64_t> normalized_lines;
   std::vector<std::uint64_t> normalized_tokens;
+};
+
+class canonical_forms_builder {
+public:
+  canonical_forms_builder();
+  ~canonical_forms_builder();
+
+  canonical_forms_builder(canonical_forms_builder &&) noexcept;
+  canonical_forms_builder &operator=(canonical_forms_builder &&) noexcept;
+
+  canonical_forms_builder(const canonical_forms_builder &) = delete;
+  canonical_forms_builder &operator=(const canonical_forms_builder &) = delete;
+
+  void            consume(const srcml_node &node);
+  canonical_forms finish();
+
+private:
+  struct implementation;
+  std::unique_ptr<implementation> impl;
 };
 
 std::string

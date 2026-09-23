@@ -333,6 +333,59 @@ private:
 
 } // namespace
 
+struct canonical_forms_builder::implementation {
+  implementation()
+      : exact(exact_options, true), normalized(normalized_options(), false,
+                                               &forms.normalized_lines,
+                                               &forms.normalized_tokens),
+        lexical(lexical_options(), true) {}
+
+  static canonical_options normalized_options() {
+    canonical_options options;
+    options.identifiers        = identifier_normalization::consistent;
+    options.normalize_literals = true;
+    return options;
+  }
+
+  static canonical_options lexical_options() {
+    canonical_options options = normalized_options();
+    options.ignore_empty_statements = true;
+    options.include_structure       = false;
+    return options;
+  }
+
+  canonical_options exact_options;
+  canonical_forms   forms;
+  canonical_builder exact;
+  canonical_builder normalized;
+  canonical_builder lexical;
+};
+
+canonical_forms_builder::canonical_forms_builder()
+    : impl(std::make_unique<implementation>()) {}
+
+canonical_forms_builder::~canonical_forms_builder() = default;
+
+canonical_forms_builder::canonical_forms_builder(
+    canonical_forms_builder &&) noexcept = default;
+
+canonical_forms_builder &canonical_forms_builder::operator=(
+    canonical_forms_builder &&) noexcept = default;
+
+void canonical_forms_builder::consume(const srcml_node &node) {
+  const std::string full_name = node.full_name();
+  impl->exact.consume(node, full_name);
+  impl->normalized.consume(node, full_name);
+  impl->lexical.consume(node, full_name);
+}
+
+canonical_forms canonical_forms_builder::finish() {
+  impl->forms.exact = impl->exact.finish();
+  (void)impl->normalized.finish();
+  impl->forms.type2_canonical = impl->lexical.finish();
+  return std::move(impl->forms);
+}
+
 std::string
 canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
                                  const canonical_options       &opt,
@@ -353,36 +406,12 @@ canonical_forms canonicalize_diff_region_forms(
 canonical_forms canonicalize_diff_region_forms(
     const std::vector<captured_srcml_node> &nodes, std::size_t begin,
     std::size_t end) {
-  canonical_forms result;
-
-  canonical_options exact_options;
-  canonical_builder exact(exact_options, true);
-
-  canonical_options normalized_options;
-  normalized_options.identifiers        = identifier_normalization::consistent;
-  normalized_options.normalize_literals = true;
-  canonical_builder normalized(normalized_options, false,
-                               &result.normalized_lines,
-                               &result.normalized_tokens);
-
-  canonical_options lexical_options = normalized_options;
-  lexical_options.ignore_empty_statements = true;
-  lexical_options.include_structure       = false;
-  canonical_builder lexical(lexical_options, true);
+  canonical_forms_builder builder;
 
   for (std::size_t i = begin; i < end; ++i) {
-    const auto        &captured = nodes[i];
-    const srcml_node  &node     = captured.node;
-    const std::string  full_name = node.full_name();
-    exact.consume(node, full_name);
-    normalized.consume(node, full_name);
-    lexical.consume(node, full_name);
+    builder.consume(nodes[i].node);
   }
-
-  result.exact = exact.finish();
-  (void)normalized.finish();
-  result.type2_canonical = lexical.finish();
-  return result;
+  return builder.finish();
 }
 
 } // namespace srcmove
