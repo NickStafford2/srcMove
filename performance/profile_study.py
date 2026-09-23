@@ -7,6 +7,7 @@ import argparse
 import csv
 import json
 import os
+import sys
 import tempfile
 from pathlib import Path
 from statistics import median
@@ -15,7 +16,6 @@ from typing import Any
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 REPO_ROOT = SCRIPT_DIR.parent
-import sys
 
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
@@ -87,20 +87,41 @@ def _write_jsonl(path: Path, records: list[dict[str, Any]]) -> None:
         raise
 
 
+def _load_json_object(path: Path) -> tuple[dict[str, Any], str]:
+    if not path.is_file():
+        return {}, "missing"
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError):
+        return {}, "malformed"
+    if not isinstance(value, dict):
+        return {}, "malformed"
+    return value, "valid"
+
+
 def _load_records(run_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any]]:
-    executable = manifest["observation"]["executables"]["current"]
-    source = executable.get("receipt", {}).get("sources", {}).get("srcMove", {})
+    executables = manifest["observation"]["executables"]
     records: list[dict[str, Any]] = []
     with (run_dir / "raw.csv").open(encoding="utf-8", newline="") as stream:
         for raw in csv.DictReader(stream):
             record = {key: _number(key, value) for key, value in raw.items()}
+            executable = executables[str(record["variant"])]
+            source = (
+                executable.get("receipt", {}).get("sources", {}).get("srcMove", {})
+            )
             attempt_dir = run_dir / str(record["attempt_path"])
-            attempt = json.loads((attempt_dir / "attempt.json").read_text())
-            results = json.loads((attempt_dir / "results.json").read_text())
+            attempt, attempt_status = _load_json_object(
+                attempt_dir / "attempt.json"
+            )
+            results, results_status = _load_json_object(
+                attempt_dir / "results.json"
+            )
             record.update(
                 {
                     "executable_sha256": executable["artifact"]["sha256"],
                     "source_commit": source.get("commit"),
+                    "attempt_record_status": attempt_status,
+                    "results_record_status": results_status,
                     "output_size_bytes": attempt.get("xml", {}).get("size_bytes"),
                     "regions_total": results.get("regions_total"),
                     "candidates_total": results.get("candidates_total"),
@@ -150,7 +171,7 @@ def _report(summary: dict[str, Any], results: dict[str, Any]) -> str:
         "internal_pipeline.content_groups_ms",
         "internal_pipeline.annotation_ms",
         "internal_pipeline.summary_ms",
-        "internal_annotation.copy_unmodified_ms",
+        "internal_annotation.write_stream_ms",
         "internal_annotation.patch_tagged_ms",
         "internal_content_groups.type3_build_ms",
     )

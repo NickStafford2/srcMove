@@ -22,6 +22,7 @@ from performance.benchmark import (
     run_measurement,
     run_performance,
 )
+from performance.profile_study import _load_records
 from benchmarking.provenance import sha256_file
 
 
@@ -48,10 +49,13 @@ class PerformanceBenchmarkTests(unittest.TestCase):
             parse_profile_output(
                 "profile.pipeline.total_ms=12.375\n"
                 "profile.parse.reader_events=10932\n"
+                "profile.annotation.tagged_nodes=0\n"
+                "profile.invalid_fractional_counter=1.5\n"
             ),
             {
                 "pipeline.total_ms": 12.375,
                 "parse.reader_events": 10932,
+                "annotation.tagged_nodes": 0,
             },
         )
 
@@ -190,7 +194,7 @@ class PerformanceBenchmarkTests(unittest.TestCase):
             root = Path(temporary_directory)
             baseline = write_profile_tool(root / "baseline", 10.0)
             failing = write_profile_tool(root / "failing", 0.0, fail=True)
-            run_dir, _, summary = run_performance(
+            run_dir, manifest, summary = run_performance(
                 output_root=root / "performance",
                 variants={"baseline": baseline, "failing": failing},
                 workloads={"tiny": INPUT_XML},
@@ -213,6 +217,31 @@ class PerformanceBenchmarkTests(unittest.TestCase):
             self.assertEqual(len(failed), 2)
             self.assertTrue(all(row["status"] == "failed" for row in failed))
             self.assertTrue(all(row["exit_code"] == "23" for row in failed))
+
+            successful_attempt = next(
+                run_dir / row["attempt_path"]
+                for row in rows
+                if row["status"] == "success"
+            )
+            (successful_attempt / "results.json").write_text("{", encoding="utf-8")
+            study_records = _load_records(run_dir, manifest)
+            self.assertEqual(len(study_records), 4)
+            self.assertTrue(
+                all(
+                    row["results_record_status"] == "missing"
+                    for row in study_records
+                    if row["status"] == "failed"
+                )
+            )
+            self.assertEqual(
+                next(
+                    row["results_record_status"]
+                    for row in study_records
+                    if row["attempt_path"]
+                    == str(successful_attempt.relative_to(run_dir))
+                ),
+                "malformed",
+            )
 
     def test_workloads_are_explicit_resolved_and_unique(self) -> None:
         workloads = load_workloads([f"large={INPUT_XML}"])

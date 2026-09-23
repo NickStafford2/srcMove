@@ -44,9 +44,7 @@ struct annotation_profile_stats {
   std::uint64_t tagged_nodes = 0;
   std::uint64_t unmodified_nodes = 0;
   std::uint64_t xpath_requests = 0;
-  double copy_unmodified_ms = 0.0;
   double patch_tagged_ms = 0.0;
-  double patch_root_ms = 0.0;
 };
 
 double elapsed_ms(profile_clock::time_point start) {
@@ -123,10 +121,8 @@ write_with_move_annotations(const std::string &in_filename,
       }
 
       if (is_root_unit_start(node, i)) {
-        const auto start = profile_clock::now();
         writer.write(patch_root_unit_namespace(node));
         if (profile != nullptr) {
-          stats.patch_root_ms += elapsed_ms(start);
           ++stats.nodes_written;
         }
         ++i;
@@ -136,7 +132,8 @@ write_with_move_annotations(const std::string &in_filename,
       if (node.is_start()) {
         auto it = tags.find(i);
         if (it != tags.end()) {
-          const auto start = profile_clock::now();
+          const auto start = profile != nullptr ? profile_clock::now()
+                                                : profile_clock::time_point{};
           srcml_node        patched = node;
           const std::string xpath   = reader.get_current_xpath();
           const move_tag    &tag      = it->second;
@@ -170,6 +167,9 @@ write_with_move_annotations(const std::string &in_filename,
           }
 
           if (profile != nullptr) {
+            // Inclusive time for the complete tagged-node branch: copying the
+            // node, requesting its XPath, patching and writing it, and updating
+            // the move summary.
             stats.patch_tagged_ms += elapsed_ms(start);
             ++stats.nodes_written;
             ++stats.tagged_nodes;
@@ -180,10 +180,8 @@ write_with_move_annotations(const std::string &in_filename,
         }
       }
 
-      const auto start = profile_clock::now();
       writer.write(node);
       if (profile != nullptr) {
-        stats.copy_unmodified_ms += elapsed_ms(start);
         ++stats.nodes_written;
         ++stats.unmodified_nodes;
       }
@@ -192,9 +190,7 @@ write_with_move_annotations(const std::string &in_filename,
   }
 
   if (profile != nullptr) {
-    profile->add_ms("annotation.copy_unmodified", stats.copy_unmodified_ms);
     profile->add_ms("annotation.patch_tagged", stats.patch_tagged_ms);
-    profile->add_ms("annotation.patch_root", stats.patch_root_ms);
     profile->add_counter("annotation.reader_events", stats.reader_events);
     profile->add_counter("annotation.start_events", stats.start_events);
     profile->add_counter("annotation.end_events", stats.end_events);

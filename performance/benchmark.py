@@ -172,7 +172,10 @@ def parse_profile_output(text: str) -> dict[str, float | int]:
         match = PROFILE_LINE_RE.match(line.strip())
         if match is not None:
             name, value = match.groups()
-            metrics[name] = float(value) if name.endswith("_ms") else int(value)
+            if name.endswith("_ms"):
+                metrics[name] = float(value)
+            elif "." not in value:
+                metrics[name] = int(value)
     return metrics
 
 

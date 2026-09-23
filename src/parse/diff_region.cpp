@@ -215,7 +215,8 @@ void close_diff_region(std::vector<diff_region>         &regions,
   regions[rid].end_idx        = node_index;
   regions[rid].captured_nodes = std::move(capture.nodes);
 
-  const auto copy_start = profile_clock::now();
+  const auto copy_start = stats != nullptr ? profile_clock::now()
+                                           : profile_clock::time_point{};
   std::vector<srcml_node> subtree_nodes;
   subtree_nodes.reserve(regions[rid].captured_nodes.size());
   for (const auto &captured : regions[rid].captured_nodes) {
@@ -225,7 +226,8 @@ void close_diff_region(std::vector<diff_region>         &regions,
     stats->temporary_node_copy_ms += elapsed_ms(copy_start);
   }
 
-  const auto exact_start = profile_clock::now();
+  const auto exact_start = stats != nullptr ? profile_clock::now()
+                                            : profile_clock::time_point{};
   regions[rid].canonical_text = canonicalize_diff_region_subtree(subtree_nodes);
   if (stats != nullptr) {
     stats->exact_canonicalization_ms += elapsed_ms(exact_start);
@@ -237,7 +239,8 @@ void close_diff_region(std::vector<diff_region>         &regions,
   canonical_options type2_options;
   type2_options.identifiers        = identifier_normalization::consistent;
   type2_options.normalize_literals = true;
-  const auto normalized_start = profile_clock::now();
+  const auto normalized_start = stats != nullptr ? profile_clock::now()
+                                                 : profile_clock::time_point{};
   canonicalize_diff_region_subtree(subtree_nodes, type2_options,
                                    &regions[rid].type2_normalized_lines,
                                    &regions[rid].type3_normalized_tokens);

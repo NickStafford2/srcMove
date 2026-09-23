@@ -28,7 +28,7 @@ public:
     counters_.push_back(counter{std::move(name), value});
   }
 
-  bool empty() const noexcept { return entries_.empty(); }
+  bool empty() const noexcept { return entries_.empty() && counters_.empty(); }
 
   void write_text(std::ostream &out) const {
     std::ostringstream buffer;
@@ -60,7 +60,8 @@ private:
 class scoped_profile_timer {
 public:
   scoped_profile_timer(profile_report *profile, std::string name)
-      : profile_(profile), name_(std::move(name)), start_(clock::now()) {}
+      : profile_(profile), name_(std::move(name)),
+        start_(profile == nullptr ? clock::time_point{} : clock::now()) {}
 
   scoped_profile_timer(const scoped_profile_timer &)            = delete;
   scoped_profile_timer &operator=(const scoped_profile_timer &) = delete;
