@@ -18,6 +18,12 @@ namespace srcmove {
 
 class profile_report;
 
+std::vector<move_entry>
+collect_move_results(const candidate_registry &registry,
+                     const content_groups     &groups,
+                     const std::string        &srcdiff_in_filename,
+                     profile_report           *profile = nullptr);
+
 std::vector<move_entry> annotate(const std::vector<diff_region> &regions,
                                  const candidate_registry       &registry,
                                  const content_groups           &groups,

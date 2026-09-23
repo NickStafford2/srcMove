@@ -13,7 +13,8 @@ std::string build_help(const std::string &progname) {
   out << "Usage:\n";
   out << "  " << progname
       << " <srcdiff.xml> [out.xml] [--results results.json]"
-         " [--min-granularity statement|fragment] [--profile] [-v]\n";
+         " [--results-only] [--min-granularity statement|fragment]"
+         " [--profile] [-v]\n";
   out << "  " << progname << " --help\n";
   out << "  " << progname << " --version\n\n";
 
@@ -24,6 +25,8 @@ std::string build_help(const std::string &progname) {
 
   out << "Options:\n";
   out << "  --results <file>       Write summary JSON to <file>\n";
+  out << "  --results-only        Write JSON without annotated XML; requires"
+         " --results and no out.xml\n";
   out << "  --profile              Write coarse timing data to stderr\n";
   out << "  --min-granularity <statement|fragment>\n";
   out << "                         Minimum move unit (default: statement)\n";
@@ -64,6 +67,11 @@ cli_options parse_cli(int argc, char **argv) {
 
     if (arg == "--profile") {
       opts.profile = true;
+      continue;
+    }
+
+    if (arg == "--results-only") {
+      opts.results_only = true;
       continue;
     }
 
@@ -116,6 +124,16 @@ cli_options parse_cli(int argc, char **argv) {
 
   if (!have_input) {
     throw cli_error("Error: missing input srcdiff.xml\n\n" +
+                    build_help(argv[0]));
+  }
+
+  if (opts.results_only && opts.results_path.empty()) {
+    throw cli_error("Error: --results-only requires --results <file>\n\n" +
+                    build_help(argv[0]));
+  }
+
+  if (opts.results_only && have_output) {
+    throw cli_error("Error: --results-only does not accept an output XML path\n\n" +
                     build_help(argv[0]));
   }
 

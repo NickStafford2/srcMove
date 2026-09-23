@@ -23,6 +23,7 @@ struct move_tag {
   std::uint32_t            inserts = 0;
   std::uint32_t            deletes = 0;
   std::vector<std::string> partner_xpaths;
+  std::string              xpath;
   std::string              raw_text;
 };
 

@@ -53,6 +53,7 @@ move_tag make_move_tag(const std::string              &move_id,
                        std::size_t                     ins_count,
                        std::size_t                     del_count,
                        const std::vector<std::string> &partner_xpaths,
+                       const std::string              &xpath,
                        const std::string              &raw_text) {
   move_tag tag;
   tag.move_id        = move_id;
@@ -61,6 +62,7 @@ move_tag make_move_tag(const std::string              &move_id,
   tag.inserts        = static_cast<std::uint32_t>(ins_count);
   tag.deletes        = static_cast<std::uint32_t>(del_count);
   tag.partner_xpaths = partner_xpaths;
+  tag.xpath           = xpath;
   tag.raw_text       = raw_text;
   return tag;
 }
@@ -78,7 +80,8 @@ void add_group_tags(tag_map                        &tags,
 
     tags.emplace(candidate.start_idx,
                  make_move_tag(move_id, match_kind, candidate.kind, ins_count,
-                               del_count, partner_xpaths, candidate.raw_text));
+                               del_count, partner_xpaths, candidate.xpath,
+                               candidate.raw_text));
   }
 }
 

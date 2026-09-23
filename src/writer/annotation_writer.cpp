@@ -5,6 +5,7 @@
  * Writes the annotated srcDiff document by copying the input stream and
  * patching move-related attributes onto selected start tags.
  */
+#include <algorithm>
 #include <cctype>
 #include <chrono>
 #include <cstdint>
@@ -58,6 +59,32 @@ constexpr const char *kMvMoveAttr     = "mv:id";
 constexpr const char *kMvFromAttr     = "mv:from";
 constexpr const char *kMvToAttr       = "mv:to";
 
+using move_entry_map = std::unordered_map<std::string, move_entry>;
+
+void append_move_result(move_entry_map &moves, const move_tag &tag,
+                        const std::string &xpath) {
+  move_entry &entry = moves[tag.move_id];
+  entry.move_id     = tag.move_id;
+  entry.match_kind  = tag.match_kind;
+
+  if (tag.kind == move_candidate::Kind::del) {
+    entry.from_xpaths.push_back(xpath);
+    entry.from_raw_texts.push_back(tag.raw_text);
+  } else {
+    entry.to_xpaths.push_back(xpath);
+    entry.to_raw_texts.push_back(tag.raw_text);
+  }
+}
+
+std::vector<move_entry> materialize_move_results(move_entry_map moves) {
+  std::vector<move_entry> result;
+  result.reserve(moves.size());
+  for (auto &entry : moves) {
+    result.push_back(std::move(entry.second));
+  }
+  return result;
+}
+
 bool is_root_unit_start(const srcml_node &node, std::size_t index) {
   return index == 0 && node.is_start() && node.name == "unit";
 }
@@ -90,13 +117,13 @@ std::string join_xpath_union(const std::vector<std::string> &values) {
   return out;
 }
 
-std::unordered_map<std::string, move_entry>
+move_entry_map
 write_with_move_annotations(const std::string &in_filename,
                             const std::string &out_filename,
                             const tag_map     &tags,
                             profile_report    *profile) {
   scoped_profile_timer timer(profile, "annotation.write_stream");
-  std::unordered_map<std::string, move_entry> moves;
+  move_entry_map moves;
   annotation_profile_stats stats;
 
   {
@@ -138,7 +165,6 @@ write_with_move_annotations(const std::string &in_filename,
           const std::string xpath   = reader.get_current_xpath();
           const move_tag    &tag      = it->second;
           const std::string &move_id  = tag.move_id;
-          const std::string &raw_text = tag.raw_text;
 
           patched.set_attribute(kMvMoveAttr, move_id);
 
@@ -154,17 +180,7 @@ write_with_move_annotations(const std::string &in_filename,
 
           writer.write(patched);
 
-          move_entry &entry = moves[move_id];
-          entry.move_id     = move_id;
-          entry.match_kind  = tag.match_kind;
-
-          if (tag.kind == move_candidate::Kind::del) {
-            entry.from_xpaths.push_back(xpath);
-            entry.from_raw_texts.push_back(raw_text);
-          } else {
-            entry.to_xpaths.push_back(xpath);
-            entry.to_raw_texts.push_back(raw_text);
-          }
+          append_move_result(moves, tag, xpath);
 
           if (profile != nullptr) {
             // Inclusive time for the complete tagged-node branch: copying the
@@ -219,6 +235,32 @@ write_with_move_annotations(const std::string &in_filename,
 
 } // namespace
 
+std::vector<move_entry>
+collect_move_results(const candidate_registry &registry,
+                     const content_groups     &groups,
+                     const std::string        &srcdiff_in_filename,
+                     profile_report           *profile) {
+  scoped_profile_timer total_timer(profile, "results_only.total");
+  const tag_map tags =
+      build_move_tags(groups, registry, srcdiff_in_filename, profile);
+
+  std::vector<const tag_map::value_type *> ordered_tags;
+  ordered_tags.reserve(tags.size());
+  for (const auto &tag : tags) {
+    ordered_tags.push_back(&tag);
+  }
+  std::sort(ordered_tags.begin(), ordered_tags.end(),
+            [](const auto *left, const auto *right) {
+              return left->first < right->first;
+            });
+
+  move_entry_map moves;
+  for (const auto *tag : ordered_tags) {
+    append_move_result(moves, tag->second, tag->second.xpath);
+  }
+  return materialize_move_results(std::move(moves));
+}
+
 std::vector<move_entry> annotate(const std::vector<diff_region> &regions,
                                  const candidate_registry       &registry,
                                  const content_groups           &groups,
@@ -239,11 +281,9 @@ std::vector<move_entry> annotate(const std::vector<diff_region> &regions,
 
   {
     scoped_profile_timer timer(profile, "annotation.materialize_moves");
-    moves.reserve(moves_map.size());
     // O(move groups). Converts the writer's move-id keyed map into summary
     // entries consumed by the pipeline result.
-    for (auto &kv : moves_map)
-      moves.push_back(std::move(kv.second));
+    moves = materialize_move_results(std::move(moves_map));
   }
 
   return moves;

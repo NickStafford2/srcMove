@@ -160,7 +160,10 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   }
 
   std::vector<move_entry> moves;
-  {
+  if (options.results_only) {
+    scoped_profile_timer timer(profile, "pipeline.results_only");
+    moves = collect_move_results(registry, groups, srcdiff_in_filename, profile);
+  } else {
     scoped_profile_timer timer(profile, "pipeline.annotation");
     moves = annotate(regions, registry, groups, srcdiff_in_filename,
                      srcdiff_out_filename, profile);
