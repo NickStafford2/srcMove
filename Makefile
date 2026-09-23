@@ -11,6 +11,8 @@ PROFILE ?= small
 SEED ?= 0
 SAMPLE_SIZE ?= 100
 VERIFY_SOURCE ?= 0
+CACHE ?= 0
+REFRESH_CACHE ?= 0
 .PHONY: help configure build test test-unit test-bigmovebench test-performance test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-normalized-run bigmovebench-suite
 
 help:
@@ -32,7 +34,7 @@ help:
 	@printf '  %-28s %s\n' 'make bigmovebench-select' 'Publish a selection from the compiled catalog'
 	@printf '  %-28s %s\n' 'make bigmovebench-benchmark-cases' 'Publish normalized cases from a selection'
 	@printf '  %-28s %s\n' 'make bigmovebench-normalized-run' 'Run normalized cases through the serial journal'
-	@printf '  %-28s %s\n' 'make bigmovebench-suite' 'Run BigMoveBench PROFILE=small|medium (full is slow)'
+	@printf '  %-28s %s\n' 'make bigmovebench-suite' 'Run BigMoveBench; CACHE=1 enables development-only reuse'
 
 configure:
 	$(CMAKE) -S . -B build -G Ninja
@@ -132,7 +134,9 @@ bigmovebench-normalized-run:
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
 		--srcmove /workspace/srcMove/build/srcMove \
 		$(if $(RESUME_RUN),--resume-run "$(RESUME_RUN)") \
-		$(if $(filter 1 yes true,$(RETRY_FAILED)),--retry-failed)
+		$(if $(filter 1 yes true,$(RETRY_FAILED)),--retry-failed) \
+		$(if $(filter 1 yes true,$(CACHE)),--cache) \
+		$(if $(filter 1 yes true,$(REFRESH_CACHE)),--refresh-cache)
 
 bigmovebench-suite:
 	@$(PYTHON) bigMoveBench/suite.py \
@@ -141,5 +145,7 @@ bigmovebench-suite:
 		--profile "$(PROFILE)" \
 		$(if $(PAIR_SET),--pair-set "$(PAIR_SET)") \
 		$(if $(filter 1 yes true,$(VERIFY_SOURCE)),--verify-source) \
+		$(if $(filter 1 yes true,$(CACHE)),--cache) \
+		$(if $(filter 1 yes true,$(REFRESH_CACHE)),--refresh-cache) \
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
 		--srcmove /workspace/srcMove/build/srcMove

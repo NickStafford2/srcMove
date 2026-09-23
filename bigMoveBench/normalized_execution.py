@@ -43,6 +43,7 @@ from bigMoveBench.evaluate import (
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.selection import TYPE3_STRATA
+from bigMoveBench.srcdiff_cache import DevelopmentSrcdiffCache
 
 
 EXECUTION_JOURNAL_SCHEMA_VERSION = 1
@@ -509,6 +510,7 @@ ORDER BY c.ordinal
         negative_zero_move_passes = negative_incidental_move_passes = 0
         srcdiff_process_seconds = srcmove_process_seconds = 0.0
         peak_rss_bytes: int | None = None
+        srcdiff_cache_hits = srcdiff_cache_misses = 0
         type3_groups: dict[str, dict[str, Any]] = {}
         self.connection.execute(
             "ATTACH DATABASE ? AS benchmark_cases",
@@ -543,6 +545,11 @@ ORDER BY c.ordinal
                         strict_passes += 1
                 for stage in ("srcdiff", "srcmove"):
                     record = json.loads(row[f"{stage}_record_json"] or "{}")
+                    if stage == "srcdiff":
+                        if record.get("cache", {}).get("status") == "hit":
+                            srcdiff_cache_hits += 1
+                        else:
+                            srcdiff_cache_misses += 1
                     elapsed = record.get("process_elapsed_seconds")
                     if isinstance(elapsed, (int, float)):
                         if stage == "srcdiff":
@@ -596,6 +603,10 @@ ORDER BY c.ordinal
         }
         metadata = self.connection.execute("SELECT * FROM run_metadata").fetchone()
         assert metadata is not None
+        configuration = json.loads(metadata["configuration_json"])
+        cache_configuration = configuration.get(
+            "development_srcdiff_cache", {"enabled": False, "policy": "disabled"}
+        )
         pair_set = json.loads(metadata["provenance_json"])["benchmark_cases"][
             "pair_set"
         ]
@@ -678,6 +689,14 @@ ORDER BY c.ordinal
                 "srcmove_process_seconds": srcmove_process_seconds,
             },
             "resources": {"peak_rss_bytes": peak_rss_bytes},
+            "development_srcdiff_cache": {
+                **cache_configuration,
+                "hits": srcdiff_cache_hits if cache_configuration["enabled"] else 0,
+                "misses": (
+                    srcdiff_cache_misses if cache_configuration["enabled"] else 0
+                ),
+                "suitable_for_thesis": False if cache_configuration["enabled"] else None,
+            },
             "cases_csv": dict(cases_csv),
         }
         return summary
@@ -702,6 +721,8 @@ class SerialBenchmarkExecutionRunner:
         progress_stream: TextIO | None = None,
         srcdiff_observation: Mapping[str, Any] | None = None,
         srcmove_observation: Mapping[str, Any] | None = None,
+        srcdiff_cache: DevelopmentSrcdiffCache | None = None,
+        refresh_srcdiff_cache: bool = False,
     ) -> None:
         self.benchmark_cases = benchmark_cases
         self.run_dir = run_dir.expanduser().resolve()
@@ -714,6 +735,8 @@ class SerialBenchmarkExecutionRunner:
         self.activity_callback = activity_callback
         self.progress_enabled = progress_enabled
         self.progress_stream = progress_stream
+        self.srcdiff_cache = srcdiff_cache
+        self.refresh_srcdiff_cache = refresh_srcdiff_cache
         self.srcdiff_observation = dict(
             srcdiff_observation or observe_executable(self.srcdiff)
         )
@@ -731,6 +754,14 @@ class SerialBenchmarkExecutionRunner:
             },
             "srcmove": {"timeout_seconds": srcmove_timeout_seconds},
             "scoring_oracle_version": SCORING_ORACLE_VERSION,
+            "development_srcdiff_cache": {
+                "enabled": srcdiff_cache is not None,
+                "policy": (
+                    "unversioned_development_only"
+                    if srcdiff_cache is not None
+                    else "disabled"
+                ),
+            },
         }
         self.provenance = {
             "benchmark_cases": {
@@ -769,6 +800,60 @@ class SerialBenchmarkExecutionRunner:
         }
         return hashlib.sha256(canonical_json(value)).hexdigest()
 
+    def _restore_cached_srcdiff(
+        self, case: InputPair, context: Mapping[str, Any]
+    ) -> tuple[Path, dict[str, Any]] | None:
+        if self.srcdiff_cache is None or self.refresh_srcdiff_cache:
+            return None
+        attempts_root = self.run_dir / "tool-attempts" / "srcdiff"
+        attempts_root.mkdir(parents=True, exist_ok=True)
+        temporary = attempts_root / f".cache-{uuid.uuid4()}.xml"
+        restored = self.srcdiff_cache.restore(
+            case_id=case.case_id,
+            wrapper_version=int(case.metadata["synthetic_wrapper_version"]),
+            destination=temporary,
+        )
+        if not restored:
+            return None
+        xml = validate_srcdiff_xml(temporary, "archive")
+        if xml.get("status") != "valid":
+            temporary.unlink(missing_ok=True)
+            return None
+
+        attempt_id = f"attempt-{uuid.uuid4()}"
+        attempt_dir = attempts_root / attempt_id
+        attempt_dir.mkdir(parents=False, exist_ok=False)
+        output = attempt_dir / "srcdiff.xml"
+        os.replace(temporary, output)
+        timestamp = utc_now()
+        record = {
+            "schema_version": 2,
+            "attempt_id": attempt_id,
+            "stage": "srcdiff",
+            "case_id": case.case_id,
+            "started_at": timestamp,
+            "completed_at": timestamp,
+            "command": [],
+            "working_directory": str(case.original.parent.resolve()),
+            "process_elapsed_seconds": 0.0,
+            "termination": {"status": "cache_hit"},
+            "resource_usage": {},
+            "stdout": {"status": "not_run"},
+            "stderr": {"status": "not_run"},
+            "xml": xml,
+            "output_path": output.name,
+            "output_retention": "retained",
+            "admitted": True,
+            "context": dict(context),
+            "cache": {
+                "enabled": True,
+                "status": "hit",
+                "policy": "unversioned_development_only",
+            },
+        }
+        write_json_atomic(attempt_dir / "attempt.json", record)
+        return attempt_dir, record
+
     def _execute_case(self, case: InputPair, logical_attempt_id: str) -> dict[str, Any]:
         context = {
             "run_attempt_id": logical_attempt_id,
@@ -776,27 +861,52 @@ class SerialBenchmarkExecutionRunner:
             "benchmark_cases_manifest_sha256": self.benchmark_cases.manifest_sha256,
         }
         srcdiff_root = self.run_dir / "tool-attempts" / "srcdiff"
-        srcdiff_dir, srcdiff_record = execute_attempt(
-            attempts_root=srcdiff_root,
-            stage="srcdiff",
-            case_id=case.case_id,
-            command_factory=lambda output: [
-                str(self.srcdiff),
-                "--position",
-                "--archive",
-                "--src-encoding",
-                "UTF-8",
-                str(case.original),
-                str(case.modified),
-                "-o",
-                str(output),
-            ],
-            cwd=case.original.parent,
-            timeout_seconds=self.srcdiff_timeout_seconds,
-            xml_validator=lambda path: validate_srcdiff_xml(path, "archive"),
-            output_filename="srcdiff.xml",
-            context=context,
-        )
+        cached = self._restore_cached_srcdiff(case, context)
+        if cached is not None:
+            srcdiff_dir, srcdiff_record = cached
+        else:
+            srcdiff_dir, srcdiff_record = execute_attempt(
+                attempts_root=srcdiff_root,
+                stage="srcdiff",
+                case_id=case.case_id,
+                command_factory=lambda output: [
+                    str(self.srcdiff),
+                    "--position",
+                    "--archive",
+                    "--src-encoding",
+                    "UTF-8",
+                    str(case.original),
+                    str(case.modified),
+                    "-o",
+                    str(output),
+                ],
+                cwd=case.original.parent,
+                timeout_seconds=self.srcdiff_timeout_seconds,
+                xml_validator=lambda path: validate_srcdiff_xml(path, "archive"),
+                output_filename="srcdiff.xml",
+                context=context,
+            )
+            if self.srcdiff_cache is not None:
+                cache_record = {
+                    "enabled": True,
+                    "status": "refreshed" if self.refresh_srcdiff_cache else "miss",
+                    "policy": "unversioned_development_only",
+                }
+                if srcdiff_record["admitted"]:
+                    try:
+                        self.srcdiff_cache.store(
+                            case_id=case.case_id,
+                            wrapper_version=int(
+                                case.metadata["synthetic_wrapper_version"]
+                            ),
+                            source=srcdiff_dir / "srcdiff.xml",
+                        )
+                        cache_record["stored"] = True
+                    except OSError as error:
+                        cache_record["stored"] = False
+                        cache_record["error"] = f"{type(error).__name__}: {error}"
+                srcdiff_record["cache"] = cache_record
+                write_json_atomic(srcdiff_dir / "attempt.json", srcdiff_record)
         result: dict[str, Any] = {
             "outcome": "upstream_failure",
             "srcdiff_attempt_id": srcdiff_record["attempt_id"],
@@ -983,6 +1093,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--srcdiff-timeout", type=float, default=60.0)
     parser.add_argument("--srcmove-timeout", type=float, default=300.0)
     parser.add_argument("--retry-failed", action="store_true")
+    parser.add_argument(
+        "--cache",
+        action="store_true",
+        help=(
+            "Reuse unversioned srcDiff XML for development only; unsuitable for "
+            "thesis results."
+        ),
+    )
+    parser.add_argument(
+        "--refresh-cache",
+        action="store_true",
+        help="Replace development srcDiff cache entries (implies --cache).",
+    )
     return parser.parse_args()
 
 
@@ -1017,6 +1140,14 @@ def main() -> int:
             srcdiff_timeout_seconds=args.srcdiff_timeout,
             srcmove_timeout_seconds=args.srcmove_timeout,
             retry_failed=args.retry_failed,
+            srcdiff_cache=(
+                DevelopmentSrcdiffCache(
+                    args.cache_root / "development-srcdiff"
+                )
+                if args.cache or args.refresh_cache
+                else None
+            ),
+            refresh_srcdiff_cache=args.refresh_cache,
         ).run()
         print(f"run_id={summary['run_id']}")
         print(f"directory={run_dir}")
@@ -1024,6 +1155,13 @@ def main() -> int:
             f"selected={summary['counts']['selected']} "
             f"oracle_pass={summary['counts']['oracle_pass']}"
         )
+        cache = summary["development_srcdiff_cache"]
+        if cache["enabled"]:
+            print(
+                "WARNING: unversioned development srcDiff cache used; "
+                "this run is unsuitable for thesis results"
+            )
+            print(f"srcdiff_cache_hits={cache['hits']} misses={cache['misses']}")
         return 0
     except (OSError, ValueError, sqlite3.Error, json.JSONDecodeError) as error:
         print(f"error: {error}", file=sys.stderr)

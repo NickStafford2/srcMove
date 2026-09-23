@@ -12,6 +12,7 @@ from unittest import mock
 
 from bigMoveBench.contracts import SemanticResult, SemanticStatus
 from bigMoveBench.normalized_execution import SerialBenchmarkExecutionRunner
+from bigMoveBench.srcdiff_cache import DevelopmentSrcdiffCache
 from bigMoveBench.tests import test_benchmark_cases
 
 
@@ -35,7 +36,16 @@ class FakeToolAttempts:
         attempt_dir = kwargs["attempts_root"] / attempt_id
         attempt_dir.mkdir(parents=True)
         output = attempt_dir / kwargs["output_filename"]
-        output.write_text("<unit/>\n", encoding="utf-8")
+        output.write_text(
+            (
+                "<unit xmlns='http://www.srcML.org/srcML/src' "
+                "xmlns:diff='http://www.srcML.org/srcDiff/diff'>"
+                "<unit language='Java' filename='input.java'/></unit>"
+                if stage == "srcdiff"
+                else "<unit/>"
+            ),
+            encoding="utf-8",
+        )
         if stage == "srcmove":
             (attempt_dir / "results.json").write_text(
                 json.dumps({"move_count": 1, "moves": []}), encoding="utf-8"
@@ -177,6 +187,53 @@ class NormalizedExecutionTests(unittest.TestCase):
                 _, resumed = self._runner(benchmark_cases, run_dir).run()
             self.assertEqual(reused_tools.calls, [])
             self.assertEqual(resumed["counts"], summary["counts"])
+
+    def test_development_cache_reuses_srcdiff_but_always_runs_srcmove(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
+            _, _, benchmark_cases, _ = fixture.publish_two_case_fixture(root)
+            cache = DevelopmentSrcdiffCache(root / "cache")
+
+            first_tools = FakeToolAttempts()
+            patches = self._successful_patches(first_tools)
+            with patches[0], patches[1], patches[2]:
+                _, first = self._runner(
+                    benchmark_cases,
+                    root / "results" / "cache-one",
+                    srcdiff_cache=cache,
+                ).run()
+            self.assertEqual(first_tools.calls, ["srcdiff", "srcmove"] * 2)
+            self.assertEqual(first["development_srcdiff_cache"]["hits"], 0)
+            self.assertEqual(first["development_srcdiff_cache"]["misses"], 2)
+            self.assertFalse(
+                first["development_srcdiff_cache"]["suitable_for_thesis"]
+            )
+
+            second_tools = FakeToolAttempts()
+            patches = self._successful_patches(second_tools)
+            with patches[0], patches[1], patches[2]:
+                _, second = self._runner(
+                    benchmark_cases,
+                    root / "results" / "cache-two",
+                    srcdiff_cache=cache,
+                ).run()
+            self.assertEqual(second_tools.calls, ["srcmove"] * 2)
+            self.assertEqual(second["development_srcdiff_cache"]["hits"], 2)
+            self.assertEqual(second["development_srcdiff_cache"]["misses"], 0)
+
+            refresh_tools = FakeToolAttempts()
+            patches = self._successful_patches(refresh_tools)
+            with patches[0], patches[1], patches[2]:
+                _, refreshed = self._runner(
+                    benchmark_cases,
+                    root / "results" / "cache-refresh",
+                    srcdiff_cache=cache,
+                    refresh_srcdiff_cache=True,
+                ).run()
+            self.assertEqual(refresh_tools.calls, ["srcdiff", "srcmove"] * 2)
+            self.assertEqual(refreshed["development_srcdiff_cache"]["hits"], 0)
+            self.assertEqual(refreshed["development_srcdiff_cache"]["misses"], 2)
 
     def test_semantic_ineligible_is_terminal_without_srcmove(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

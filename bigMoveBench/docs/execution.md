@@ -85,3 +85,13 @@ to define or score the benchmark:
 
 The scientific questions and labels do not change when these optimizations are
 added.
+
+## Optional Development Cache
+
+The runner can reuse srcDiff XML when invoked with `--cache` (or `CACHE=1` via
+Make). This cache is intentionally outside the verified artifact model: its key
+contains the generated case and wrapper version but not the srcDiff executable.
+Only structurally valid XML is stored or accepted, and entries are compressed
+and sharded by case identity. Every resulting report marks the run as using an
+unversioned development cache and unsuitable for thesis results. The default
+workflow does not read the cache.

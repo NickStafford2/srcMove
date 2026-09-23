@@ -221,6 +221,26 @@ execution journal. Benchmark cases use content-derived identifiers; execution
 runs use unique identifiers. Each process invocation records bounded logs,
 terminal status, timeout cleanup, and XML validation.
 
+### Development srcDiff cache
+
+When repeatedly testing srcMove changes, reuse previously generated srcDiff XML
+with:
+
+```bash
+make bigmovebench-suite PROFILE=small CACHE=1
+```
+
+The first cached run stores fast-compressed XML under
+`bigMoveBench/cache/development-srcdiff/`; later cached runs skip srcDiff for
+matching generated cases. Use `REFRESH_CACHE=1` to run srcDiff and replace the
+entries. Cache identity uses only the generated case and wrapper version. It
+deliberately ignores the srcDiff executable and is therefore an unverified
+development convenience, not a thesis-data mode. Cached summaries and terminal
+reports carry that warning. Runs without `CACHE=1` never read this cache.
+Because the cache stores one compressed file per generated case, it is intended
+for repeated small and medium development runs rather than a six-million-case
+full census.
+
 The scoring rules live in `oracle.py` and `evaluate.py`; orchestration lives in
 `suite.py` and `normalized_execution.py`. The oracle remains independent of
 process orchestration.

@@ -24,6 +24,7 @@ from bigMoveBench.frozen_profiles import create_frozen_selection
 from bigMoveBench.installation import BCE_DIR
 from bigMoveBench.normalized_execution import SerialBenchmarkExecutionRunner
 from bigMoveBench.selection import create_selection
+from bigMoveBench.srcdiff_cache import DevelopmentSrcdiffCache
 from benchmarking.storage import write_json_atomic
 from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
@@ -71,6 +72,19 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--srcmove", type=Path)
     parser.add_argument("--srcdiff-timeout", type=float, default=60.0)
     parser.add_argument("--srcmove-timeout", type=float, default=300.0)
+    parser.add_argument(
+        "--cache",
+        action="store_true",
+        help=(
+            "Reuse unversioned srcDiff XML for development only; unsuitable for "
+            "thesis results."
+        ),
+    )
+    parser.add_argument(
+        "--refresh-cache",
+        action="store_true",
+        help="Replace development srcDiff cache entries (implies --cache).",
+    )
     return parser.parse_args()
 
 
@@ -143,6 +157,9 @@ def _pair_result(
         },
         "selection_counts": dict(selection_manifest["counts"]),
         "type3_strength_strata": dict(type3_strength) if observational else {},
+        "development_srcdiff_cache": dict(
+            summary.get("development_srcdiff_cache", {"enabled": False})
+        ),
         "timings": {
             **dict(timings),
             "srcdiff_process_seconds": summary["timings"][
@@ -168,6 +185,13 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
         raise ValueError("srcdiff not found; pass --srcdiff")
     if srcmove is None:
         raise ValueError("srcMove not found; pass --srcmove")
+    refresh_cache = bool(getattr(args, "refresh_cache", False))
+    use_cache = bool(getattr(args, "cache", False) or refresh_cache)
+    srcdiff_cache = (
+        DevelopmentSrcdiffCache(cache_root / "development-srcdiff")
+        if use_cache
+        else None
+    )
 
     (compiled_result, compile_seconds) = _timed(
         lambda: ensure_compiled_dataset(
@@ -238,6 +262,8 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                 srcmove_timeout_seconds=args.srcmove_timeout,
                 srcdiff_observation=srcdiff_observation,
                 srcmove_observation=srcmove_observation,
+                srcdiff_cache=srcdiff_cache,
+                refresh_srcdiff_cache=refresh_cache,
             ).run()
         )
         _, summary = evaluation
@@ -268,6 +294,14 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
             "mode": "census" if profile == "full" else "preset",
             "verify_source": args.verify_source,
             "pair_set": selected_pair_set,
+            "development_srcdiff_cache": {
+                "enabled": use_cache,
+                "refresh": refresh_cache,
+                "policy": (
+                    "unversioned_development_only" if use_cache else "disabled"
+                ),
+                "suitable_for_thesis": False if use_cache else None,
+            },
         },
         "compiled_dataset": {
             "dataset_id": compiled.dataset_id,
@@ -316,6 +350,23 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
         f"  dataset: {dataset['dataset_id']} "
         f"({dataset['disposition']}; {_seconds(dataset['seconds'])})"
     )
+    cache_request = suite.get("request", {}).get(
+        "development_srcdiff_cache", {"enabled": False}
+    )
+    if cache_request.get("enabled"):
+        hits = sum(
+            result.get("development_srcdiff_cache", {}).get("hits", 0)
+            for result in suite["pair_sets"]
+        )
+        misses = sum(
+            result.get("development_srcdiff_cache", {}).get("misses", 0)
+            for result in suite["pair_sets"]
+        )
+        print(
+            "  WARNING: unversioned development srcDiff cache used; "
+            "unsuitable for thesis results"
+        )
+        print(f"  srcDiff cache: {hits:,} hits, {misses:,} misses")
     print()
     for result in suite["pair_sets"]:
         counts = result["counts"]

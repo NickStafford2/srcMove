@@ -28,6 +28,8 @@ class BigCloneBenchSuiteTests(unittest.TestCase):
         with mock.patch("sys.argv", ["suite.py"]):
             args = parse_args()
         self.assertEqual(args.profile, "small")
+        self.assertFalse(args.cache)
+        self.assertFalse(args.refresh_cache)
         self.assertFalse(hasattr(args, "mode"))
         self.assertFalse(hasattr(args, "seed"))
         self.assertFalse(hasattr(args, "sample_size"))
@@ -193,6 +195,26 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             self.assertIn("Type 2", report)
             self.assertIn("Known false positives", report)
             self.assertIn("selected cases 4", report)
+            self.assertNotIn("unsuitable for thesis", report)
+
+            first["request"]["development_srcdiff_cache"] = {
+                "enabled": True,
+                "refresh": False,
+                "policy": "unversioned_development_only",
+                "suitable_for_thesis": False,
+            }
+            for item in first["pair_sets"]:
+                item["development_srcdiff_cache"] = {"hits": 1, "misses": 0}
+            cached_output = StringIO()
+            with redirect_stdout(cached_output):
+                _print_report(first_dir, first)
+            self.assertIn(
+                "WARNING: unversioned development srcDiff cache used; "
+                "unsuitable for thesis results",
+                cached_output.getvalue(),
+            )
+            self.assertIn("srcDiff cache: 4 hits, 0 misses", cached_output.getvalue())
+            first["request"]["development_srcdiff_cache"]["enabled"] = False
 
             type3["assessment"]["sample_interpretation"] = (
                 "balanced_strength_sample"
