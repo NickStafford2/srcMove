@@ -8,6 +8,7 @@
 #define INCLUDED_MOVE_PROFILE_HPP
 
 #include <chrono>
+#include <cstdint>
 #include <iomanip>
 #include <ostream>
 #include <sstream>
@@ -23,6 +24,10 @@ public:
     entries_.push_back(entry{std::move(name), elapsed_ms});
   }
 
+  void add_counter(std::string name, std::uint64_t value) {
+    counters_.push_back(counter{std::move(name), value});
+  }
+
   bool empty() const noexcept { return entries_.empty(); }
 
   void write_text(std::ostream &out) const {
@@ -30,6 +35,9 @@ public:
     buffer << std::fixed << std::setprecision(3);
     for (const entry &e : entries_) {
       buffer << "profile." << e.name << "_ms=" << e.elapsed_ms << "\n";
+    }
+    for (const counter &c : counters_) {
+      buffer << "profile." << c.name << "=" << c.value << "\n";
     }
     out << buffer.str();
   }
@@ -40,7 +48,13 @@ private:
     double      elapsed_ms = 0.0;
   };
 
+  struct counter {
+    std::string   name;
+    std::uint64_t value = 0;
+  };
+
   std::vector<entry> entries_;
+  std::vector<counter> counters_;
 };
 
 class scoped_profile_timer {

@@ -30,6 +30,8 @@
 
 namespace srcmove {
 
+class profile_report;
+
 struct captured_srcml_node {
   std::size_t index = 0;
   srcml_node  node;
@@ -62,7 +64,8 @@ struct diff_region {
   std::vector<captured_srcml_node> captured_nodes;
 };
 
-std::vector<diff_region> collect_all_regions(srcml_reader &reader);
+std::vector<diff_region> collect_all_regions(srcml_reader    &reader,
+                                             profile_report *profile = nullptr);
 
 } // namespace srcmove
 

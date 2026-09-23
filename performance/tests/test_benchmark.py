@@ -18,6 +18,7 @@ from performance.benchmark import (
     build_schedule,
     inspect_workload,
     load_workloads,
+    parse_profile_output,
     run_measurement,
     run_performance,
 )
@@ -42,6 +43,18 @@ def write_profile_tool(path: Path, milliseconds: float, fail: bool = False) -> P
 
 
 class PerformanceBenchmarkTests(unittest.TestCase):
+    def test_profile_parser_preserves_timer_and_counter_units(self) -> None:
+        self.assertEqual(
+            parse_profile_output(
+                "profile.pipeline.total_ms=12.375\n"
+                "profile.parse.reader_events=10932\n"
+            ),
+            {
+                "pipeline.total_ms": 12.375,
+                "parse.reader_events": 10932,
+            },
+        )
+
     def test_schedule_is_reproducible_paired_and_position_balanced(self) -> None:
         arguments = {
             "workload_names": ["large-b", "large-a"],

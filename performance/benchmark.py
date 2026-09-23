@@ -31,7 +31,7 @@ from benchmarking.storage import write_json_atomic
 PERFORMANCE_RUN_SCHEMA_VERSION = 2
 PERFORMANCE_SUMMARY_SCHEMA_VERSION = 2
 PROFILE_LINE_RE = re.compile(
-    r"^profile\.([A-Za-z0-9_.]+)_ms=([0-9]+(?:\.[0-9]+)?)$"
+    r"^profile\.([A-Za-z0-9_.]+)=([0-9]+(?:\.[0-9]+)?)$"
 )
 SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_.-]*$")
 
@@ -166,12 +166,13 @@ def build_schedule(
     return schedule
 
 
-def parse_profile_output(text: str) -> dict[str, float]:
-    metrics: dict[str, float] = {}
+def parse_profile_output(text: str) -> dict[str, float | int]:
+    metrics: dict[str, float | int] = {}
     for line in text.splitlines():
         match = PROFILE_LINE_RE.match(line.strip())
         if match is not None:
-            metrics[match.group(1)] = float(match.group(2))
+            name, value = match.groups()
+            metrics[name] = float(value) if name.endswith("_ms") else int(value)
     return metrics
 
 
@@ -305,7 +306,7 @@ def run_measurement(
         "results_sha256": results.get("sha256"),
     }
     for name, value in metrics.items():
-        row[f"internal_{name}_ms"] = value
+        row[f"internal_{name}"] = value
     return row, set(metrics)
 
 
@@ -377,7 +378,7 @@ def build_summary(
         "cpu_system_seconds",
         "cpu_total_seconds",
         "peak_rss_bytes",
-        *[f"internal_{name}_ms" for name in sorted(internal_metric_names)],
+        *[f"internal_{name}" for name in sorted(internal_metric_names)],
     ]
 
     def summarize_rows(selected: Sequence[Mapping[str, Any]]) -> dict[str, Any]:

@@ -124,7 +124,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   {
     scoped_profile_timer timer(profile, "pipeline.parse_regions");
     srcml_reader         reader(srcdiff_in_filename);
-    regions = collect_all_regions(reader);
+    regions = collect_all_regions(reader, profile);
   }
 
   std::vector<move_candidate> candidates;
