@@ -3,7 +3,8 @@
 Status: steps 1 through 4 are implemented as a parallel, non-default path.
 Normalized benchmark cases, the serial scratch runner, and the transactional
 execution journal exist, but the live suite does not use them; snapshots remain
-the current execution path. Step 5's verification gate has not been run.
+the current execution path. The small and medium outcome-equivalence part of
+step 5 passed; scale and interruption checks remain.
 
 ## Goal
 
@@ -130,10 +131,11 @@ source of truth. Summary JSON and CSV are derived artifacts produced by queries.
    query-derived artifacts. Focused unit tests cover transaction recovery and
    idempotent resume mechanics; step 5 retains the forced-process-termination
    gate.
-5. **Stop and verify before parallelism:** compare current and normalized results
-   on both frozen profiles, run a larger synthetic scale test, inspect disk and
-   memory growth, and exercise forced interruption/restart. Resolve discrepancies
-   before proceeding.
+5. **In progress — stop and verify before parallelism:** the current and
+   normalized workflows produced identical case IDs, outcomes, and scientific
+   result fields for all 80 small-profile cases and all 400 medium-profile cases.
+   Run a larger synthetic scale test, inspect disk and memory growth, and
+   exercise forced interruption/restart before proceeding.
 6. **Bounded parallelism:** only after the gate passes, add deterministic shards
    and transactional case claiming. Prove that two workers cannot execute the
    same case accidentally.
@@ -149,8 +151,8 @@ source of truth. Summary JSON and CSV are derived artifacts produced by queries.
 Parallelism is a deliberate stopping point, not part of the first vertical
 slice. Before adding workers, require all of the following:
 
-- identical selected case IDs and oracle outcomes for `PROFILE=small` and
-  `PROFILE=medium` compared with the current workflow;
+- **Passed:** identical selected case IDs and scientific result fields for
+  `PROFILE=small` and `PROFILE=medium` compared with the current workflow;
 - generated-object count proportional to unique fragments, not selected pairs;
 - bounded memory during a 10,000-case synthetic publication/execution test;
 - approximately linear journal/checkpoint cost as case count grows;
@@ -163,8 +165,8 @@ slice. Before adding workers, require all of the following:
 
 ## Next Task
 
-Exercise step 5's verification gate on both frozen profiles and the synthetic
-scale workload. Reconcile every selected case and oracle outcome against the
-current snapshot workflow, measure memory and journal growth, and preserve the
-forced-interruption evidence. Do not design or add parallel workers until every
-gate item passes.
+Complete step 5 with the synthetic scale workload. Measure memory and journal
+growth and preserve forced-interruption/restart evidence. Use
+`make bigmovebench-equivalence BIGMOVEBENCH_REFERENCE_SUMMARY=<summary.json>`
+to repeat the already-passing outcome comparison. Do not design or add parallel
+workers until every gate item passes.

@@ -14,7 +14,7 @@ import tempfile
 import uuid
 from collections.abc import Callable, Iterator, Mapping
 from pathlib import Path
-from typing import Any
+from typing import Any, TextIO
 
 
 SCRIPT_DIR = Path(__file__).resolve().parent
@@ -41,6 +41,7 @@ from bigMoveBench.evaluate import (
     _score_completed_case,
 )
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
+from bigMoveBench.progress import ProgressDisplay
 
 
 EXECUTION_JOURNAL_SCHEMA_VERSION = 1
@@ -581,6 +582,8 @@ class SerialBenchmarkExecutionRunner:
         retry_failed: bool = False,
         scratch_root: Path | None = None,
         activity_callback: ActivityCallback | None = None,
+        progress_enabled: bool = True,
+        progress_stream: TextIO | None = None,
         srcdiff_observation: Mapping[str, Any] | None = None,
         srcmove_observation: Mapping[str, Any] | None = None,
     ) -> None:
@@ -593,6 +596,8 @@ class SerialBenchmarkExecutionRunner:
         self.retry_failed = retry_failed
         self.scratch_root = scratch_root
         self.activity_callback = activity_callback
+        self.progress_enabled = progress_enabled
+        self.progress_stream = progress_stream
         self.srcdiff_observation = dict(
             srcdiff_observation or observe_executable(self.srcdiff)
         )
@@ -759,6 +764,8 @@ class SerialBenchmarkExecutionRunner:
         self.run_dir.mkdir(parents=True, exist_ok=True)
         journal_path = self.run_dir / "execution.sqlite"
         run_id = self.run_dir.name
+        selected = int(self.benchmark_cases.manifest["counts"]["cases"])
+        pair_set = str(self.benchmark_cases.manifest["selection"]["pair_set"])
         journal = ExecutionJournal(
             journal_path,
             benchmark_cases=self.benchmark_cases,
@@ -767,51 +774,76 @@ class SerialBenchmarkExecutionRunner:
             run_id=run_id,
         )
         try:
-            recover_interrupted_attempts(self.run_dir / "tool-attempts" / "srcdiff")
-            recover_interrupted_attempts(self.run_dir / "tool-attempts" / "srcmove")
-            journal.recover_running()
-            journal.mark_running()
-            with SerialBenchmarkCaseRunner(
-                self.benchmark_cases, scratch_root=self.scratch_root
-            ) as cases:
-                for case in cases.cases():
-                    previous = journal.latest_terminal(case.case_id)
-                    should_retry = bool(
-                        previous is not None
-                        and self.retry_failed
-                        and previous["outcome"] in RETRYABLE_FAILURES
-                    )
-                    if previous is not None and not should_retry:
-                        self._activity("reused", case.case_id)
-                        continue
-                    attempt_id, _ = journal.begin(
-                        case.case_id, self._attempt_identity(case.case_id)
-                    )
-                    self._activity("running", case.case_id)
-                    record = self._execute_case(case, attempt_id)
-                    journal.finish(attempt_id, record)
-                    self._activity(
-                        "completed"
-                        if record["outcome"] not in FAILED_OUTCOMES
-                        else "failed",
-                        case.case_id,
-                    )
-            selected = int(self.benchmark_cases.manifest["counts"]["cases"])
-            if journal.completed_case_count() != selected:
-                raise ValueError(
-                    "normalized execution journal terminal case count does not "
-                    "reconcile"
+            with ProgressDisplay(
+                "normalized execution",
+                total=selected,
+                detail=pair_set,
+                stream=self.progress_stream,
+                enabled=self.progress_enabled,
+            ) as progress:
+                recover_interrupted_attempts(
+                    self.run_dir / "tool-attempts" / "srcdiff"
                 )
-            journal.mark_completed()
-            cases_csv = journal.write_cases_csv(
-                self.run_dir / "cases.csv",
-                benchmark_cases_database=(
-                    self.benchmark_cases.directory / "benchmark_cases.sqlite"
-                ),
-            )
-            summary = journal.summary(selected=selected, cases_csv=cases_csv)
-            write_json_atomic(self.run_dir / "summary.json", summary)
-            return self.run_dir, summary
+                recover_interrupted_attempts(
+                    self.run_dir / "tool-attempts" / "srcmove"
+                )
+                journal.recover_running()
+                journal.mark_running()
+                visited = executed = reused = failed = 0
+                with SerialBenchmarkCaseRunner(
+                    self.benchmark_cases, scratch_root=self.scratch_root
+                ) as cases:
+                    for case in cases.cases():
+                        previous = journal.latest_terminal(case.case_id)
+                        should_retry = bool(
+                            previous is not None
+                            and self.retry_failed
+                            and previous["outcome"] in RETRYABLE_FAILURES
+                        )
+                        if previous is not None and not should_retry:
+                            reused += 1
+                            visited += 1
+                            self._activity("reused", case.case_id)
+                            progress.update(
+                                visited, detail=f"reused {case.case_id}"
+                            )
+                            continue
+                        progress.update(visited, detail=f"running {case.case_id}")
+                        attempt_id, _ = journal.begin(
+                            case.case_id, self._attempt_identity(case.case_id)
+                        )
+                        self._activity("running", case.case_id)
+                        record = self._execute_case(case, attempt_id)
+                        journal.finish(attempt_id, record)
+                        executed += 1
+                        visited += 1
+                        case_failed = record["outcome"] in FAILED_OUTCOMES
+                        failed += int(case_failed)
+                        self._activity(
+                            "failed" if case_failed else "completed", case.case_id
+                        )
+                        progress.update(
+                            visited,
+                            detail=f"{record['outcome']} {case.case_id}",
+                        )
+                if journal.completed_case_count() != selected:
+                    raise ValueError(
+                        "normalized execution journal terminal case count does not "
+                        "reconcile"
+                    )
+                journal.mark_completed()
+                cases_csv = journal.write_cases_csv(
+                    self.run_dir / "cases.csv",
+                    benchmark_cases_database=(
+                        self.benchmark_cases.directory / "benchmark_cases.sqlite"
+                    ),
+                )
+                summary = journal.summary(selected=selected, cases_csv=cases_csv)
+                write_json_atomic(self.run_dir / "summary.json", summary)
+                progress.finish(
+                    f"{executed} executed, {reused} reused, {failed} failed"
+                )
+                return self.run_dir, summary
         finally:
             journal.close()
 

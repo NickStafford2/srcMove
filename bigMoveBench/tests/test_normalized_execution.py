@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import sqlite3
 import tempfile
@@ -50,6 +51,7 @@ class NormalizedExecutionTests(unittest.TestCase):
     def _runner(
         self, benchmark_cases, run_dir: Path, **kwargs
     ) -> SerialBenchmarkExecutionRunner:
+        kwargs.setdefault("progress_enabled", False)
         return SerialBenchmarkExecutionRunner(
             benchmark_cases,
             run_dir=run_dir,
@@ -59,6 +61,36 @@ class NormalizedExecutionTests(unittest.TestCase):
             srcmove_observation=TOOL_OBSERVATION,
             **kwargs,
         )
+
+    def test_reports_execution_progress(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
+            _, _, benchmark_cases, _ = fixture.publish_two_case_fixture(root)
+            tools = FakeToolAttempts()
+            output = io.StringIO()
+            patches = self._successful_patches(tools)
+            with patches[0], patches[1], patches[2]:
+                self._runner(
+                    benchmark_cases,
+                    root / "results" / "progress",
+                    progress_enabled=True,
+                    progress_stream=output,
+                ).run()
+
+            lines = output.getvalue().splitlines()
+            self.assertEqual(
+                lines[0],
+                "[normalized execution] started: 0/2   0% 00:00 — type3",
+            )
+            self.assertIn(
+                "[normalized execution] progress: 2/2 100%",
+                lines[-2],
+            )
+            self.assertIn(
+                "2 executed, 0 reused, 0 failed",
+                lines[-1],
+            )
 
     def _successful_patches(self, tool_attempts):
         return (
