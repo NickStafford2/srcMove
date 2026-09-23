@@ -11,6 +11,7 @@ import shutil
 import sqlite3
 import sys
 import tempfile
+import time
 import uuid
 from collections.abc import Callable, Iterator, Mapping
 from contextlib import closing
@@ -693,6 +694,7 @@ class SerialBenchmarkCaseRunner:
         self.scratch_root = scratch_root
         self._temporary: tempfile.TemporaryDirectory[str] | None = None
         self._root: Path | None = None
+        self.last_profile: dict[str, Any] | None = None
 
     def __enter__(self) -> SerialBenchmarkCaseRunner:
         parent = None
@@ -733,7 +735,7 @@ class SerialBenchmarkCaseRunner:
             raise ValueError(f"compiled fragment checksum mismatch: {fragment_sha256}")
         return contents.decode("utf-8")
 
-    def _link(self, object_path: str, destination: Path) -> None:
+    def _link(self, object_path: str, destination: Path) -> bool:
         source = self.benchmark_cases.data_root / object_path
         if source.is_symlink() or not source.is_file():
             raise ValueError(
@@ -742,8 +744,10 @@ class SerialBenchmarkCaseRunner:
         destination.unlink(missing_ok=True)
         try:
             os.link(source, destination)
+            return True
         except OSError:
             destination.symlink_to(source)
+            return False
 
     def cases(self) -> Iterator[InputPair]:
         if self._root is None:
@@ -776,17 +780,36 @@ ORDER BY c.ordinal
 """
         with closing(sqlite3.connect(uri, uri=True)) as connection:
             connection.row_factory = sqlite3.Row
-            for row in connection.execute(query):
+            cursor = connection.execute(query)
+            ordinal = 0
+            while True:
+                case_started_ns = time.perf_counter_ns()
+                lookup_started_ns = time.perf_counter_ns()
+                row = cursor.fetchone()
+                lookup_ms = (
+                    time.perf_counter_ns() - lookup_started_ns
+                ) / 1_000_000.0
+                if row is None:
+                    break
+                scratch_started_ns = time.perf_counter_ns()
                 original = self._root / "original"
                 modified = self._root / "modified"
                 original_source = original / SYNTHETIC_SOURCE_PATH
                 original_destination = original / SYNTHETIC_DESTINATION_PATH
                 modified_source = modified / SYNTHETIC_SOURCE_PATH
                 modified_destination = modified / SYNTHETIC_DESTINATION_PATH
-                self._link(row["original_source_path"], original_source)
-                self._link(row["original_destination_path"], original_destination)
-                self._link(row["modified_source_path"], modified_source)
-                self._link(row["modified_destination_path"], modified_destination)
+                hard_links = sum(
+                    (
+                        self._link(row["original_source_path"], original_source),
+                        self._link(
+                            row["original_destination_path"], original_destination
+                        ),
+                        self._link(row["modified_source_path"], modified_source),
+                        self._link(
+                            row["modified_destination_path"], modified_destination
+                        ),
+                    )
+                )
                 original_fragment = self._fragment_text(
                     row["original_fragment_sha256"]
                 )
@@ -845,6 +868,20 @@ ORDER BY c.ordinal
                         "to_end_line": row["to_end_line"],
                     },
                 }
+                scratch_ms = (
+                    time.perf_counter_ns() - scratch_started_ns
+                ) / 1_000_000.0
+                self.last_profile = {
+                    "case_id": row["case_id"],
+                    "ordinal": ordinal,
+                    "started_ns": case_started_ns,
+                    "phases_ms": {
+                        "runner.case_lookup_ms": lookup_ms,
+                        "runner.scratch_prepare_ms": scratch_ms,
+                    },
+                    "counters": {"runner.hard_links": hard_links},
+                }
+                ordinal += 1
                 yield InputPair(
                     case_id=row["case_id"],
                     original=original,

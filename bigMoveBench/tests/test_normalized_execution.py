@@ -188,6 +188,53 @@ class NormalizedExecutionTests(unittest.TestCase):
             self.assertEqual(reused_tools.calls, [])
             self.assertEqual(resumed["counts"], summary["counts"])
 
+    def test_opt_in_runner_profile_preserves_case_order_and_outcomes(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
+            _, _, benchmark_cases, _ = fixture.publish_two_case_fixture(root)
+            profile_path = root / "profiles" / "raw.jsonl"
+            tools = FakeToolAttempts()
+            patches = self._successful_patches(tools)
+            with patches[0], patches[1], patches[2]:
+                _, summary = self._runner(
+                    benchmark_cases,
+                    root / "results" / "profiled",
+                    runner_profile_path=profile_path,
+                ).run()
+
+            records = [
+                json.loads(line)
+                for line in profile_path.read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(len(records), 2)
+            self.assertEqual(
+                [record["case_id"] for record in records],
+                [row["case_id"] for row in self._case_rows(benchmark_cases)],
+            )
+            self.assertEqual(
+                [record["outcome"] for record in records],
+                ["oracle_pass", "oracle_pass"],
+            )
+            self.assertEqual(summary["counts"]["oracle_pass"], 2)
+            for record in records:
+                self.assertEqual(record["schema_version"], 1)
+                self.assertIn("runner.case_total_ms", record["phases_ms"])
+                self.assertIn("runner.semantic_validation_ms", record["phases_ms"])
+                self.assertIn("runner.scoring_ms", record["phases_ms"])
+                self.assertEqual(record["counters"]["runner.hard_links"], 4)
+                self.assertEqual(
+                    record["counters"]["runner.sqlite_transactions"], 2
+                )
+
+    @staticmethod
+    def _case_rows(benchmark_cases):
+        with closing(
+            sqlite3.connect(benchmark_cases.directory / "benchmark_cases.sqlite")
+        ) as connection:
+            connection.row_factory = sqlite3.Row
+            return list(connection.execute("SELECT case_id FROM cases ORDER BY ordinal"))
+
     def test_development_cache_reuses_srcdiff_but_always_runs_srcmove(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -271,6 +318,7 @@ class NormalizedExecutionTests(unittest.TestCase):
                 fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
                 _, _, benchmark_cases, _ = fixture.publish_fixture(root)
                 run_dir = root / "results" / interrupted_stage
+                profile_path = root / "profiles" / f"{interrupted_stage}.jsonl"
                 tools = FakeToolAttempts(
                     interrupt_stage=(
                         interrupted_stage if interrupted_stage != "oracle" else None
@@ -303,13 +351,27 @@ class NormalizedExecutionTests(unittest.TestCase):
                     ),
                     self.assertRaisesRegex(RuntimeError, "forced"),
                 ):
-                    self._runner(benchmark_cases, run_dir).run()
+                    self._runner(
+                        benchmark_cases,
+                        run_dir,
+                        runner_profile_path=profile_path,
+                    ).run()
 
                 successful_tools = FakeToolAttempts()
                 patches = self._successful_patches(successful_tools)
                 with patches[0], patches[1], patches[2]:
-                    _, summary = self._runner(benchmark_cases, run_dir).run()
+                    _, summary = self._runner(
+                        benchmark_cases,
+                        run_dir,
+                        runner_profile_path=profile_path,
+                    ).run()
                 self.assertEqual(summary["counts"]["oracle_pass"], 1)
+                profile_records = [
+                    json.loads(line)
+                    for line in profile_path.read_text(encoding="utf-8").splitlines()
+                ]
+                self.assertEqual(len(profile_records), 1)
+                self.assertEqual(profile_records[0]["outcome"], "oracle_pass")
                 with closing(
                     sqlite3.connect(run_dir / "execution.sqlite")
                 ) as connection:

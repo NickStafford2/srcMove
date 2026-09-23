@@ -30,6 +30,7 @@ class BigCloneBenchSuiteTests(unittest.TestCase):
         self.assertEqual(args.profile, "small")
         self.assertFalse(args.cache)
         self.assertFalse(args.refresh_cache)
+        self.assertIsNone(args.profile_runner)
         self.assertFalse(hasattr(args, "mode"))
         self.assertFalse(hasattr(args, "seed"))
         self.assertFalse(hasattr(args, "sample_size"))

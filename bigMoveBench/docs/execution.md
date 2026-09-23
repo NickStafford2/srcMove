@@ -95,3 +95,34 @@ Only structurally valid XML is stored or accepted, and entries are compressed
 and sharded by case identity. Every resulting report marks the run as using an
 unversioned development cache and unsuitable for thesis results. The default
 workflow does not read the cache.
+
+## Optional Runner Profiling
+
+The normalized runner and combined suite accept `--profile-runner PATH`. The
+option is disabled by default and does not alter selection, execution,
+validation, scoring, the execution journal, or derived report schemas. When
+enabled, it appends one compact JSON object per completed case to `PATH` and
+flushes each complete line, so completed records remain readable after an
+interruption and a resumed run can continue the same file.
+
+The records separate srcDiff and srcMove process windows from Python-only
+supervision overhead, structural and semantic validation, scoring, scratch
+materialization, attempt persistence, and SQLite commits. They also retain
+counts and byte volumes for hard links, validation inputs, logs, JSON writes,
+attempt directories, and transactions. The `runner.attempt_started_write_ms`
+diagnostic overlaps the corresponding child-process window and therefore must
+not be added to the exclusive wall-time phases.
+
+For example, profile the frozen Type-3 small workload from the workspace root:
+
+```bash
+./bin/srcml-dev-shell bash -lc 'cd /workspace/srcMove && \
+  python3 bigMoveBench/suite.py --profile small --pair-set type3 \
+  --profile-runner benchmark-results/profiling/type3-small/raw.jsonl'
+```
+
+A bounded 20-case run on 2026-09-23 found that child-process windows accounted
+for about 62% of measured per-case wall time. Atomic attempt persistence was
+the largest exclusive Python phase; terminal attempt-record writes accounted
+for about 84% of that phase. This is operational profiling evidence, not a
+scientific benchmark result or a justification for changing recovery semantics.

@@ -85,6 +85,11 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Replace development srcDiff cache entries (implies --cache).",
     )
+    parser.add_argument(
+        "--profile-runner",
+        type=Path,
+        help="Write one opt-in Python orchestration timing record per case.",
+    )
     return parser.parse_args()
 
 
@@ -264,6 +269,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                 srcmove_observation=srcmove_observation,
                 srcdiff_cache=srcdiff_cache,
                 refresh_srcdiff_cache=refresh_cache,
+                runner_profile_path=getattr(args, "profile_runner", None),
             ).run()
         )
         _, summary = evaluation
