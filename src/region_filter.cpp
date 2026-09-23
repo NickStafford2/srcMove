@@ -75,10 +75,12 @@ static bool is_preferred_child_candidate_name(std::string_view name) {
 }
 
 static std::string
-collect_subtree_raw_text(const std::vector<captured_srcml_node> &nodes) {
+collect_subtree_raw_text(const std::vector<captured_srcml_node> &nodes,
+                         std::size_t begin, std::size_t end) {
   std::string out;
 
-  for (const auto &captured : nodes) {
+  for (std::size_t i = begin; i < end; ++i) {
+    const auto &captured = nodes[i];
     if (!captured.node.is_text() || !captured.node.content) {
       continue;
     }
@@ -86,48 +88,6 @@ collect_subtree_raw_text(const std::vector<captured_srcml_node> &nodes) {
   }
 
   return out;
-}
-
-static std::string
-collect_subtree_canonical_text(const std::vector<captured_srcml_node> &nodes) {
-  std::vector<srcml_node> plain_nodes;
-  plain_nodes.reserve(nodes.size());
-
-  for (const auto &captured : nodes) {
-    plain_nodes.push_back(captured.node);
-  }
-
-  return canonicalize_diff_region_subtree(plain_nodes);
-}
-
-struct normalized_subtree {
-  std::string canonical;
-  std::vector<std::uint64_t> lines;
-  std::vector<std::uint64_t> tokens;
-};
-
-static normalized_subtree collect_subtree_normalized_text(
-    const std::vector<captured_srcml_node> &nodes) {
-  std::vector<srcml_node> plain_nodes;
-  plain_nodes.reserve(nodes.size());
-
-  for (const auto &captured : nodes) {
-    plain_nodes.push_back(captured.node);
-  }
-
-  normalized_subtree result;
-  canonical_options consistent_options;
-  consistent_options.identifiers = identifier_normalization::consistent;
-  consistent_options.normalize_literals = true;
-  canonicalize_diff_region_subtree(plain_nodes, consistent_options,
-                                   &result.lines, &result.tokens);
-
-  canonical_options lexical_options = consistent_options;
-  lexical_options.ignore_empty_statements = true;
-  lexical_options.include_structure = false;
-  result.canonical =
-      canonicalize_diff_region_subtree(plain_nodes, lexical_options);
-  return result;
 }
 
 static bool passes_region_text_filters(const std::string           &raw_text,
@@ -147,9 +107,10 @@ struct preferred_child_candidates {
 };
 
 static bool passes_statement_evidence(
-    const normalized_subtree &normalized, const region_filter_options &opt) {
+    const std::vector<std::uint64_t> &normalized_tokens,
+    const region_filter_options      &opt) {
   return opt.min_granularity == minimum_move_granularity::fragment ||
-         normalized.tokens.size() >= opt.min_statement_tokens;
+         normalized_tokens.size() >= opt.min_statement_tokens;
 }
 
 static preferred_child_candidates
@@ -161,10 +122,8 @@ extract_preferred_child_candidates(const diff_region           &region,
     return out;
   }
 
-  std::vector<captured_srcml_node> current;
-  current.reserve(64);
-
-  int capturing_depth = 0;
+  std::size_t candidate_begin = kNoParent;
+  int         capturing_depth = 0;
 
   for (std::size_t i = 1; i + 1 < region.captured_nodes.size(); ++i) {
     const captured_srcml_node &captured = region.captured_nodes[i];
@@ -175,13 +134,10 @@ extract_preferred_child_candidates(const diff_region           &region,
         continue;
       }
 
-      current.clear();
-      current.push_back(captured);
+      candidate_begin = i;
       capturing_depth = 1;
       continue;
     }
-
-    current.push_back(captured);
 
     if (node.is_start()) {
       ++capturing_depth;
@@ -193,35 +149,38 @@ extract_preferred_child_candidates(const diff_region           &region,
       continue;
     }
 
-    std::string raw_text = collect_subtree_raw_text(current);
+    const std::size_t candidate_end = i + 1;
+    std::string raw_text = collect_subtree_raw_text(
+        region.captured_nodes, candidate_begin, candidate_end);
     if (!passes_region_text_filters(raw_text, opt)) {
-      current.clear();
+      candidate_begin = kNoParent;
       continue;
     }
 
     ++out.complete_construct_count;
 
-    std::string canonical_text = collect_subtree_canonical_text(current);
-    normalized_subtree normalized =
-        collect_subtree_normalized_text(current);
-    if (!passes_statement_evidence(normalized, opt)) {
-      current.clear();
+    canonical_forms forms = canonicalize_diff_region_forms(
+        region.captured_nodes, candidate_begin, candidate_end);
+    if (!passes_statement_evidence(forms.normalized_tokens, opt)) {
+      candidate_begin = kNoParent;
       continue;
     }
-    move_candidate candidate(region.kind, current.front().index,
+    const captured_srcml_node &first = region.captured_nodes[candidate_begin];
+    const captured_srcml_node &last  = region.captured_nodes[candidate_end - 1];
+    move_candidate candidate(region.kind, first.index,
                              region.filename, std::move(raw_text),
-                             std::move(canonical_text),
-                             std::move(normalized.canonical),
-                             std::move(normalized.lines),
-                             std::move(normalized.tokens),
-                             is_type2_eligible_name(current.front().node.name));
-    candidate.xpath     = current.front().xpath;
-    candidate.full_name = current.front().node.full_name();
-    candidate.end_idx = current.back().index;
-    candidate.role    = move_candidate::Role::structural_child;
+                             std::move(forms.exact),
+                             std::move(forms.type2_canonical),
+                             std::move(forms.normalized_lines),
+                             std::move(forms.normalized_tokens),
+                             is_type2_eligible_name(first.node.name));
+    candidate.xpath     = first.xpath;
+    candidate.full_name = first.node.full_name();
+    candidate.end_idx   = last.index;
+    candidate.role      = move_candidate::Role::structural_child;
     out.candidates.push_back(std::move(candidate));
 
-    current.clear();
+    candidate_begin = kNoParent;
   }
 
   return out;

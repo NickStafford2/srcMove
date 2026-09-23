@@ -1,6 +1,7 @@
 #ifndef INCLUDED_CANONICAL_SUBTREE_HPP
 #define INCLUDED_CANONICAL_SUBTREE_HPP
 
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -8,6 +9,8 @@
 #include "srcml_node.hpp"
 
 namespace srcmove {
+
+struct captured_srcml_node;
 
 enum class identifier_normalization { none, consistent };
 
@@ -22,6 +25,13 @@ struct canonical_options {
   bool                     normalize_literals      = false;
 };
 
+struct canonical_forms {
+  std::string                exact;
+  std::string                type2_canonical;
+  std::vector<std::uint64_t> normalized_lines;
+  std::vector<std::uint64_t> normalized_tokens;
+};
+
 std::string
 canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
                                  const canonical_options       &opt = {},
@@ -29,6 +39,13 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
                                      nullptr,
                                  std::vector<std::uint64_t> *normalized_tokens =
                                      nullptr);
+
+canonical_forms canonicalize_diff_region_forms(
+    const std::vector<captured_srcml_node> &nodes);
+
+canonical_forms canonicalize_diff_region_forms(
+    const std::vector<captured_srcml_node> &nodes, std::size_t begin,
+    std::size_t end);
 
 } // namespace srcmove
 

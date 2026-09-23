@@ -75,6 +75,9 @@ struct parse_profile_stats {
   std::uint64_t normalized_canonicalization_nodes = 0;
   double normalized_canonicalization_ms = 0.0;
   double temporary_node_copy_ms = 0.0;
+  std::uint64_t fused_canonicalization_calls = 0;
+  std::uint64_t fused_canonicalization_nodes = 0;
+  double fused_canonicalization_ms = 0.0;
 };
 
 double elapsed_ms(profile_clock::time_point start) {
@@ -165,13 +168,7 @@ void open_diff_region(std::vector<diff_region>         &regions,
   region.start_idx   = node_index;
   region.end_idx     = 0;
   region.start_xpath = profiled_xpath(reader, stats);
-  if (stats == nullptr) {
-    region.raw_text = reader.get_current_inner_text();
-  } else {
-    const auto start = profile_clock::now();
-    region.raw_text = reader.get_current_inner_text();
-    ++stats->inner_text_calls;
-    stats->inner_text_ms += elapsed_ms(start);
+  if (stats != nullptr) {
     ++stats->diff_regions_opened;
   }
   region.parent_id   = parent_id;
@@ -215,50 +212,21 @@ void close_diff_region(std::vector<diff_region>         &regions,
   regions[rid].end_idx        = node_index;
   regions[rid].captured_nodes = std::move(capture.nodes);
 
-  const auto copy_start = stats != nullptr ? profile_clock::now()
-                                           : profile_clock::time_point{};
-  std::vector<srcml_node> subtree_nodes;
-  subtree_nodes.reserve(regions[rid].captured_nodes.size());
-  for (const auto &captured : regions[rid].captured_nodes) {
-    subtree_nodes.push_back(captured.node);
-  }
+  const auto canonical_start = stats != nullptr ? profile_clock::now()
+                                                : profile_clock::time_point{};
+  canonical_forms forms =
+      canonicalize_diff_region_forms(regions[rid].captured_nodes);
+  regions[rid].canonical_text = std::move(forms.exact);
+  regions[rid].type2_canonical_text = std::move(forms.type2_canonical);
+  regions[rid].type2_normalized_lines = std::move(forms.normalized_lines);
+  regions[rid].type3_normalized_tokens = std::move(forms.normalized_tokens);
   if (stats != nullptr) {
-    stats->temporary_node_copy_ms += elapsed_ms(copy_start);
-  }
-
-  const auto exact_start = stats != nullptr ? profile_clock::now()
-                                            : profile_clock::time_point{};
-  regions[rid].canonical_text = canonicalize_diff_region_subtree(subtree_nodes);
-  if (stats != nullptr) {
-    stats->exact_canonicalization_ms += elapsed_ms(exact_start);
-    ++stats->exact_canonicalization_calls;
-    stats->exact_canonicalization_nodes += subtree_nodes.size();
+    stats->fused_canonicalization_ms += elapsed_ms(canonical_start);
+    ++stats->fused_canonicalization_calls;
+    stats->fused_canonicalization_nodes += regions[rid].captured_nodes.size();
   }
   regions[rid].hash =
       move_candidate::fast_hash_raw(regions[rid].canonical_text);
-  canonical_options type2_options;
-  type2_options.identifiers        = identifier_normalization::consistent;
-  type2_options.normalize_literals = true;
-  const auto normalized_start = stats != nullptr ? profile_clock::now()
-                                                 : profile_clock::time_point{};
-  canonicalize_diff_region_subtree(subtree_nodes, type2_options,
-                                   &regions[rid].type2_normalized_lines,
-                                   &regions[rid].type3_normalized_tokens);
-  if (stats != nullptr) {
-    ++stats->normalized_canonicalization_calls;
-    stats->normalized_canonicalization_nodes += subtree_nodes.size();
-  }
-
-  canonical_options lexical_options = type2_options;
-  lexical_options.ignore_empty_statements = true;
-  lexical_options.include_structure = false;
-  regions[rid].type2_canonical_text =
-      canonicalize_diff_region_subtree(subtree_nodes, lexical_options);
-  if (stats != nullptr) {
-    stats->normalized_canonicalization_ms += elapsed_ms(normalized_start);
-    ++stats->normalized_canonicalization_calls;
-    stats->normalized_canonicalization_nodes += subtree_nodes.size();
-  }
   regions[rid].type2_hash =
       move_candidate::fast_hash_raw(regions[rid].type2_canonical_text);
 }
@@ -372,6 +340,9 @@ void read_file_unit(reader_iter              &it,
     // TEXT / OTHER
     record_captures(stats, open_region_stack.size());
     for (auto &open_region : open_region_stack) {
+      if (node.is_text() && node.content) {
+        regions[open_region.region_id].raw_text += *node.content;
+      }
       open_region.nodes.push_back(captured_srcml_node{node_index, node, ""});
     }
 
@@ -507,6 +478,8 @@ std::vector<diff_region> collect_all_regions(srcml_reader    &reader,
                     profile_stats.normalized_canonicalization_ms);
     profile->add_ms("parse.temporary_node_copy",
                     profile_stats.temporary_node_copy_ms);
+    profile->add_ms("parse.fused_canonicalization",
+                    profile_stats.fused_canonicalization_ms);
     profile->add_counter("parse.reader_events", profile_stats.reader_events);
     profile->add_counter("parse.start_events", profile_stats.start_events);
     profile->add_counter("parse.end_events", profile_stats.end_events);
@@ -529,6 +502,10 @@ std::vector<diff_region> collect_all_regions(srcml_reader    &reader,
                          profile_stats.normalized_canonicalization_calls);
     profile->add_counter("parse.normalized_canonicalization_nodes",
                          profile_stats.normalized_canonicalization_nodes);
+    profile->add_counter("parse.fused_canonicalization_calls",
+                         profile_stats.fused_canonicalization_calls);
+    profile->add_counter("parse.fused_canonicalization_nodes",
+                         profile_stats.fused_canonicalization_nodes);
   }
 
   return regions;

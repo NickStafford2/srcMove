@@ -128,6 +128,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   }
 
   std::vector<move_candidate> candidates;
+  const std::size_t regions_total = regions.size();
   {
     scoped_profile_timer timer(profile, "pipeline.filter_candidates");
     region_filter_options filter_options = get_default_filter_options();
@@ -145,6 +146,10 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     registry.add_candidates_for_file(srcdiff_in_filename,
                                      std::move(candidates));
   }
+
+  // Candidate entries own everything needed by matching and output. Release
+  // captured XML before grouping so large diff archives do not retain both.
+  std::vector<diff_region>().swap(regions);
 
   content_groups groups;
   {
@@ -165,7 +170,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     moves = collect_move_results(registry, groups, srcdiff_in_filename, profile);
   } else {
     scoped_profile_timer timer(profile, "pipeline.annotation");
-    moves = annotate(regions, registry, groups, srcdiff_in_filename,
+    moves = annotate(registry, groups, srcdiff_in_filename,
                      srcdiff_out_filename, profile);
   }
 
@@ -178,7 +183,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     result.move_pair_count        = estimate_move_pairs(result.moves);
     result.annotated_region_count = count_annotated_regions(result.moves);
     result.annotated_regions      = result.annotated_region_count;
-    result.regions_total          = regions.size();
+    result.regions_total          = regions_total;
     result.candidates_total       = count_grouped_candidate_ids(groups);
     result.groups_total           = groups.group_count();
     result.group_kinds            = count_group_kinds(groups);

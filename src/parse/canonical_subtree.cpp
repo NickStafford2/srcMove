@@ -7,6 +7,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "parse/diff_region.hpp"
+
 namespace srcmove {
 namespace {
 
@@ -142,48 +144,36 @@ void append_compact(std::string &out, std::string_view text) {
   }
 }
 
-} // namespace
-
-std::string
-canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
-                                 const canonical_options       &opt,
-                                 std::vector<std::uint64_t> *normalized_lines,
-                                 std::vector<std::uint64_t> *normalized_tokens) {
-  std::string out;
-  std::string normalized_line;
-  int         wrapper_depth         = 0;
-  bool        skipped_outer_wrapper = false;
-  int         comment_depth         = 0;
-  int         ignored_empty_depth   = 0;
-  int         literal_depth         = 0;
-  bool        literal_value_emitted = false;
-  std::string current_literal_category;
-  std::unordered_map<std::string, std::size_t> normalized_names;
-  std::vector<std::string> element_stack;
-
-  if (normalized_lines != nullptr) {
-    normalized_lines->clear();
-  }
-  if (normalized_tokens != nullptr) {
-    normalized_tokens->clear();
+class canonical_builder {
+public:
+  canonical_builder(const canonical_options    &options,
+                    bool                        collect_output,
+                    std::vector<std::uint64_t> *normalized_lines = nullptr,
+                    std::vector<std::uint64_t> *normalized_tokens = nullptr)
+      : opt(options), collect_output(collect_output), lines(normalized_lines),
+        tokens(normalized_tokens) {
+    if (lines != nullptr) {
+      lines->clear();
+    }
+    if (tokens != nullptr) {
+      tokens->clear();
+    }
   }
 
-  for (const auto &node : nodes) {
-    const std::string fn = node.full_name();
-
+  void consume(const srcml_node &node, const std::string &full_name) {
     if (ignored_empty_depth > 0) {
       if (node.is_start()) {
         ++ignored_empty_depth;
       } else if (node.is_end()) {
         --ignored_empty_depth;
       }
-      continue;
+      return;
     }
 
     if (opt.ignore_empty_statements && node.is_start() &&
         node.name == "empty_stmt") {
       ignored_empty_depth = 1;
-      continue;
+      return;
     }
 
     if (comment_depth > 0) {
@@ -192,98 +182,56 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
       } else if (node.is_end() && node.name == "comment") {
         --comment_depth;
       }
-      continue;
+      return;
     }
 
     if (opt.ignore_comments && node.is_start() && node.name == "comment") {
       comment_depth = 1;
-      continue;
+      return;
     }
 
     if (opt.ignore_outer_diff_wrapper && !skipped_outer_wrapper &&
-        (fn == "diff:insert" || fn == "diff:delete")) {
+        (full_name == "diff:insert" || full_name == "diff:delete")) {
       if (node.is_start()) {
         skipped_outer_wrapper = true;
         wrapper_depth         = 1;
       }
-      continue;
+      return;
     }
 
     if (wrapper_depth > 0) {
-      if (node.is_start() && is_diff_wrapper(node))
+      if (node.is_start() && is_diff_wrapper(node)) {
         ++wrapper_depth;
-      else if (node.is_end() && is_diff_wrapper(node))
+      } else if (node.is_end() && is_diff_wrapper(node)) {
         --wrapper_depth;
+      }
 
-      if (wrapper_depth == 0)
-        continue;
+      if (wrapper_depth == 0) {
+        return;
+      }
     }
 
     if (opt.ignore_diff_ws && is_diff_ws(node)) {
-      continue;
+      return;
     }
 
     if (node.is_text() && node.content) {
-      if (opt.ignore_whitespace_only_text &&
-          is_whitespace_only(*node.content)) {
-        continue;
-      }
-      if (opt.normalize_literals && literal_depth > 0 &&
-          literal_value_emitted) {
-        continue;
-      }
-      if (opt.include_structure) {
-        out += "T(";
-      }
-      std::string normalized_text;
-      std::string similarity_text;
-      const bool normalizable_name =
-          !element_stack.empty() && element_stack.back() == "name";
-      if (opt.identifiers == identifier_normalization::consistent &&
-          normalizable_name) {
-        const auto [it, inserted] =
-            normalized_names.emplace(*node.content, normalized_names.size() + 1);
-        (void)inserted;
-        normalized_text = "$name" + std::to_string(it->second);
-        similarity_text = normalized_text;
-        out += normalized_text;
-      } else if (opt.normalize_literals && literal_depth > 0) {
-        literal_value_emitted = true;
-        normalized_text = current_literal_category == "$number"
-                              ? number_category(*node.content)
-                              : current_literal_category;
-        out += normalized_text;
-      } else {
-        if (opt.include_structure) {
-          append_escaped(out, *node.content);
-        } else {
-          append_compact(out, *node.content);
-        }
-        normalized_text = *node.content;
-      }
-      if (opt.include_structure) {
-        out += ")";
-      }
-      append_normalized_code(normalized_line, normalized_lines,
-                             normalized_text);
-      append_normalized_token(normalized_tokens,
-                              similarity_text.empty() ? normalized_text
-                                                      : similarity_text);
-      continue;
+      consume_text(*node.content);
+      return;
     }
 
     if (node.is_start()) {
-      if (opt.include_structure) {
+      if (collect_output && opt.include_structure) {
         out += "S(";
-        out += fn;
+        out += full_name;
         out += ")";
       }
       if (opt.normalize_literals && node.name == "literal") {
         ++literal_depth;
         current_literal_category = literal_category(node);
-        literal_value_emitted = false;
+        literal_value_emitted    = false;
       }
-      element_stack.push_back(fn);
+      element_stack.push_back(full_name);
     } else if (node.is_end()) {
       if (opt.normalize_literals && node.name == "literal" &&
           literal_depth > 0) {
@@ -293,9 +241,9 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
           literal_value_emitted = false;
         }
       }
-      if (opt.include_structure) {
+      if (collect_output && opt.include_structure) {
         out += "E(";
-        out += fn;
+        out += full_name;
         out += ")";
       }
       if (!element_stack.empty()) {
@@ -304,11 +252,137 @@ canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
     }
   }
 
-  if (normalized_lines != nullptr && !normalized_line.empty()) {
-    normalized_lines->push_back(hash_text(normalized_line));
+  std::string finish() {
+    if (lines != nullptr && !normalized_line.empty()) {
+      lines->push_back(hash_text(normalized_line));
+    }
+    return std::move(out);
   }
 
-  return out;
+private:
+  void consume_text(const std::string &text) {
+    if (opt.ignore_whitespace_only_text && is_whitespace_only(text)) {
+      return;
+    }
+    if (opt.normalize_literals && literal_depth > 0 &&
+        literal_value_emitted) {
+      return;
+    }
+    if (collect_output && opt.include_structure) {
+      out += "T(";
+    }
+
+    std::string normalized_text;
+    std::string similarity_text;
+    const bool normalizable_name =
+        !element_stack.empty() && element_stack.back() == "name";
+    if (opt.identifiers == identifier_normalization::consistent &&
+        normalizable_name) {
+      const auto [it, inserted] =
+          normalized_names.emplace(text, normalized_names.size() + 1);
+      (void)inserted;
+      normalized_text = "$name" + std::to_string(it->second);
+      similarity_text = normalized_text;
+      if (collect_output) {
+        out += normalized_text;
+      }
+    } else if (opt.normalize_literals && literal_depth > 0) {
+      literal_value_emitted = true;
+      normalized_text = current_literal_category == "$number"
+                            ? number_category(text)
+                            : current_literal_category;
+      if (collect_output) {
+        out += normalized_text;
+      }
+    } else {
+      if (collect_output) {
+        if (opt.include_structure) {
+          append_escaped(out, text);
+        } else {
+          append_compact(out, text);
+        }
+      }
+      normalized_text = text;
+    }
+
+    if (collect_output && opt.include_structure) {
+      out += ")";
+    }
+    append_normalized_code(normalized_line, lines, normalized_text);
+    append_normalized_token(tokens,
+                            similarity_text.empty() ? normalized_text
+                                                    : similarity_text);
+  }
+
+  canonical_options opt;
+  bool collect_output;
+  std::vector<std::uint64_t> *lines;
+  std::vector<std::uint64_t> *tokens;
+  std::string                 out;
+  std::string                 normalized_line;
+  int         wrapper_depth         = 0;
+  bool        skipped_outer_wrapper = false;
+  int         comment_depth         = 0;
+  int         ignored_empty_depth   = 0;
+  int         literal_depth         = 0;
+  bool        literal_value_emitted = false;
+  std::string current_literal_category;
+  std::unordered_map<std::string, std::size_t> normalized_names;
+  std::vector<std::string> element_stack;
+};
+
+} // namespace
+
+std::string
+canonicalize_diff_region_subtree(const std::vector<srcml_node> &nodes,
+                                 const canonical_options       &opt,
+                                 std::vector<std::uint64_t> *normalized_lines,
+                                 std::vector<std::uint64_t> *normalized_tokens) {
+  canonical_builder builder(opt, true, normalized_lines, normalized_tokens);
+  for (const auto &node : nodes) {
+    builder.consume(node, node.full_name());
+  }
+  return builder.finish();
+}
+
+canonical_forms canonicalize_diff_region_forms(
+    const std::vector<captured_srcml_node> &nodes) {
+  return canonicalize_diff_region_forms(nodes, 0, nodes.size());
+}
+
+canonical_forms canonicalize_diff_region_forms(
+    const std::vector<captured_srcml_node> &nodes, std::size_t begin,
+    std::size_t end) {
+  canonical_forms result;
+
+  canonical_options exact_options;
+  canonical_builder exact(exact_options, true);
+
+  canonical_options normalized_options;
+  normalized_options.identifiers        = identifier_normalization::consistent;
+  normalized_options.normalize_literals = true;
+  canonical_builder normalized(normalized_options, false,
+                               &result.normalized_lines,
+                               &result.normalized_tokens);
+
+  canonical_options lexical_options = normalized_options;
+  lexical_options.ignore_empty_statements = true;
+  lexical_options.include_structure       = false;
+  canonical_builder lexical(lexical_options, true);
+
+  for (std::size_t i = begin; i < end; ++i) {
+    const auto        &captured = nodes[i];
+    const srcml_node  &node     = captured.node;
+    const std::string  full_name = node.full_name();
+    exact.consume(node, full_name);
+    normalized.consume(node, full_name);
+    lexical.consume(node, full_name);
+  }
+
+  result.exact = exact.finish();
+  (void)normalized.finish();
+  result.type2_canonical = lexical.finish();
+  return result;
 }
 
 } // namespace srcmove
