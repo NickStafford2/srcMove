@@ -83,7 +83,14 @@ they are not definitions of srcMove's match kinds. BigCloneBench similarity is
 computed over its own normalized representations, whereas srcMove operates on
 srcML-derived exact, normalized, and bounded-LCS representations. The
 evaluation can test whether these categories align in practice, but it must not
-assume that they are interchangeable.
+assume that they are interchangeable. This is especially important for Type-2:
+BigCloneEval reports a most-generous Type-2 category together with blind and
+consistent subsets, while srcMove implements the consistent variant defined in
+Section 2.3.3. A final Type-2 evaluation must therefore identify which subtype
+each selected pair represents and report consistent and blind cases separately.
+If the available benchmark metadata cannot reproduce that distinction, the
+study must state the limitation rather than treating every BigCloneBench Type-2
+pair as an expected srcMove `type2` match.
 
 ### 5.3.1 BigCloneBench, BigCloneEval, and BigMoveBench
 

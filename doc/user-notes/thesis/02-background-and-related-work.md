@@ -149,17 +149,32 @@ type rather than relabel an exact relocation as a weaker approximate move.
 ### 2.3.3 Type-2 move: systematically rewritten relocation
 
 A **Type-2 move** preserves the fragment's syntactic organization while making
-systematic lexical substitutions. Typical substitutions include consistent
-identifier renaming and replacement of literals by other values of the same
-category. The pattern of repeated names remains significant: two occurrences
-that referred to the same normalized name before the move should continue to
-share one normalized identity after it.
+lexical substitutions in addition to the presentation differences permitted by
+Type-1. Typical substitutions include identifier renaming and replacement of
+literals by other values of the same category.
+
+Clone research uses both blind and consistent forms of Type-2 normalization.
+Blind normalization replaces identifiers without preserving a one-to-one
+correspondence between distinct names. Under that rule, `x + x` and `y + z`
+can share the same normalized form. Consistent normalization assigns a stable
+placeholder to each distinct name, so `x + x` can match `y + y` but not
+`y + z`. BigCloneEval reports the union as its most generous Type-2 category
+and distinguishes blind and consistent subsets. **[CITATION NEEDED: primary
+clone-taxonomy source and BigCloneEval definitions of all, blind, and
+consistent Type-2]**
+
+This thesis adopts the consistent form for Type-2 moves. A move asserts
+continuity across revisions, not similarity alone, so preserving the pattern of
+repeated and distinct names provides stronger evidence and reduces matches
+between unrelated fragments that merely share a token skeleton. Generous or
+blind Type-2 remains a useful clone category, but srcMove does not treat it as
+sufficient evidence for a Type-2 move.
 
 Examples include moving a function while renaming its parameters to match a new
 module's conventions, or relocating a configuration statement while changing
 one string or numeric constant. Arbitrary token replacement is not sufficient.
 The defining property is preservation of syntactic organization under a
-declared, internally consistent substitution model.
+declared, consistently mapped substitution model.
 
 Type-2 is still a syntactic category. It does not prove that renamed identifiers
 bind to equivalent declarations, that replacement literals preserve behavior,

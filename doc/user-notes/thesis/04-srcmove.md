@@ -187,16 +187,21 @@ semantic equivalence. Direct srcML `<name>` tokens are numbered by first
 occurrence within each candidate. Repeated uses of the same name receive the
 same number, so correspondence patterns remain visible even when the original
 spelling changes. Literals are replaced by categories—integer, floating,
-string, character, boolean, or null—while keywords, operators, other source
-tokens, and srcML structure remain significant. Comments, formatting, and empty
-statements are ignored.
+string, character, boolean, or null—while keywords, operators, and other source
+tokens remain significant. Comments, formatting, and empty statements are
+ignored. The resulting identity is a compact lexical form keyed by the
+candidate's outer srcML element kind; it does not retain the complete nested
+srcML structure.
 
 For example, functions that consistently replace a parameter `count` with `n`
 can receive the same normalized name pattern. Two functions whose uses do not
 preserve that pattern should not become equal merely because both contain names.
-This is stricter than replacing every identifier with one generic token and
-helps prevent unrelated but similarly shaped code from collapsing into the same
-identity.
+This is the consistent Type-2 variant described in Section 2.3.3. It is stricter
+than blind normalization, which replaces identifiers without preserving their
+one-to-one correspondence. srcMove uses the consistent variant because a
+reported move makes a continuity claim across revisions; retaining the pattern
+of repeated and distinct names supplies stronger evidence than a shared token
+skeleton alone.
 
 Exact matches are removed before Type-2 grouping. An unambiguous normalized
 delete/insert pair is selected directly. When both sides contain the same
