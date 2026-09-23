@@ -57,3 +57,26 @@ available, and internal `srcMove --profile` timings. Its cache-policy value is
 recorded metadata; the runner does not implicitly flush or warm operating-system
 caches. A completed run retains failed measurements and exits nonzero when any
 measured attempt fails.
+
+## Startup dependency study
+
+`startup_study.py` separates warm process-startup cost from srcMove's pipeline
+work. It compiles no-op probes linked against progressively heavier dependency
+layers, records their direct and transitive shared libraries, captures dynamic
+loader statistics, CPU time, page faults, initialization and teardown time, and
+compares them with the real `srcMove --version` path.
+
+Run it inside the workspace container:
+
+```bash
+python3 performance/startup_study.py \
+  --srcmove /workspace/srcMove/build-profile/srcMove \
+  --srcreader-lib-dir /workspace/srcReader/build/bin \
+  --srcml-lib-dir /workspace/srcML-install/lib \
+  --output-dir /workspace/srcMove/benchmark-results/startup/<run-id>
+```
+
+The study does not flush the operating-system page cache, so its report is a
+warm-start comparison. `manifest.json` records exact binaries, link commands,
+library closures, and loader counters; `raw.jsonl`, `summary.json`, and
+`report.md` preserve the measurements and summary.
