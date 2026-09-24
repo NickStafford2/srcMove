@@ -44,6 +44,7 @@ from bigMoveBench.evaluate import (
     OUTCOMES,
     SCORING_ORACLE_VERSION,
     _score_completed_case,
+    diagnostic_stage,
     validate_results_output,
 )
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
@@ -68,6 +69,7 @@ CASE_CSV_FIELDS = (
     "case_id",
     "ordinal",
     "outcome",
+    "diagnostic_stage",
     "case_kind",
     "clone_type",
     "syntactic_type",
@@ -458,6 +460,10 @@ ORDER BY c.ordinal
                             "case_id": row["case_id"],
                             "ordinal": row["ordinal"],
                             "outcome": row["outcome"],
+                            "diagnostic_stage": results.get(
+                                "_oracle_diagnostic_stage",
+                                diagnostic_stage(str(row["outcome"]), results),
+                            ),
                             "case_kind": row["case_kind"],
                             "clone_type": (
                                 "known_false_positive"
@@ -535,6 +541,7 @@ ORDER BY c.ordinal
         peak_rss_bytes: int | None = None
         srcdiff_cache_hits = srcdiff_cache_misses = 0
         type3_groups: dict[str, dict[str, Any]] = {}
+        diagnostic_stages: dict[str, int] = {}
         self.connection.execute(
             "ATTACH DATABASE ? AS benchmark_cases",
             (str(benchmark_cases_database.resolve()),),
@@ -556,6 +563,15 @@ ORDER BY c.ordinal
                 counts[outcome] += 1
                 validation = json.loads(row["text_validation_json"] or "{}")
                 results = json.loads(row["oracle_results_json"] or "{}")
+                diagnostic = str(
+                    results.get(
+                        "_oracle_diagnostic_stage",
+                        diagnostic_stage(outcome, results),
+                    )
+                )
+                diagnostic_stages[diagnostic] = (
+                    diagnostic_stages.get(diagnostic, 0) + 1
+                )
                 if outcome == "oracle_pass":
                     if row["case_kind"] == "known_false_positive":
                         if results.get("move_count", 0) == 0:
@@ -593,6 +609,7 @@ ORDER BY c.ordinal
                             "detected": 0,
                             "strictly_classified": 0,
                             "outcomes": {name: 0 for name in OUTCOMES},
+                            "diagnostic_stages": {},
                         },
                     )
                     group["selected"] += 1
@@ -601,6 +618,8 @@ ORDER BY c.ordinal
                     )
                     group["strictly_classified"] += int(outcome == "oracle_pass")
                     group["outcomes"][outcome] += 1
+                    group_stages = group["diagnostic_stages"]
+                    group_stages[diagnostic] = group_stages.get(diagnostic, 0) + 1
         finally:
             self.connection.execute("DETACH DATABASE benchmark_cases")
         for group in type3_groups.values():
@@ -707,6 +726,7 @@ ORDER BY c.ordinal
                 "attempts": attempts,
             },
             "strata": {"type3_strength": type3_strength},
+            "diagnostic_stages": dict(sorted(diagnostic_stages.items())),
             "timings": {
                 "srcdiff_process_seconds": srcdiff_process_seconds,
                 "srcmove_process_seconds": srcmove_process_seconds,
@@ -1057,6 +1077,9 @@ class SerialBenchmarkExecutionRunner:
             metadata=dict(case.metadata),
             results_path=results_path,
             srcdiff_xml=srcdiff_dir / "srcdiff.xml",
+        )
+        oracle_results["_oracle_diagnostic_stage"] = diagnostic_stage(
+            outcome, oracle_results
         )
         self._profile_phase("runner.scoring_ms", scoring_started)
         result.update(

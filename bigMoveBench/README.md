@@ -190,6 +190,12 @@ stable source class and added to a distinct stable destination class. This
 forces srcDiff to expose the cross-file delete and insert without making either
 container or whole file appear moved.
 
+The redesign checkpoint at commit `3022c00` is the development baseline for
+the frozen medium profile: Type-1 100/100, Type-2 100/100, Type-3 33/100
+(23 very strong and 10 strong), and known false whole-pair acceptances 0/100.
+The run also reported 48 incidental child moves. This records a comparison
+point, not a target or a frozen threshold choice.
+
 Run Type-3 alone with `make bigmovebench-suite PAIR_SET=type3`. The live
 `srcMove execution` counter reports completed cases, while its suffix
 reports results by strength band. A suite containing observational Type-3
@@ -203,6 +209,12 @@ are secondary diagnostics. Exit status 0 means every strict pair set passed and
 each observational Type-3 case completed without upstream, tool, semantic, or
 oracle errors. Type-3 misses and wrong classifications do not change the exit
 status.
+
+Summaries and `cases.csv` classify each outcome by its narrowest observable
+diagnostic stage. A miss with fewer than two candidates is candidate generation;
+a miss with a reported move is selection or granularity; other srcMove misses
+are retrieval or verification. The last two labels deliberately remain combined
+because results-only output cannot distinguish those internal stages reliably.
 
 Use `PROFILE=small|medium` for the checked-in reproducible profiles and
 `PROFILE=full` for the complete deduplicated census. Use

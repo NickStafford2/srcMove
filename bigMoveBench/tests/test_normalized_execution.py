@@ -184,6 +184,7 @@ class NormalizedExecutionTests(unittest.TestCase):
             self.assertEqual(summary["counts"]["selected"], 2)
             self.assertEqual(summary["counts"]["oracle_pass"], 2)
             self.assertEqual(summary["counts"]["strict_passes"], 2)
+            self.assertEqual(summary["diagnostic_stages"], {"selected": 2})
             self.assertEqual(
                 summary["rates"][
                     "conditional_srcmove_detection_and_classification"
@@ -196,6 +197,12 @@ class NormalizedExecutionTests(unittest.TestCase):
                     for group in summary["strata"]["type3_strength"].values()
                 ),
                 2,
+            )
+            self.assertTrue(
+                all(
+                    group["diagnostic_stages"] == {"selected": group["selected"]}
+                    for group in summary["strata"]["type3_strength"].values()
+                )
             )
             self.assertIn("srcdiff_process_seconds", summary["timings"])
             self.assertIn("peak_rss_bytes", summary["resources"])
@@ -240,7 +247,9 @@ class NormalizedExecutionTests(unittest.TestCase):
                 encoding="utf-8"
             ).splitlines()
             self.assertEqual(len(csv_lines), 3)
-            self.assertIn("case_id,ordinal,outcome", csv_lines[0])
+            self.assertIn(
+                "case_id,ordinal,outcome,diagnostic_stage", csv_lines[0]
+            )
             self.assertEqual(
                 summary["cases_csv"]["path"], "cases.csv"
             )

@@ -13,11 +13,38 @@ if str(REPO_ROOT) not in sys.path:
 
 from bigMoveBench.evaluate import (
     _score_completed_case,
+    diagnostic_stage,
     validate_results_output,
 )
 
 
 class BigMoveBenchEvaluationTests(unittest.TestCase):
+    def test_diagnostic_stage_stays_within_observable_evidence(self) -> None:
+        self.assertEqual(diagnostic_stage("oracle_pass", {}), "selected")
+        self.assertEqual(
+            diagnostic_stage("wrong_classification", {}), "classification"
+        )
+        self.assertEqual(
+            diagnostic_stage("srcmove_false_positive", {}), "false_acceptance"
+        )
+        self.assertEqual(
+            diagnostic_stage("srcmove_miss", {"candidates_total": 1}),
+            "candidate_generation",
+        )
+        self.assertEqual(
+            diagnostic_stage(
+                "srcmove_miss", {"candidates_total": 2, "moves": []}
+            ),
+            "retrieval_or_verification",
+        )
+        self.assertEqual(
+            diagnostic_stage(
+                "srcmove_miss",
+                {"candidates_total": 2, "moves": [{"move_id": "m1"}]},
+            ),
+            "selection_or_granularity",
+        )
+
     def test_results_output_validation_rejects_bad_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary_directory:
             path = Path(temporary_directory) / "results.json"

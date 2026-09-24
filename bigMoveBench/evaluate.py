@@ -17,7 +17,7 @@ from bigMoveBench.oracle import (
 )
 
 
-SCORING_ORACLE_VERSION = 5
+SCORING_ORACLE_VERSION = 6
 OUTCOMES = (
     "upstream_failure",
     "srcdiff_semantic_ineligible",
@@ -28,6 +28,27 @@ OUTCOMES = (
     "oracle_failure",
     "oracle_pass",
 )
+
+
+def diagnostic_stage(outcome: str, results: dict[str, Any]) -> str:
+    """Classify the observable stage of an outcome without guessing internals."""
+
+    if outcome == "oracle_pass":
+        return "selected"
+    if outcome == "wrong_classification":
+        return "classification"
+    if outcome == "srcmove_false_positive":
+        return "false_acceptance"
+    if outcome != "srcmove_miss":
+        return outcome
+
+    candidates = results.get("candidates_total")
+    if type(candidates) is int and candidates < 2:
+        return "candidate_generation"
+    moves = results.get("moves")
+    if isinstance(moves, list) and moves:
+        return "selection_or_granularity"
+    return "retrieval_or_verification"
 
 
 def _read_json(path: Path) -> dict[str, Any]:

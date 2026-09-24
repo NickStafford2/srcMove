@@ -162,6 +162,7 @@ def _pair_result(
         },
         "selection_counts": dict(selection_manifest["counts"]),
         "type3_strength_strata": dict(type3_strength) if observational else {},
+        "diagnostic_stages": dict(summary.get("diagnostic_stages", {})),
         "development_srcdiff_cache": dict(
             summary.get("development_srcdiff_cache", {"enabled": False})
         ),
@@ -468,6 +469,17 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
                     f"detected {detected:,}/{stratum_selected:,} "
                     f"({detected / stratum_selected:.1%})"
                 )
+            miss_stages = {
+                name: count
+                for name, count in result.get("diagnostic_stages", {}).items()
+                if name not in {"selected", "classification"} and count
+            }
+            if miss_stages:
+                rendered = ", ".join(
+                    f"{name.replace('_', ' ')}={count:,}"
+                    for name, count in sorted(miss_stages.items())
+                )
+                print(" " * 26 + f"diagnostic stages: {rendered}")
         timings = result["timings"]
         print(
             " " * 26
