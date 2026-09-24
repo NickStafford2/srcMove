@@ -88,5 +88,52 @@ class BenchmarkContractTests(unittest.TestCase):
             self.assertEqual(missing_output.returncode, 0)
             self.assertFalse((Path(temporary_directory) / "missing.xml").exists())
 
+    def test_fake_tool_distinguishes_xml_and_results_only_output(self) -> None:
+        fake_tool = FIXTURE_ROOT / "fake_tool.py"
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            input_xml = root / "input.xml"
+            input_xml.write_text("<unit/>", encoding="utf-8")
+            output_xml = root / "output.xml"
+            results_json = root / "results.json"
+
+            ordinary = subprocess.run(
+                [
+                    sys.executable,
+                    str(fake_tool),
+                    "valid-archive",
+                    str(input_xml),
+                    str(output_xml),
+                    "--results",
+                    str(results_json),
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(ordinary.returncode, 0)
+            self.assertTrue(output_xml.is_file())
+            self.assertTrue(results_json.is_file())
+
+            output_xml.unlink()
+            results_json.unlink()
+            results_only = subprocess.run(
+                [
+                    sys.executable,
+                    str(fake_tool),
+                    "valid-archive",
+                    str(input_xml),
+                    "--results",
+                    str(results_json),
+                    "--results-only",
+                ],
+                capture_output=True,
+                text=True,
+                check=False,
+            )
+            self.assertEqual(results_only.returncode, 0)
+            self.assertFalse(output_xml.exists())
+            self.assertTrue(results_json.is_file())
+
 if __name__ == "__main__":
     unittest.main()

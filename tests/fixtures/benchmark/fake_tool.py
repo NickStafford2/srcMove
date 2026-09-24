@@ -43,8 +43,10 @@ def output_path(arguments: list[str]) -> Path | None:
         if option in arguments:
             index = arguments.index(option)
             return Path(arguments[index + 1])
-    if "--results" in arguments:
-        return Path(arguments[arguments.index("--results") + 1])
+    if "--results-only" in arguments:
+        return None
+    if "--results" in arguments and len(arguments) >= 2:
+        return Path(arguments[1])
     return None
 
 
