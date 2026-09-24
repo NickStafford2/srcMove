@@ -121,6 +121,17 @@ representations. These extensions should not be called semantic equivalence
 unless the evaluation provides an oracle that measures behavior rather than
 surface structure.
 
+A particularly important extension is to separate candidate validity, pair
+confidence, and selection utility. Future candidate construction should model
+`diff:common` and nested revision-state transitions before similarity is
+calculated. Exact, normalized, sequence, and tree-vector methods could then
+produce a shared sparse edge graph, after which hierarchical selection could
+compare one large near-match against the compatible exact matches of its
+children. Deckard-style characteristic vectors are a useful structural baseline
+for retrieval and similarity, but clone detection cannot replace evidence that
+the source disappeared, the destination appeared, or the selected boundaries
+form one coherent move.
+
 Type-4 moves remain outside the implemented scope. A defensible Type-4 study
 would require a suitable dataset, a clear behavioral definition, and negative
 examples capable of distinguishing shared purpose from coincidental similarity.

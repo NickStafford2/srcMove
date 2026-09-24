@@ -416,6 +416,16 @@ BigMoveBench data should not double as the performance workload. Cached artifact
 and many small synthetic cases answer detection questions, while Chapter 8 uses
 independent, pre-existing srcDiff XML workloads to measure runtime and scaling.
 
+BigMoveBench can also support a future tuning study for Type-3 similarity,
+thresholds, approximate-retrieval limits, and parent-versus-child ranking. That
+use requires a frozen separation among tuning, validation, and final evaluation
+cases. A fitted score remains a ranking or confidence score unless calibration
+is evaluated on held-out labeled data. Even then, the interpretation is limited
+to the synthetic BigMoveBench population and its wrapper construction. The
+benchmark cannot by itself establish that a score of `0.87` means an 87 percent
+chance of a genuine historical developer move; that claim would require an
+independent historical move oracle.
+
 ## 5.11 Results plan
 
 No exploratory or historical run is promoted here as the final thesis result.

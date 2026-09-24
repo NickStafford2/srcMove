@@ -4,9 +4,13 @@ Status: proposed; none of the behavior below is implemented yet.
 
 ## Objective
 
-Adapt Deckard's characteristic-vector and similarity-clustering approach to
-match srcDiff delete regions with insert regions. Use the srcML AST already
-embedded in srcDiff output rather than introducing a separate source parser.
+Evaluate Deckard's characteristic-vector and similarity-clustering approach as
+a Type-3 structural representation and sparse candidate-retrieval baseline.
+Use the srcML structure already embedded in srcDiff output rather than
+introducing a separate source parser. Integrate successful components through
+the canonical [move-detection redesign](../move_detection_redesign.md); do not
+treat clone similarity as a replacement for revision ownership or global move
+selection.
 
 Development will take place in a new `src2/` directory alongside `src/`.
 Relevant code will initially be copied from `src/` so the current and
@@ -18,7 +22,7 @@ algorithm, not immediate tuning toward srcMove's existing expected results.
 Once that baseline produces results, its clone and move classifications can be
 reviewed and the similarity policy tuned separately.
 
-The replacement should recognize:
+The experiment should measure its ability to retrieve and distinguish:
 
 - Type-1 moves with structurally identical code
 - Type-2 moves with renamed identifiers or changed literals
@@ -35,13 +39,15 @@ The replacement should recognize:
 3. Generate vectors for every eligible srcDiff delete and insert region by
    traversing its srcML AST. Add vector merging only where a diff region needs
    to represent adjacent AST fragments rather than one complete subtree.
-4. Compare only delete vectors against insert vectors. Begin with exact
-   Euclidean-distance search for a simple, testable baseline; introduce
-   size-sensitive grouping and LSH only if benchmark scale requires them.
+4. Compare only semantically eligible delete vectors against insert vectors.
+   Begin with exact Euclidean-distance search for a simple, testable baseline;
+   introduce size-sensitive grouping and LSH when measurement justifies it.
 5. Convert vector distance into explicit Type-1, Type-2, and Type-3 acceptance
    rules, including deterministic tie-breaking when several regions match.
-6. Feed accepted pairs into the existing move-annotation output stage, then
-   remove the superseded canonical-text matching path.
+6. Feed accepted edges into the same hierarchical selection and annotation
+   boundaries used by other representations. Do not remove the current path
+   until comparative evaluation establishes what the vector representation
+   gains and loses.
 7. Validate each move type independently with focused fixtures and benchmark
    the result against the current detector for accuracy, runtime, and memory.
 
@@ -109,6 +115,8 @@ a later phase.
 ## Constraints
 
 - srcDiff remains responsible for identifying insert and delete regions.
+- `diff:common` and nested opposite-side regions must be handled by the shared
+  revision-ownership model before vectors are constructed.
 - srcML remains the only source of syntax-tree structure.
 - `src/` remains unchanged as the comparison baseline during `src2/`
   development, except for separately approved shared fixes.

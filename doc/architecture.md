@@ -173,6 +173,16 @@ performance result for arbitrary projects.
 
 ## Current limitations
 
+- Candidate collection models nested `diff:delete` and `diff:insert` regions
+  but does not give `diff:common` its revision-membership semantics. Common
+  content nested inside an otherwise leaf deletion or insertion can therefore
+  enter that candidate's raw and canonical representations. The proposed fix
+  is documented separately in the
+  [move-detection redesign](plans/move_detection_redesign.md).
+- The default leaf-only policy discards a parent as soon as it contains another
+  insertion or deletion. This bounds streaming work but can hide a larger
+  coherent move; switching blindly to outermost regions would instead admit
+  mixed structural rewrites.
 - Type-4 moves are not supported.
 - Exact, Type-2, and Type-3 matching use statement-or-larger candidates by
   default. Tiny fragments can be enabled explicitly but are not useful as the

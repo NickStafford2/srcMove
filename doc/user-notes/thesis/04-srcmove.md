@@ -382,7 +382,63 @@ Chapter 7.
 inventory, pass/fail outcome, platform, and srcReader revision. Cite a focused
 test for every srcReader claim in Section 4.10.
 
-## 4.13 Limitations
+## 4.13 Design implications and proposed successor
+
+The implemented pipeline exposes a deeper distinction between move-candidate
+validity, pair similarity, and final selection. A similarity method answers
+whether two fragments resemble one another. It does not establish that the
+first fragment disappeared, that the second newly appeared, or that the pair
+should be preferred over overlapping parent or child pairs. These concerns are
+especially visible in nested srcDiff markup.
+
+srcDiff diff elements form revision-membership states. Content nearest to
+`diff:delete` belongs only to the original revision, content nearest to
+`diff:insert` belongs only to the modified revision, and content nearest to
+`diff:common` belongs to both. An outer deleted structure can consequently
+contain a common child that survives after the parent is removed, or an
+inserted descendant that switches the combined XML into a new structural form.
+The current leaf policy tracks nested insertions and deletions but does not
+model `diff:common` as an ownership boundary. It can therefore include surviving
+common text in an outer deletion or insertion candidate. This is an
+implementation limitation, not a property that a stronger similarity function
+can correct after candidate construction.
+
+A proposed successor separates three stages. First, revision-aware candidate
+construction would admit only complete, substantively deleted or inserted
+constructs while retaining legitimate parents and children as alternatives.
+Same-side nesting would not automatically discard a parent; common or
+opposite-side material would instead mark a mixed boundary. Second, exact,
+normalized, sequence, or tree-vector methods would emit evidence edges between
+eligible deletions and insertions without immediately consuming overlapping
+candidates. Third, hierarchical selection would choose a non-overlapping set
+of edges. A strong parent match could replace several child matches, while the
+children would remain available when the parent was mixed or lacked a coherent
+destination.
+
+This design also separates pair confidence from selection utility. Confidence
+describes the credibility of one correspondence using similarity, structural
+agreement, uniqueness, and ambiguity. Utility describes how well selecting
+that edge explains the change, including substantive coverage and a penalty for
+fragmenting one coherent move into several reports. The distinction prevents a
+small exact child from automatically precluding a much larger, strongly
+similar parent: exactness is stronger correspondence evidence, but it does not
+determine the intended move boundary by itself.
+
+The scalable form of this design must keep the candidate graph sparse. Exact
+and normalized hashes, structural-kind partitions, size windows, and
+fingerprint or approximate-neighbor indexes should precede expensive Type-3
+verification. Deckard-style characteristic vectors are one candidate for this
+retrieval and similarity stage, not a replacement for revision ownership or
+move selection. Parent and child representations should share token ranges or
+compositional summaries rather than copy every XML event into every open
+ancestor.
+
+These ideas are proposed work and must not be presented as behavior of the
+evaluated implementation. Their canonical engineering plan, performance
+constraints, and test gates are maintained in
+[`doc/plans/move_detection_redesign.md`](../../plans/move_detection_redesign.md).
+
+## 4.14 Limitations
 
 srcMove inherits a hard candidate boundary from srcDiff. If srcDiff does not
 represent the complete deletion and insertion in usable regions, srcMove cannot
@@ -404,7 +460,7 @@ deterministic method for recovering inspectable move relationships from
 structured diff evidence, including cross-file relationships; it is not a
 complete account of all refactorings or developer intent.
 
-## 4.14 Evidence still required for the final chapter
+## 4.15 Evidence still required for the final chapter
 
 - **TODO (citations):** Cite primary work on source-code differencing, move
   detection, clone categories, tree/sequence similarity, and srcML/srcDiff.
