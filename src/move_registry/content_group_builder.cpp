@@ -666,7 +666,8 @@ std::vector<type3_edge>
 build_type3_edges(const candidate_registry         &registry,
                   const std::vector<pending_group> &exact_groups,
                   const std::vector<std::size_t>   &order,
-                  grouping_profile_stats           *stats) {
+                  grouping_profile_stats           *stats,
+                  selection_diagnostics             *diagnostics) {
   const std::vector<candidate_id> del_ids = collect_type3_ids(
       registry, exact_groups, order, move_candidate::Kind::del);
   const std::vector<candidate_id> ins_ids = collect_type3_ids(
@@ -755,6 +756,15 @@ build_type3_edges(const candidate_registry         &registry,
       // An exact Type-2 identity that was rejected only because its group was
       // ambiguous must not be relabeled as a weaker one-to-one Type-3 match.
       if (del.type2_canonical_text == ins.type2_canonical_text) {
+        if (diagnostics != nullptr) {
+          diagnostics->type3_pairs.push_back(type3_pair_diagnostic{
+              del_id, ins_id, "ambiguous_type2", 0,
+              std::max(del.type2_normalized_lines.size(),
+                       ins.type2_normalized_lines.size()),
+              0,
+              std::max(del.type3_normalized_tokens.size(),
+                       ins.type3_normalized_tokens.size())});
+        }
         continue;
       }
 
@@ -767,16 +777,37 @@ build_type3_edges(const candidate_registry         &registry,
           del.type2_normalized_lines, ins.type2_normalized_lines);
       const std::size_t common_tokens = type3_lcs_length(
           del.type3_normalized_tokens, ins.type3_normalized_tokens);
-      if (common_lines == 0 && common_tokens == 0) {
-        continue;
-      }
-
       const std::size_t maximum_lines =
           std::max(del.type2_normalized_lines.size(),
                    ins.type2_normalized_lines.size());
       const std::size_t maximum_tokens =
           std::max(del.type3_normalized_tokens.size(),
                    ins.type3_normalized_tokens.size());
+      if (diagnostics != nullptr) {
+        const std::size_t observed_common_lines =
+            common_lines != 0
+                ? common_lines
+                : bounded_lcs_length(del.type2_normalized_lines,
+                                     ins.type2_normalized_lines, 1);
+        const std::size_t observed_common_tokens =
+            common_tokens != 0
+                ? common_tokens
+                : bounded_lcs_length(del.type3_normalized_tokens,
+                                     ins.type3_normalized_tokens, 1);
+        diagnostics->type3_pairs.push_back(type3_pair_diagnostic{
+            del_id,
+            ins_id,
+            common_lines == 0 && common_tokens == 0 ? "below_threshold"
+                                                    : "verified_edge",
+            observed_common_lines,
+            maximum_lines,
+            observed_common_tokens,
+            maximum_tokens});
+      }
+      if (common_lines == 0 && common_tokens == 0) {
+        continue;
+      }
+
       const bool tokens_are_stronger =
           common_tokens != 0 &&
           (common_lines == 0 ||
@@ -824,7 +855,8 @@ void add_unmatched_exact_groups(content_groups                   &out,
 
 content_groups build_content_groups(const candidate_registry &registry,
                                     content_grouping_mode mode,
-                                    profile_report *profile) {
+                                    profile_report *profile,
+                                    selection_diagnostics *diagnostics) {
   scoped_profile_timer total_timer(profile, "content_groups.total");
   grouping_profile_stats profile_stats;
   grouping_profile_stats *stats = profile == nullptr ? nullptr : &profile_stats;
@@ -869,7 +901,8 @@ content_groups build_content_groups(const candidate_registry &registry,
   {
     scoped_profile_timer timer(profile, "content_groups.type3_build");
     type3_edges =
-        build_type3_edges(registry, exact_groups, exact_group_order, stats);
+        build_type3_edges(registry, exact_groups, exact_group_order, stats,
+                          diagnostics);
   }
 
   {
@@ -906,6 +939,28 @@ content_groups build_content_groups(const candidate_registry &registry,
       case match_kind::unmatched:
         break;
       }
+    }
+  }
+
+  if (diagnostics != nullptr) {
+    for (type3_pair_diagnostic &pair : diagnostics->type3_pairs) {
+      if (pair.outcome != "verified_edge") {
+        continue;
+      }
+      const bool selected = std::any_of(
+          out.groups().begin(), out.groups().end(),
+          [&](const content_group &group) {
+            if (group.match != match_kind::type3) {
+              return false;
+            }
+            const content_groups::id_view dels = out.delete_ids(group);
+            const content_groups::id_view inss = out.insert_ids(group);
+            return std::find(dels.begin(), dels.end(), pair.del_candidate_id) !=
+                       dels.end() &&
+                   std::find(inss.begin(), inss.end(), pair.ins_candidate_id) !=
+                       inss.end();
+          });
+      pair.outcome = selected ? "selected" : "selection_rejected";
     }
   }
 

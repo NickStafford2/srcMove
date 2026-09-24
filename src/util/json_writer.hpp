@@ -103,6 +103,49 @@ inline void write_move_entry(std::ostream     &out,
   out << pad << "}";
 }
 
+inline void write_selection_diagnostics(std::ostream &out,
+                                        const selection_diagnostics &diagnostics) {
+  out << "  \"diagnostics\": {\n";
+  out << "    \"schema_version\": 1,\n";
+  out << "    \"candidates\": [\n";
+  for (std::size_t index = 0; index < diagnostics.candidates.size(); ++index) {
+    const candidate_diagnostic &candidate = diagnostics.candidates[index];
+    out << "      {\n";
+    out << "        \"candidate_id\": " << candidate.candidate_id << ",\n";
+    out << "        \"side\": "; write_string(out, candidate.side); out << ",\n";
+    out << "        \"filename\": "; write_string(out, candidate.filename); out << ",\n";
+    out << "        \"xpath\": "; write_string(out, candidate.xpath); out << ",\n";
+    out << "        \"construct\": "; write_string(out, candidate.construct); out << ",\n";
+    out << "        \"role\": "; write_string(out, candidate.role); out << ",\n";
+    out << "        \"raw_text\": "; write_string(out, candidate.raw_text); out << ",\n";
+    out << "        \"type3_eligible\": "
+        << (candidate.type3_eligible ? "true" : "false") << ",\n";
+    out << "        \"line_units\": " << candidate.line_units << ",\n";
+    out << "        \"token_units\": " << candidate.token_units << "\n";
+    out << "      }";
+    if (index + 1 < diagnostics.candidates.size()) out << ",";
+    out << "\n";
+  }
+  out << "    ],\n";
+  out << "    \"type3_pairs\": [\n";
+  for (std::size_t index = 0; index < diagnostics.type3_pairs.size(); ++index) {
+    const type3_pair_diagnostic &pair = diagnostics.type3_pairs[index];
+    out << "      {\n";
+    out << "        \"delete_candidate_id\": " << pair.del_candidate_id << ",\n";
+    out << "        \"insert_candidate_id\": " << pair.ins_candidate_id << ",\n";
+    out << "        \"outcome\": "; write_string(out, pair.outcome); out << ",\n";
+    out << "        \"common_lines\": " << pair.common_lines << ",\n";
+    out << "        \"maximum_lines\": " << pair.maximum_lines << ",\n";
+    out << "        \"common_tokens\": " << pair.common_tokens << ",\n";
+    out << "        \"maximum_tokens\": " << pair.maximum_tokens << "\n";
+    out << "      }";
+    if (index + 1 < diagnostics.type3_pairs.size()) out << ",";
+    out << "\n";
+  }
+  out << "    ]\n";
+  out << "  }\n";
+}
+
 inline void write_summary(std::ostream &out, const summary &summ) {
   out << "{\n";
   out << "  \"move_count\": " << summ.move_count << ",\n";
@@ -136,7 +179,13 @@ inline void write_summary(std::ostream &out, const summary &summ) {
   out << "    \"exact\": " << summ.match_kinds.exact << ",\n";
   out << "    \"type2\": " << summ.match_kinds.type2 << ",\n";
   out << "    \"type3\": " << summ.match_kinds.type3 << "\n";
-  out << "  }\n";
+  out << "  }";
+  if (summ.diagnostics_enabled) {
+    out << ",\n";
+    write_selection_diagnostics(out, summ.diagnostics);
+  } else {
+    out << "\n";
+  }
   out << "}\n";
 }
 

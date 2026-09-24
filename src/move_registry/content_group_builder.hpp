@@ -26,6 +26,7 @@
 
 #include "candidate_registry.hpp"
 #include "content_groups.hpp"
+#include "selection_diagnostics.hpp"
 
 namespace srcmove {
 
@@ -49,7 +50,8 @@ enum class content_grouping_mode {
 content_groups build_content_groups(const candidate_registry &registry,
                                     content_grouping_mode mode =
                                         content_grouping_mode::refined,
-                                    profile_report *profile = nullptr);
+                                    profile_report *profile = nullptr,
+                                    selection_diagnostics *diagnostics = nullptr);
 
 } // namespace srcmove
 

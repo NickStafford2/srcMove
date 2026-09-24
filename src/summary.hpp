@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+#include "move_registry/selection_diagnostics.hpp"
+
 namespace srcmove {
 
 struct move_entry {
@@ -49,6 +51,8 @@ struct summary {
   std::size_t groups_total      = 0;
   group_kind_counts group_kinds;
   match_kind_counts match_kinds;
+  bool diagnostics_enabled = false;
+  selection_diagnostics diagnostics;
 };
 
 } // namespace srcmove

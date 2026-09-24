@@ -112,6 +112,49 @@ std::size_t count_grouped_candidate_ids(const content_groups &groups) {
   return total;
 }
 
+const char *candidate_role_name(move_candidate::Role role) {
+  switch (role) {
+  case move_candidate::Role::diff_wrapper:
+    return "diff_wrapper";
+  case move_candidate::Role::single_child_wrapper:
+    return "single_child_wrapper";
+  case move_candidate::Role::multi_child_wrapper:
+    return "multi_child_wrapper";
+  case move_candidate::Role::structural_child:
+    return "structural_child";
+  }
+  return "unknown";
+}
+
+void collect_candidate_diagnostics(const candidate_registry &registry,
+                                   selection_diagnostics &diagnostics) {
+  diagnostics.candidates.reserve(registry.active_candidate_count());
+  for (std::size_t id = 0; id < registry.total_record_count(); ++id) {
+    const candidate_registry::candidate_record &record = registry.record(id);
+    if (!record.active) {
+      continue;
+    }
+    const move_candidate &candidate = record.candidate;
+    const bool eligible =
+        candidate.type2_eligible &&
+        candidate.role == move_candidate::Role::structural_child &&
+        !candidate.type2_normalized_lines.empty() &&
+        !candidate.type3_normalized_tokens.empty();
+    diagnostics.candidates.push_back(candidate_diagnostic{
+        id,
+        candidate.kind == move_candidate::Kind::del ? "delete" : "insert",
+        candidate.filename,
+        candidate.xpath,
+        candidate.full_name,
+        candidate_role_name(candidate.role),
+        candidate.raw_text,
+        eligible,
+        candidate.type2_normalized_lines.size(),
+        candidate.type3_normalized_tokens.size(),
+    });
+  }
+}
+
 } // namespace
 
 summary run_pipeline(const std::string &srcdiff_in_filename,
@@ -143,11 +186,16 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   }
 
   content_groups groups;
+  selection_diagnostics diagnostics;
+  if (options.diagnostics) {
+    collect_candidate_diagnostics(registry, diagnostics);
+  }
   {
     scoped_profile_timer timer(profile, "pipeline.content_groups");
     // potential hook point for new clone detection.
-    groups = build_content_groups(registry, content_grouping_mode::refined,
-                                  profile);
+    groups = build_content_groups(
+        registry, content_grouping_mode::refined, profile,
+        options.diagnostics ? &diagnostics : nullptr);
   }
 
   if (options.verbose) {
@@ -179,6 +227,8 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     result.groups_total           = groups.group_count();
     result.group_kinds            = count_group_kinds(groups);
     result.match_kinds            = count_match_kinds(groups);
+    result.diagnostics_enabled    = options.diagnostics;
+    result.diagnostics            = std::move(diagnostics);
   }
 
   return result;

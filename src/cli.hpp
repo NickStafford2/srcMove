@@ -21,6 +21,7 @@ struct cli_options {
   bool        verbose = false;
   bool        profile = false;
   bool        results_only = false;
+  bool        diagnostics = false;
   minimum_move_granularity min_granularity =
       minimum_move_granularity::statement;
 };

@@ -162,6 +162,11 @@ and the selection reason as JSON. With `--results-only`, srcMove materializes
 that JSON evidence from candidate-owned XPaths and skips the second XML pass
 entirely.
 
+`--diagnostics` is an opt-in results mode for algorithm review. It records the
+retained candidates and Type-3 shortlist decisions, including observed line and
+token LCS evidence for below-threshold pairs and whether a verified edge was
+selected. It requires `--results` and is not emitted during ordinary runs.
+
 ## Matching and group semantics
 
 The matcher reports four classification outcomes:
