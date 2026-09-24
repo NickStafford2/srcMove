@@ -1,6 +1,7 @@
 build/
 build-release/
 build-profile/
+.development-environment-reports/
 __pycache__/
 *.py[cod]
 out.txt
