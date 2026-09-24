@@ -6,18 +6,18 @@
     {
       "move_id": "97b1dcdaf",
       "from_xpaths": [
-        "/src:unit[1]/diff:delete[1]"
+        "/src:unit[1]/diff:delete[1]/src:decl_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[1]/diff:insert[1]",
-        "/src:unit[1]/diff:insert[2]"
+        "/src:unit[1]/diff:insert[1]/src:decl_stmt[1]",
+        "/src:unit[1]/diff:insert[2]/src:decl_stmt[1]"
       ],
       "from_raw_texts": [
-        "int a;"
+        "int moved_value = source_value + 1;"
       ],
       "to_raw_texts": [
-        "int a;",
-        "int a;"
+        "int moved_value = source_value + 1;",
+        "int moved_value = source_value + 1;"
       ]
     }
   ],
