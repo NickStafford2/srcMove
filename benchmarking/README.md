@@ -7,11 +7,13 @@ tests in [`tests/`](../tests/README.md).
   classification on synthetic moves derived from BigCloneBench relationships.
 - [Performance](../performance/README.md) compares srcMove executables over
   fixed, pre-existing srcDiff XML workloads.
+- [Move selection](../moveSelectionBench/README.md) characterizes competing
+  parent/child explanations, nesting, common ownership, and ambiguity.
 - [History scaling](../srcmove_history/benchmarks/README.md) measures production
   `srcmove_history` throughput.
 
 Each suite owns its methodology, commands, and output schema. Results from the
-three suites answer different questions and must not be combined into one score.
+four suites answer different questions and must not be combined into one score.
 BigMoveBench data is not a runtime benchmark, and repository-history move counts
 are not accuracy measurements without an independent oracle.
 

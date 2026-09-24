@@ -223,15 +223,21 @@ struct streamed_region {
 };
 
 struct streaming_profile_stats {
-  std::uint64_t reader_events      = 0;
-  std::uint64_t start_events       = 0;
-  std::uint64_t end_events         = 0;
-  std::uint64_t text_events        = 0;
-  std::uint64_t other_events       = 0;
-  std::uint64_t regions_opened     = 0;
-  std::uint64_t region_node_visits = 0;
-  std::uint64_t child_node_visits  = 0;
-  std::uint64_t xpath_calls        = 0;
+  std::uint64_t reader_events          = 0;
+  std::uint64_t start_events           = 0;
+  std::uint64_t end_events             = 0;
+  std::uint64_t text_events            = 0;
+  std::uint64_t other_events           = 0;
+  std::uint64_t regions_opened         = 0;
+  std::uint64_t region_node_visits     = 0;
+  std::uint64_t child_node_visits      = 0;
+  std::uint64_t xpath_calls            = 0;
+  std::uint64_t max_diff_depth         = 0;
+  std::uint64_t nested_same_side       = 0;
+  std::uint64_t nested_cross_side      = 0;
+  std::uint64_t leaf_parents_abandoned = 0;
+  std::uint64_t common_regions_opened  = 0;
+  std::uint64_t common_inside_diff     = 0;
   double        xpath_ms           = 0.0;
 };
 
@@ -427,7 +433,17 @@ collect_candidates_streaming(srcml_reader                &reader,
     if (parent_id != kNoParent) {
       streamed_region &parent = regions[parent_id];
       parent.has_diff_child = true;
+      if (stats != nullptr) {
+        if (parent.kind == kind) {
+          ++stats->nested_same_side;
+        } else {
+          ++stats->nested_cross_side;
+        }
+      }
       if (opt.policy == region_filter_policy::leaf_only) {
+        if (stats != nullptr) {
+          ++stats->leaf_parents_abandoned;
+        }
         parent.forms.reset();
         parent.child.reset();
         parent.preferred_candidates.clear();
@@ -448,6 +464,8 @@ collect_candidates_streaming(srcml_reader                &reader,
     open_regions.push_back(regions.size() - 1);
     if (stats != nullptr) {
       ++stats->regions_opened;
+      stats->max_diff_depth =
+          std::max<std::uint64_t>(stats->max_diff_depth, open_regions.size());
     }
   };
 
@@ -455,6 +473,12 @@ collect_candidates_streaming(srcml_reader                &reader,
                           std::size_t node_index) {
     const std::string full_name = node.full_name();
     const auto        kind      = diff_kind_from_full_name(full_name);
+    if (stats != nullptr && node.is_start() && full_name == "diff:common") {
+      ++stats->common_regions_opened;
+      if (!open_regions.empty()) {
+        ++stats->common_inside_diff;
+      }
+    }
     std::size_t opened_id = kNoParent;
     if (node.is_start() && kind) {
       open_region(*kind, node, filename, node_index);
@@ -603,6 +627,18 @@ collect_candidates_streaming(srcml_reader                &reader,
     profile->add_counter("parse.other_events", profile_storage.other_events);
     profile->add_counter("parse.diff_regions_opened",
                          profile_storage.regions_opened);
+    profile->add_counter("parse.max_diff_depth",
+                         profile_storage.max_diff_depth);
+    profile->add_counter("parse.nested_same_side_regions",
+                         profile_storage.nested_same_side);
+    profile->add_counter("parse.nested_cross_side_regions",
+                         profile_storage.nested_cross_side);
+    profile->add_counter("parse.leaf_only_parents_abandoned",
+                         profile_storage.leaf_parents_abandoned);
+    profile->add_counter("parse.common_regions_opened",
+                         profile_storage.common_regions_opened);
+    profile->add_counter("parse.common_regions_inside_diff",
+                         profile_storage.common_inside_diff);
     profile->add_counter("parse.xpath_calls", profile_storage.xpath_calls);
     profile->add_counter("parse.streaming_region_node_visits",
                          profile_storage.region_node_visits);

@@ -25,6 +25,22 @@ namespace srcmove {
 
 namespace {
 
+struct grouping_profile_stats {
+  std::uint64_t exact_groups_built          = 0;
+  std::uint64_t exact_groups_selected       = 0;
+  std::uint64_t type2_groups_built          = 0;
+  std::uint64_t type2_groups_selected       = 0;
+  std::uint64_t type3_delete_candidates     = 0;
+  std::uint64_t type3_insert_candidates     = 0;
+  std::uint64_t type3_shortlist_entries     = 0;
+  std::uint64_t type3_pairs_considered      = 0;
+  std::uint64_t type3_lcs_calls             = 0;
+  std::uint64_t type3_edges_built           = 0;
+  std::uint64_t type3_edges_selected        = 0;
+  std::uint64_t type3_edges_used_rejected   = 0;
+  std::uint64_t type3_edges_overlap_rejected = 0;
+};
+
 group_kind classify_counts(std::size_t del_count, std::size_t ins_count) {
   if (del_count == 0 && ins_count == 0) {
     return group_kind::ambiguous;
@@ -349,11 +365,16 @@ std::vector<type3_edge>
 build_type3_edges(const candidate_registry         &registry,
                   const std::vector<pending_group> &exact_groups,
                   const std::vector<std::size_t>   &order,
-                  const group_selection            &selection) {
+                  const group_selection            &selection,
+                  grouping_profile_stats           *stats) {
   const std::vector<candidate_id> del_ids = collect_type3_ids(
       registry, exact_groups, order, selection, move_candidate::Kind::del);
   const std::vector<candidate_id> ins_ids = collect_type3_ids(
       registry, exact_groups, order, selection, move_candidate::Kind::insert);
+  if (stats != nullptr) {
+    stats->type3_delete_candidates = del_ids.size();
+    stats->type3_insert_candidates = ins_ids.size();
+  }
 
   struct type3_bucket {
     std::vector<candidate_id> by_lines;
@@ -425,6 +446,9 @@ build_type3_edges(const candidate_registry         &registry,
     std::sort(candidates.begin(), candidates.end());
     candidates.erase(std::unique(candidates.begin(), candidates.end()),
                      candidates.end());
+    if (stats != nullptr) {
+      stats->type3_shortlist_entries += candidates.size();
+    }
 
     for (candidate_id ins_id : candidates) {
       const move_candidate &ins = registry.candidate(ins_id);
@@ -432,6 +456,11 @@ build_type3_edges(const candidate_registry         &registry,
       // ambiguous must not be relabeled as a weaker one-to-one Type-3 match.
       if (del.type2_canonical_text == ins.type2_canonical_text) {
         continue;
+      }
+
+      if (stats != nullptr) {
+        ++stats->type3_pairs_considered;
+        stats->type3_lcs_calls += 2;
       }
 
       const std::size_t common_lines = type3_lcs_length(
@@ -460,16 +489,23 @@ build_type3_edges(const candidate_registry         &registry,
   }
 
   std::sort(edges.begin(), edges.end(), type3_edge_better);
+  if (stats != nullptr) {
+    stats->type3_edges_built = edges.size();
+  }
   return edges;
 }
 
 void add_selected_type3_groups(content_groups                  &out,
                                const candidate_registry        &registry,
                                const std::vector<type3_edge>   &edges,
-                               group_selection                 &selection) {
+                               group_selection                 &selection,
+                               grouping_profile_stats          *stats) {
   for (const type3_edge &edge : edges) {
     if (selection.id_is_used(edge.del_id) ||
         selection.id_is_used(edge.ins_id)) {
+      if (stats != nullptr) {
+        ++stats->type3_edges_used_rejected;
+      }
       continue;
     }
     pending_group group;
@@ -478,9 +514,15 @@ void add_selected_type3_groups(content_groups                  &out,
     group.del_ids.push_back(edge.del_id);
     group.ins_ids.push_back(edge.ins_id);
     if (selection.group_is_fully_suppressed(group, registry)) {
+      if (stats != nullptr) {
+        ++stats->type3_edges_overlap_rejected;
+      }
       continue;
     }
     add_selected_group(out, registry, group, selection);
+    if (stats != nullptr) {
+      ++stats->type3_edges_selected;
+    }
   }
 }
 
@@ -515,6 +557,8 @@ content_groups build_content_groups(const candidate_registry &registry,
                                     content_grouping_mode mode,
                                     profile_report *profile) {
   scoped_profile_timer total_timer(profile, "content_groups.total");
+  grouping_profile_stats profile_stats;
+  grouping_profile_stats *stats = profile == nullptr ? nullptr : &profile_stats;
 
   content_groups out;
   out.reserve_groups(registry.hash_buckets().size());
@@ -529,6 +573,9 @@ content_groups build_content_groups(const candidate_registry &registry,
   {
     scoped_profile_timer timer(profile, "content_groups.exact_build");
     exact_groups = build_exact_groups(registry);
+    if (stats != nullptr) {
+      stats->exact_groups_built = exact_groups.size();
+    }
   }
 
   std::vector<std::size_t> exact_group_order;
@@ -541,8 +588,12 @@ content_groups build_content_groups(const candidate_registry &registry,
 
   {
     scoped_profile_timer timer(profile, "content_groups.exact_select");
+    const std::size_t before = out.group_count();
     add_selected_exact_groups(out, registry, exact_groups, exact_group_order,
                               selection);
+    if (stats != nullptr) {
+      stats->exact_groups_selected = out.group_count() - before;
+    }
   }
 
   std::vector<pending_group> type2_groups;
@@ -550,23 +601,30 @@ content_groups build_content_groups(const candidate_registry &registry,
     scoped_profile_timer timer(profile, "content_groups.type2_build");
     type2_groups = build_type2_groups(registry, exact_groups,
                                       exact_group_order, selection);
+    if (stats != nullptr) {
+      stats->type2_groups_built = type2_groups.size();
+    }
   }
 
   {
     scoped_profile_timer timer(profile, "content_groups.type2_select");
+    const std::size_t before = out.group_count();
     add_selected_type2_groups(out, registry, type2_groups, selection);
+    if (stats != nullptr) {
+      stats->type2_groups_selected = out.group_count() - before;
+    }
   }
 
   std::vector<type3_edge> type3_edges;
   {
     scoped_profile_timer timer(profile, "content_groups.type3_build");
     type3_edges = build_type3_edges(registry, exact_groups, exact_group_order,
-                                    selection);
+                                    selection, stats);
   }
 
   {
     scoped_profile_timer timer(profile, "content_groups.type3_select");
-    add_selected_type3_groups(out, registry, type3_edges, selection);
+    add_selected_type3_groups(out, registry, type3_edges, selection, stats);
   }
 
   {
@@ -580,6 +638,35 @@ content_groups build_content_groups(const candidate_registry &registry,
     assert(g.del_count() + g.ins_count() > 0);
   }
 #endif
+
+  if (profile != nullptr) {
+    profile->add_counter("content_groups.exact_groups_built",
+                         profile_stats.exact_groups_built);
+    profile->add_counter("content_groups.exact_groups_selected",
+                         profile_stats.exact_groups_selected);
+    profile->add_counter("content_groups.type2_groups_built",
+                         profile_stats.type2_groups_built);
+    profile->add_counter("content_groups.type2_groups_selected",
+                         profile_stats.type2_groups_selected);
+    profile->add_counter("content_groups.type3_delete_candidates",
+                         profile_stats.type3_delete_candidates);
+    profile->add_counter("content_groups.type3_insert_candidates",
+                         profile_stats.type3_insert_candidates);
+    profile->add_counter("content_groups.type3_shortlist_entries",
+                         profile_stats.type3_shortlist_entries);
+    profile->add_counter("content_groups.type3_pairs_considered",
+                         profile_stats.type3_pairs_considered);
+    profile->add_counter("content_groups.type3_lcs_calls",
+                         profile_stats.type3_lcs_calls);
+    profile->add_counter("content_groups.type3_edges_built",
+                         profile_stats.type3_edges_built);
+    profile->add_counter("content_groups.type3_edges_selected",
+                         profile_stats.type3_edges_selected);
+    profile->add_counter("content_groups.type3_edges_used_rejected",
+                         profile_stats.type3_edges_used_rejected);
+    profile->add_counter("content_groups.type3_edges_overlap_rejected",
+                         profile_stats.type3_edges_overlap_rejected);
+  }
 
   return out;
 }

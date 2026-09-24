@@ -364,11 +364,18 @@ selection policy, and executable revisions in every frozen run.
 
 ### Phase 0: freeze evidence
 
-- Add focused source and XML fixtures for nested same-side, opposite-side, and
-  `diff:common` cases.
-- Record current output, candidate counts, runtime, LCS calls, and memory on
-  fixed workloads.
-- Define whole-parent and child-level expected outcomes before changing code.
+- Use [`moveSelectionBench`](../../moveSelectionBench/README.md) for focused
+  same-side, opposite-side, deep-nesting, `diff:common`, ambiguity, and
+  parent-versus-child semantic characterization. Its misses are observations,
+  not frozen claims that the current implementation is correct.
+- Compare baseline and candidate executables with the same catalog and inspect
+  per-case transitions, not just aggregate pass totals.
+- Use the existing performance runner over these smoke inputs and larger fixed
+  repository workloads. Record runtime, peak memory, candidate counts,
+  shortlist entries, pair comparisons, LCS calls, produced edges, and
+  selection rejections.
+- Continue using BigMoveBench for population-scale detection/classification;
+  keep final evaluation separate from threshold and ranking-policy tuning.
 
 ### Phase 1: correct revision ownership
 

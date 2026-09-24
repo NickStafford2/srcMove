@@ -58,6 +58,24 @@ recorded metadata; the runner does not implicitly flush or warm operating-system
 caches. A completed run retains failed measurements and exits nonzero when any
 measured attempt fails.
 
+For the selection redesign, use the small checked-in XML cases as a smoke
+workload while developing, then add representative large repository srcDiff
+files before drawing complexity conclusions:
+
+```bash
+python3 performance/run.py \
+  --variant baseline=/path/to/baseline/srcMove \
+  --variant candidate=/path/to/candidate/srcMove \
+  --workload nested=moveSelectionBench/cases/nested_exact_parent_over_child.xml \
+  --workload cross-type=moveSelectionBench/cases/nested_near_miss_parent_over_exact_child.xml \
+  --warmups 1 --repetitions 6
+```
+
+The profiler now exposes nesting/common counters and exact, Type-2, and Type-3
+work counters, including Type-3 shortlist size, pair comparisons, LCS calls,
+edges produced, and selection rejections. These distinguish a faster result
+caused by better pruning from one caused by silently doing less useful work.
+
 ## Startup dependency study
 
 `startup_study.py` separates warm process-startup cost from srcMove's pipeline

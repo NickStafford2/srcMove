@@ -1,0 +1,131 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "nested_exact_parent_over_child",
+      "input": "cases/nested_exact_parent_over_child.xml",
+      "category": "same_side_nesting",
+      "rationale": "An exact enclosing move should not be discarded merely because it contains a smaller exact move.",
+      "required": [
+        {
+          "from": "if (ready) { int payload = 7; publish(payload); }",
+          "to": "if (ready) { int payload = 7; publish(payload); }",
+          "match_kinds": ["exact"]
+        }
+      ],
+      "forbidden": [
+        {
+          "from": "int payload = 7;",
+          "to": "int payload = 7;",
+          "reason": "The child alone loses the enclosing control-flow move."
+        }
+      ]
+    },
+    {
+      "id": "nested_near_miss_parent_over_exact_child",
+      "input": "cases/nested_near_miss_parent_over_exact_child.xml",
+      "category": "cross_type_competition",
+      "rationale": "A larger coherent Type-2 or Type-3 move may be more useful than an exact nested statement.",
+      "required": [
+        {
+          "from": "if (oldReady) { int marker = 1; publish(oldValue); cleanup(); }",
+          "to": "if (newReady) { int marker = 1; validate(); publish(newValue); cleanup(); }",
+          "match_kinds": ["type2", "type3"]
+        }
+      ],
+      "forbidden": [
+        {
+          "from": "int marker = 1;",
+          "to": "int marker = 1;",
+          "reason": "The exact child is supporting evidence, not the best explanation."
+        }
+      ]
+    },
+    {
+      "id": "common_content_is_not_a_move",
+      "input": "cases/common_content_is_not_a_move.xml",
+      "category": "common_ownership",
+      "rationale": "Text carried by diff:common belongs to both revisions and must not become move evidence merely because it is nested inside changed wrappers.",
+      "required": [],
+      "forbidden": [
+        {
+          "from": "checkpoint();",
+          "to": "checkpoint();",
+          "reason": "Common content did not move."
+        },
+        {
+          "from": "if (oldMode) { checkpoint(); removeOld(); }",
+          "to": "if (newMode) { checkpoint(); addNew(); }",
+          "reason": "Similarity supplied only by common content must not justify a wrapper move."
+        }
+      ]
+    },
+    {
+      "id": "independent_children_not_false_parent",
+      "input": "cases/independent_children_not_false_parent.xml",
+      "category": "hierarchical_coherence",
+      "rationale": "Largest wins is not absolute: independently relocated children should remain separate when there is no coherent destination parent.",
+      "required": [
+        {"from": "int alpha = 1;", "to": "int alpha = 1;", "match_kinds": ["exact"]},
+        {"from": "int beta = 2;", "to": "int beta = 2;", "match_kinds": ["exact"]}
+      ],
+      "forbidden": [
+        {
+          "from": "if (enabled) { int alpha = 1; int beta = 2; }",
+          "to": "int alpha = 1; int beta = 2;",
+          "reason": "The children moved to distinct destination contexts."
+        }
+      ]
+    },
+    {
+      "id": "unique_parent_over_repeated_children",
+      "input": "cases/unique_parent_over_repeated_children.xml",
+      "category": "ambiguity_and_granularity",
+      "rationale": "Repeated small statements are ambiguous while their enclosing regions can identify one coherent move.",
+      "required": [
+        {
+          "from": "if (left) { int marker = 0; transferLeft(); int marker = 0; }",
+          "to": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
+          "match_kinds": ["type2", "type3"]
+        }
+      ],
+      "forbidden": [
+        {
+          "from": "int marker = 0;",
+          "to": "int marker = 0;",
+          "reason": "A repeated child is not independently identifiable as the move."
+        }
+      ]
+    },
+    {
+      "id": "mixed_parent_rejected_inner_survives",
+      "input": "cases/mixed_parent_rejected_inner_survives.xml",
+      "category": "mixed_polarity",
+      "rationale": "An opposite-side transition invalidates the outer candidate but must not erase an eligible inner move.",
+      "required": [
+        {"from": "int rescued = 9;", "to": "int rescued = 9;", "match_kinds": ["exact"]}
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "deep_nesting_has_no_two_level_limit",
+      "input": "cases/deep_nesting_has_no_two_level_limit.xml",
+      "category": "deep_nesting",
+      "rationale": "Candidate semantics should depend on ownership and coherence, not an arbitrary nesting-depth limit.",
+      "required": [
+        {
+          "from": "if (a) { while (b) { int work = 3; } finish(); }",
+          "to": "if (a) { while (b) { int work = 3; } finish(); }",
+          "match_kinds": ["exact"]
+        }
+      ],
+      "forbidden": [
+        {
+          "from": "int work = 3;",
+          "to": "int work = 3;",
+          "reason": "The deepest leaf alone is not the most coherent move."
+        }
+      ]
+    }
+  ]
+}

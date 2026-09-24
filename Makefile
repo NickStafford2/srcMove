@@ -13,7 +13,7 @@ SAMPLE_SIZE ?= 100
 VERIFY_SOURCE ?= 0
 CACHE ?= 0
 REFRESH_CACHE ?= 0
-.PHONY: help configure build test test-unit test-bigmovebench test-performance test-srcmove-history test-xml test-source test-policy test-classification history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-normalized-run bigmovebench-suite
+.PHONY: help configure build test test-unit test-bigmovebench test-move-selection test-performance test-srcmove-history test-xml test-source test-policy test-classification move-selection-benchmark history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-normalized-run bigmovebench-suite
 
 help:
 	@printf '%s\n' 'Available targets:'
@@ -21,12 +21,14 @@ help:
 	@printf '  %-28s %s\n' 'make test' 'Build and run every correctness suite'
 	@printf '  %-28s %s\n' 'make test-unit' 'Run all Python unit tests'
 	@printf '  %-28s %s\n' 'make test-bigmovebench' 'Run focused BigMoveBench unit tests'
+	@printf '  %-28s %s\n' 'make test-move-selection' 'Run move-selection benchmark unit tests'
 	@printf '  %-28s %s\n' 'make test-performance' 'Run performance workload runner unit tests'
 	@printf '  %-28s %s\n' 'make test-srcmove-history' 'Run srcmove-history unit tests'
 	@printf '  %-28s %s\n' 'make test-xml' 'Build and run XML regression tests'
 	@printf '  %-28s %s\n' 'make test-source' 'Build and run source-pair regression tests'
 	@printf '  %-28s %s\n' 'make test-policy' 'Build and run reviewer-editable move-policy tests'
 	@printf '  %-28s %s\n' 'make test-classification' 'Run the focused Type-1/2/3/none contracts'
+	@printf '  %-28s %s\n' 'make move-selection-benchmark' 'Characterize current parent/child selection behavior'
 	@printf '  %-28s %s\n' 'make history-scaling' 'Measure history throughput across JOBS'
 	@printf '  %-28s %s\n' 'make bigmovebench-preflight' 'Check the local BigCloneBench installation'
 	@printf '  %-28s %s\n' 'make bigmovebench-compile' 'Compile or reuse the local BigCloneBench catalog'
@@ -46,10 +48,13 @@ test: build
 	$(PYTHON) tests/run.py
 
 test-unit:
-	$(PYTHON) tests/run.py --suite unit --suite bigmovebench --suite performance
+	$(PYTHON) tests/run.py --suite unit --suite bigmovebench --suite move-selection --suite performance
 
 test-bigmovebench:
 	$(PYTHON) tests/run.py --suite bigmovebench
+
+test-move-selection:
+	$(PYTHON) tests/run.py --suite move-selection
 
 test-performance:
 	$(PYTHON) tests/run.py --suite performance
@@ -79,6 +84,10 @@ test-classification: build
 		--case classification_type3_java_method_inconsistent_renaming \
 		--case classification_none_unrelated_java_methods \
 		--case classification_none_similar_java_method_shapes
+
+move-selection-benchmark: build
+	$(PYTHON) moveSelectionBench/benchmark.py \
+		--variant current=build/srcMove
 
 history-scaling:
 	@test -n "$(CASE)" || { echo 'error: CASE is required'; exit 2; }

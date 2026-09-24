@@ -44,7 +44,12 @@ def output_path(arguments: list[str]) -> Path | None:
             index = arguments.index(option)
             return Path(arguments[index + 1])
     if "--results" in arguments:
-        return Path(arguments[arguments.index("--results") + 1])
+        # srcMove uses positional INPUT OUTPUT followed by --results PATH.
+        # Keep the annotated XML and the JSON sidecar as distinct artifacts.
+        results_index = arguments.index("--results")
+        if results_index >= 2:
+            return Path(arguments[1])
+        return Path(arguments[results_index + 1])
     return None
 
 

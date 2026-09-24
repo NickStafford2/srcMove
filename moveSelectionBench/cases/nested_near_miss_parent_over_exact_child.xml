@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="nested_near_miss.cpp">
+  <diff:delete><if_stmt><if>if <condition>(<expr><name>oldReady</name></expr>)</condition> <block>{<block_content>
+    <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>marker</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
+    <expr_stmt><expr><name>publish</name><call><argument_list>(<argument><expr><name>oldValue</name></expr></argument>)</argument_list></call></expr>;</expr_stmt>
+    <expr_stmt><expr><name>cleanup</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></if></if_stmt></diff:delete>
+  <diff:insert><if_stmt><if>if <condition>(<expr><name>newReady</name></expr>)</condition> <block>{<block_content>
+    <diff:insert><decl_stmt><decl><type><name>int</name></type> <name>marker</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
+    <expr_stmt><expr><name>validate</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+    <expr_stmt><expr><name>publish</name><call><argument_list>(<argument><expr><name>newValue</name></expr></argument>)</argument_list></call></expr>;</expr_stmt>
+    <expr_stmt><expr><name>cleanup</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></if></if_stmt></diff:insert>
+</unit>

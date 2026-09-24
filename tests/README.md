@@ -6,6 +6,7 @@ The repository `Makefile` is the developer interface. From the repository root:
 make test                         # build, then run every correctness suite
 make test-unit                    # all Python unit tests
 make test-bigmovebench            # BigMoveBench unit tests only
+make test-move-selection          # move-selection benchmark unit tests only
 make test-performance             # performance workload runner unit tests only
 make test-srcmove-history         # srcmove-history unit tests only
 make test-xml                     # build, then run XML regressions
@@ -37,6 +38,10 @@ python3 tests/regression/policy/list.py --catalog contextual
   with `make test-bigmovebench` and included by `make test-unit`.
 - `performance`: focused workload-runner tests under `performance/tests/`; run
   explicitly with `make test-performance` and included by `make test-unit`.
+- `move-selection`: focused tests for semantic expectation validation,
+  baseline transitions, and the distinction between observational misses and
+  hard execution failures. Run with `make test-move-selection`; it is also
+  included by `make test-unit`.
 - `srcmove-history`: focused unit tests under
   `tests/unit/srcmove_history/`; run explicitly with
   `make test-srcmove-history`.
@@ -88,6 +93,19 @@ measurements without running large workloads.
 
 CTest is retired for this project. The Makefile owns building; `tests/run.py`
 owns deterministic correctness-test selection and execution.
+
+## Contracts versus characterization
+
+Exact XML/source goldens protect accepted behavior and reproducibility, but
+they are not evidence that every current granularity or selection decision is
+ideal. Change a golden deliberately when a reviewed algorithm improvement
+changes the product contract; do not preserve an inferior result solely to
+keep an old fixture green.
+
+Unsettled parent/child, nested-region, and `diff:common` decisions live in the
+[move-selection benchmark](../moveSelectionBench/README.md). Its semantic
+misses are observations rather than test failures. Promote a case into a hard
+regression only after its expected behavior is accepted as a stable contract.
 
 ## Tool Selection
 

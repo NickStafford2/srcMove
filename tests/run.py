@@ -22,6 +22,7 @@ from benchmarking.tooling import command_text, find_srcdiff, find_srcmove, run_c
 SUITE_DESCRIPTIONS = {
     "unit": "core Python unit tests",
     "bigmovebench": "focused BigMoveBench unit tests",
+    "move-selection": "focused move-selection characterization unit tests",
     "performance": "focused performance workload runner unit tests",
     "srcmove-history": "focused srcmove-history unit tests",
     "xml": "checked-in srcDiff XML regression fixtures",
@@ -32,6 +33,7 @@ SUITE_DESCRIPTIONS = {
 DEFAULT_SUITES = (
     "unit",
     "bigmovebench",
+    "move-selection",
     "performance",
     "xml",
     "source",
@@ -169,6 +171,25 @@ def test_steps(
                     "discover",
                     "-s",
                     "bigMoveBench/tests",
+                    "-t",
+                    ".",
+                    "-p",
+                    "test_*.py",
+                ],
+            )
+        )
+
+    if not args.cases and "move-selection" in suites:
+        steps.append(
+            TestStep(
+                "move-selection characterization unit",
+                [
+                    sys.executable,
+                    "-m",
+                    "unittest",
+                    "discover",
+                    "-s",
+                    "moveSelectionBench/tests",
                     "-t",
                     ".",
                     "-p",
