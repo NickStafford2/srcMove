@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="child_utility.cpp">
+  <diff:delete><if_stmt><if>if <condition>(<expr><name>old_mode</name></expr>)</condition> <block>{<block_content>
+    <diff:delete><if_stmt><if>if <condition>(<expr><name>alpha_ready</name></expr>)</condition> <block>{<block_content>
+      <expr_stmt><expr><name>prepare_alpha</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+      <expr_stmt><expr><name>process_alpha</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+      <expr_stmt><expr><name>finish_alpha</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+    </block_content>}</block></if></if_stmt></diff:delete>
+    <while>while <condition>(<expr><name>old_pending</name></expr>)</condition> <block>{<block_content><expr_stmt><expr><name>drain_old</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt></block_content>}</block></while>
+    <diff:delete><if_stmt><if>if <condition>(<expr><name>beta_ready</name></expr>)</condition> <block>{<block_content>
+      <expr_stmt><expr><name>prepare_beta</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+      <expr_stmt><expr><name>process_beta</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+      <expr_stmt><expr><name>finish_beta</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+    </block_content>}</block></if></if_stmt></diff:delete>
+  </block_content>}</block></if></if_stmt></diff:delete>
+  <diff:insert><if_stmt><if>if <condition>(<expr><name>new_mode</name></expr>)</condition> <block>{<block_content>
+    <diff:insert><if_stmt><if>if <condition>(<expr><name>alpha_ready</name></expr>)</condition> <block>{<block_content>
+      <expr_stmt><expr><name>prepare_alpha</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+      <expr_stmt><expr><name>process_alpha</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+      <expr_stmt><expr><name>finish_alpha</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+    </block_content>}</block></if></if_stmt></diff:insert>
+    <for>for <control>(<init><decl><type><name>int</name></type> <name>i</name> <init>= <expr><literal type="number">0</literal></expr></init></decl>;</init> <condition><expr><name>i</name> &lt; <literal type="number">1</literal></expr>;</condition> <incr><expr><operator>++</operator><name>i</name></expr></incr>)</control> <block>{<block_content><expr_stmt><expr><name>initialize_new</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt></block_content>}</block></for>
+    <diff:insert><if_stmt><if>if <condition>(<expr><name>beta_ready</name></expr>)</condition> <block>{<block_content>
+      <expr_stmt><expr><name>prepare_beta</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+      <expr_stmt><expr><name>process_beta</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+      <expr_stmt><expr><name>finish_beta</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+    </block_content>}</block></if></if_stmt></diff:insert>
+  </block_content>}</block></if></if_stmt></diff:insert>
+</unit>

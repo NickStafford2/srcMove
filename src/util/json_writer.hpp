@@ -75,6 +75,14 @@ inline void write_move_entry(std::ostream     &out,
   out << field_pad << "\"match_kind\": ";
   write_string(out, m.match_kind);
   out << ",\n";
+  out << field_pad << "\"confidence_milli\": " << m.confidence_milli
+      << ",\n";
+  out << field_pad << "\"selection_utility\": " << m.selection_utility
+      << ",\n";
+  out << field_pad << "\"matched_units\": " << m.matched_units << ",\n";
+  out << field_pad << "\"selection_reason\": ";
+  write_string(out, m.selection_reason);
+  out << ",\n";
 
   out << field_pad << "\"from_xpaths\": ";
   write_string_array(out, m.from_xpaths, indent + 2);

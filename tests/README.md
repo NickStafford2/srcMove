@@ -107,6 +107,11 @@ Unsettled parent/child, nested-region, and `diff:common` decisions live in the
 misses are observations rather than test failures. Promote a case into a hard
 regression only after its expected behavior is accepted as a stable contract.
 
+Repeated exact fragments retain their multi-endpoint move/copy group, without
+claiming a particular one-to-one pairing. Ambiguous Type-2 fragments remain
+unresolved because normalization removed their distinguishing content;
+document order alone must not manufacture a pairing.
+
 ## Tool Selection
 
 All test and benchmark entry points use `benchmarking/tooling.py` for executable

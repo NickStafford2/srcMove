@@ -6,6 +6,7 @@
 #define INCLUDED_MOVE_ANNOTATION_PLAN_HPP
 
 #include <cctype>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -19,6 +20,10 @@ class profile_report;
 struct move_tag {
   std::string              move_id;
   std::string              match_kind;
+  std::uint32_t            confidence_milli = 0;
+  std::uint64_t            selection_utility = 0;
+  std::uint32_t            matched_units = 0;
+  std::string              selection_reason;
   move_candidate::Kind     kind = move_candidate::Kind::insert;
   std::uint32_t            inserts = 0;
   std::uint32_t            deletes = 0;

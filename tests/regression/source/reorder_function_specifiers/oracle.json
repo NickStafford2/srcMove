@@ -1,92 +1,45 @@
 {
-  "move_count": 3,
-  "move_group_count": 3,
-  "move_pair_count": 8,
+  "move_count": 1,
+  "move_group_count": 1,
+  "move_pair_count": 1,
   "moves": [
     {
-      "move_id": "c89025cc1",
-      "match_kind": "exact",
-      "from_xpaths": [
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[3]/src:decl[src:name='foo3']/src:type[1]/diff:delete[2]/diff:delete[1]",
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[4]/src:decl[src:name='foo4']/src:type[1]/diff:delete[2]/diff:delete[1]",
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[5]/src:decl[src:name='foo5']/src:type[1]/diff:delete[1]"
-      ],
-      "to_xpaths": [
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[3]/src:decl[src:name='foo3']/src:type[1]/diff:insert[1]/diff:insert[1]",
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[4]/src:decl[src:name='foo4']/src:type[1]/diff:insert[1]/diff:insert[1]",
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[5]/src:decl[src:name='foo5']/src:type[1]/diff:insert[1]/diff:insert[1]"
-      ],
-      "from_raw_texts": [
-        "int",
-        "int",
-        "int"
-      ],
-      "to_raw_texts": [
-        "int",
-        "int",
-        "int"
-      ]
-    },
-    {
-      "move_id": "e1c9756ce",
-      "match_kind": "exact",
-      "from_xpaths": [
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[2]/src:decl[src:name='foo2']/src:type[1]/diff:delete[1]",
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[4]/src:decl[src:name='foo4']/src:type[1]/diff:delete[1]"
-      ],
-      "to_xpaths": [
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[2]/src:decl[src:name='foo2']/src:type[1]/diff:insert[1]/diff:insert[2]",
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[4]/src:decl[src:name='foo4']/src:type[1]/diff:insert[1]/diff:insert[2]"
-      ],
-      "from_raw_texts": [
-        "signed",
-        "signed"
-      ],
-      "to_raw_texts": [
-        "signed",
-        "signed"
-      ]
-    },
-    {
       "move_id": "97b1dcdaf",
-      "match_kind": "exact",
+      "match_kind": "type2",
+      "confidence_milli": 950,
+      "selection_utility": 9500,
+      "matched_units": 10,
+      "selection_reason": "greedy_utility",
       "from_xpaths": [
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[1]/src:decl[src:name='foo1']/src:type[1]/diff:delete[1]",
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[2]/src:decl[src:name='foo2']/src:type[1]/diff:delete[2]/diff:delete[1]",
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[3]/src:decl[src:name='foo3']/src:type[1]/diff:delete[1]"
+        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/diff:delete[1]/src:decl_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[1]/src:decl[src:name='foo1']/src:type[1]/diff:insert[1]",
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[2]/src:decl[src:name='foo2']/src:type[1]/diff:insert[1]/diff:insert[1]",
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/src:decl_stmt[3]/src:decl[src:name='foo3']/src:type[1]/diff:insert[1]/diff:insert[2]"
+        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/diff:insert[1]/src:decl_stmt[1]"
       ],
       "from_raw_texts": [
-        "long",
-        "long",
-        "long"
+        "signed long int foo2 = beta(2);"
       ],
       "to_raw_texts": [
-        "long",
-        "long",
-        "long"
+        "long int signed foo2 = beta(2);"
       ]
     }
   ],
-  "annotated_regions": 16,
-  "annotated_region_count": 16,
-  "regions_total": 26,
-  "candidates_total": 16,
-  "groups_total": 3,
+  "annotated_regions": 2,
+  "annotated_region_count": 2,
+  "regions_total": 2,
+  "candidates_total": 2,
+  "groups_total": 1,
   "group_kinds": {
-    "move_1_to_1": 0,
-    "moves_many": 3,
+    "move_1_to_1": 1,
+    "moves_many": 0,
     "delete_only": 0,
     "insert_only": 0,
     "copy_or_repeat": 0,
     "ambiguous": 0
   },
   "match_kinds": {
-    "exact": 3,
-    "type2": 0
+    "exact": 0,
+    "type2": 1,
+    "type3": 0
   }
 }

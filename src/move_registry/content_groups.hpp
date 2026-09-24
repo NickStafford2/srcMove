@@ -26,6 +26,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 #include "move_buckets.hpp"
@@ -60,6 +61,10 @@ struct content_group {
 
   group_kind kind = group_kind::ambiguous;
   match_kind match = match_kind::unmatched;
+  std::uint32_t confidence_milli = 0;
+  std::uint64_t selection_utility = 0;
+  std::uint32_t matched_units = 0;
+  std::string selection_reason;
 
   std::size_t del_count() const noexcept {
     return static_cast<std::size_t>(del_end - del_begin);

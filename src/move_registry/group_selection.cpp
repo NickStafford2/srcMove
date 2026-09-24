@@ -13,10 +13,6 @@ bool has_both_sides(const pending_group &group) {
   return !group.del_ids.empty() && !group.ins_ids.empty();
 }
 
-bool is_one_to_one(const pending_group &group) {
-  return group.del_ids.size() == 1 && group.ins_ids.size() == 1;
-}
-
 group_selection::group_selection(std::size_t candidate_count) {
   used_ids_.reserve(candidate_count);
   covered_.reserve(candidate_count);
@@ -25,11 +21,7 @@ group_selection::group_selection(std::size_t candidate_count) {
 bool group_selection::candidate_is_suppressed(
     const move_candidate &candidate) const {
   for (const covered_span &span : covered_) {
-    if (span_contains_candidate(span, candidate)) {
-      return true;
-    }
-
-    if (candidate.role != move_candidate::Role::structural_child &&
+    if (span_contains_candidate(span, candidate) ||
         candidate_contains_span(candidate, span)) {
       return true;
     }
@@ -38,25 +30,19 @@ bool group_selection::candidate_is_suppressed(
   return false;
 }
 
-bool group_selection::group_is_fully_suppressed(
+bool group_selection::group_conflicts(
     const pending_group &group, const candidate_registry &registry) const {
-  if (!has_both_sides(group)) {
-    return false;
-  }
-
   for (candidate_id id : group.del_ids) {
-    if (!candidate_is_suppressed(registry.candidate(id))) {
-      return false;
+    if (id_is_used(id) || candidate_is_suppressed(registry.candidate(id))) {
+      return true;
     }
   }
-
   for (candidate_id id : group.ins_ids) {
-    if (!candidate_is_suppressed(registry.candidate(id))) {
-      return false;
+    if (id_is_used(id) || candidate_is_suppressed(registry.candidate(id))) {
+      return true;
     }
   }
-
-  return true;
+  return false;
 }
 
 bool group_selection::id_is_used(candidate_id id) const {

@@ -1,7 +1,11 @@
 # Move-detection redesign
 
-Status: proposed. None of the target behavior in this document is implemented
-unless explicitly identified as current behavior.
+Status: active implementation. Revision ownership, conservative mixed-region
+rejection, multi-scale construct retention, unified evidence proposals, and
+deterministic utility selection are implemented. Approximate Type-3 retrieval,
+contextual ambiguity resolution, and a general hierarchy optimizer remain
+planned; the current selector includes a local parent-versus-descendant bundle
+comparison.
 
 This is the canonical design and implementation plan for revising srcMove's
 candidate semantics, Type-3 retrieval, pair ranking, and hierarchical move

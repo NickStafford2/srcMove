@@ -26,7 +26,8 @@ class profile_report;
 // Filtering policy (choose move units)
 // -----------------------------------------
 enum class region_filter_policy {
-  leaf_only,      // regions with no diff children (usually best for moves)
+  revision_aware, // retain pure multi-scale candidates; reject mixed wrappers
+  leaf_only,      // legacy: regions with no diff children
   top_level_only, // parent == none (outer wrappers / hunks)
   all_regions     // everything
 };
@@ -37,7 +38,7 @@ enum class minimum_move_granularity {
 };
 
 struct region_filter_options {
-  region_filter_policy policy = region_filter_policy::leaf_only;
+  region_filter_policy policy = region_filter_policy::revision_aware;
   // Common practical filters:
   bool        drop_whitespace_only = true;
   bool        skip_pre_marked      = false;

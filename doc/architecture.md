@@ -6,9 +6,10 @@ focus is move detection across file boundaries, where an operation that a
 developer understands as one move otherwise appears as an unrelated deletion
 and insertion in different files.
 
-The current implementation is a deterministic structural matcher. It uses the
-srcML structure embedded in srcDiff XML, but it does not yet use probabilistic
-scoring, general semantic equivalence, or an AST-similarity model.
+The current implementation is a deterministic structural matcher with an
+interpretable, uncalibrated selection utility. It uses the srcML structure
+embedded in srcDiff XML, but it does not claim probabilistic confidence,
+general semantic equivalence, or an AST-similarity model.
 
 ## Input and repository role
 
@@ -36,13 +37,13 @@ file ownership and nesting of each `diff:delete` and `diff:insert`, and builds
 move candidates as XML events arrive. That file ownership permits a deletion in
 one file to match an insertion in another.
 
-Candidate construction and canonicalization are part of this same pass. For
-each active region or structural child, the stream accumulates raw text, node
-span, XPath, and the state needed to build the matching representations. When a
-region or child closes, its completed candidate owns the representations needed
-by later matching; the pipeline does not retain a captured copy of its srcML
-event sequence. Under the default leaf-only policy, opening a nested diff region
-also releases the parent region's candidate-construction state.
+Candidate construction and canonicalization are part of this same pass. A
+revision-state stack gives substantive events the ownership of their nearest
+`diff:delete`, `diff:insert`, or `diff:common` wrapper. Same-side nesting retains
+parents and complete descendants as alternatives. A candidate containing
+substantive common or opposite-side material is rejected as an atomic move,
+while pure descendants survive. Completed candidates own compact matching
+representations; the pipeline does not retain captured srcML trees.
 
 [`src/parse/diff_region.cpp`](../src/parse/diff_region.cpp) retains the older
 captured-region path for focused tests and callers that explicitly need region
@@ -50,10 +51,11 @@ objects. It is not used by the production pipeline.
 
 ### 2. Apply the candidate policy during the stream
 
-The streaming path applies the default candidate policy while regions and
-structural children are completed:
+The streaming path applies the default revision-aware policy while regions and
+structural constructs are completed:
 
-- start from leaf diff regions
+- retain pure complete constructs at multiple nested scales
+- reject substantively mixed wrappers without discarding pure descendants
 - exclude whitespace-only payloads and fragments smaller than a complete
   statement or declaration
 - expand eligible diff regions into preferred structural children and
@@ -73,7 +75,7 @@ specialized analysis; it is not the default.
 The incremental builder in
 [`src/parse/canonical_subtree.cpp`](../src/parse/canonical_subtree.cpp) feeds
 each candidate's XML events through coordinated builders for all cached
-matching representations. The Type-1 form ignores the outer diff wrapper,
+matching representations. The Type-1 form ignores all diff wrappers,
 comments, `diff:ws` elements, and formatting-only text while retaining
 identifiers, literals, keywords, operators, and srcML structure. The Type-2
 identity is a compact lexical form: it consistently numbers direct srcML
@@ -89,15 +91,24 @@ is only an index: groups are split and confirmed using the full canonical text,
 so a hash collision is not accepted as a move.
 
 [`src/move_registry/content_group_builder.cpp`](../src/move_registry/content_group_builder.cpp)
-then:
+then builds all supported evidence before selection:
 
 1. forms exact canonical-text groups
-2. selects exact groups while suppressing overlapping parent/child candidates
-3. groups unmatched eligible constructs by exact Type-2 representation
-4. selects unambiguous Type-2 pairs, including deterministic positional pairing
-   when both sides have the same multiplicity
-5. compares the remaining eligible structural candidates for Type-3 similarity
-6. emits remaining delete-only and insert-only groups for reporting
+2. groups eligible constructs by exact Type-2 representation
+3. generates Type-3 edges for structurally compatible candidates
+4. turns unique exact and Type-2 correspondences plus verified Type-3 edges
+   into one proposal set
+5. ranks proposals by size-aware utility, confidence, evidence class, source
+   construct preference, and deterministic candidate identifiers
+6. greedily selects proposals subject to one-use and source/destination span
+   overlap constraints
+7. emits remaining delete-only and insert-only groups for reporting
+
+Repeated exact equivalence classes are retained as multi-endpoint move/copy
+groups with ambiguity-aware confidence; they do not claim an individual
+pairing. Repeated Type-2 classes remain unresolved because normalization has
+already removed distinguishing content, and document order alone is not
+correspondence evidence.
 
 Type-3 uses a NiCad-inspired sequence rule implemented directly in srcMove; no
 NiCad executable or runtime dependency is involved. Canonicalization caches two
@@ -118,10 +129,10 @@ The comparison first rejects impossible size ratios, then runs a two-row LCS
 that exits when the remaining rows cannot reach the required common length.
 Candidates are restricted to the same eligible srcML element kind and the 0.70
 size window, rather than forming an unrestricted delete-by-insert product.
-Accepted edges are ordered by similarity, then size and candidate ID, and are
-selected greedily one-to-one. This makes output deterministic. Type-1 and
-Type-2 selection always precede Type-3, and an ambiguous exact Type-2 identity
-is never relabeled as the weaker Type-3 kind.
+Type-1, Type-2, and Type-3 proposals compete in the same utility ordering. A
+large verified near-match can therefore suppress a small exact descendant.
+Correlated evidence is represented by its strongest applicable match class
+rather than summed. Deterministic IDs break otherwise equal proposal ranks.
 
 ### 4. Produce annotations or results
 
@@ -135,9 +146,11 @@ adds the srcMove namespace and annotates matched start tags with:
 
 Annotations may be placed on a structural child inside a diff wrapper rather
 than on the wrapper itself. The optional `--results` output records move groups,
-match kinds, source/destination XPaths, raw texts, candidate counts, and group
-classifications as JSON. With `--results-only`, srcMove materializes that JSON
-evidence from candidate-owned XPaths and skips the second XML pass entirely.
+match kinds, source/destination XPaths, raw texts, candidate counts, group
+classifications, confidence in thousandths, matched units, selection utility,
+and the selection reason as JSON. With `--results-only`, srcMove materializes
+that JSON evidence from candidate-owned XPaths and skips the second XML pass
+entirely.
 
 ## Matching and group semantics
 
@@ -149,10 +162,10 @@ The matcher reports four classification outcomes:
 - `type3`: eligible unmatched candidates satisfy the 0.70 bounded-LCS rule
 - none: no accepted pair is emitted; candidates remain unmatched
 
-Groups are classified by their delete/insert counts, including one-to-one,
-many-to-many, copy-or-repeat, delete-only, and insert-only cases. Groups with
-multiple candidates share one move identifier and partner XPath set; srcMove
-does not yet infer a unique pairing within an ambiguous many-to-many group.
+Selected groups are either one-to-one correspondences or exact multi-endpoint
+equivalence classes. Multi-endpoint groups describe move/copy or repeated
+content without claiming a particular pairing. Ambiguous normalized Type-2
+classes are not selected.
 
 ## Performance model
 
@@ -173,24 +186,21 @@ performance result for arbitrary projects.
 
 ## Current limitations
 
-- Candidate collection models nested `diff:delete` and `diff:insert` regions
-  but does not give `diff:common` its revision-membership semantics. Common
-  content nested inside an otherwise leaf deletion or insertion can therefore
-  enter that candidate's raw and canonical representations. The proposed fix
-  is documented separately in the
-  [move-detection redesign](plans/move_detection_redesign.md).
-- The default leaf-only policy discards a parent as soon as it contains another
-  insertion or deletion. This bounds streaming work but can hide a larger
-  coherent move; switching blindly to outermost regions would instead admit
-  mixed structural rewrites.
+- The selector uses deterministic greedy utility selection plus a local
+  parent-versus-descendant bundle comparison. It is not a general hierarchy or
+  graph optimizer.
+- Exact repeats retain group-level correspondence, but contextual evidence for
+  disambiguating individual repeated moves is not implemented. Ambiguous
+  Type-2 repeats remain unresolved.
+- Type-3 retrieval uses kind and size windows but not an approximate-neighbor
+  index or configurable top-`k` shortlist.
 - Type-4 moves are not supported.
 - Exact, Type-2, and Type-3 matching use statement-or-larger candidates by
   default. Tiny fragments can be enabled explicitly but are not useful as the
   default move unit.
-- There is no probabilistic confidence score, locality model, behavioral model,
-  or developer-intent reconstruction.
-- Many-to-many and unequal-count groups are classified but not fully paired or
-  disambiguated.
+- Confidence is an interpretable ranking value, not a calibrated probability.
+  There is no locality model, behavioral model, or developer-intent
+  reconstruction.
 - srcMove depends on the regions exposed by srcDiff; it is not a general diff
   engine and does not recover changes that srcDiff does not represent as usable
   candidates.

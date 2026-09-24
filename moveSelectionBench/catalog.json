@@ -126,6 +126,134 @@
           "reason": "The deepest leaf alone is not the most coherent move."
         }
       ]
+    },
+    {
+      "id": "delete_common_transition",
+      "input": "cases/delete_common_transition.xml",
+      "category": "common_ownership",
+      "rationale": "Leaving diff:common must restore delete ownership, while common content itself remains in both revisions.",
+      "required": [
+        {"from": "int after_common = 41;", "to": "int after_common = 41;", "match_kinds": ["exact"]}
+      ],
+      "forbidden": [
+        {
+          "from": "unchanged();",
+          "to": "unchanged();",
+          "reason": "Content under diff:common was not deleted and cannot be the source of a move."
+        }
+      ]
+    },
+    {
+      "id": "insert_common_transition",
+      "input": "cases/insert_common_transition.xml",
+      "category": "common_ownership",
+      "rationale": "Leaving diff:common must restore insert ownership, while common content itself remains in both revisions.",
+      "required": [
+        {"from": "int after_common = 42;", "to": "int after_common = 42;", "match_kinds": ["exact"]}
+      ],
+      "forbidden": [
+        {
+          "from": "unchanged();",
+          "to": "unchanged();",
+          "reason": "Content under diff:common was not inserted and cannot be the destination of a move."
+        }
+      ]
+    },
+    {
+      "id": "delete_insert_transition",
+      "input": "cases/delete_insert_transition.xml",
+      "category": "mixed_polarity",
+      "rationale": "A nested insert must become an independent destination, then closing it must restore delete ownership.",
+      "required": [
+        {"from": "int nested_insert = 51;", "to": "int nested_insert = 51;", "match_kinds": ["exact"]},
+        {"from": "int restored_delete = 52;", "to": "int restored_delete = 52;", "match_kinds": ["exact"]}
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "insert_delete_transition",
+      "input": "cases/insert_delete_transition.xml",
+      "category": "mixed_polarity",
+      "rationale": "A nested delete must become an independent source, then closing it must restore insert ownership.",
+      "required": [
+        {"from": "int nested_delete = 62;", "to": "int nested_delete = 62;", "match_kinds": ["exact"]},
+        {"from": "int restored_insert = 61;", "to": "int restored_insert = 61;", "match_kinds": ["exact"]}
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "equal_score_deterministic",
+      "input": "cases/equal_score_deterministic.xml",
+      "category": "ambiguity_and_granularity",
+      "rationale": "Four structurally symmetric Type-2 edges have no evidence for one particular pairing and must be rejected deterministically.",
+      "verify_results_only_equivalence": true,
+      "required": [],
+      "forbidden": [
+        {"from": "int alpha = 71;", "to": "int gamma = 71;", "reason": "Document order is not correspondence evidence."},
+        {"from": "int alpha = 71;", "to": "int delta = 71;", "reason": "Document order is not correspondence evidence."},
+        {"from": "int beta = 71;", "to": "int gamma = 71;", "reason": "Document order is not correspondence evidence."},
+        {"from": "int beta = 71;", "to": "int delta = 71;", "reason": "Document order is not correspondence evidence."}
+      ]
+    },
+    {
+      "id": "cross_file_nonlocal_move",
+      "input": "cases/cross_file_nonlocal_move.xml",
+      "input_shape": "archive",
+      "category": "cross_file",
+      "rationale": "File distance and an intervening unit must not suppress a strong cross-file move.",
+      "required": [
+        {
+          "from": "int relocated() {return 81;}",
+          "to": "int relocated() {return 81;}",
+          "match_kinds": ["exact"]
+        }
+      ],
+      "forbidden": []
+    },
+    {
+      "id": "children_utility_over_weak_parent",
+      "input": "cases/children_utility_over_weak_parent.xml",
+      "category": "hierarchical_coherence",
+      "rationale": "Two compatible exact child edges provide a better explanation than one weak enclosing edge whose unmatched statements changed independently.",
+      "required": [
+        {
+          "from": "if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); }",
+          "to": "if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); }",
+          "match_kinds": ["exact"]
+        },
+        {
+          "from": "if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); }",
+          "to": "if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); }",
+          "match_kinds": ["exact"]
+        }
+      ],
+      "forbidden": [
+        {
+          "from": "if (old_mode) { if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); } while (old_pending) { drain_old(); } if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); } }",
+          "to": "if (new_mode) { if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); } for (int i = 0; i < 1; ++i) { initialize_new(); } if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); } }",
+          "reason": "The weak parent must not suppress two compatible, independently exact child moves."
+        }
+      ]
+    },
+    {
+      "id": "shared_delete_stronger_edge",
+      "input": "cases/shared_delete_stronger_edge.xml",
+      "category": "one_sided_overlap",
+      "rationale": "When two plausible edges share one deletion endpoint, the exact edge must suppress the weaker Type-2 alternative.",
+      "required": [
+        {
+          "from": "int selected_value = source + 201;",
+          "to": "int selected_value = source + 201;",
+          "match_kinds": ["exact"]
+        }
+      ],
+      "forbidden": [
+        {
+          "from": "int selected_value = source + 201;",
+          "to": "int weaker_alternative = source + 201;",
+          "reason": "The deletion endpoint is already consumed by stronger exact evidence."
+        }
+      ]
     }
   ]
 }

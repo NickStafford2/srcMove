@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="nested.cpp">
 
-  <diff:delete>
-    if (x) {
-      <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
-    }
-  </diff:delete>
+  <diff:delete><if_stmt><if>if <condition>(<expr><name>x</name></expr>)</condition> <block>{<block_content>
+    <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
+    <expr_stmt><expr><name>publish</name><call><argument_list>(<argument><expr><name>moved_value</name></expr></argument>)</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></if></if_stmt></diff:delete>
 
-  <diff:insert>
-    if (x) {
-      <diff:insert><decl_stmt><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
-    }
-  </diff:insert>
+  <diff:insert><if_stmt><if>if <condition>(<expr><name>x</name></expr>)</condition> <block>{<block_content>
+    <diff:insert><decl_stmt><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
+    <expr_stmt><expr><name>publish</name><call><argument_list>(<argument><expr><name>moved_value</name></expr></argument>)</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></if></if_stmt></diff:insert>
 
 </unit>

@@ -54,7 +54,8 @@ move_tag make_move_tag(const std::string              &move_id,
                        std::size_t                     del_count,
                        const std::vector<std::string> &partner_xpaths,
                        const std::string              &xpath,
-                       const std::string              &raw_text) {
+                       const std::string              &raw_text,
+                       const content_group           &group) {
   move_tag tag;
   tag.move_id        = move_id;
   tag.match_kind     = match_kind;
@@ -64,6 +65,10 @@ move_tag make_move_tag(const std::string              &move_id,
   tag.partner_xpaths = partner_xpaths;
   tag.xpath           = xpath;
   tag.raw_text       = raw_text;
+  tag.confidence_milli = group.confidence_milli;
+  tag.selection_utility = group.selection_utility;
+  tag.matched_units = group.matched_units;
+  tag.selection_reason = group.selection_reason;
   return tag;
 }
 
@@ -74,14 +79,15 @@ void add_group_tags(tag_map                        &tags,
                     const std::string              &match_kind,
                     std::size_t                     ins_count,
                     std::size_t                     del_count,
-                    const std::vector<std::string> &partner_xpaths) {
+                    const std::vector<std::string> &partner_xpaths,
+                    const content_group           &group) {
   for (id_t id : ids) {
     const move_candidate &candidate = registry.candidate(id);
 
     tags.emplace(candidate.start_idx,
                  make_move_tag(move_id, match_kind, candidate.kind, ins_count,
                                del_count, partner_xpaths, candidate.xpath,
-                               candidate.raw_text));
+                               candidate.raw_text, group));
   }
 }
 
@@ -117,10 +123,10 @@ tag_map build_move_tags(const content_groups     &groups,
       const std::string match_kind = match_kind_name(g.match);
 
       add_group_tags(tags, del_ids, registry, move_id, match_kind, g.ins_count(),
-                     g.del_count(), ins_xpaths);
+                     g.del_count(), ins_xpaths, g);
 
       add_group_tags(tags, ins_ids, registry, move_id, match_kind, g.ins_count(),
-                     g.del_count(), del_xpaths);
+                     g.del_count(), del_xpaths, g);
     }
   }
 

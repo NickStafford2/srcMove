@@ -13,7 +13,9 @@ namespace srcmove {
 namespace {
 
 bool is_diff_wrapper(const srcml_node &node) {
-  return node.full_name() == "diff:insert" || node.full_name() == "diff:delete";
+  const std::string full_name = node.full_name();
+  return full_name == "diff:insert" || full_name == "diff:delete" ||
+         full_name == "diff:common";
 }
 
 bool is_diff_ws(const srcml_node &node) {
@@ -190,25 +192,11 @@ public:
       return;
     }
 
-    if (opt.ignore_outer_diff_wrapper && !skipped_outer_wrapper &&
-        (full_name == "diff:insert" || full_name == "diff:delete")) {
-      if (node.is_start()) {
-        skipped_outer_wrapper = true;
-        wrapper_depth         = 1;
-      }
+    // srcDiff wrappers describe revision membership; they are not source
+    // structure. Treat every wrapper as transparent so equivalent source does
+    // not acquire a different identity solely from nested diff boundaries.
+    if (opt.ignore_outer_diff_wrapper && is_diff_wrapper(node)) {
       return;
-    }
-
-    if (wrapper_depth > 0) {
-      if (node.is_start() && is_diff_wrapper(node)) {
-        ++wrapper_depth;
-      } else if (node.is_end() && is_diff_wrapper(node)) {
-        --wrapper_depth;
-      }
-
-      if (wrapper_depth == 0) {
-        return;
-      }
     }
 
     if (opt.ignore_diff_ws && is_diff_ws(node)) {
@@ -320,8 +308,6 @@ private:
   std::vector<std::uint64_t> *tokens;
   std::string                 out;
   std::string                 normalized_line;
-  int         wrapper_depth         = 0;
-  bool        skipped_outer_wrapper = false;
   int         comment_depth         = 0;
   int         ignored_empty_depth   = 0;
   int         literal_depth         = 0;

@@ -3,10 +3,14 @@
 
   <diff:delete><decl_stmt mv:id="c89025cc1" mv:to="/src:unit[1]/diff:insert[1]/src:decl_stmt[1]"><decl><type><name>int</name></type> <name>a</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
 
-  <diff:delete><decl_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[2]/src:decl_stmt[1]"><decl><type><name>int</name></type> <name>b</name> <init>= <expr><literal type="number">2</literal></expr></init></decl>;</decl_stmt></diff:delete>
+  <diff:delete><if_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[2]/src:if_stmt[1]"><if>if <condition>(<expr><name>oldFlag</name></expr>)</condition> <block>{<block_content>
+    <expr_stmt><expr><name>run_old</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></if></if_stmt></diff:delete>
 
-  <diff:insert><decl_stmt mv:from="/src:unit[1]/diff:delete[1]/src:decl_stmt[1]" mv:id="c89025cc1"><decl><type><name>int</name></type> <name>x</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
+  <diff:insert><decl_stmt mv:from="/src:unit[1]/diff:delete[1]/src:decl_stmt[1]" mv:id="c89025cc1"><decl><type><name>int</name></type> <name>x</name> <init>= <expr><literal type="number">9</literal></expr></init></decl>;</decl_stmt></diff:insert>
 
-  <diff:insert><decl_stmt mv:from="/src:unit[1]/diff:delete[2]/src:decl_stmt[1]" mv:id="97b1dcdaf"><decl><type><name>int</name></type> <name>y</name> <init>= <expr><literal type="number">2</literal></expr></init></decl>;</decl_stmt></diff:insert>
+  <diff:insert><if_stmt mv:from="/src:unit[1]/diff:delete[2]/src:if_stmt[1]" mv:id="97b1dcdaf"><if>if <condition>(<expr><name>newFlag</name></expr>)</condition> <block>{<block_content>
+    <expr_stmt><expr><name>run_new</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></if></if_stmt></diff:insert>
 
 </unit>

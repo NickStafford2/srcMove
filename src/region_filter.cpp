@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -32,9 +33,36 @@ diff_kind_from_full_name(std::string_view fn) {
   return std::nullopt;
 }
 
+enum class revision_membership { both, original_only, modified_only };
+
+static std::optional<revision_membership>
+revision_membership_from_full_name(std::string_view fn) {
+  if (fn == "diff:delete")
+    return revision_membership::original_only;
+  if (fn == "diff:insert")
+    return revision_membership::modified_only;
+  if (fn == "diff:common")
+    return revision_membership::both;
+  return std::nullopt;
+}
+
+static revision_membership membership_for(move_candidate::Kind kind) {
+  return kind == move_candidate::Kind::del
+             ? revision_membership::original_only
+             : revision_membership::modified_only;
+}
+
 static bool any_non_ws(std::string_view s) {
   for (unsigned char c : s) {
     if (!std::isspace(c))
+      return true;
+  }
+  return false;
+}
+
+static bool any_substantive_text(std::string_view s) {
+  for (unsigned char c : s) {
+    if (std::isalnum(c) || c == '_')
       return true;
   }
   return false;
@@ -205,6 +233,9 @@ struct streamed_child {
   std::size_t              start_idx      = 0;
   int                      depth          = 0;
   bool                     type2_eligible = false;
+  std::size_t substantive_same_side = 0;
+  std::size_t substantive_common = 0;
+  std::size_t substantive_opposite = 0;
 };
 
 struct streamed_region {
@@ -215,9 +246,12 @@ struct streamed_region {
   std::string          start_xpath;
   std::string          raw_text;
   std::optional<canonical_forms_builder> forms;
-  std::optional<streamed_child>           child;
+  std::vector<streamed_child>             children;
   std::vector<move_candidate>             preferred_candidates;
   std::size_t complete_construct_count = 0;
+  std::size_t substantive_same_side     = 0;
+  std::size_t substantive_common        = 0;
+  std::size_t substantive_opposite      = 0;
   bool        has_diff_child           = false;
   bool        pre_marked               = false;
 };
@@ -278,6 +312,10 @@ bool keep_streamed_region(const streamed_region       &region,
     return false;
   }
   switch (opt.policy) {
+  case region_filter_policy::revision_aware:
+    return region.substantive_same_side != 0 &&
+           region.substantive_common == 0 &&
+           region.substantive_opposite == 0;
   case region_filter_policy::leaf_only:
     return !region.has_diff_child;
   case region_filter_policy::top_level_only:
@@ -289,11 +327,13 @@ bool keep_streamed_region(const streamed_region       &region,
 }
 
 void finish_streamed_child(streamed_region             &region,
+                           streamed_child                child,
                            std::size_t                   end_idx,
                            const region_filter_options &opt) {
-  streamed_child child = std::move(*region.child);
-  region.child.reset();
-
+  if (child.substantive_same_side == 0 || child.substantive_common != 0 ||
+      child.substantive_opposite != 0) {
+    return;
+  }
   if (!passes_region_text_filters(child.raw_text, opt)) {
     return;
   }
@@ -316,20 +356,40 @@ void finish_streamed_child(streamed_region             &region,
   region.preferred_candidates.push_back(std::move(candidate));
 }
 
-void consume_streamed_child(streamed_region             &region,
-                            const srcml_node             &node,
-                            srcml_reader                 &reader,
-                            std::size_t                   node_index,
-                            const region_filter_options &opt,
-                            streaming_profile_stats     *stats) {
+void consume_streamed_children(
+    streamed_region &region, const srcml_node &node, srcml_reader &reader,
+    std::size_t node_index, revision_membership effective,
+    bool substantive, const region_filter_options &opt,
+    streaming_profile_stats *stats) {
   if (!opt.expand_structural_children) {
     return;
   }
 
-  if (!region.child) {
-    if (!node.is_start() || !is_preferred_child_candidate_name(node.name)) {
-      return;
+  for (streamed_child &child : region.children) {
+    child.forms.consume(node);
+    if (node.is_text() && node.content) {
+      child.raw_text += *node.content;
     }
+    if (substantive) {
+      if (effective == membership_for(region.kind)) {
+        ++child.substantive_same_side;
+      } else if (effective == revision_membership::both) {
+        ++child.substantive_common;
+      } else {
+        ++child.substantive_opposite;
+      }
+    }
+    if (node.is_start()) {
+      ++child.depth;
+    } else if (node.is_end()) {
+      --child.depth;
+    }
+    if (stats != nullptr) {
+      ++stats->child_node_visits;
+    }
+  }
+
+  if (node.is_start() && is_preferred_child_candidate_name(node.name)) {
     streamed_child child;
     child.xpath          = streaming_xpath(reader, stats);
     child.full_name      = node.full_name();
@@ -337,29 +397,16 @@ void consume_streamed_child(streamed_region             &region,
     child.depth          = 1;
     child.type2_eligible = is_type2_eligible_name(node.name);
     child.forms.consume(node);
-    region.child.emplace(std::move(child));
+    region.children.push_back(std::move(child));
     if (stats != nullptr) {
       ++stats->child_node_visits;
     }
-    return;
   }
 
-  streamed_child &child = *region.child;
-  child.forms.consume(node);
-  if (node.is_text() && node.content) {
-    child.raw_text += *node.content;
-  }
-  if (stats != nullptr) {
-    ++stats->child_node_visits;
-  }
-
-  if (node.is_start()) {
-    ++child.depth;
-  } else if (node.is_end()) {
-    --child.depth;
-  }
-  if (child.depth == 0) {
-    finish_streamed_child(region, node_index, opt);
+  while (!region.children.empty() && region.children.back().depth == 0) {
+    streamed_child child = std::move(region.children.back());
+    region.children.pop_back();
+    finish_streamed_child(region, std::move(child), node_index, opt);
   }
 }
 
@@ -367,10 +414,7 @@ void finish_streamed_region(
     streamed_region &region, std::size_t region_id, std::size_t end_idx,
     const region_filter_options &opt,
     std::vector<std::vector<move_candidate>> &candidate_sets) {
-  if (!keep_streamed_region(region, opt)) {
-    return;
-  }
-  if (region.child) {
+  if (!region.children.empty()) {
     throw std::runtime_error("diff region ended inside a candidate subtree");
   }
   if (!region.forms) {
@@ -379,6 +423,13 @@ void finish_streamed_region(
 
   canonical_forms forms = region.forms->finish();
   std::vector<move_candidate> &out = candidate_sets.at(region_id);
+
+  if (!keep_streamed_region(region, opt)) {
+    out.insert(out.end(),
+               std::make_move_iterator(region.preferred_candidates.begin()),
+               std::make_move_iterator(region.preferred_candidates.end()));
+    return;
+  }
 
   const bool fragment_mode =
       opt.min_granularity == minimum_move_granularity::fragment;
@@ -420,9 +471,12 @@ collect_candidates_streaming(srcml_reader                &reader,
 
   std::vector<streamed_region> regions;
   std::vector<std::size_t> open_regions;
+  std::vector<revision_membership> revision_states;
+  std::size_t ignored_evidence_depth = 0;
   std::vector<std::vector<move_candidate>> candidate_sets;
   regions.reserve(256);
   open_regions.reserve(32);
+  revision_states.reserve(32);
   candidate_sets.reserve(256);
 
   auto open_region = [&](move_candidate::Kind kind, const srcml_node &node,
@@ -445,7 +499,7 @@ collect_candidates_streaming(srcml_reader                &reader,
           ++stats->leaf_parents_abandoned;
         }
         parent.forms.reset();
-        parent.child.reset();
+        parent.children.clear();
         parent.preferred_candidates.clear();
         parent.raw_text.clear();
       }
@@ -473,16 +527,23 @@ collect_candidates_streaming(srcml_reader                &reader,
                           std::size_t node_index) {
     const std::string full_name = node.full_name();
     const auto        kind      = diff_kind_from_full_name(full_name);
+    const auto state = revision_membership_from_full_name(full_name);
+    const bool ignored_evidence_container =
+        node.name == "comment" || full_name == "diff:ws";
+    if (node.is_start() && ignored_evidence_container) {
+      ++ignored_evidence_depth;
+    }
     if (stats != nullptr && node.is_start() && full_name == "diff:common") {
       ++stats->common_regions_opened;
       if (!open_regions.empty()) {
         ++stats->common_inside_diff;
       }
     }
-    std::size_t opened_id = kNoParent;
     if (node.is_start() && kind) {
       open_region(*kind, node, filename, node_index);
-      opened_id = open_regions.back();
+    }
+    if (node.is_start() && state) {
+      revision_states.push_back(*state);
     }
 
     std::size_t closing_id = kNoParent;
@@ -491,6 +552,30 @@ collect_candidates_streaming(srcml_reader                &reader,
         throw std::runtime_error("mismatched diff nesting");
       }
       closing_id = open_regions.back();
+    }
+
+    if (node.is_end() && state &&
+        (revision_states.empty() || revision_states.back() != *state)) {
+      throw std::runtime_error("mismatched srcDiff revision-state nesting");
+    }
+
+    const bool substantive =
+        ignored_evidence_depth == 0 && node.is_text() && node.content &&
+        any_substantive_text(*node.content);
+    if (substantive && !open_regions.empty()) {
+      const revision_membership effective =
+          revision_states.empty() ? revision_membership::both
+                                  : revision_states.back();
+      for (std::size_t region_id : open_regions) {
+        streamed_region &region = regions[region_id];
+        if (effective == membership_for(region.kind)) {
+          ++region.substantive_same_side;
+        } else if (effective == revision_membership::both) {
+          ++region.substantive_common;
+        } else {
+          ++region.substantive_opposite;
+        }
+      }
     }
 
     for (std::size_t region_id : open_regions) {
@@ -505,9 +590,11 @@ collect_candidates_streaming(srcml_reader                &reader,
       if (stats != nullptr) {
         ++stats->region_node_visits;
       }
-      if (region_id != opened_id && region_id != closing_id) {
-        consume_streamed_child(region, node, reader, node_index, opt, stats);
-      }
+      const revision_membership effective =
+          revision_states.empty() ? revision_membership::both
+                                  : revision_states.back();
+      consume_streamed_children(region, node, reader, node_index, effective,
+                                substantive, opt, stats);
     }
 
     if (closing_id != kNoParent) {
@@ -515,12 +602,21 @@ collect_candidates_streaming(srcml_reader                &reader,
       finish_streamed_region(region, closing_id, node_index, opt,
                              candidate_sets);
       region.forms.reset();
-      region.child.reset();
+      region.children.clear();
       region.raw_text.clear();
       region.start_xpath.clear();
       region.filename.clear();
       region.preferred_candidates.clear();
       open_regions.pop_back();
+    }
+    if (node.is_end() && state) {
+      revision_states.pop_back();
+    }
+    if (node.is_end() && ignored_evidence_container) {
+      if (ignored_evidence_depth == 0) {
+        throw std::runtime_error("mismatched ignored evidence container");
+      }
+      --ignored_evidence_depth;
     }
   };
 
@@ -588,6 +684,11 @@ collect_candidates_streaming(srcml_reader                &reader,
             "file unit ended before all diff regions were closed: " +
             filename);
       }
+      if (!revision_states.empty()) {
+        throw std::runtime_error(
+            "file unit ended before all srcDiff states were closed: " +
+            filename);
+      }
       in_file = false;
       filename.clear();
       if (!archive) {
@@ -606,16 +707,38 @@ collect_candidates_streaming(srcml_reader                &reader,
   if (!open_regions.empty()) {
     throw std::runtime_error("unexpected EOF while reading diff region");
   }
+  if (!revision_states.empty()) {
+    throw std::runtime_error("unexpected EOF while reading srcDiff state");
+  }
   if (!document_done) {
     throw std::runtime_error("unexpected EOF while reading srcDiff document");
   }
 
   candidate_collection result;
   result.regions_total = regions.size();
+  std::unordered_set<std::string> seen_candidates;
   for (auto &set : candidate_sets) {
-    result.candidates.insert(
-        result.candidates.end(), std::make_move_iterator(set.begin()),
-        std::make_move_iterator(set.end()));
+    for (move_candidate &candidate : set) {
+      std::string key;
+      key.reserve(candidate.filename.size() + candidate.full_name.size() +
+                  candidate.canonical_text.size() + 64);
+      key.push_back(candidate.kind == move_candidate::Kind::del ? 'd' : 'i');
+      key.push_back('\0');
+      key += candidate.filename;
+      key.push_back('\0');
+      key += std::to_string(candidate.start_idx);
+      key.push_back(':');
+      key += std::to_string(candidate.end_idx);
+      key.push_back(':');
+      key += std::to_string(static_cast<int>(candidate.role));
+      key.push_back('\0');
+      key += candidate.full_name;
+      key.push_back('\0');
+      key += candidate.canonical_text;
+      if (seen_candidates.insert(std::move(key)).second) {
+        result.candidates.push_back(std::move(candidate));
+      }
+    }
   }
 
   if (profile != nullptr) {
@@ -666,6 +789,12 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
 
     bool keep = false;
     switch (opt.policy) {
+    case region_filter_policy::revision_aware:
+      // The captured-region compatibility path predates revision ownership.
+      // Conservatively retain its old leaf behavior until it carries the same
+      // state summary as the production streaming path.
+      keep = !r.has_diff_child;
+      break;
     case region_filter_policy::leaf_only:
       keep = !r.has_diff_child;
       break;
@@ -716,7 +845,7 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
 
 region_filter_options get_default_filter_options() {
   region_filter_options opt;
-  opt.policy                     = region_filter_policy::leaf_only;
+  opt.policy                     = region_filter_policy::revision_aware;
   opt.drop_whitespace_only       = true;
   opt.skip_pre_marked            = false;
   opt.expand_structural_children = true;

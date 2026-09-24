@@ -2,6 +2,7 @@
 #define INCLUDED_MOVE_SUMMARY_HPP
 
 #include <cstddef>
+#include <cstdint>
 #include <string>
 #include <vector>
 
@@ -10,6 +11,10 @@ namespace srcmove {
 struct move_entry {
   std::string              move_id;
   std::string              match_kind;
+  std::uint32_t            confidence_milli = 0;
+  std::uint64_t            selection_utility = 0;
+  std::uint32_t            matched_units = 0;
+  std::string              selection_reason;
   std::vector<std::string> from_xpaths;
   std::vector<std::string> to_xpaths;
   std::vector<std::string> from_raw_texts;

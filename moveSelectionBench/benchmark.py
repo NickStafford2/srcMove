@@ -30,6 +30,7 @@ CATALOG_SCHEMA_VERSION = 1
 RUN_SCHEMA_VERSION = 1
 SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9_]*$")
 ALLOWED_MATCH_KINDS = {"exact", "type2", "type3"}
+ALLOWED_INPUT_SHAPES = {"single_file", "archive"}
 
 
 class CatalogError(ValueError):
@@ -103,10 +104,22 @@ def load_catalog(path: Path) -> list[dict[str, Any]]:
         forbidden = value.get("forbidden", [])
         if not isinstance(required, list) or not isinstance(forbidden, list):
             raise CatalogError(f"{case_id}: required and forbidden must be arrays")
+        input_shape = value.get("input_shape", "single_file")
+        if input_shape not in ALLOWED_INPUT_SHAPES:
+            raise CatalogError(
+                f"{case_id}: input_shape must be single_file or archive"
+            )
+        verify_results_only = value.get("verify_results_only_equivalence", False)
+        if not isinstance(verify_results_only, bool):
+            raise CatalogError(
+                f"{case_id}: verify_results_only_equivalence must be boolean"
+            )
         cases.append(
             {
                 **value,
                 "input_path": input_path,
+                "input_shape": input_shape,
+                "verify_results_only_equivalence": verify_results_only,
                 "required": [
                     _validate_expectation(item, f"{case_id}.required[{index}]")
                     for index, item in enumerate(required)
@@ -220,6 +233,35 @@ def _load_result_file(path: Path) -> dict[str, Any]:
     return value
 
 
+def _validate_results_file(path: Path) -> dict[str, Any]:
+    """Adapt results JSON validation to the benchmark attempt contract."""
+
+    try:
+        _load_result_file(path)
+    except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:
+        return {"status": "invalid_structure", "error": str(error)}
+    return {"status": "valid", "size_bytes": path.stat().st_size}
+
+
+def _matching_decisions(results: Mapping[str, Any]) -> list[tuple[Any, ...]]:
+    """Return an order-independent projection of selected move endpoints."""
+
+    decisions = []
+    for move in _result_moves(results):
+        decisions.append(
+            (
+                move["match_kind"],
+                tuple(
+                    sorted(normalize_text(text) for text in move["from_raw_texts"])
+                ),
+                tuple(sorted(normalize_text(text) for text in move["to_raw_texts"])),
+                tuple(sorted(str(path) for path in move.get("from_xpaths", []))),
+                tuple(sorted(str(path) for path in move.get("to_xpaths", []))),
+            )
+        )
+    return sorted(decisions)
+
+
 def _profile_text(attempt_dir: Path) -> str:
     parts = []
     for filename in ("stdout.bin", "stderr.bin"):
@@ -289,7 +331,9 @@ def run_benchmark(
                 command_factory=command,
                 cwd=run_dir,
                 timeout_seconds=timeout_seconds,
-                output_validator=lambda output: validate_srcdiff_xml(output, "single_file"),
+                output_validator=lambda output, shape=case["input_shape"]: (
+                    validate_srcdiff_xml(output, shape)
+                ),
                 output_filename="srcmove.xml",
                 context={"variant": variant, "category": case.get("category")},
             )
@@ -306,6 +350,48 @@ def run_benchmark(
                     raise ValueError("srcMove execution was not admitted")
                 results = _load_result_file(attempt_dir / "results.json")
                 evaluation = evaluate_results(case, results)
+                if case["verify_results_only_equivalence"]:
+                    def results_only_command(
+                        output: Path,
+                        executable: Path = executable,
+                        case: Mapping[str, Any] = case,
+                    ) -> list[str]:
+                        return [
+                            str(executable),
+                            str(case["input_path"]),
+                            "--results",
+                            str(output),
+                            "--results-only",
+                            "--profile",
+                        ]
+
+                    results_only_dir, results_only_attempt = execute_attempt(
+                        attempts_root=run_dir / "attempts",
+                        stage="move-selection-results-only-equivalence",
+                        case_id=str(case["id"]),
+                        command_factory=results_only_command,
+                        cwd=run_dir,
+                        timeout_seconds=timeout_seconds,
+                        output_validator=_validate_results_file,
+                        output_filename="results.json",
+                        output_validation_key="results",
+                        context={
+                            "variant": variant,
+                            "category": case.get("category"),
+                        },
+                    )
+                    if not results_only_attempt["admitted"]:
+                        raise ValueError("srcMove --results-only execution was not admitted")
+                    results_only = _load_result_file(results_only_dir / "results.json")
+                    equivalent = _matching_decisions(results) == _matching_decisions(
+                        results_only
+                    )
+                    evaluation["results_only_equivalent"] = equivalent
+                    evaluation["results_only_attempt_id"] = results_only_attempt[
+                        "attempt_id"
+                    ]
+                    if not equivalent:
+                        evaluation["status"] = "semantic_miss"
                 outcome.update(evaluation)
                 outcome["semantic_status"] = evaluation["status"]
             except (OSError, UnicodeError, json.JSONDecodeError, ValueError) as error:

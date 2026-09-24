@@ -44,6 +44,11 @@ required expectation says that a move pair should exist. A forbidden
 expectation says that an interpretation should not be selected. Raw text is
 compared after whitespace normalization; match kinds remain explicit.
 
+Archive fixtures declare `"input_shape": "archive"`; single-file fixtures may
+omit the field. Set `"verify_results_only_equivalence": true` when a case must
+also confirm that normal and `--results-only` executions select identical move
+endpoints and match kinds.
+
 Cases with no required moves are useful negative controls. Keep uncertain
 examples here as characterization cases. Promote a behavior into the normal
 regression suites only after it becomes an accepted product contract.

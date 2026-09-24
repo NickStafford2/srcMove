@@ -6,6 +6,10 @@
     {
       "move_id": "c89025cc1",
       "match_kind": "exact",
+      "confidence_milli": 1000,
+      "selection_utility": 18000,
+      "matched_units": 18,
+      "selection_reason": "greedy_utility",
       "from_xpaths": [
         "/src:unit[@filename='foo.hpp']/diff:delete[1]/src:function[src:name='changed_function']"
       ],
@@ -22,6 +26,10 @@
     {
       "move_id": "e1c9756ce",
       "match_kind": "exact",
+      "confidence_milli": 500,
+      "selection_utility": 4000,
+      "matched_units": 8,
+      "selection_reason": "greedy_utility",
       "from_xpaths": [
         "/src:unit[@filename='foo.hpp']/diff:delete[1]/src:function[src:name='coppied_function']",
         "/src:unit[@filename='main.cpp']/diff:delete[1]/src:function[src:name='coppied_function']"
@@ -40,6 +48,10 @@
     {
       "move_id": "4db018fed",
       "match_kind": "exact",
+      "confidence_milli": 1000,
+      "selection_utility": 4000,
+      "matched_units": 4,
+      "selection_reason": "greedy_utility",
       "from_xpaths": [
         "/src:unit[@filename='foo.hpp']/diff:delete[2]/src:function_decl[src:name='delcaration_moved']"
       ],
@@ -56,6 +68,10 @@
     {
       "move_id": "97b1dcdaf",
       "match_kind": "exact",
+      "confidence_milli": 1000,
+      "selection_utility": 20000,
+      "matched_units": 20,
+      "selection_reason": "greedy_utility",
       "from_xpaths": [
         "/src:unit[@filename='foo.cpp']/diff:delete[1]/src:function[src:name='definition_moved']"
       ],
@@ -73,18 +89,19 @@
   "annotated_regions": 9,
   "annotated_region_count": 9,
   "regions_total": 10,
-  "candidates_total": 11,
-  "groups_total": 6,
+  "candidates_total": 10,
+  "groups_total": 5,
   "group_kinds": {
     "move_1_to_1": 3,
     "moves_many": 0,
     "delete_only": 0,
-    "insert_only": 2,
+    "insert_only": 1,
     "copy_or_repeat": 1,
     "ambiguous": 0
   },
   "match_kinds": {
     "exact": 4,
-    "type2": 0
+    "type2": 0,
+    "type3": 0
   }
 }

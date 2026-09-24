@@ -6,22 +6,30 @@
     {
       "move_id": "97b1dcdaf",
       "match_kind": "type2",
+      "confidence_milli": 950,
+      "selection_utility": 8550,
+      "matched_units": 9,
+      "selection_reason": "greedy_utility",
       "from_xpaths": [
-        "/src:unit[1]/diff:delete[2]/src:decl_stmt[1]"
+        "/src:unit[1]/diff:delete[2]/src:if_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[1]/diff:insert[2]/src:decl_stmt[1]"
+        "/src:unit[1]/diff:insert[2]/src:if_stmt[1]"
       ],
       "from_raw_texts": [
-        "int b = 2;"
+        "if (oldFlag) {\n    run_old();\n  }"
       ],
       "to_raw_texts": [
-        "int y = 2;"
+        "if (newFlag) {\n    run_new();\n  }"
       ]
     },
     {
       "move_id": "c89025cc1",
       "match_kind": "type2",
+      "confidence_milli": 950,
+      "selection_utility": 4750,
+      "matched_units": 5,
+      "selection_reason": "greedy_utility",
       "from_xpaths": [
         "/src:unit[1]/diff:delete[1]/src:decl_stmt[1]"
       ],
@@ -32,7 +40,7 @@
         "int a = 1;"
       ],
       "to_raw_texts": [
-        "int x = 1;"
+        "int x = 9;"
       ]
     }
   ],
@@ -51,6 +59,7 @@
   },
   "match_kinds": {
     "exact": 0,
-    "type2": 2
+    "type2": 2,
+    "type3": 0
   }
 }

@@ -1,16 +1,14 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="nested.cpp">
 
-  <diff:delete>
-    if (x) {
-      <diff:delete><decl_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/diff:insert[1]/src:decl_stmt[1]"><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
-    }
-  </diff:delete>
+  <diff:delete><if_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/src:if_stmt[1]"><if>if <condition>(<expr><name>x</name></expr>)</condition> <block>{<block_content>
+    <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
+    <expr_stmt><expr><name>publish</name><call><argument_list>(<argument><expr><name>moved_value</name></expr></argument>)</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></if></if_stmt></diff:delete>
 
-  <diff:insert>
-    if (x) {
-      <diff:insert><decl_stmt mv:from="/src:unit[1]/diff:delete[1]/diff:delete[1]/src:decl_stmt[1]" mv:id="97b1dcdaf"><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
-    }
-  </diff:insert>
+  <diff:insert><if_stmt mv:from="/src:unit[1]/diff:delete[1]/src:if_stmt[1]" mv:id="97b1dcdaf"><if>if <condition>(<expr><name>x</name></expr>)</condition> <block>{<block_content>
+    <diff:insert><decl_stmt><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
+    <expr_stmt><expr><name>publish</name><call><argument_list>(<argument><expr><name>moved_value</name></expr></argument>)</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></if></if_stmt></diff:insert>
 
 </unit>

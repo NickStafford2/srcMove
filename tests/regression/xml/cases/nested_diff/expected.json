@@ -6,17 +6,21 @@
     {
       "move_id": "97b1dcdaf",
       "match_kind": "exact",
+      "confidence_milli": 1000,
+      "selection_utility": 18000,
+      "matched_units": 18,
+      "selection_reason": "greedy_utility",
       "from_xpaths": [
-        "/src:unit[1]/diff:delete[1]/diff:delete[1]/src:decl_stmt[1]"
+        "/src:unit[1]/diff:delete[1]/src:if_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[1]/diff:insert[1]/diff:insert[1]/src:decl_stmt[1]"
+        "/src:unit[1]/diff:insert[1]/src:if_stmt[1]"
       ],
       "from_raw_texts": [
-        "int moved_value = source_value + 1;"
+        "if (x) {\n    int moved_value = source_value + 1;\n    publish(moved_value);\n  }"
       ],
       "to_raw_texts": [
-        "int moved_value = source_value + 1;"
+        "if (x) {\n    int moved_value = source_value + 1;\n    publish(moved_value);\n  }"
       ]
     }
   ],

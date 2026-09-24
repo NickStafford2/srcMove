@@ -23,7 +23,6 @@ struct pending_group {
 };
 
 bool has_both_sides(const pending_group &group);
-bool is_one_to_one(const pending_group &group);
 
 } // namespace srcmove
 

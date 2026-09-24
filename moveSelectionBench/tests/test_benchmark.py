@@ -35,16 +35,42 @@ def move(from_text: str, to_text: str, kind: str = "exact") -> dict[str, object]
     }
 
 
-def write_fake_srcmove(path: Path, moves: list[dict[str, object]]) -> Path:
-    encoded = repr({"move_count": len(moves), "moves": moves, "candidates_total": 2, "groups_total": 1})
+def write_fake_srcmove(
+    path: Path,
+    moves: list[dict[str, object]],
+    *,
+    results_only_moves: list[dict[str, object]] | None = None,
+) -> Path:
+    encoded = repr(
+        {
+            "move_count": len(moves),
+            "moves": moves,
+            "candidates_total": 2,
+            "groups_total": 1,
+        }
+    )
+    results_only_encoded = repr(
+        {
+            "move_count": len(
+                results_only_moves if results_only_moves is not None else moves
+            ),
+            "moves": results_only_moves if results_only_moves is not None else moves,
+            "candidates_total": 2,
+            "groups_total": 1,
+        }
+    )
     path.write_text(
         "#!/usr/bin/env python3\n"
         "import shutil, sys\n"
         "from pathlib import Path\n"
         f"results_value = {encoded}\n"
-        "shutil.copyfile(sys.argv[1], sys.argv[2])\n"
+        f"results_only_value = {results_only_encoded}\n"
+        "results_only = '--results-only' in sys.argv\n"
+        "if not results_only:\n"
+        "    shutil.copyfile(sys.argv[1], sys.argv[2])\n"
         "results = Path(sys.argv[sys.argv.index('--results') + 1])\n"
-        "results.write_text(__import__('json').dumps(results_value))\n"
+        "value = results_only_value if results_only else results_value\n"
+        "results.write_text(__import__('json').dumps(value))\n"
         "print('profile.content_groups.type3_pairs_considered=7', file=sys.stderr)\n",
         encoding="utf-8",
     )
@@ -55,7 +81,7 @@ def write_fake_srcmove(path: Path, moves: list[dict[str, object]]) -> Path:
 class MoveSelectionBenchmarkTests(unittest.TestCase):
     def test_catalog_is_valid_and_contains_the_targeted_dimensions(self) -> None:
         cases = load_catalog(REPO_ROOT / "moveSelectionBench" / "catalog.json")
-        self.assertGreaterEqual(len(cases), 7)
+        self.assertGreaterEqual(len(cases), 15)
         self.assertEqual(
             {case["category"] for case in cases},
             {
@@ -66,7 +92,16 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
                 "ambiguity_and_granularity",
                 "mixed_polarity",
                 "deep_nesting",
+                "cross_file",
+                "one_sided_overlap",
             },
+        )
+        indexed = {case["id"]: case for case in cases}
+        self.assertEqual(
+            indexed["cross_file_nonlocal_move"]["input_shape"], "archive"
+        )
+        self.assertTrue(
+            indexed["equal_score_deterministic"]["verify_results_only_equivalence"]
         )
 
     def test_semantic_evaluation_normalizes_whitespace_and_checks_forbidden(self) -> None:
@@ -176,6 +211,47 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
             )
             with self.assertRaisesRegex(CatalogError, "unsafe"):
                 load_catalog(catalog)
+
+    def test_results_only_difference_is_a_semantic_miss(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary_directory:
+            root = Path(temporary_directory)
+            fixture = root / "input.xml"
+            fixture.write_bytes(FIXTURE_XML.read_bytes())
+            catalog = root / "catalog.json"
+            catalog.write_text(
+                json.dumps(
+                    {
+                        "schema_version": 1,
+                        "cases": [
+                            {
+                                "id": "equivalence",
+                                "input": "input.xml",
+                                "verify_results_only_equivalence": True,
+                                "required": [{"from": "wanted", "to": "wanted"}],
+                                "forbidden": [],
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            tool = write_fake_srcmove(
+                root / "tool",
+                [move("wanted", "wanted")],
+                results_only_moves=[move("other", "other")],
+            )
+            run_dir, summary = run_benchmark(
+                catalog_path=catalog,
+                variants={"current": tool},
+                output_root=root / "results",
+                baseline="current",
+                timeout_seconds=3.0,
+                run_id="equivalence",
+            )
+            self.assertEqual(summary["hard_failures"], 0)
+            self.assertEqual(summary["variants"]["current"]["semantic_miss"], 1)
+            outcome = json.loads((run_dir / "outcomes.json").read_text())["outcomes"][0]
+            self.assertFalse(outcome["results_only_equivalent"])
 
 
 if __name__ == "__main__":

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="equal_score.cpp">
+  <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>alpha</name> <init>= <expr><literal type="number">71</literal></expr></init></decl>;</decl_stmt></diff:delete>
+  <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>beta</name> <init>= <expr><literal type="number">71</literal></expr></init></decl>;</decl_stmt></diff:delete>
+  <diff:insert><decl_stmt><decl><type><name>int</name></type> <name>gamma</name> <init>= <expr><literal type="number">71</literal></expr></init></decl>;</decl_stmt></diff:insert>
+  <diff:insert><decl_stmt><decl><type><name>int</name></type> <name>delta</name> <init>= <expr><literal type="number">71</literal></expr></init></decl>;</decl_stmt></diff:insert>
+</unit>

@@ -24,8 +24,8 @@ public:
   explicit group_selection(std::size_t candidate_count);
 
   bool candidate_is_suppressed(const move_candidate &candidate) const;
-  bool group_is_fully_suppressed(const pending_group      &group,
-                                 const candidate_registry &registry) const;
+  bool group_conflicts(const pending_group      &group,
+                       const candidate_registry &registry) const;
   bool id_is_used(candidate_id id) const;
 
   void mark_selected(const pending_group      &group,
