@@ -91,7 +91,9 @@ is only an index: groups are split and confirmed using the full canonical text,
 so a hash collision is not accepted as a move.
 
 [`src/move_registry/content_group_builder.cpp`](../src/move_registry/content_group_builder.cpp)
-then builds all supported evidence before selection:
+builds all supported evidence before selection. Pure ranking and descendant
+bundle policy, including its declared constants, lives in
+[`src/move_registry/selection_policy.cpp`](../src/move_registry/selection_policy.cpp):
 
 1. forms exact canonical-text groups
 2. groups eligible constructs by exact Type-2 representation

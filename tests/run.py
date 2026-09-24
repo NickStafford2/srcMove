@@ -159,6 +159,12 @@ def test_steps(
                 ],
             )
         )
+        steps.append(
+            TestStep(
+                "selection policy component",
+                [str(REPO_ROOT / "build" / "selection_policy_test")],
+            )
+        )
 
     if not args.cases and "bigmovebench" in suites:
         steps.append(

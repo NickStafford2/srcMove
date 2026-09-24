@@ -9,6 +9,7 @@
 #include "move_registry/content_groups.hpp"
 #include "move_registry/group_selection.hpp"
 #include "move_registry/sequence_similarity.hpp"
+#include "move_registry/selection_policy.hpp"
 #include "profile.hpp"
 
 #include <algorithm>
@@ -433,33 +434,20 @@ candidate_id proposal_min_id(const match_proposal &proposal) {
 }
 
 bool proposal_better(const match_proposal &lhs, const match_proposal &rhs) {
-  // Complete constructs carry explanatory value beyond the tokens that match
-  // literally.  Keep this as an internal ranking feature rather than
-  // presenting it as pair confidence or reported selection utility.
-  constexpr std::uint64_t kStructuralCoverageWeight = 200;
-  const std::uint64_t lhs_rank =
-      lhs.utility + kStructuralCoverageWeight * lhs.explanatory_units;
-  const std::uint64_t rhs_rank =
-      rhs.utility + kStructuralCoverageWeight * rhs.explanatory_units;
-  if (lhs_rank != rhs_rank)
-    return lhs_rank > rhs_rank;
-  if (lhs.utility != rhs.utility)
-    return lhs.utility > rhs.utility;
-  if (lhs.matched_units != rhs.matched_units)
-    return lhs.matched_units > rhs.matched_units;
-  if (lhs.evidence_strength != rhs.evidence_strength)
-    return lhs.evidence_strength > rhs.evidence_strength;
-  if (lhs.source_construct != rhs.source_construct)
-    return lhs.source_construct > rhs.source_construct;
-  if (lhs.covered_span != rhs.covered_span)
-    return lhs.covered_span > rhs.covered_span;
-  const candidate_id lhs_min = proposal_min_id(lhs);
-  const candidate_id rhs_min = proposal_min_id(rhs);
-  if (lhs_min != rhs_min)
-    return lhs_min < rhs_min;
-  if (lhs.group.del_ids.front() != rhs.group.del_ids.front())
-    return lhs.group.del_ids.front() < rhs.group.del_ids.front();
-  return lhs.group.ins_ids.front() < rhs.group.ins_ids.front();
+  const auto key = [](const match_proposal &proposal) {
+    return proposal_rank_key{
+        proposal.utility,
+        proposal.explanatory_units,
+        proposal.matched_units,
+        proposal.evidence_strength,
+        proposal.source_construct,
+        proposal.covered_span,
+        proposal_min_id(proposal),
+        proposal.group.del_ids.front(),
+        proposal.group.ins_ids.front(),
+    };
+  };
+  return proposal_rank_better(key(lhs), key(rhs));
 }
 
 std::vector<match_proposal> build_match_proposals(
@@ -544,25 +532,11 @@ bool proposal_is_descendant(const match_proposal &child,
              registry.candidate(child.group.ins_ids.front()));
 }
 
-std::uint64_t scaled_fraction(std::uint64_t value,
-                              std::uint64_t numerator,
-                              std::uint64_t denominator) {
-  return value / denominator * numerator +
-         value % denominator * numerator / denominator;
-}
-
 bool descendant_bundle_is_preferred(
     const match_proposal &parent,
     const std::vector<std::size_t> &children,
     const std::vector<match_proposal> &proposals,
     const candidate_registry &registry) {
-  constexpr std::uint32_t kMinimumConfidenceAdvantage   = 250;
-  constexpr std::uint64_t kMinimumCoverageNumerator     = 1;
-  constexpr std::uint64_t kMinimumCoverageDenominator   = 2;
-  constexpr std::uint64_t kPartitionCoverageNumerator   = 7;
-  constexpr std::uint64_t kPartitionCoverageDenominator = 10;
-  constexpr std::uint64_t kFragmentationScale           = 10;
-
   if (children.size() < 2 || parent.group.del_ids.size() != 1 ||
       parent.group.ins_ids.size() != 1) {
     return false;
@@ -589,40 +563,18 @@ bool descendant_bundle_is_preferred(
     utility_sum += child.utility;
   }
 
-  if (parent_del_units == 0 || parent_ins_units == 0 || matched_units == 0 ||
-      child_del_units * kMinimumCoverageDenominator <
-          parent_del_units * kMinimumCoverageNumerator ||
-      child_ins_units * kMinimumCoverageDenominator <
-          parent_ins_units * kMinimumCoverageNumerator) {
-    return false;
-  }
-
-  // When descendants account for nearly all of both endpoints, they are a
-  // partition of the enclosing move rather than a materially different
-  // explanation.  Fragment only when substantial parent-only material is
-  // left unexplained on at least one side.
-  if (child_del_units * kPartitionCoverageDenominator >=
-          parent_del_units * kPartitionCoverageNumerator &&
-      child_ins_units * kPartitionCoverageDenominator >=
-          parent_ins_units * kPartitionCoverageNumerator) {
-    return false;
-  }
-
-  const std::uint64_t bundle_confidence =
-      weighted_confidence / matched_units;
-  if (bundle_confidence <
-      static_cast<std::uint64_t>(parent.confidence_milli) +
-          kMinimumConfidenceAdvantage) {
-    return false;
-  }
-
-  // Each additional move increases the explanation's complexity.  A
-  // proportional cost scales with both fragment count and evidence size,
-  // unlike the former fixed cost of one quarter of a token.
-  const std::uint64_t adjusted_utility = scaled_fraction(
-      utility_sum, kFragmentationScale,
-      kFragmentationScale + children.size() - 1);
-  return adjusted_utility > parent.utility;
+  return descendant_bundle_preferred(descendant_bundle_metrics{
+      parent.utility,
+      parent.confidence_milli,
+      parent_del_units,
+      parent_ins_units,
+      utility_sum,
+      matched_units,
+      weighted_confidence,
+      child_del_units,
+      child_ins_units,
+      children.size(),
+  });
 }
 
 void prefer_stronger_descendant_bundles(

@@ -72,6 +72,14 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
 add_executable(srcMove ${SRC_FILES})
 configure_srcmove_target(srcMove)
 
+add_executable(selection_policy_test
+  tests/unit/selection_policy/test_selection_policy.cpp
+  src/move_registry/selection_policy.cpp
+)
+target_include_directories(selection_policy_test PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+
 set(SRCMOVE_RECEIPT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/emit_build_receipt.py")
 set(SRCMOVE_SOURCE_LOCK "${WORKSPACE_ROOT}/workspace.lock.json")
 set(SRCMOVE_BUILD_ENTRY_POINT "cmake --build ${CMAKE_BINARY_DIR} --target srcMove")
