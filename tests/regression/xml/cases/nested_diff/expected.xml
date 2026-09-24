@@ -3,13 +3,13 @@
 
   <diff:delete>
     if (x) {
-      <diff:delete mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/diff:insert[1]">int a;</diff:delete>
+      <diff:delete><decl_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/diff:insert[1]/src:decl_stmt[1]"><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
     }
   </diff:delete>
 
   <diff:insert>
     if (x) {
-      <diff:insert mv:from="/src:unit[1]/diff:delete[1]/diff:delete[1]" mv:id="97b1dcdaf">int a;</diff:insert>
+      <diff:insert><decl_stmt mv:from="/src:unit[1]/diff:delete[1]/diff:delete[1]/src:decl_stmt[1]" mv:id="97b1dcdaf"><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
     }
   </diff:insert>
 
