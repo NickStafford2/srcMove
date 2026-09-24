@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="longer.cpp">
 
-  <diff:delete>int moved_function(){return 42;}</diff:delete>
-  <diff:insert>int moved_function(){return 42;}</diff:insert>
+  <diff:delete><function><type><name>int</name></type> <name>moved_function</name><parameter_list>()</parameter_list><block>{<block_content><return>return <expr><literal type="number">42</literal></expr>;</return></block_content>}</block></function></diff:delete>
+  <diff:insert><function><type><name>int</name></type> <name>moved_function</name><parameter_list>()</parameter_list><block>{<block_content><return>return <expr><literal type="number">42</literal></expr>;</return></block_content>}</block></function></diff:insert>
 
 </unit>

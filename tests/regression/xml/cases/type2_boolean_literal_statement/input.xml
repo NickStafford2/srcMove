@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="type2_literal_statement_guard.cpp">
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="type2_boolean_literal_statement.cpp">
 
   <diff:delete><decl_stmt><decl><type><name>bool</name></type> <name>enabled</name> <init>= <expr><literal type="boolean">false</literal></expr></init></decl>;</decl_stmt></diff:delete>
 

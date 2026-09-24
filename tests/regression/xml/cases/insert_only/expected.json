@@ -19,6 +19,7 @@
   },
   "match_kinds": {
     "exact": 0,
-    "type2": 0
+    "type2": 0,
+    "type3": 0
   }
 }

@@ -5,37 +5,37 @@
   "moves": [
     {
       "move_id": "97b1dcdaf",
+      "match_kind": "type2",
       "from_xpaths": [
         "/src:unit[1]/diff:delete[1]/src:decl_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[1]/diff:insert[1]/src:decl_stmt[1]",
-        "/src:unit[1]/diff:insert[2]/src:decl_stmt[1]"
+        "/src:unit[1]/diff:insert[1]/src:decl_stmt[1]"
       ],
       "from_raw_texts": [
-        "int moved_value = source_value + 1;"
+        "bool enabled = false;"
       ],
       "to_raw_texts": [
-        "int moved_value = source_value + 1;",
-        "int moved_value = source_value + 1;"
+        "bool enabled = true;"
       ]
     }
   ],
-  "annotated_regions": 3,
-  "annotated_region_count": 3,
-  "regions_total": 3,
-  "candidates_total": 3,
+  "annotated_regions": 2,
+  "annotated_region_count": 2,
+  "regions_total": 2,
+  "candidates_total": 2,
   "groups_total": 1,
   "group_kinds": {
-    "move_1_to_1": 0,
+    "move_1_to_1": 1,
     "moves_many": 0,
     "delete_only": 0,
     "insert_only": 0,
-    "copy_or_repeat": 1,
+    "copy_or_repeat": 0,
     "ambiguous": 0
   },
   "match_kinds": {
-    "exact": 1,
-    "type2": 0
+    "exact": 0,
+    "type2": 1,
+    "type3": 0
   }
 }

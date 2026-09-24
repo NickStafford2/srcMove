@@ -5,23 +5,24 @@
   "moves": [
     {
       "move_id": "97b1dcdaf",
+      "match_kind": "exact",
       "from_xpaths": [
-        "/src:unit[1]/diff:delete[1]",
-        "/src:unit[1]/diff:delete[2]"
+        "/src:unit[1]/diff:delete[1]/src:decl_stmt[1]",
+        "/src:unit[1]/diff:delete[2]/src:decl_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[1]/diff:insert[1]",
-        "/src:unit[1]/diff:insert[2]",
-        "/src:unit[1]/diff:insert[3]"
+        "/src:unit[1]/diff:insert[1]/src:decl_stmt[1]",
+        "/src:unit[1]/diff:insert[2]/src:decl_stmt[1]",
+        "/src:unit[1]/diff:insert[3]/src:decl_stmt[1]"
       ],
       "from_raw_texts": [
-        "int a;",
-        "int a;"
+        "int moved_value = source_value + 1;",
+        "int moved_value = source_value + 1;"
       ],
       "to_raw_texts": [
-        "int a;",
-        "int a;",
-        "int a;"
+        "int moved_value = source_value + 1;",
+        "int moved_value = source_value + 1;",
+        "int moved_value = source_value + 1;"
       ]
     }
   ],
@@ -40,6 +41,7 @@
   },
   "match_kinds": {
     "exact": 1,
-    "type2": 0
+    "type2": 0,
+    "type3": 0
   }
 }

@@ -7,32 +7,32 @@
       "move_id": "c89025cc1",
       "match_kind": "exact",
       "from_xpaths": [
-        "/src:unit[@filename='b.cpp']/diff:delete[1]"
+        "/src:unit[@filename='b.cpp']/diff:delete[1]/src:expr_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[@filename='b.cpp']/diff:insert[1]"
+        "/src:unit[@filename='b.cpp']/diff:insert[1]/src:expr_stmt[1]"
       ],
       "from_raw_texts": [
-        "int b;"
+        "publish_value(source_value);"
       ],
       "to_raw_texts": [
-        "int b;"
+        "publish_value(source_value);"
       ]
     },
     {
       "move_id": "97b1dcdaf",
       "match_kind": "exact",
       "from_xpaths": [
-        "/src:unit[@filename='a.cpp']/diff:delete[1]"
+        "/src:unit[@filename='a.cpp']/diff:delete[1]/src:decl_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[@filename='a.cpp']/diff:insert[1]"
+        "/src:unit[@filename='a.cpp']/diff:insert[1]/src:decl_stmt[1]"
       ],
       "from_raw_texts": [
-        "int a;"
+        "int first_value = source_value + 1;"
       ],
       "to_raw_texts": [
-        "int a;"
+        "int first_value = source_value + 1;"
       ]
     }
   ],
@@ -51,6 +51,7 @@
   },
   "match_kinds": {
     "exact": 2,
-    "type2": 0
+    "type2": 0,
+    "type3": 0
   }
 }

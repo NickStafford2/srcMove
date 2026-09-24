@@ -2,13 +2,13 @@
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" revision="1.0.0" url="old|new">
 
   <unit language="C++" filename="a.cpp">
-    <diff:delete>int a;</diff:delete>
-    <diff:insert>int a;</diff:insert>
+    <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>first_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
+    <diff:insert><decl_stmt><decl><type><name>int</name></type> <name>first_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
   </unit>
 
   <unit language="C++" filename="b.cpp">
-    <diff:delete>int b;</diff:delete>
-    <diff:insert>int b;</diff:insert>
+    <diff:delete><expr_stmt><expr><call><name>publish_value</name><argument_list>(<argument><expr><name>source_value</name></expr></argument>)</argument_list></call></expr>;</expr_stmt></diff:delete>
+    <diff:insert><expr_stmt><expr><call><name>publish_value</name><argument_list>(<argument><expr><name>source_value</name></expr></argument>)</argument_list></call></expr>;</expr_stmt></diff:insert>
   </unit>
 
 </unit>
