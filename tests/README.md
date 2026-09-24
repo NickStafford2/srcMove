@@ -101,15 +101,26 @@ ideal. Change a golden deliberately when a reviewed algorithm improvement
 changes the product contract; do not preserve an inferior result solely to
 keep an old fixture green.
 
-Unsettled parent/child, nested-region, and `diff:common` decisions live in the
-[move-selection benchmark](../moveSelectionBench/README.md). Its semantic
-misses are observations rather than test failures. Promote a case into a hard
-regression only after its expected behavior is accepted as a stable contract.
+Parent/child, nested-region, and `diff:common` decisions live in the
+[move-selection benchmark](../moveSelectionBench/README.md). Each case declares
+whether it is an accepted contract or an exploratory hypothesis. Contract
+misses fail `make test`; hypothesis misses remain observations. Promote a
+hypothesis only after its expected behavior is accepted as stable.
 
-Repeated exact fragments retain their multi-endpoint move/copy group, without
-claiming a particular one-to-one pairing. Ambiguous Type-2 fragments remain
-unresolved because normalization removed their distinguishing content;
-document order alone must not manufacture a pairing.
+Repeated exact fragments retain one multi-endpoint equivalence group. The
+`1x2_basic` and `2x1_basic` cases are therefore positive copy/repeat-group
+contracts, not requests for zero moves. Unequal `NxM` groups have the same
+meaning; balanced many-to-many groups use `moves_many`. `move_pair_count`
+records the maximum non-reusing pair count (`min(deletes, inserts)`), but the
+group does not claim which indistinguishable endpoint pairs with which.
+Ambiguous Type-2 fragments remain unresolved because normalization removed
+their distinguishing content; document order alone must not manufacture a
+pairing.
+
+Type-3 policy fixtures are hard contracts for the small examples they declare.
+Only population Type-3 recall in BigMoveBench is observational. A Type-3 miss
+there measures current coverage and does not silently redefine a fixture as a
+negative case.
 
 ## Tool Selection
 

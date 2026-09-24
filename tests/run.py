@@ -22,7 +22,7 @@ from benchmarking.tooling import command_text, find_srcdiff, find_srcmove, run_c
 SUITE_DESCRIPTIONS = {
     "unit": "core Python unit tests",
     "bigmovebench": "focused BigMoveBench unit tests",
-    "move-selection": "focused move-selection characterization unit tests",
+    "move-selection": "move-selection unit tests and semantic contracts",
     "performance": "focused performance workload runner unit tests",
     "srcmove-history": "focused srcmove-history unit tests",
     "xml": "checked-in srcDiff XML regression fixtures",
@@ -189,7 +189,7 @@ def test_steps(
         assert srcmove is not None
         steps.append(
             TestStep(
-                "move-selection characterization unit",
+                "move-selection unit",
                 [
                     sys.executable,
                     "-m",

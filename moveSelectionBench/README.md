@@ -1,4 +1,4 @@
-# Move-selection characterization benchmark
+# Move-selection semantic benchmark
 
 This suite measures the parent/child, nesting, `diff:common`, ambiguity, and
 cross-Type decisions that the redesign is intended to improve. It complements
@@ -15,6 +15,11 @@ an observation so variants can be compared. The deterministic test suite runs
 contracts with `--contracts-only --enforce-contracts`, making a contract miss a
 test failure. Tool crashes, timeouts, malformed output, and invalid XML are
 always hard failures.
+
+The current catalog contains accepted contracts; the `hypothesis` status is
+available for future questions that have not yet earned regression status.
+This benchmark's status is independent of BigMoveBench's observational Type-3
+population recall.
 
 Run the current build:
 
