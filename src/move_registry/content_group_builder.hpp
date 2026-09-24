@@ -14,7 +14,8 @@
  *
  * Responsibilities:
  * - partition candidates by content hash
- * - optionally run refined exact/Type-2 grouping and selection
+ * - optionally build exact, Type-2, and Type-3 evidence proposals
+ * - select non-overlapping proposals by the declared utility policy
  * - classify group types (1-1 move, many-many, delete-only, etc.)
  *
  * The builder does NOT mutate the registry.
@@ -41,9 +42,9 @@ enum class content_grouping_mode {
  * Mode:
  * - hash_bucket_only: one group per content-hash bucket; no exact text split,
  *   selection suppression, or Type-2 recovery.
- * - refined: split buckets by exact canonical text, select non-overlapping
- *   exact groups first, recover eligible one-to-one Type-2 groups, then emit
- *   unmatched leftovers.
+ * - refined: split exact canonical-text buckets, build eligible Type-2 groups
+ *   and Type-3 edges, rank all supported evidence together, select
+ *   non-overlapping proposals, then emit unmatched leftovers.
  */
 content_groups build_content_groups(const candidate_registry &registry,
                                     content_grouping_mode mode =

@@ -854,7 +854,8 @@ region_filter_options get_default_filter_options() {
 }
 
 std::vector<move_candidate> collect_regions(srcml_reader &reader) {
-  // Default behavior: leaf-only move units, drop whitespace-only.
+  // Preserve the historical captured-region behavior for focused callers.
+  // The production pipeline uses the revision-aware streaming collector.
   auto regions = collect_all_regions(reader);
 
   region_filter_options opt;

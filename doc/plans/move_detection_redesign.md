@@ -1,11 +1,12 @@
 # Move-detection redesign
 
-Status: active implementation. Revision ownership, conservative mixed-region
-rejection, multi-scale construct retention, unified evidence proposals, and
-deterministic utility selection are implemented. Approximate Type-3 retrieval,
-contextual ambiguity resolution, and a general hierarchy optimizer remain
-planned; the current selector includes a local parent-versus-descendant bundle
-comparison.
+Status: phases 1 and 2 are implemented; phases 3 and 4 have working baselines.
+Revision ownership, conservative mixed-region rejection, multi-scale construct
+retention, unified evidence proposals, deterministic utility selection, and a
+local parent-versus-descendant bundle comparison are in production. Phase 3
+still lacks approximate-neighbor retrieval and direct retrieval-recall
+telemetry. Phase 4 still uses greedy selection plus the local bundle rule rather
+than a general hierarchy optimizer. Phase 5 evaluation remains open.
 
 This is the canonical design and implementation plan for revising srcMove's
 candidate semantics, Type-3 retrieval, pair ranking, and hierarchical move
@@ -36,27 +37,28 @@ pipeline partially conflates:
 A clone or similarity algorithm contributes to the second question. It cannot
 by itself answer the first or third.
 
-## Why the current policy needs revision
+## Failure mode that motivated the redesign
 
-The production stream currently recognizes `diff:delete` and `diff:insert`,
-tracks their parent/child nesting, and defaults to a `leaf_only` policy. Opening
-a nested insert or delete releases the parent candidate-construction state.
-This bounds retained work, but it also makes the deepest diff region eligible
-before matching establishes whether a larger construct is the real move.
+The pre-redesign production stream recognized `diff:delete` and `diff:insert`,
+tracked their parent/child nesting, and defaulted to a `leaf_only` policy.
+Opening a nested insert or delete released the parent candidate-construction
+state. This bounded retained work, but it also made the deepest diff region
+eligible before matching established whether a larger construct was the real
+move.
 
 Three related limitations follow:
 
-- A same-side nested region causes the parent to be discarded even when the
+- A same-side nested region caused the parent to be discarded even when the
   entire parent is a complete, coherent moved construct.
-- `diff:common` is not represented as a revision-membership boundary. Common
-  text can enter the raw and canonical content of an outer deletion or
+- `diff:common` was not represented as a revision-membership boundary. Common
+  text could enter the raw and canonical content of an outer deletion or
   insertion even though that text did not disappear or appear.
-- Exact matches are selected before Type-2 and Type-3 edges exist. A small
-  exact child can therefore suppress a larger, strong near-match parent.
+- Exact matches were selected before Type-2 and Type-3 edges existed. A small
+  exact child could therefore suppress a larger, strong near-match parent.
 
-These are different problems. Replacing `leaf_only` with `top_level_only` would
-not solve them: it would admit broad mixed wrappers that contain common or
-opposite-side material.
+These were different problems. Replacing `leaf_only` with `top_level_only`
+would not have solved them: it would have admitted broad mixed wrappers that
+contain common or opposite-side material.
 
 ## Mental model
 
@@ -383,6 +385,8 @@ selection policy, and executable revisions in every frozen run.
 
 ### Phase 1: correct revision ownership
 
+Implemented.
+
 - Recognize `diff:common` in the streaming state machine.
 - Track effective ownership and substantive state transitions.
 - Exclude common and opposite-side material from exclusive move payload.
@@ -391,12 +395,17 @@ selection policy, and executable revisions in every frozen run.
 
 ### Phase 2: retain multi-scale candidates efficiently
 
+Implemented with candidate-owned cached representations.
+
 - Replace the binary `has_diff_child` policy with region-state summaries.
 - Preserve same-side complete parents and meaningful children as alternatives.
 - Introduce shared representations or compositional summaries so nested
   candidates do not duplicate the stream.
 
 ### Phase 3: unify edge generation
+
+Partially implemented. Unified proposals and bounded verification exist;
+approximate-neighbor retrieval and direct retrieval-recall reporting do not.
 
 - Make exact, Type-2, and Type-3 stages emit edges without immediately
   consuming overlapping candidates.
@@ -406,12 +415,18 @@ selection policy, and executable revisions in every frozen run.
 
 ### Phase 4: score and select
 
+Baseline implemented. Ranking evidence is emitted and deterministic greedy
+selection includes a local parent-versus-descendant bundle comparison; a
+general optimizer is not implemented.
+
 - Add explainable confidence components and selection utility.
 - Implement deterministic sparse-edge selection with overlap constraints.
 - Add the local parent-versus-children comparison.
 - Emit score components and decision reasons in results JSON.
 
 ### Phase 5: evaluate representations
+
+Not started beyond the current bounded-LCS development baseline.
 
 - Compare the current bounded-LCS verifier with a faithful Deckard-style
   baseline and any hybrid retrieval design.
@@ -444,7 +459,8 @@ At minimum, cover:
   projected representation?
 - Which candidate kinds participate in Type-3 matching?
 - What top-`k` limit preserves acceptable retrieval recall?
-- How should one-to-many copy/move cases interact with one-use selection?
+- What contextual evidence, if any, should disambiguate individual endpoints
+  inside an exact multi-endpoint copy/repeat group?
 - Is greedy plus local replacement sufficient, or does evaluation justify a
   hierarchical dynamic program or sparse weighted matching algorithm?
 - Which score components are hand-declared, empirically fitted, or calibrated,

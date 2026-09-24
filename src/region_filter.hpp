@@ -17,14 +17,7 @@ namespace srcmove {
 
 class profile_report;
 
-// -----------------------------------------
-// Region model collected from srcDiff
-// -----------------------------------------
-;
-
-// -----------------------------------------
-// Filtering policy (choose move units)
-// -----------------------------------------
+// Filtering policy for choosing move units.
 enum class region_filter_policy {
   revision_aware, // retain pure multi-scale candidates; reject mixed wrappers
   leaf_only,      // legacy: regions with no diff children
@@ -66,6 +59,9 @@ collect_candidates_streaming(srcml_reader                &reader,
 std::vector<move_candidate>
 filter_regions_for_registry(const std::vector<diff_region> &regions,
                             const region_filter_options    &opt);
+
+// Compatibility helper for the captured-region path. Production uses
+// collect_candidates_streaming() with get_default_filter_options().
 std::vector<move_candidate> collect_regions(srcml_reader &reader);
 
 } // namespace srcmove
