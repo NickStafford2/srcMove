@@ -343,6 +343,19 @@ mapping constraints, move semantics, cross-file behavior, ambiguous matches,
 and cost. **[CITATION NEEDED: primary papers for each selected tree
 differencer]**
 
+Tree-based clone detection provides a related but distinct comparison.
+Deckard represents syntax subtrees with characteristic vectors and uses
+approximate vector clustering to retrieve structurally similar fragments
+efficiently. That approach is relevant to srcMove's Type-3 representation and
+candidate-retrieval problem, particularly as an alternative to exhaustive
+pairwise tree comparison. It does not by itself establish temporal direction,
+disappearance at a source, appearance at a destination, or whether a similar
+fragment is a move rather than a surviving copy. Those claims require revision
+evidence and selection rules around the clone detector. **[CITATION: Jiang,
+Misherghi, Su, and Glondu, “DECKARD: Scalable and Accurate Tree-Based Detection
+of Code Clones,” ICSE 2007; primary paper:
+https://web.cs.ucdavis.edu/~su/publications/icse07.pdf]**
+
 ### 2.4.3 Refactoring detection
 
 Refactoring detectors identify transformations such as moving or renaming

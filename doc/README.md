@@ -45,9 +45,14 @@ summaries or diagrams disagree with current behavior.
 
 ## Research notes and planned work
 
+- [Move-detection redesign](plans/move_detection_redesign.md): canonical
+  proposed semantics, candidate hierarchy, sparse pair scoring, selection,
+  performance constraints, and BigMoveBench validation plan
 - [Performance optimization status](performance_optimization_strategy.md):
   completed work, remaining opportunities, and evidence required before another
   optimization
+- [Deckard experiment](plans/deckard/README.md): proposed structural-vector
+  baseline within the broader move-detection redesign
 - [Dormant archive parallelism plan](parallel_programming_upgrade_plan.md):
   bounded concurrency design for large multi-file srcDiff archives
 - [Backlog](backlog.md): open questions and candidate improvements
