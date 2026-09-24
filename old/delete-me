@@ -1,0 +1,6 @@
+dev@cc1ac8784d11:/workspace/srcMove$ python3 scripts/capture-development-environment.sh
+  File "/workspace/srcMove/scripts/capture-development-environment.sh", line 102
+    --case 1x1_basic
+           ^
+SyntaxError: invalid decimal literal
+dev@cc1ac8784d11:/workspace/srcMove$
