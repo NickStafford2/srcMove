@@ -49,6 +49,7 @@ from bigMoveBench.evaluate import (
 )
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from bigMoveBench.progress import ProgressDisplay
+from bigMoveBench.review import write_type3_review
 from bigMoveBench.runner_profile import RunnerProfiler
 from bigMoveBench.selection import TYPE3_STRATA
 from bigMoveBench.srcdiff_cache import DevelopmentSrcdiffCache
@@ -767,6 +768,8 @@ class SerialBenchmarkExecutionRunner:
         srcdiff_cache: DevelopmentSrcdiffCache | None = None,
         refresh_srcdiff_cache: bool = False,
         runner_profile_path: Path | None = None,
+        diagnostics_enabled: bool = False,
+        type3_review: bool = False,
     ) -> None:
         self.benchmark_cases = benchmark_cases
         self.run_dir = run_dir.expanduser().resolve()
@@ -782,6 +785,11 @@ class SerialBenchmarkExecutionRunner:
         self.srcdiff_cache = srcdiff_cache
         self.refresh_srcdiff_cache = refresh_srcdiff_cache
         self.runner_profile_path = runner_profile_path
+        self.type3_review = type3_review
+        self.diagnostics_enabled = diagnostics_enabled or type3_review
+        pair_set = str(benchmark_cases.manifest["selection"]["pair_set"])
+        if type3_review and pair_set != "type3":
+            raise ValueError("Type-3 review is available only for Type-3 cases")
         self._runner_profiler: RunnerProfiler | None = None
         self.srcdiff_observation = dict(
             srcdiff_observation or observe_executable(self.srcdiff)
@@ -801,6 +809,7 @@ class SerialBenchmarkExecutionRunner:
             "srcmove": {
                 "timeout_seconds": srcmove_timeout_seconds,
                 "output_mode": "results_only",
+                "diagnostics": self.diagnostics_enabled,
             },
             "scoring_oracle_version": SCORING_ORACLE_VERSION,
             "development_srcdiff_cache": {
@@ -1027,13 +1036,25 @@ class SerialBenchmarkExecutionRunner:
             attempts_root=srcmove_root,
             stage="srcmove",
             case_id=case.case_id,
-            command_factory=lambda output: [
-                str(self.srcmove),
-                str(srcdiff_dir / "srcdiff.xml"),
-                "--results",
-                str(output),
-                "--results-only",
-            ],
+            command_factory=lambda output: (
+                [
+                    str(self.srcmove),
+                    str(srcdiff_dir / "srcdiff.xml"),
+                    str(output.parent / "srcmove.xml"),
+                    "--results",
+                    str(output),
+                    "--diagnostics",
+                ]
+                if self.type3_review
+                else [
+                    str(self.srcmove),
+                    str(srcdiff_dir / "srcdiff.xml"),
+                    "--results",
+                    str(output),
+                    "--results-only",
+                ]
+                + (["--diagnostics"] if self.diagnostics_enabled else [])
+            ),
             cwd=self.run_dir,
             timeout_seconds=self.srcmove_timeout_seconds,
             output_validator=validate_results_output,
@@ -1069,6 +1090,15 @@ class SerialBenchmarkExecutionRunner:
                 "srcmove_record": srcmove_record,
             }
         )
+        if completed and self.type3_review:
+            annotated_xml = srcmove_dir / "srcmove.xml"
+            if not annotated_xml.is_file() or annotated_xml.stat().st_size == 0:
+                result["outcome"] = "srcmove_tool_failure"
+                result["srcmove_completed"] = 0
+                result["oracle_failures"] = [
+                    "Type-3 review requested but srcMove did not produce srcmove.xml"
+                ]
+                return result
         if not completed:
             return result
 
@@ -1226,6 +1256,12 @@ class SerialBenchmarkExecutionRunner:
                         self.benchmark_cases.directory / "benchmark_cases.sqlite"
                     ),
                 )
+                if self.type3_review:
+                    summary["type3_review"] = write_type3_review(
+                        self.run_dir,
+                        journal_path=journal_path,
+                        benchmark_cases=self.benchmark_cases,
+                    )
                 write_json_atomic(self.run_dir / "summary.json", summary)
                 progress.finish(
                     f"{executed} executed, {reused} reused, {failed} failed"
@@ -1256,6 +1292,11 @@ def parse_args() -> argparse.Namespace:
         "--profile-runner",
         type=Path,
         help="Write one opt-in Python orchestration timing record per case.",
+    )
+    parser.add_argument(
+        "--type3-review",
+        action="store_true",
+        help="Capture diagnostics and write Type-3 JSONL and Markdown review files.",
     )
     parser.add_argument(
         "--cache",
@@ -1313,6 +1354,7 @@ def main() -> int:
             ),
             refresh_srcdiff_cache=args.refresh_cache,
             runner_profile_path=args.profile_runner,
+            type3_review=args.type3_review,
         ).run()
         print(f"run_id={summary['run_id']}")
         print(f"directory={run_dir}")

@@ -64,9 +64,8 @@ class FakeToolAttempts:
         attempt_dir = kwargs["attempts_root"] / attempt_id
         attempt_dir.mkdir(parents=True)
         output = attempt_dir / kwargs["output_filename"]
-        self.commands.append(
-            (stage, [str(part) for part in kwargs["command_factory"](output)])
-        )
+        command = [str(part) for part in kwargs["command_factory"](output)]
+        self.commands.append((stage, command))
         output.write_text(
             (
                 "<unit xmlns='http://www.srcML.org/srcML/src' "
@@ -81,6 +80,10 @@ class FakeToolAttempts:
             (attempt_dir / "results.json").write_text(
                 json.dumps({"move_count": 1, "moves": []}), encoding="utf-8"
             )
+            if "--results-only" not in command:
+                (attempt_dir / "srcmove.xml").write_text(
+                    "<unit/>", encoding="utf-8"
+                )
         return attempt_dir, {
             "attempt_id": attempt_id,
             "admitted": True,
@@ -260,6 +263,30 @@ class NormalizedExecutionTests(unittest.TestCase):
                 _, resumed = self._runner(benchmark_cases, run_dir).run()
             self.assertEqual(reused_tools.calls, [])
             self.assertEqual(resumed["counts"], summary["counts"])
+
+    def test_type3_review_enables_diagnostics_and_writes_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
+            _, _, benchmark_cases, _ = fixture.publish_two_case_fixture(root)
+            run_dir = root / "results" / "review"
+            tools = FakeToolAttempts()
+            patches = self._successful_patches(tools)
+            with patches[0], patches[1], patches[2]:
+                _, summary = self._runner(
+                    benchmark_cases, run_dir, type3_review=True
+                ).run()
+
+            srcmove_commands = [
+                command for stage, command in tools.commands if stage == "srcmove"
+            ]
+            self.assertTrue(srcmove_commands)
+            self.assertTrue(
+                all("--diagnostics" in command for command in srcmove_commands)
+            )
+            self.assertEqual(summary["type3_review"]["case_count"], 2)
+            self.assertTrue((run_dir / "type3-review.jsonl").is_file())
+            self.assertTrue((run_dir / "type3-review.md").is_file())
 
     def test_opt_in_runner_profile_preserves_case_order_and_outcomes(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

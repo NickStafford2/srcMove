@@ -210,6 +210,22 @@ each observational Type-3 case completed without upstream, tool, semantic, or
 oracle errors. Type-3 misses and wrong classifications do not change the exit
 status.
 
+For case-by-case review, enable opt-in selection diagnostics and generate both
+a canonical JSONL bundle and a printable Markdown report:
+
+```bash
+make bigmovebench-suite PROFILE=medium PAIR_SET=type3 TYPE3_REVIEW=1
+```
+
+The Type-3 run directory then contains `type3-review.jsonl` and
+`type3-review.md`. Each record includes the complete expected source and
+destination fragments, every reported move (including incidental child moves),
+candidate evidence, shortlisted Type-3 pair evidence, an automatic miss-stage
+diagnosis, and empty AI/human verdict fields. The JSONL file is the canonical
+input for automated review; Markdown is derived for reading and annotation.
+Diagnostics are deliberately opt-in because candidate text and rejected-pair
+evidence can substantially increase result size and verification work.
+
 Summaries and `cases.csv` classify each outcome by its narrowest observable
 diagnostic stage. A miss with fewer than two candidates is candidate generation;
 a miss with a reported move is selection or granularity; other srcMove misses

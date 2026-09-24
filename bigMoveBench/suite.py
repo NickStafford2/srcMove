@@ -90,6 +90,11 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="Write one opt-in Python orchestration timing record per case.",
     )
+    parser.add_argument(
+        "--type3-review",
+        action="store_true",
+        help="Capture Type-3 decision evidence and write review artifacts.",
+    )
     return parser.parse_args()
 
 
@@ -163,6 +168,7 @@ def _pair_result(
         "selection_counts": dict(selection_manifest["counts"]),
         "type3_strength_strata": dict(type3_strength) if observational else {},
         "diagnostic_stages": dict(summary.get("diagnostic_stages", {})),
+        "type3_review": dict(summary.get("type3_review", {})),
         "development_srcdiff_cache": dict(
             summary.get("development_srcdiff_cache", {"enabled": False})
         ),
@@ -277,6 +283,9 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                 srcdiff_cache=srcdiff_cache,
                 refresh_srcdiff_cache=refresh_cache,
                 runner_profile_path=runner_profile_path,
+                type3_review=bool(
+                    getattr(args, "type3_review", False) and pair_set == "type3"
+                ),
             ).run()
         )
         _, summary = evaluation
@@ -307,6 +316,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
             "mode": "census" if profile == "full" else "preset",
             "verify_source": args.verify_source,
             "pair_set": selected_pair_set,
+            "type3_review": bool(getattr(args, "type3_review", False)),
             "development_srcdiff_cache": {
                 "enabled": use_cache,
                 "refresh": refresh_cache,
