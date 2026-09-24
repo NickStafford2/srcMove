@@ -21,7 +21,7 @@ help:
 	@printf '  %-28s %s\n' 'make test' 'Build and run every correctness suite'
 	@printf '  %-28s %s\n' 'make test-unit' 'Run all Python unit tests'
 	@printf '  %-28s %s\n' 'make test-bigmovebench' 'Run focused BigMoveBench unit tests'
-	@printf '  %-28s %s\n' 'make test-move-selection' 'Run move-selection benchmark unit tests'
+	@printf '  %-28s %s\n' 'make test-move-selection' 'Run move-selection unit tests and contracts'
 	@printf '  %-28s %s\n' 'make test-performance' 'Run performance workload runner unit tests'
 	@printf '  %-28s %s\n' 'make test-srcmove-history' 'Run srcmove-history unit tests'
 	@printf '  %-28s %s\n' 'make test-xml' 'Build and run XML regression tests'

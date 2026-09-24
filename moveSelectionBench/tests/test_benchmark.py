@@ -97,6 +97,7 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
             },
         )
         indexed = {case["id"]: case for case in cases}
+        self.assertEqual({case["status"] for case in cases}, {"contract"})
         self.assertEqual(
             indexed["cross_file_nonlocal_move"]["input_shape"], "archive"
         )
@@ -155,10 +156,11 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
             catalog.write_text(
                 json.dumps(
                     {
-                        "schema_version": 1,
+                        "schema_version": 2,
                         "cases": [
                             {
                                 "id": "one",
+                                "status": "hypothesis",
                                 "input": "input.xml",
                                 "category": "fixture",
                                 "rationale": "exercise runner",
@@ -181,6 +183,7 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
                 run_id="comparison",
             )
             self.assertEqual(summary["hard_failures"], 0)
+            self.assertEqual(summary["contract_semantic_misses"], 0)
             self.assertEqual(summary["variants"]["baseline"]["semantic_miss"], 1)
             self.assertEqual(summary["variants"]["candidate"]["pass"], 1)
             self.assertEqual(
@@ -196,10 +199,11 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
             catalog.write_text(
                 json.dumps(
                     {
-                        "schema_version": 1,
+                        "schema_version": 2,
                         "cases": [
                             {
                                 "id": "unsafe",
+                                "status": "contract",
                                 "input": "../input.xml",
                                 "required": [],
                                 "forbidden": [],
@@ -221,10 +225,11 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
             catalog.write_text(
                 json.dumps(
                     {
-                        "schema_version": 1,
+                        "schema_version": 2,
                         "cases": [
                             {
                                 "id": "equivalence",
+                                "status": "contract",
                                 "input": "input.xml",
                                 "verify_results_only_equivalence": True,
                                 "required": [{"from": "wanted", "to": "wanted"}],
@@ -252,6 +257,7 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
             self.assertEqual(summary["variants"]["current"]["semantic_miss"], 1)
             outcome = json.loads((run_dir / "outcomes.json").read_text())["outcomes"][0]
             self.assertFalse(outcome["results_only_equivalent"])
+            self.assertEqual(summary["contract_semantic_misses"], 1)
 
 
 if __name__ == "__main__":

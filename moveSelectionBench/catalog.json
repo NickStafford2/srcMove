@@ -1,8 +1,9 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "cases": [
     {
       "id": "nested_exact_parent_over_child",
+      "status": "contract",
       "input": "cases/nested_exact_parent_over_child.xml",
       "category": "same_side_nesting",
       "rationale": "An exact enclosing move should not be discarded merely because it contains a smaller exact move.",
@@ -23,6 +24,7 @@
     },
     {
       "id": "nested_near_miss_parent_over_exact_child",
+      "status": "contract",
       "input": "cases/nested_near_miss_parent_over_exact_child.xml",
       "category": "cross_type_competition",
       "rationale": "A larger coherent Type-2 or Type-3 move may be more useful than an exact nested statement.",
@@ -43,6 +45,7 @@
     },
     {
       "id": "common_content_is_not_a_move",
+      "status": "contract",
       "input": "cases/common_content_is_not_a_move.xml",
       "category": "common_ownership",
       "rationale": "Text carried by diff:common belongs to both revisions and must not become move evidence merely because it is nested inside changed wrappers.",
@@ -62,6 +65,7 @@
     },
     {
       "id": "independent_children_not_false_parent",
+      "status": "contract",
       "input": "cases/independent_children_not_false_parent.xml",
       "category": "hierarchical_coherence",
       "rationale": "Largest wins is not absolute: independently relocated children should remain separate when there is no coherent destination parent.",
@@ -79,6 +83,7 @@
     },
     {
       "id": "unique_parent_over_repeated_children",
+      "status": "contract",
       "input": "cases/unique_parent_over_repeated_children.xml",
       "category": "ambiguity_and_granularity",
       "rationale": "Repeated small statements are ambiguous while their enclosing regions can identify one coherent move.",
@@ -99,6 +104,7 @@
     },
     {
       "id": "mixed_parent_rejected_inner_survives",
+      "status": "contract",
       "input": "cases/mixed_parent_rejected_inner_survives.xml",
       "category": "mixed_polarity",
       "rationale": "An opposite-side transition invalidates the outer candidate but must not erase an eligible inner move.",
@@ -109,6 +115,7 @@
     },
     {
       "id": "deep_nesting_has_no_two_level_limit",
+      "status": "contract",
       "input": "cases/deep_nesting_has_no_two_level_limit.xml",
       "category": "deep_nesting",
       "rationale": "Candidate semantics should depend on ownership and coherence, not an arbitrary nesting-depth limit.",
@@ -129,6 +136,7 @@
     },
     {
       "id": "delete_common_transition",
+      "status": "contract",
       "input": "cases/delete_common_transition.xml",
       "category": "common_ownership",
       "rationale": "Leaving diff:common must restore delete ownership, while common content itself remains in both revisions.",
@@ -145,6 +153,7 @@
     },
     {
       "id": "insert_common_transition",
+      "status": "contract",
       "input": "cases/insert_common_transition.xml",
       "category": "common_ownership",
       "rationale": "Leaving diff:common must restore insert ownership, while common content itself remains in both revisions.",
@@ -161,6 +170,7 @@
     },
     {
       "id": "delete_insert_transition",
+      "status": "contract",
       "input": "cases/delete_insert_transition.xml",
       "category": "mixed_polarity",
       "rationale": "A nested insert must become an independent destination, then closing it must restore delete ownership.",
@@ -172,6 +182,7 @@
     },
     {
       "id": "insert_delete_transition",
+      "status": "contract",
       "input": "cases/insert_delete_transition.xml",
       "category": "mixed_polarity",
       "rationale": "A nested delete must become an independent source, then closing it must restore insert ownership.",
@@ -183,6 +194,7 @@
     },
     {
       "id": "equal_score_deterministic",
+      "status": "contract",
       "input": "cases/equal_score_deterministic.xml",
       "category": "ambiguity_and_granularity",
       "rationale": "Four structurally symmetric Type-2 edges have no evidence for one particular pairing and must be rejected deterministically.",
@@ -197,6 +209,7 @@
     },
     {
       "id": "cross_file_nonlocal_move",
+      "status": "contract",
       "input": "cases/cross_file_nonlocal_move.xml",
       "input_shape": "archive",
       "category": "cross_file",
@@ -212,6 +225,7 @@
     },
     {
       "id": "children_utility_over_weak_parent",
+      "status": "contract",
       "input": "cases/children_utility_over_weak_parent.xml",
       "category": "hierarchical_coherence",
       "rationale": "Two compatible exact child edges provide a better explanation than one weak enclosing edge whose unmatched statements changed independently.",
@@ -237,6 +251,7 @@
     },
     {
       "id": "shared_delete_stronger_edge",
+      "status": "contract",
       "input": "cases/shared_delete_stronger_edge.xml",
       "category": "one_sided_overlap",
       "rationale": "When two plausible edges share one deletion endpoint, the exact edge must suppress the weaker Type-2 alternative.",
@@ -257,6 +272,7 @@
     },
     {
       "id": "coherent_type2_parent_over_partition",
+      "status": "contract",
       "input": "cases/coherent_type2_parent_over_partition.xml",
       "category": "hierarchical_coherence",
       "rationale": "A consistently renamed function is one Type-2 move; its unchanged statements are supporting evidence, not separate moves.",
@@ -277,6 +293,7 @@
     },
     {
       "id": "coherent_type3_parent_over_partition",
+      "status": "contract",
       "input": "cases/coherent_type3_parent_over_partition.xml",
       "category": "hierarchical_coherence",
       "rationale": "A strongly similar edited function should remain one Type-3 move when several colocated descendants merely partition its matching evidence.",

@@ -180,6 +180,7 @@ def test_steps(
         )
 
     if not args.cases and "move-selection" in suites:
+        assert srcmove is not None
         steps.append(
             TestStep(
                 "move-selection characterization unit",
@@ -194,6 +195,19 @@ def test_steps(
                     ".",
                     "-p",
                     "test_*.py",
+                ],
+            )
+        )
+        steps.append(
+            TestStep(
+                "move-selection contracts",
+                [
+                    sys.executable,
+                    "moveSelectionBench/benchmark.py",
+                    "--variant",
+                    f"current={srcmove}",
+                    "--contracts-only",
+                    "--enforce-contracts",
                 ],
             )
         )
@@ -305,7 +319,9 @@ def main() -> int:
         print(f"error: {error}", file=sys.stderr)
         return 2
 
-    needs_srcmove = any(suite in suites for suite in ("xml", "source", "policy"))
+    needs_srcmove = any(
+        suite in suites for suite in ("move-selection", "xml", "source", "policy")
+    )
     needs_srcdiff = any(suite in suites for suite in ("source", "policy"))
 
     srcmove: Path | None = None
@@ -332,7 +348,7 @@ def main() -> int:
     print("=== Test Summary ===")
     print(f"steps run: {len(steps)}")
     print(f"failures : {failures}")
-    print("benchmark executions: excluded; run benchmark commands separately")
+    print("population benchmarks: excluded; run benchmark commands separately")
     return 1 if failures else 0
 
 

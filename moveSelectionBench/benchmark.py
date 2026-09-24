@@ -1,7 +1,8 @@
 """Run semantic move-selection cases against one or more srcMove builds.
 
-Semantic misses are measurements, not process failures. Invalid fixtures,
-malformed results, and failed tool executions remain hard failures.
+Hypothesis misses are measurements. Contract misses can optionally fail the
+process. Invalid fixtures, malformed results, and failed tool executions are
+always hard failures.
 """
 
 from __future__ import annotations
@@ -26,11 +27,12 @@ from benchmarking.tooling import find_srcmove
 from performance.benchmark import parse_named_path, parse_profile_output, validate_name
 
 
-CATALOG_SCHEMA_VERSION = 1
+CATALOG_SCHEMA_VERSION = 2
 RUN_SCHEMA_VERSION = 1
 SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9_]*$")
 ALLOWED_MATCH_KINDS = {"exact", "type2", "type3"}
 ALLOWED_INPUT_SHAPES = {"single_file", "archive"}
+ALLOWED_CASE_STATUSES = {"contract", "hypothesis"}
 
 
 class CatalogError(ValueError):
@@ -70,7 +72,7 @@ def load_catalog(path: Path) -> list[dict[str, Any]]:
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise CatalogError(f"cannot read catalog {path}: {error}") from error
     if not isinstance(document, dict) or document.get("schema_version") != CATALOG_SCHEMA_VERSION:
-        raise CatalogError("catalog schema_version must be 1")
+        raise CatalogError("catalog schema_version must be 2")
     raw_cases = document.get("cases")
     if not isinstance(raw_cases, list) or not raw_cases:
         raise CatalogError("catalog cases must be a non-empty array")
@@ -87,6 +89,11 @@ def load_catalog(path: Path) -> list[dict[str, Any]]:
         if case_id in seen:
             raise CatalogError(f"duplicate case id: {case_id}")
         seen.add(case_id)
+        status = value.get("status")
+        if status not in ALLOWED_CASE_STATUSES:
+            raise CatalogError(
+                f"{case_id}: status must be contract or hypothesis"
+            )
         raw_input = value.get("input")
         if not isinstance(raw_input, str) or not raw_input:
             raise CatalogError(f"{case_id}: input must be a relative path")
@@ -117,6 +124,7 @@ def load_catalog(path: Path) -> list[dict[str, Any]]:
         cases.append(
             {
                 **value,
+                "status": status,
                 "input_path": input_path,
                 "input_shape": input_shape,
                 "verify_results_only_equivalence": verify_results_only,
@@ -279,8 +287,13 @@ def run_benchmark(
     baseline: str,
     timeout_seconds: float,
     run_id: str,
+    case_statuses: set[str] | None = None,
 ) -> tuple[Path, dict[str, Any]]:
     cases = load_catalog(catalog_path)
+    if case_statuses is not None:
+        cases = [case for case in cases if case["status"] in case_statuses]
+        if not cases:
+            raise ValueError("catalog selection contains no cases")
     validate_name(run_id, "run id")
     if baseline not in variants:
         raise ValueError(f"baseline variant is not defined: {baseline}")
@@ -298,6 +311,7 @@ def run_benchmark(
         "cases": {
             case["id"]: {
                 "category": case.get("category"),
+                "status": case["status"],
                 "rationale": case.get("rationale"),
                 "input": observe_file(case["input_path"]),
             }
@@ -340,6 +354,7 @@ def run_benchmark(
             outcome: dict[str, Any] = {
                 "case_id": case["id"],
                 "category": case.get("category"),
+                "case_status": case["status"],
                 "variant": variant,
                 "attempt_id": attempt["attempt_id"],
                 "admitted": attempt["admitted"],
@@ -407,6 +422,11 @@ def run_benchmark(
 
     summary = summarize(outcomes, baseline)
     summary["hard_failures"] = hard_failures
+    summary["contract_semantic_misses"] = sum(
+        outcome["case_status"] == "contract"
+        and outcome["semantic_status"] == "semantic_miss"
+        for outcome in outcomes
+    )
     summary["semantic_misses_are_observations"] = True
     write_json_atomic(run_dir / "outcomes.json", {"outcomes": outcomes})
     write_json_atomic(run_dir / "summary.json", summary)
@@ -445,6 +465,16 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--output-root", type=Path, default=REPO_ROOT / "benchmark-results" / "move-selection")
     parser.add_argument("--run-id", default=None)
     parser.add_argument("--timeout", type=float, default=60.0)
+    parser.add_argument(
+        "--contracts-only",
+        action="store_true",
+        help="Run only accepted contract cases.",
+    )
+    parser.add_argument(
+        "--enforce-contracts",
+        action="store_true",
+        help="Exit nonzero when an accepted contract has a semantic miss.",
+    )
     return parser.parse_args()
 
 
@@ -472,6 +502,7 @@ def main() -> int:
             baseline=baseline,
             timeout_seconds=args.timeout,
             run_id=run_id,
+            case_statuses={"contract"} if args.contracts_only else None,
         )
     except (CatalogError, OSError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
@@ -483,7 +514,10 @@ def main() -> int:
             f"semantic_miss={counts.get('semantic_miss', 0)} "
             f"invalid_run={counts.get('invalid_run', 0)}"
         )
-    return 1 if summary["hard_failures"] else 0
+    return 1 if (
+        summary["hard_failures"]
+        or (args.enforce_contracts and summary["contract_semantic_misses"])
+    ) else 0
 
 
 if __name__ == "__main__":

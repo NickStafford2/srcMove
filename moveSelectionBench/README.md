@@ -9,10 +9,12 @@ rather than replaces BigMoveBench and the performance runner:
   clone-derived population;
 - `performance/` measures time, memory, and internal work over fixed inputs.
 
-The checked-in expectations are hypotheses that should be reviewed and revised
-as the selection model matures. A semantic miss is recorded in `outcomes.json`
-and does not make the command fail. Tool crashes, timeouts, malformed output,
-and invalid XML are hard failures and do produce a nonzero exit status.
+Every catalog case declares a `status`: an accepted `contract` or an
+exploratory `hypothesis`. Normal benchmark runs record every semantic miss as
+an observation so variants can be compared. The deterministic test suite runs
+contracts with `--contracts-only --enforce-contracts`, making a contract miss a
+test failure. Tool crashes, timeouts, malformed output, and invalid XML are
+always hard failures.
 
 Run the current build:
 
@@ -50,5 +52,6 @@ also confirm that normal and `--results-only` executions select identical move
 endpoints and match kinds.
 
 Cases with no required moves are useful negative controls. Keep uncertain
-examples here as characterization cases. Promote a behavior into the normal
-regression suites only after it becomes an accepted product contract.
+examples as `hypothesis` cases. Change the status to `contract` only after the
+expected behavior has been reviewed and accepted; contracts run under
+`make test`.
