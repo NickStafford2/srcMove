@@ -84,13 +84,49 @@ def xpaths_to_files(xpaths: list[str] | None) -> list[str]:
     return sorted(files)
 
 
-def normalize_move_record(move: dict[str, Any]) -> dict[str, list[str] | int | None]:
+MOVE_SCORE_FIELDS = (
+    "confidence_milli",
+    "selection_utility",
+    "matched_units",
+    "selection_reason",
+)
+
+
+def validate_move_record_shape(move: Any, index: int) -> list[str]:
+    if not isinstance(move, dict):
+        return [f"results.json moves[{index}] is not an object"]
+
+    failures: list[str] = []
+    for key in ("confidence_milli", "selection_utility", "matched_units"):
+        value = move.get(key)
+        if type(value) is not int or value < 0:
+            failures.append(
+                f"results.json moves[{index}].{key} must be a non-negative integer"
+            )
+    confidence = move.get("confidence_milli")
+    if type(confidence) is int and confidence > 1000:
+        failures.append(
+            f"results.json moves[{index}].confidence_milli must not exceed 1000"
+        )
+    reason = move.get("selection_reason")
+    if not isinstance(reason, str) or not reason:
+        failures.append(
+            f"results.json moves[{index}].selection_reason must be non-empty text"
+        )
+    return failures
+
+
+def normalize_move_record(move: dict[str, Any]) -> dict[str, Any]:
     from_xpaths = normalize_xpath_list(move.get("from_xpaths"))
     to_xpaths = normalize_xpath_list(move.get("to_xpaths"))
 
     return {
         "move_id": move.get("move_id"),
         "match_kind": move.get("match_kind"),
+        "confidence_milli": move.get("confidence_milli"),
+        "selection_utility": move.get("selection_utility"),
+        "matched_units": move.get("matched_units"),
+        "selection_reason": move.get("selection_reason"),
         "from_xpaths": from_xpaths,
         "to_xpaths": to_xpaths,
         "from_files": xpaths_to_files(from_xpaths),
@@ -112,7 +148,7 @@ def format_list_block(label: str, values: list[str]) -> list[str]:
 
 
 def move_matches_expectation(
-    actual: dict[str, list[str] | int | None], expected: dict[str, Any]
+    actual: dict[str, Any], expected: dict[str, Any]
 ) -> tuple[bool, str]:
     required_move_keys = (
         "move_id",
@@ -149,6 +185,15 @@ def move_matches_expectation(
                 ]
             ),
         )
+
+    for key in MOVE_SCORE_FIELDS:
+        if key in expected and actual[key] != expected[key]:
+            return (
+                False,
+                f"{key} mismatch:\n"
+                f"  expected: {expected[key]!r}\n"
+                f"  actual:   {actual[key]!r}",
+            )
 
     for key in ("from_xpaths", "to_xpaths", "from_raw_texts", "to_raw_texts"):
         expected_list = sorted(str(v) for v in expected[key])
@@ -245,7 +290,7 @@ def check_summary_fields(
         elif not isinstance(actual_match_kinds, dict):
             failures.append("results.json field 'match_kinds' is not an object")
         else:
-            for key in ("exact", "type2"):
+            for key in ("exact", "type2", "type3"):
                 if key not in expected_match_kinds:
                     failures.append(
                         f"expected.json match_kinds missing required field {key!r}"
@@ -285,6 +330,12 @@ def validate_moves(expected: dict[str, Any], results: dict[str, Any]) -> list[st
 
     if not isinstance(actual_moves_raw, list):
         failures.append("results.json field 'moves' is not a list")
+        return failures
+
+    for actual_index, actual_move in enumerate(actual_moves_raw, start=1):
+        failures.extend(validate_move_record_shape(actual_move, actual_index))
+
+    if failures:
         return failures
 
     if len(actual_moves_raw) != len(expected_moves):

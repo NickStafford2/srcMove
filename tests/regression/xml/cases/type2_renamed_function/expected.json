@@ -34,6 +34,7 @@
   },
   "match_kinds": {
     "exact": 0,
-    "type2": 1
+    "type2": 1,
+    "type3": 0
   }
 }
