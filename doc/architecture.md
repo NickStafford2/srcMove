@@ -98,8 +98,9 @@ then builds all supported evidence before selection:
 3. generates Type-3 edges for structurally compatible candidates
 4. turns unique exact and Type-2 correspondences plus verified Type-3 edges
    into one proposal set
-5. ranks proposals by size-aware utility, confidence, evidence class, source
-   construct preference, and deterministic candidate identifiers
+5. ranks proposals by size-aware utility plus an internal structural-coverage
+   term, then confidence, evidence class, source-construct preference, and
+   deterministic candidate identifiers
 6. greedily selects proposals subject to one-use and source/destination span
    overlap constraints
 7. emits remaining delete-only and insert-only groups for reporting
@@ -133,6 +134,13 @@ Type-1, Type-2, and Type-3 proposals compete in the same utility ordering. A
 large verified near-match can therefore suppress a small exact descendant.
 Correlated evidence is represented by its strongest applicable match class
 rather than summed. Deterministic IDs break otherwise equal proposal ranks.
+
+The local hierarchy pass compares an enclosing one-to-one proposal with a
+non-overlapping descendant bundle before greedy selection. Descendants replace
+the parent only when they cover a substantial but non-partitioning share on
+both sides, improve weighted confidence materially, and remain stronger after
+a proportional fragmentation cost. The pass evaluates larger parents first so
+an intermediate decision cannot hide evidence from its enclosing construct.
 
 ### 4. Produce annotations or results
 

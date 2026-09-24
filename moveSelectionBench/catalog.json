@@ -254,6 +254,51 @@
           "reason": "The deletion endpoint is already consumed by stronger exact evidence."
         }
       ]
+    },
+    {
+      "id": "coherent_type2_parent_over_partition",
+      "input": "cases/coherent_type2_parent_over_partition.xml",
+      "category": "hierarchical_coherence",
+      "rationale": "A consistently renamed function is one Type-2 move; its unchanged statements are supporting evidence, not separate moves.",
+      "required": [
+        {
+          "from": "void gotoURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+          "to": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+          "match_kinds": ["type2"]
+        }
+      ],
+      "forbidden": [
+        {
+          "from": "if (url != null) {connect(url);}",
+          "to": "if (url != null) {connect(url);}",
+          "reason": "The unchanged body partitions a coherent renamed function."
+        }
+      ]
+    },
+    {
+      "id": "coherent_type3_parent_over_partition",
+      "input": "cases/coherent_type3_parent_over_partition.xml",
+      "category": "hierarchical_coherence",
+      "rationale": "A strongly similar edited function should remain one Type-3 move when several colocated descendants merely partition its matching evidence.",
+      "required": [
+        {
+          "from": "protected void zipFile(File from, File to) { FileInputStream in = new FileInputStream(from); ZipOutputStream out = new ZipOutputStream(to); byte[] buffer = new byte[4096]; int bytes_read; while ((bytes_read = in.read(buffer)) != -1) out.write(buffer, 0, bytes_read); in.close(); out.close(); }",
+          "to": "public static void copyFile(File src, File dst) { InputStream in = new FileInputStream(src); OutputStream out = new FileOutputStream(dst); byte[] buf = new byte[1024]; int len; while ((len = in.read(buf)) > 0) out.write(buf, 0, len); in.close(); out.close(); }",
+          "match_kinds": ["type3"]
+        }
+      ],
+      "forbidden": [
+        {
+          "from": "in.close();",
+          "to": "in.close();",
+          "reason": "The close statement is supporting evidence for the complete function move."
+        },
+        {
+          "from": "out.close();",
+          "to": "out.close();",
+          "reason": "The close statement is supporting evidence for the complete function move."
+        }
+      ]
     }
   ]
 }

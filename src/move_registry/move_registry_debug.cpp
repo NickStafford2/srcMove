@@ -96,6 +96,8 @@ void print_candidate_line(const candidate_registry &registry,
   os << "    " << rpad(id, 5) << " " << rpad(kind_name(c.kind), 4) << " " << "["
      << c.start_idx << "," << c.end_idx << "] "
      << "active=" << (record.active ? "yes" : "no ") << " " << "hash=" << c.hash
+     << " lines=" << c.type2_normalized_lines.size()
+     << " tokens=" << c.type3_normalized_tokens.size()
      << " " << "file=\"" << c.filename << "\" " << " raw=\""
      << clean_text(c.raw_text, preview_len) << "\"" << " canon=\""
      << clean_text(c.canonical_text, preview_len) << "\"\n";

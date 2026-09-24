@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="Java" filename="rename.java">
+  <diff:delete><function><type><name>void</name></type> <name>gotoURLWithMethod</name><parameter_list>(<parameter><decl><type><name>String</name></type> <name>url</name></decl></parameter>)</parameter_list> <block>{<block_content>
+    <decl_stmt><decl><type><name>int</name></type> <name>retries</name> <init>= <expr><literal type="number">3</literal></expr></init></decl>;</decl_stmt>
+    <if_stmt><if>if <condition>(<expr><name>url</name> <operator>!=</operator> <literal type="null">null</literal></expr>)</condition> <block>{<block_content><expr_stmt><expr><call><name>connect</name><argument_list>(<argument><expr><name>url</name></expr></argument>)</argument_list></call></expr>;</expr_stmt></block_content>}</block></if></if_stmt>
+    <expr_stmt><expr><call><name>log</name><argument_list>(<argument><expr><name>url</name></expr></argument>)</argument_list></call></expr>;</expr_stmt>
+    <expr_stmt><expr><call><name>close</name><argument_list>()</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></function></diff:delete>
+  <diff:insert><function><type><name>void</name></type> <name>showURLWithMethod</name><parameter_list>(<parameter><decl><type><name>String</name></type> <name>url</name></decl></parameter>)</parameter_list> <block>{<block_content>
+    <decl_stmt><decl><type><name>int</name></type> <name>retries</name> <init>= <expr><literal type="number">3</literal></expr></init></decl>;</decl_stmt>
+    <if_stmt><if>if <condition>(<expr><name>url</name> <operator>!=</operator> <literal type="null">null</literal></expr>)</condition> <block>{<block_content><expr_stmt><expr><call><name>connect</name><argument_list>(<argument><expr><name>url</name></expr></argument>)</argument_list></call></expr>;</expr_stmt></block_content>}</block></if></if_stmt>
+    <expr_stmt><expr><call><name>log</name><argument_list>(<argument><expr><name>url</name></expr></argument>)</argument_list></call></expr>;</expr_stmt>
+    <expr_stmt><expr><call><name>close</name><argument_list>()</argument_list></call></expr>;</expr_stmt>
+  </block_content>}</block></function></diff:insert>
+</unit>
