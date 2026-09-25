@@ -5,6 +5,11 @@ on `srcMove` and its companion visualization system, `srcVisual`. `srcMove` is
 the primary research contribution. `srcVisual` is a supporting contribution
 that makes structured differences and cross-file move annotations inspectable.
 
+The thesis is currently in a seven-day completion effort. The maintained
+[Seven-Day Thesis Completion Plan](seven-day-plan.md) defines the deadline
+strategy, working boundaries, completion gates, rolling state, and recursive
+improvement protocol for every human or AI work session.
+
 Only thesis-quality material belongs here. Scratch notes, unverified ideas,
 and temporary benchmark observations belong in `doc/user-notes/`. Concrete
 unfinished implementation tasks may use `doc/handoffs/`; broader unresolved
@@ -14,10 +19,10 @@ work belongs in the relevant backlog.
 
 Structured information already present in srcDiff XML can be used to recover
 useful source-code move relationships without replacing the underlying diff
-engine. A deterministic post-processing pipeline can identify exact,
-consistently renamed, and bounded-similarity moves—including moves across
-files—while preserving the srcDiff document for downstream inspection in
-srcVisual.
+engine. A conservative deterministic post-processing pipeline can prioritize
+exact and consistently renamed moves—including moves across files—while
+admitting only high-confidence Type-3 near misses and preserving the srcDiff
+document for downstream inspection in srcVisual.
 
 This is a working claim, not a conclusion. Its final wording must be limited to
 what the frozen evaluation actually demonstrates.
@@ -89,25 +94,13 @@ reduced to implementation footnotes.
 
 ## Current thesis work
 
-- Complete the literature review and replace citation placeholders with primary
-  sources, especially for the move taxonomy and scalable clone detection.
-- Decide whether the move taxonomy remains Section 2.3 or becomes a standalone
-  chapter, then update numbering and cross-references consistently.
-- Freeze the final BigMoveBench populations, samples, oracle versions, and
-  tuning/evaluation boundary before reporting results.
-- Run and archive the final srcMove, BigMoveBench, srcMove History, performance,
-  and selected srcVisual evaluations.
-- Replace result, figure, table, and artifact placeholders only from frozen
-  evidence.
-- Decide the defensible srcVisual evaluation claim; do not imply a usability
-  result without a study.
-- Reconcile terminology, research-question traceability, threats to validity,
-  and conclusions across all chapters.
-- Remove drafting instructions and unresolved placeholders before export.
+The [Seven-Day Thesis Completion Plan](seven-day-plan.md) is the canonical source
+for current priorities, completion gates, risks, and next-session state. Update
+that plan in place after each substantial work session rather than maintaining a
+second task list here.
 
-Use the [Thesis Review Guide](review_guide.md) for future structural, evidence,
-clarity, and style reviews. Chapter-specific TODOs remain in their relevant
-files; this list records only work affecting the thesis as a whole.
+Use the [Thesis Review Guide](review_guide.md) for structural, evidence, clarity,
+and style reviews. Chapter-specific TODOs remain in their relevant files.
 
 ## Quality gate
 

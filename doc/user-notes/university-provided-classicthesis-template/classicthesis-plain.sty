@@ -1,0 +1,16 @@
+%************************************************************
+% classicthesis-plain.sty
+% --> to be loaded via option in classicthesis.sty
+%************************************************************
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{classicthesis-plain}[2019/11/14]
+
+\ifdefined\classicthesis\else\RequirePackage{classicthesis}\fi
+
+% Plain vanilla chapters, looking like sections, but with line
+\titleformat{\chapter}[block]
+  {\relax}{\thechapter}{1em}
+  {\raggedright\spacedlowsmallcaps}[\normalsize\vspace*{.8\baselineskip}\titlerule]%
+
+%************************************************************

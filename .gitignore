@@ -1,6 +1,7 @@
 build/
 build-release/
 build-profile/
+.DS_Store
 .development-environment-reports/
 __pycache__/
 *.py[cod]
