@@ -123,14 +123,14 @@ shaped but unrelated functions identical through blind name replacement.
 
 Each unit is hashed to 64 bits. For either pair of sequences `A` and `B`, with
 longest common subsequence length `L`, the representation accepts exactly when
-both `L / |A| >= 0.70` and `L / |B| >= 0.70`. This is equivalent to
-`L / max(|A|, |B|) >= 0.70`. A candidate pair qualifies when either the
+both `L / |A| >= 0.90` and `L / |B| >= 0.90`. This is equivalent to
+`L / max(|A|, |B|) >= 0.90`. A candidate pair qualifies when either the
 statement/block view or token view accepts; its stronger similarity orders the
 edge.
 
 The comparison first rejects impossible size ratios, then runs a two-row LCS
 that exits when the remaining rows cannot reach the required common length.
-Candidates are restricted to the same eligible srcML element kind and the 0.70
+Candidates are restricted to the same eligible srcML element kind and the 0.90
 size window, rather than forming an unrestricted delete-by-insert product.
 Type-1, Type-2, and Type-3 proposals compete in the same utility ordering. A
 large verified near-match can therefore suppress a small exact descendant.
@@ -174,7 +174,7 @@ The matcher reports four classification outcomes:
 - `exact` (Type 1): identical comment- and formatting-insensitive canonical
   structure and meaningful text
 - `type2`: identical identifier- and literal-normalized canonical structure
-- `type3`: eligible unmatched candidates satisfy the 0.70 bounded-LCS rule
+- `type3`: eligible unmatched candidates satisfy the 0.90 bounded-LCS rule
 - none: no accepted pair is emitted; candidates remain unmatched
 
 Selected groups are either one-to-one correspondences or exact multi-endpoint

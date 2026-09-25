@@ -79,10 +79,10 @@ test-classification: build
 		--case classification_type2_java_method_identifiers \
 		--case classification_type2_java_method_literal \
 		--case classification_type2_java_method_identifiers_and_literal \
-		--case classification_type3_java_method_added_statement \
-		--case classification_type3_java_method_removed_statement \
+		--case classification_conservative_type3_java_method_added_statement \
+		--case classification_conservative_type3_java_method_removed_statement \
 		--case classification_type3_java_method_modified_statement \
-		--case classification_type3_java_method_inconsistent_renaming \
+		--case classification_conservative_type3_java_method_inconsistent_renaming \
 		--case classification_none_unrelated_java_methods \
 		--case classification_none_similar_java_method_shapes
 

@@ -27,19 +27,19 @@
       "status": "contract",
       "input": "cases/nested_near_miss_parent_over_exact_child.xml",
       "category": "cross_type_competition",
-      "rationale": "A larger coherent Type-2 or Type-3 move may be more useful than an exact nested statement.",
+      "rationale": "An enclosing near miss below the conservative Type-3 threshold must not suppress its exact nested move.",
       "required": [
         {
-          "from": "if (oldReady) { int marker = 1; publish(oldValue); cleanup(); }",
-          "to": "if (newReady) { int marker = 1; validate(); publish(newValue); cleanup(); }",
-          "match_kinds": ["type2", "type3"]
+          "from": "int marker = 1;",
+          "to": "int marker = 1;",
+          "match_kinds": ["exact"]
         }
       ],
       "forbidden": [
         {
-          "from": "int marker = 1;",
-          "to": "int marker = 1;",
-          "reason": "The exact child is supporting evidence, not the best explanation."
+          "from": "if (oldReady) { int marker = 1; publish(oldValue); cleanup(); }",
+          "to": "if (newReady) { int marker = 1; validate(); publish(newValue); cleanup(); }",
+          "reason": "The enclosing construct is below the conservative Type-3 threshold."
         }
       ]
     },
@@ -296,24 +296,34 @@
       "status": "contract",
       "input": "cases/coherent_type3_parent_over_partition.xml",
       "category": "hierarchical_coherence",
-      "rationale": "A strongly similar edited function should remain one Type-3 move when several colocated descendants merely partition its matching evidence.",
+      "rationale": "A function below the conservative Type-3 threshold should yield only independently strong descendant matches.",
       "required": [
         {
-          "from": "protected void zipFile(File from, File to) { FileInputStream in = new FileInputStream(from); ZipOutputStream out = new ZipOutputStream(to); byte[] buffer = new byte[4096]; int bytes_read; while ((bytes_read = in.read(buffer)) != -1) out.write(buffer, 0, bytes_read); in.close(); out.close(); }",
-          "to": "public static void copyFile(File src, File dst) { InputStream in = new FileInputStream(src); OutputStream out = new FileOutputStream(dst); byte[] buf = new byte[1024]; int len; while ((len = in.read(buf)) > 0) out.write(buf, 0, len); in.close(); out.close(); }",
+          "from": "byte[] buffer = new byte[4096];",
+          "to": "byte[] buf = new byte[1024];",
+          "match_kinds": ["type2"]
+        },
+        {
+          "from": "while ((bytes_read = in.read(buffer)) != -1) out.write(buffer, 0, bytes_read);",
+          "to": "while ((len = in.read(buf)) > 0) out.write(buf, 0, len);",
           "match_kinds": ["type3"]
-        }
-      ],
-      "forbidden": [
+        },
         {
           "from": "in.close();",
           "to": "in.close();",
-          "reason": "The close statement is supporting evidence for the complete function move."
+          "match_kinds": ["exact"]
         },
         {
           "from": "out.close();",
           "to": "out.close();",
-          "reason": "The close statement is supporting evidence for the complete function move."
+          "match_kinds": ["exact"]
+        }
+      ],
+      "forbidden": [
+        {
+          "from": "protected void zipFile(File from, File to) { FileInputStream in = new FileInputStream(from); ZipOutputStream out = new ZipOutputStream(to); byte[] buffer = new byte[4096]; int bytes_read; while ((bytes_read = in.read(buffer)) != -1) out.write(buffer, 0, bytes_read); in.close(); out.close(); }",
+          "to": "public static void copyFile(File src, File dst) { InputStream in = new FileInputStream(src); OutputStream out = new FileOutputStream(dst); byte[] buf = new byte[1024]; int len; while ((len = in.read(buf)) > 0) out.write(buf, 0, len); in.close(); out.close(); }",
+          "reason": "The complete function is below the conservative Type-3 threshold."
         }
       ]
     }

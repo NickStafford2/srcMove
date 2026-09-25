@@ -100,19 +100,18 @@ Each session should make the next session easier.
 
 **Immediate priorities:**
 
-1. define the smallest defensible high-confidence Type-3 acceptance rule;
-2. implement and verify the conservative behavior without adding new features;
-3. update canonical architecture documentation and thesis claims to match;
-4. continue repository and thesis cleanup, then verify the university format.
+1. decide whether Type-1 and Type-2 receive absolute selection precedence;
+2. implement and verify that decision without adding new features;
+3. continue repository and thesis cleanup;
+4. verify the university format against an authoritative specification.
 
-**Audit finding:** Type-3 currently accepts a line or token LCS ratio of at least
-0.70 and competes with exact and Type-2 proposals in one utility ranking. The
-conservative rule must define both a higher acceptance boundary and whether
-Type-1/Type-2 evidence receives absolute precedence.
+**Current decision:** Type-3 now requires a line or token LCS ratio of at least
+0.90. Proposals still compete with exact and Type-2 proposals in one utility
+ranking; whether Type-1/Type-2 receive absolute precedence remains unresolved.
 
-**Main risks:** “high confidence” is not yet operationally defined; system
-chapters are stale; the format is unverified; and existing evidence may require
-narrower claims.
+**Main risks:** the `0.90` policy threshold is not yet empirically calibrated;
+system chapters are stale; the format is unverified; and existing evidence may
+require narrower claims.
 
 **Next session:** start with the first unresolved priority unless the user changes
 direction. Update this section in place; do not add another status section.

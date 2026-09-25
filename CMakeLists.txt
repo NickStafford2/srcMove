@@ -80,6 +80,14 @@ target_include_directories(selection_policy_test PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
+add_executable(sequence_similarity_test
+  tests/unit/sequence_similarity/test_sequence_similarity.cpp
+  src/move_registry/sequence_similarity.cpp
+)
+target_include_directories(sequence_similarity_test PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+
 set(SRCMOVE_RECEIPT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/emit_build_receipt.py")
 set(SRCMOVE_SOURCE_LOCK "${WORKSPACE_ROOT}/workspace.lock.json")
 set(SRCMOVE_BUILD_ENTRY_POINT "cmake --build ${CMAKE_BINARY_DIR} --target srcMove")

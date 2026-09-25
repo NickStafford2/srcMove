@@ -61,7 +61,7 @@
       "expected_to_lines": ["int compute(int number) {", "    int result = number * 2;", "    return result;", "  }"]
     },
     {
-      "id": "classification_type3_java_method_added_statement", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "A moved method with one added statement is a Type-3 contract.",
+      "id": "classification_conservative_type3_java_method_added_statement", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "A method below the conservative Type-3 threshold is not reported, while its exact moved statement remains detectable.",
       "original_files": {
         "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }", "}"],
         "Destination.java": ["class Destination {}"]
@@ -70,9 +70,9 @@
         "Source.java": ["class Source {}"],
         "Destination.java": ["class Destination {", "  int calculate(int value) {", "    int doubled = value * 2;", "    System.out.println(doubled);", "    return doubled;", "  }", "}"]
       },
-      "expected_match_kind": "type3",
-      "expected_from_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }"],
-      "expected_to_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    System.out.println(doubled);", "    return doubled;", "  }"]
+      "expected_match_kind": "exact",
+      "expected_from_lines": ["int doubled = value * 2;"],
+      "expected_to_lines": ["int doubled = value * 2;"]
     },
     {
       "id": "classification_type1_java_method_comments", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Comment-only changes preserve a Type-1 method move.",
@@ -117,7 +117,7 @@
       "expected_to_lines": ["int compute(int number) {", "    int tripled = number * 3;", "    return tripled;", "  }"]
     },
     {
-      "id": "classification_type3_java_method_removed_statement", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "A moved method with one removed statement is a Type-3 contract.",
+      "id": "classification_conservative_type3_java_method_removed_statement", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "A method below the conservative Type-3 threshold is not reported, while its exact moved statement remains detectable.",
       "original_files": {
         "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    System.out.println(doubled);", "    return doubled;", "  }", "}"],
         "Destination.java": ["class Destination {}"]
@@ -126,9 +126,9 @@
         "Source.java": ["class Source {}"],
         "Destination.java": ["class Destination {", "  int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }", "}"]
       },
-      "expected_match_kind": "type3",
-      "expected_from_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    System.out.println(doubled);", "    return doubled;", "  }"],
-      "expected_to_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }"]
+      "expected_match_kind": "exact",
+      "expected_from_lines": ["int doubled = value * 2;"],
+      "expected_to_lines": ["int doubled = value * 2;"]
     },
     {
       "id": "classification_type3_java_method_modified_statement", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "A moved method with a structurally changed statement is a Type-3 contract.",
@@ -145,7 +145,7 @@
       "expected_to_lines": ["int calculate(int value) {", "    int result = value + 2;", "    return result;", "  }"]
     },
     {
-      "id": "classification_type3_java_method_inconsistent_renaming", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Inconsistent identifier correspondence is a Type-3 edit rather than a consistent Type-2 rename.",
+      "id": "classification_conservative_type3_java_method_inconsistent_renaming", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "A method with inconsistent identifier correspondence falls below the conservative Type-3 threshold, while its exact return statement remains detectable.",
       "original_files": {
         "Source.java": ["class Source {", "  int subtract(int left, int right) {", "    return left - right;", "  }", "}"],
         "Destination.java": ["class Destination {}"]
@@ -154,9 +154,9 @@
         "Source.java": ["class Source {}"],
         "Destination.java": ["class Destination {", "  int subtract(int right, int left) {", "    return left - right;", "  }", "}"]
       },
-      "expected_match_kind": "type3",
-      "expected_from_lines": ["int subtract(int left, int right) {", "    return left - right;", "  }"],
-      "expected_to_lines": ["int subtract(int right, int left) {", "    return left - right;", "  }"]
+      "expected_match_kind": "exact",
+      "expected_from_lines": ["return left - right;"],
+      "expected_to_lines": ["return left - right;"]
     }
   ]
 }

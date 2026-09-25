@@ -78,7 +78,7 @@ the two-row LCS work is material. Semantics-preserving experiments include:
 
 1. reusing dynamic-programming buffers;
 2. trimming common prefixes and suffixes;
-3. rejecting pairs whose token-frequency intersection cannot meet the 0.70 LCS
+3. rejecting pairs whose token-frequency intersection cannot meet the 0.90 LCS
    threshold; and
 4. evaluating an exact bit-parallel LCS implementation.
 

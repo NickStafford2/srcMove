@@ -165,6 +165,12 @@ def test_steps(
                 [str(REPO_ROOT / "build" / "selection_policy_test")],
             )
         )
+        steps.append(
+            TestStep(
+                "sequence similarity component",
+                [str(REPO_ROOT / "build" / "sequence_similarity_test")],
+            )
+        )
 
     if not args.cases and "bigmovebench" in suites:
         steps.append(

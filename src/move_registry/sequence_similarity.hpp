@@ -7,7 +7,7 @@
 
 namespace srcmove {
 
-inline constexpr std::size_t kType3ThresholdNumerator   = 7;
+inline constexpr std::size_t kType3ThresholdNumerator   = 9;
 inline constexpr std::size_t kType3ThresholdDenominator = 10;
 
 bool can_reach_type3_threshold(std::size_t lhs_size,

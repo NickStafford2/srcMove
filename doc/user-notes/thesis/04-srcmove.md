@@ -230,13 +230,13 @@ let `L` be the length of their longest common subsequence. The view is accepted
 when
 
 ```text
-L / |A| >= 0.70  and  L / |B| >= 0.70,
+L / |A| >= 0.90  and  L / |B| >= 0.90,
 ```
 
 which is equivalent to
 
 ```text
-L / max(|A|, |B|) >= 0.70.
+L / max(|A|, |B|) >= 0.90.
 ```
 
 A candidate pair qualifies if either its statement/block view or token view
@@ -253,8 +253,8 @@ rule makes repeated execution stable, although it is not a claim that the
 greedy pairing reconstructs the only possible developer intent. Threshold
 selection must likewise be treated as an empirical design decision.
 
-**TODO (evaluation):** Identify the tuning cases used to select the `0.70`
-threshold and keep them separate from the frozen evaluation selection.
+**TODO (evaluation):** Evaluate the conservative `0.90` policy threshold on
+tuning cases kept separate from the frozen evaluation selection.
 
 **TODO (figure):** Give one statement/block and token-sequence example, show its
 LCS calculation, and distinguish an accepted pair from a size-window rejection.
