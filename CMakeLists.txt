@@ -1,5 +1,12 @@
 cmake_minimum_required(VERSION 3.20)
-project(srcMove LANGUAGES CXX)
+
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/VERSION" SRCMOVE_VERSION)
+string(STRIP "${SRCMOVE_VERSION}" SRCMOVE_VERSION)
+if(NOT SRCMOVE_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")
+  message(FATAL_ERROR "VERSION must contain a semantic version such as 0.2.0")
+endif()
+
+project(srcMove VERSION "${SRCMOVE_VERSION}" LANGUAGES CXX)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(CMAKE_CXX_STANDARD 17)
@@ -71,6 +78,16 @@ file(GLOB SRC_FILES CONFIGURE_DEPENDS
 
 add_executable(srcMove ${SRC_FILES})
 configure_srcmove_target(srcMove)
+
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated/srcmove")
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/src/version.hpp.in"
+  "${CMAKE_CURRENT_BINARY_DIR}/generated/srcmove/version.hpp"
+  @ONLY
+)
+target_include_directories(srcMove PRIVATE
+  "${CMAKE_CURRENT_BINARY_DIR}/generated"
+)
 
 add_executable(selection_policy_test
   tests/unit/selection_policy/test_selection_policy.cpp

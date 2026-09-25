@@ -31,6 +31,11 @@ public:
   using std::runtime_error::runtime_error;
 };
 
+class cli_exit : public std::runtime_error {
+public:
+  using std::runtime_error::runtime_error;
+};
+
 cli_options parse_cli(int argc, char **argv);
 std::string usage(const std::string &progname);
 

@@ -1,4 +1,5 @@
 #include "cli.hpp"
+#include "srcmove/version.hpp"
 
 #include <sstream>
 #include <string>
@@ -39,7 +40,7 @@ std::string build_help(const std::string &progname) {
   return out.str();
 }
 
-std::string build_version() { return "srcMove v0.1.1"; }
+std::string build_version() { return "srcMove v" + std::string(VERSION); }
 
 } // namespace
 
@@ -55,11 +56,11 @@ cli_options parse_cli(int argc, char **argv) {
     const std::string arg = argv[i];
 
     if (arg == "-h" || arg == "--help") {
-      throw cli_error(build_help(argv[0]));
+      throw cli_exit(build_help(argv[0]));
     }
 
     if (arg == "--version") {
-      throw cli_error(build_version());
+      throw cli_exit(build_version());
     }
 
     if (arg == "-v" || arg == "--verbose") {

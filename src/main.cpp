@@ -38,6 +38,9 @@ int main(int argc, char **argv) {
     }
 
     return 0;
+  } catch (const srcmove::cli_exit &e) {
+    std::cout << e.what() << "\n";
+    return 0;
   } catch (const srcmove::cli_error &e) {
     std::cerr << e.what() << "\n";
     return 1;

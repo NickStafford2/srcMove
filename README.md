@@ -204,6 +204,21 @@ Small deterministic XML fixtures live under `tests/regression/xml/cases/`.
 Generated source-pair tests and BigCloneBench evaluation are documented by the
 test and benchmark entry points above.
 
+## Versioning
+
+The project version has one source of truth: [`VERSION`](VERSION). CMake reads
+that file during configuration, and `srcMove --version` reports the configured
+value. Update `VERSION` when preparing a release-worthy change:
+
+- increment the patch version for backward-compatible fixes
+- increment the minor version for backward-compatible features or substantial
+  algorithm changes
+- increment the major version for incompatible CLI, output-format, or behavior
+  contracts after the project reaches 1.0
+
+While srcMove remains in initial `0.x` development, an incompatible change may
+advance the minor version instead of declaring the interface stable at 1.0.
+
 ## Developer utilities
 
 The build also produces text-oriented inspection tools from `src/tools/`:

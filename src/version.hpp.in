@@ -1,0 +1,12 @@
+#ifndef INCLUDED_SRCMOVE_VERSION_HPP
+#define INCLUDED_SRCMOVE_VERSION_HPP
+
+#include <string_view>
+
+namespace srcmove {
+
+inline constexpr std::string_view VERSION = "@PROJECT_VERSION@";
+
+} // namespace srcmove
+
+#endif
