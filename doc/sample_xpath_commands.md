@@ -1,30 +1,56 @@
-# Get all mv:partner inside a srcmove.xml
-```
+# Querying srcMove annotations
+
+srcMove annotates accepted endpoints with the namespace
+`http://www.srcML.org/srcMove`:
+
+- `mv:id` identifies the shared move group;
+- `mv:to` contains the destination XPath or XPath union on a deletion; and
+- `mv:from` contains the source XPath or XPath union on an insertion.
+
+The examples below use XMLStarlet and assume the annotated input is
+`srcmove.xml`.
+
+## List distinct move-group identifiers
+
+```bash
 xmlstarlet sel \
--N mv="http://www.srcML.org/srcMove" \
--t -m "//*[@mv:partner]" \
--v "@mv:partner" -n \
-srcmove.xml > srcmove.partner.xml
-
+  -N mv="http://www.srcML.org/srcMove" \
+  -t -m "//*[@mv:id]" -v "@mv:id" -n \
+  srcmove.xml | sort -u
 ```
 
-# Get all mv:partner inside a srcmove.xml
-```
+## List deletion-to-destination links
+
+```bash
 xmlstarlet sel \
--N mv="http://www.srcML.org/srcMove" \
--t -m "//*[@mv:partner]" \
--v "@mv:partners" -n \
-srcmove.xml > srcmove.partners.xml
-
+  -N mv="http://www.srcML.org/srcMove" \
+  -t -m "//*[@mv:to]" \
+  -v "@mv:id" -o " -> " -v "@mv:to" -n \
+  srcmove.xml
 ```
 
-# Get all mv:move inside a srcmove.xml
-To see if every number from 1 to n are used. where n is the number of move ids.
-```
+## List insertion-to-source links
+
+```bash
 xmlstarlet sel \
--N mv="http://www.srcML.org/srcMove" \
--t -m "//*[@mv:move]" \
--v "@mv:move" -n \
-srcmove.xml | sort -n | uniq | nl
-
+  -N mv="http://www.srcML.org/srcMove" \
+  -t -m "//*[@mv:from]" \
+  -v "@mv:id" -o " <- " -v "@mv:from" -n \
+  srcmove.xml
 ```
+
+## Extract every endpoint in one move group
+
+Replace the example identifier with the `mv:id` of interest.
+
+```bash
+xmlstarlet sel \
+  -N mv="http://www.srcML.org/srcMove" \
+  -t -m "//*[@mv:id='97b1dcdaf']" -c "." -n \
+  srcmove.xml
+```
+
+`mv:to` and `mv:from` are XPath expressions, and repeated-content groups may
+store an XPath union separated by `|`. Consumers that evaluate those values
+must bind the namespace prefixes used in the expression, including
+`src=http://www.srcML.org/srcML/src`.
