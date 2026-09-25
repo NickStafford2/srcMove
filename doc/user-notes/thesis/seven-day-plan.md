@@ -30,6 +30,9 @@ description here.
 The copied `university-provided-classicthesis-template` directory contains
 generic ClassicThesis 4.8, not verified university requirements. Do not assume
 it defines required margins, front matter, or submission rules.
+The professors report that the required format has remained stable for roughly
+ten years and is enforced strictly. Obtain the actual specification or a recent
+accepted thesis before adapting this generic bundle.
 
 ## Frozen priority
 
