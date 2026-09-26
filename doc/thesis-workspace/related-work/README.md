@@ -1,0 +1,1 @@
+reference repositories are not here. this is for references for other people's papers. I don't simply require pdf's of their papers. but also citations, descriptions summaries. notes. ect. I imagine i want to organize this by folder of author-paper-description/ with the files being inside. 
