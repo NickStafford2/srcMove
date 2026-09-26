@@ -61,14 +61,13 @@ summaries or diagrams disagree with current behavior.
 - [Backlog](backlog.md): open questions and candidate improvements
 - [Active handoffs](handoffs/README.md): narrowly scoped unfinished tasks, when
   any exist
-- [Master's thesis working draft](user-notes/thesis/README.md): chapter-level
-  prose, research questions, evidence gates, and writing tasks for srcMove,
-  BigMoveBench, srcVisual, srcMove History, and performance
 - [`user-notes/`](user-notes/): terminology, hypotheses, and other exploratory
   material that does not define current behavior
-- [Thesis summary draft](user-notes/thesis-summary-draft.md): preserved thesis
-  prose and aspirational research framing; not authoritative implementation
-  documentation
+
+The master's thesis draft, reference papers, and thesis-specific notes are
+maintained in the independent private `../thesis-workspace/` repository. This
+repository retains only canonical srcMove behavior, methodology, and evidence
+documentation needed to verify thesis claims.
 
 ## Guidance for AI agents
 

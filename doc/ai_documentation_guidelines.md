@@ -63,10 +63,8 @@ Use these homes unless a more specific file already exists:
 - `tests/README.md`: correctness-test entry points and suite behavior
 - suite-specific `README.md` files: benchmark setup, methodology, and runners
 - `doc/backlog.md`: unresolved ideas that do not yet justify a design document
-- `doc/user-notes/thesis/README.md`: thesis structure, design rationale, and
-  thesis-wide work still needed
-- `doc/user-notes/thesis/review_guide.md`: how to review the thesis without
-  inventing evidence or duplicating technical documentation
+- the independent private `../thesis-workspace/` repository: thesis drafts,
+  thesis-wide structure, reference papers, and private working notes
 - `scripts/`: reusable project automation that future agents should run instead
   of retyping long command sequences
 

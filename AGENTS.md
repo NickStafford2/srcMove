@@ -31,6 +31,11 @@ In short: improve documentation when you learn something useful, but write each
 durable fact once in the correct place. Link to the canonical doc instead of
 repeating the same information.
 
+Thesis drafts, reference papers, and working notes belong in the independent
+private `../thesis-workspace/` repository, not in srcMove. Keep verified srcMove
+behavior and research-method documentation here so thesis claims can cite a
+stable technical source.
+
 This checkout is normally developed inside the parent `srcMLBuildTemplate`
 workspace, not as a standalone tree. The canonical workspace layout,
 dependency order, and Docker/macOS workflow are documented in the parent
