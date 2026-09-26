@@ -1,6 +1,6 @@
 # Implementation plan
 
-Status: proposed; none of the behavior below is implemented yet.
+Status: outdated; proposed; none of the behavior below is implemented yet.
 
 ## Objective
 
