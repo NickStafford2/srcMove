@@ -45,6 +45,9 @@ summaries or diagrams disagree with current behavior.
 
 ## Research notes and planned work
 
+- [Correspondence before change classification](user-notes/correspondance.md):
+  proposed separation of Type-1/2/3 evidence from stationary, relocated,
+  copied, restructured, and ambiguous outcomes
 - [Move-detection redesign](plans/move_detection_redesign.md): canonical
   proposed semantics, candidate hierarchy, sparse pair scoring, selection,
   performance constraints, and BigMoveBench validation plan
