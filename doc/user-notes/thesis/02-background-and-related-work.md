@@ -1,15 +1,14 @@
 # Chapter 2: Background and Related Work
 
-srcMove lies at the intersection of source-code differencing, structured source
+srcMove lies at the intersection of source-code differencing, structured source  // im ok with intersection, but this isn't normally how i phrase things. 
 representations, clone classification, refactoring analysis, and change
-visualization. This chapter establishes the vocabulary needed by the remainder
+visualization. This chapter establishes the vocabulary needed by the remainder    // meh. 
 of the thesis and defines the dimensions on which related systems should be
-compared. It postpones implementation details to Chapter 4 and benchmark
-procedure to Chapter 5.
+compared.
 
 ## 2.1 Source-code differencing
 
-A source-code differencing system must identify how two program revisions
+A source-code differencing system must identify how two program revisions          // is program revisions the right word?
 relate. A line-oriented diff treats each file as a sequence of lines and reports
 an edit script over that sequence. This representation is broadly applicable
 and familiar, but source syntax does not necessarily align with physical lines.
@@ -19,8 +18,8 @@ foundational line-differencing source and empirical limitations for source
 code]**
 
 Syntax-aware and tree-oriented approaches compare representations that retain
-program structure. Their edit operations may refer to declarations, statements,
-expressions, or names rather than only to lines. Structure can improve the
+program structure. Their edit operations may refer to any number of structural elements such as declarations, statements,
+expressions, or names rather than only to lines. Structure can improve the     // i don't know if i agree with this sentence.
 correspondence between an edit script and a programmer's conceptual change, but
 it introduces choices about parsing, node identity, candidate granularity,
 matching, ambiguity, and cost. **[CITATION NEEDED: primary tree-differencing and
@@ -28,17 +27,17 @@ syntax-aware differencing literature]**
 
 An edit script should also be distinguished from an explanation. More than one
 valid sequence of operations can transform an old representation into a new
-one, and an edit script optimized for a formal cost need not produce the most
-useful account for a human reader. A deletion and insertion reconstruct the
+one, and a cost optimized edit script often is not optimized for human readability
+A deletion and insertion reconstruct the
 result even when the corresponding construct was relocated. A move operation
-adds a relationship between those regions; depending on the system, that
-relationship may mean identical content, structural similarity, inferred node
-continuity, copying, or a recognized refactoring. Comparisons between tools must
+adds a relationship between those regions; depending on the system, that      // between those regions? what regions
+relationship may mean identical content, structural similarity, inferred node  // inferred node continuity?
+continuity, copying, or a recognized refactoring. Comparisons between tools must   // why is this sentence here? 
 therefore state what their move operation actually asserts.
 
-This thesis uses *move* in a bounded sense. srcMove accepts a deleted and
+This thesis uses *move* in a bounded sense. srcMove accepts a deleted and   // rephrase
 inserted candidate when they satisfy one of its declared syntactic matching
-rules. It does not infer semantic equivalence or developer intent.
+rules. It does not infer semantic equivalence or developer intent.  // good final sentence.
 
 ## 2.2 The srcML ecosystem
 
@@ -51,16 +50,16 @@ available, while elements identify constructs such as names, declarations,
 functions, and statements. **[CITATION NEEDED: primary srcML paper and official
 project documentation]**
 
-The thesis should avoid calling every srcML document an abstract syntax tree
-without qualification. srcMove operates on XML events and source text embedded
+The thesis should avoid calling every srcML document an abstract syntax tree   // should i instead be discussing structural vs syntactic? 
+without qualification. srcMove operates on XML events and source text embedded  
 in srcDiff, not on a compiler AST with semantic bindings or type information.
-Its canonicalization and similarity rules are therefore structural and lexical.
+Its canonicalization and similarity rules are therefore structural and lexical.  // canonicalization ? idk this word.
 
 ### 2.2.2 srcDiff
 
 srcDiff compares source revisions and emits XML containing srcML structure and
 difference markup. Deleted and inserted regions appear as `diff:delete` and
-`diff:insert` elements. Inputs may describe a single file or an archive with
+`diff:insert` elements. Inputs may describe a single file or an archive with  
 multiple file units. The archive shape makes it possible for one document to
 contain a deletion in one file and an insertion in another.
 
@@ -84,18 +83,22 @@ question. **[CITATION NEEDED: official srcReader source/documentation if cited
 as a published artifact]**
 
 ## 2.3 Proposed General Taxonomy of Source-Code Moves
+// help me understand because this is essential to my paper. is type 1 move a new definition i am introducing? terminology, label? classification? idk what to call it. 
 
 This thesis proposes Type-1 through Type-4 as a general taxonomy of
-**source-code moves**, not merely as names for srcMove's implementation stages.
-The labels resemble familiar clone categories, but the object being classified
+**source-code moves**, not merely as names for srcMove's implementation stages.   // stages? second half of sentence needs reworded.
+
+// todo. must introduce and cite exising definition of clone types. i would briefly describe what these are and cite here. don't overdo it because it is redefined later as moves.
+
+The labels resemble familiar clone categories, but the object being classified  // lables? // familiar? sounds too casual.
 is different. Clone classification describes similarity between two fragments.
 Move classification describes the transformation and continuity of a source
-fragment as it changes location between revisions. A similar pair is not
-necessarily a move, and a move can remain the same conceptual program entity
+fragment as it changes location between revisions. A similar pair is not    // a move must represent a change in code that is in different locations.
+necessarily a move, and a move can remain the same conceptual program entity   // I don't understand this final sentence. 
 even after it is no longer a syntactic clone.
 
 The taxonomy is intended to give researchers, differencing tools, refactoring
-systems, benchmarks, and visualization tools a shared vocabulary. Its novelty
+systems, benchmarks, and visualization tools a shared vocabulary. Its novelty   // I need to flesh out this whole section. I can not find anything in the academic literature describing these move definitions. My professors have not either. It could exist but I can't find it and have not read it. to the best of my knowledge, this is my invention and I suggest it be discussed as such. 
 claim must be established through a dedicated literature review. Until that
 review is complete, the thesis should say that the taxonomy is **proposed by
 this work** rather than claiming that no prior move taxonomy exists.
@@ -105,7 +108,7 @@ lineage—not only clone taxonomies.]**
 
 ### 2.3.1 What constitutes a move
 
-Let a source fragment `A` occur at location `L_old` in revision `R_old`, and let
+Let a source fragment `A` occur at location `L_old` in revision `R_old`, and let  // Should we do different variable names here? L and right? seems wrong
 a related fragment `B` occur at location `L_new` in a later revision `R_new`.
 A move claim asserts all of the following:
 

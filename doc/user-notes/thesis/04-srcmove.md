@@ -6,12 +6,10 @@ srcMove is the primary software contribution of this thesis. It is a C++
 post-processor that consumes the structured XML produced by srcDiff, identifies
 deletion and insertion regions that plausibly represent the same relocated
 source construct, and writes those relationships back into the original XML.
-The central design decision is therefore one of composition: srcMove does not
-replace srcDiff or compute a second source-code difference. It adds a move
-interpretation to evidence that srcDiff has already exposed.
+srcMove does not replace srcDiff or compute a second source-code difference. 
+It adds a move interpretation to evidence that srcDiff has already exposed.
 
-This distinction defines both the contribution and its boundary. srcMove can
-associate regions across different files because an archive-form srcDiff
+srcMove can associate regions across different files because an archive-form srcDiff
 document contains all participating file units in one structured input. At the
 same time, srcMove cannot recover a move whose deletion or insertion is absent
 from that input. The implementation is best understood as a deterministic
