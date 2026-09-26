@@ -42,7 +42,7 @@ struct grouping_profile_stats {
   std::uint64_t type3_edges_selected        = 0;
   std::uint64_t type3_edges_used_rejected   = 0;
   std::uint64_t type3_edges_overlap_rejected = 0;
-  std::uint64_t stationary_exact_rejected     = 0;
+  std::uint64_t local_replacement_rejected    = 0;
 };
 
 group_kind classify_counts(std::size_t del_count, std::size_t ins_count) {
@@ -511,7 +511,7 @@ std::vector<match_proposal> build_match_proposals(
   return proposals;
 }
 
-void reject_stationary_exact_proposals(
+void reject_local_replacement_proposals(
     std::vector<match_proposal> &proposals,
     const candidate_registry &registry,
     grouping_profile_stats *stats) {
@@ -519,7 +519,8 @@ void reject_stationary_exact_proposals(
       std::remove_if(
           proposals.begin(), proposals.end(),
           [&](const match_proposal &proposal) {
-            if (proposal.group.match != match_kind::type1 ||
+            if ((proposal.group.match != match_kind::type1 &&
+                 proposal.group.match != match_kind::type2) ||
                 proposal.group.del_ids.size() != 1 ||
                 proposal.group.ins_ids.size() != 1) {
               return false;
@@ -528,25 +529,23 @@ void reject_stationary_exact_proposals(
                 registry.candidate(proposal.group.del_ids.front());
             const move_candidate &inserted =
                 registry.candidate(proposal.group.ins_ids.front());
-            const bool stationary = stationary_exact_pair(
-                stationary_exact_context{
+            const bool local_replacement = local_replacement_pair(
+                local_replacement_context{
                     deleted.filename,
-                    deleted.structural_parent_key,
                     deleted.structural_parent_depth,
                     deleted.diff_region_start_idx,
                     deleted.diff_region_end_idx,
                 },
-                stationary_exact_context{
+                local_replacement_context{
                     inserted.filename,
-                    inserted.structural_parent_key,
                     inserted.structural_parent_depth,
                     inserted.diff_region_start_idx,
                     inserted.diff_region_end_idx,
                 });
-            if (stationary && stats != nullptr) {
-              ++stats->stationary_exact_rejected;
+            if (local_replacement && stats != nullptr) {
+              ++stats->local_replacement_rejected;
             }
-            return stationary;
+            return local_replacement;
           }),
       proposals.end());
 }
@@ -950,7 +949,7 @@ content_groups build_content_groups(const candidate_registry &registry,
     scoped_profile_timer timer(profile, "content_groups.unified_select");
     std::vector<match_proposal> proposals = build_match_proposals(
         registry, exact_groups, type2_groups, type3_edges);
-    reject_stationary_exact_proposals(proposals, registry, stats);
+    reject_local_replacement_proposals(proposals, registry, stats);
     prefer_stronger_descendant_bundles(proposals, registry);
     for (const match_proposal &proposal : proposals) {
       if (proposal.disabled) {
@@ -1045,8 +1044,8 @@ content_groups build_content_groups(const candidate_registry &registry,
                          profile_stats.type3_edges_used_rejected);
     profile->add_counter("content_groups.type3_edges_overlap_rejected",
                          profile_stats.type3_edges_overlap_rejected);
-    profile->add_counter("content_groups.stationary_exact_rejected",
-                         profile_stats.stationary_exact_rejected);
+    profile->add_counter("content_groups.local_replacement_rejected",
+                         profile_stats.local_replacement_rejected);
   }
 
   return out;

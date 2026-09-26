@@ -165,6 +165,60 @@ classification:
 Keeping these axes explicit makes results explainable and permits later policy
 changes without redefining correspondence.
 
+## Groups and NxM correspondence
+
+Move groups should not be discarded, but their meaning must be narrowed. Two
+different concepts are easy to conflate:
+
+1. A **correspondence group** is a set of before and after endpoints that share
+   identity evidence. It records what may continue across the snapshots.
+2. A **change-event group** is a set of established correspondences that
+   collectively explain one larger edit. It records which changes belong
+   together.
+
+The current `content_group` is primarily a correspondence group. Shared exact
+or normalized content establishes an equivalence set; it does not by itself
+prove that all endpoints moved together. Change-event grouping is a separate,
+later concern and should not be inferred merely because endpoints share text.
+
+Cardinality describes the topology and uncertainty of a correspondence group:
+
+| Cardinality | Safe interpretation |
+| --- | --- |
+| 1x1 | One potentially unique correspondence |
+| 1xN | One source and several possible destinations; copying is not yet proved |
+| Nx1 | Several possible sources and one destination; merging is not yet proved |
+| NxM | The endpoint sets correspond collectively, but individual pairings may be unknown |
+
+An NxM group is therefore useful even when it cannot produce individual move
+pairs. Its change classification can still be `stationary`, `relocated`,
+`restructured`, or `ambiguous` at the set level. For example, every endpoint
+may clearly move to another function even though repeated text prevents a
+unique pairing. Conversely, an exact NxN content group may remain ambiguous if
+neither pairing nor structural displacement is supported.
+
+Context may resolve a correspondence group into smaller groups or unique 1x1
+correspondences. Stable containers, anchors, sibling order, and compatible
+ancestor paths are legitimate disambiguating evidence. Document order alone is
+not. Resolution must preserve its evidence and confidence so the result does
+not appear more certain than the observations justify.
+
+The implementation must never expand an NxM group into the Cartesian product
+of every possible endpoint pair. That would manufacture `N * M` moves from an
+equivalence relation. `min(before_count, after_count)` is a useful upper bound
+on non-reusing pair count, but it does not identify any particular pairing.
+
+Unequal cardinality also does not establish copying, splitting, or merging.
+For example, a 1x2 deleted/inserted group could be one move plus an unrelated
+repeat. `copied` requires evidence that the original source occurrence
+survived, normally from common-source context or a separate inventory of
+unchanged constructs.
+
+This framing preserves the useful NxM model while removing premature semantic
+claims. Names such as `moves_many` and `copy_or_repeat` describe current policy,
+not facts established by content grouping. They may eventually be replaced by
+neutral cardinality plus an independently computed change classification.
+
 ## Operational definition of a move
 
 A conservative initial definition is:
@@ -238,11 +292,12 @@ prevent an additional occurrence from being mislabeled as a simple move, while
 wrapping should be recognized before a changed immediate parent triggers a
 relocation decision.
 
-The current implementation contains a much narrower safeguard: a unique exact
-pair in adjacent delete/insert regions is rejected when both endpoints have the
-same nested structural-parent key. That rule is useful evidence but is not a
-complete classifier. Real srcDiff output can encode stationary endpoints under
-incompatible paths, so a future implementation should convert the safeguard
+The current implementation contains a deliberately narrow safeguard: a unique
+Type-1 or Type-2 pair in adjacent nested delete/insert regions in one file is
+rejected as a local replacement. It does not require identical inner paths,
+because srcDiff can expose stationary or restructured content under
+incompatible paths. This is useful negative relocation evidence but is not a
+complete classifier. A future implementation should convert the safeguard
 into one classification rule rather than continually adding special-case move
 rejections.
 
@@ -320,6 +375,11 @@ struct correspondence {
 };
 ```
 
+Here, `endpoint_set` allows the correspondence to remain NxM without inventing
+member pairings. A future `change_event` type, if needed, should refer to one or
+more already classified correspondences. It should not replace or overload the
+correspondence group itself.
+
 Classification reasons should be machine-readable and stable enough for tests,
 for example `different_file`, `different_container`, `same_anchor_interval`,
 `ancestor_wrapped`, `source_survives`, and `insufficient_context`.
@@ -395,19 +455,22 @@ The existing `moves` output remains authoritative. Use the shadow results to
 measure disagreement on small fixtures and real history pairs before changing
 behavior.
 
-The current narrow stationary filter should become the first explicit rule in
+The current local-replacement filter should become the first explicit rule in
 this classifier rather than remain a silent rejection. Conceptually, its
 record would state:
 
-- correspondence evidence: `exact`;
-- change classification: `stationary`; and
-- reason: `adjacent_same_structural_parent`.
+- correspondence evidence: `exact` or `Type 2`;
+- change classification: `stationary`, `restructured`, or unresolved by the
+  current filter; and
+- reason: `adjacent_nested_local_replacement`.
 
 ### Phase 3: adopt classification for Type-1 only
 
 Let the new classifier control output for unique exact correspondences first.
 Type-1 offers the clearest correspondence evidence, so failures in this phase
 mostly expose classification-policy problems rather than matching problems.
+Existing non-1x1 groups remain intact as diagnostics; they are not discarded or
+expanded into speculative pairs.
 
 Initially support only:
 
@@ -446,6 +509,12 @@ correspondence explicitly. Define provenance and tie-breaking policy before
 distinguishing true copies from repeated or unresolved exact groups. Consider
 `split` and `merged` only if reviewed examples justify expanding the taxonomy.
 
+At this phase, decide separately whether an unresolved group needs only a
+set-level classification or whether structural context supports decomposition
+into smaller groups or unique correspondences. Introduce change-event grouping
+only for cases where several established correspondences genuinely form one
+larger explanatory edit.
+
 ### Delivery milestones
 
 Each milestone should be reviewable and releasable on its own:
@@ -478,6 +547,19 @@ The semantic tests should cross correspondence evidence with change outcome:
 | Type 2 | identifier or literal changed in the same slot | stationary |
 | Type 2 | renamed statement moved to another function | relocated |
 | exact | repeated endpoints without unique pairing | ambiguous |
+
+Group-focused tests should assert more than the final label:
+
+- a repeated NxM case remains one correspondence group with the correct
+  endpoint counts;
+- reported or potential non-reusing pairs never exceed
+  `min(before_count, after_count)`;
+- the system never emits the full Cartesian product as established moves;
+- any decomposition into 1x1 correspondences cites structural evidence rather
+  than document order alone;
+- a set-level relocation does not claim unknown member pairings; and
+- an unequal group is not classified as `copied` without source-survival
+  evidence.
 
 Every contextual test intended to exercise srcMove must assert its precondition.
 For example, a missed-common regression should verify that srcDiff actually

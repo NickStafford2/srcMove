@@ -45,6 +45,24 @@ workspace at `../docs/workspace.md`.
 - Type-3 is an observational recall stratum; Type-4 moves are not supported.
 - Keep generated benchmark suites separate from small hand-authored tests.
 
+## Versioning
+
+Before finishing a release-worthy change, review the canonical
+[versioning policy](README.md#versioning) and update [`VERSION`](VERSION) in the
+same change when appropriate.
+
+- During `0.x` development, normally increment the minor version for new
+  behavior, meaningful algorithm changes, or changes to reported results.
+- Use a patch increment for a narrowly compatible correction that does not
+  intentionally change the detector's behavior contract.
+- Reserve a major increment for an explicitly approved, substantial breaking
+  milestone; do not infer a major release merely because an implementation is
+  large.
+- Documentation, tests, refactors, and internal tooling alone do not require a
+  version increment.
+- Treat `VERSION` as the single source of truth; do not duplicate the version
+  number in source or build files.
+
 ## Useful Entry Points
 
 - [README.md](README.md): project overview and build/run basics

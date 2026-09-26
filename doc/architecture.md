@@ -114,9 +114,10 @@ bundle policy, including its declared constants, lives in
 3. generates Type-3 edges for structurally compatible candidates
 4. turns unique exact and Type-2 correspondences plus verified Type-3 edges
    into one proposal set
-5. rejects the narrow stationary Type-1 case where an exact one-to-one pair
-   occupies adjacent delete/insert regions at the same nested structural
-   parent in one file
+5. rejects unique Type-1 and Type-2 local replacements whose endpoints occupy
+   adjacent delete/insert regions below the file root in one file; compatible
+   inner paths are not required because local restructuring can expose
+   unchanged content through different srcDiff paths
 6. ranks proposals by size-aware utility plus an internal structural-coverage
    term, then confidence, evidence class, source-construct preference, and
    deterministic candidate identifiers
@@ -237,9 +238,10 @@ performance result for arbitrary projects.
 - srcMove depends on the regions exposed by srcDiff; it is not a general diff
   engine and does not recover changes that srcDiff does not represent as usable
   candidates.
-- Stationary-code rejection is intentionally limited to exact adjacent
-  replacements with a shared nested structural parent. It does not attempt to
-  reconstruct general developer intent or reject in-place Type-2 changes.
+- Local-replacement rejection is intentionally limited to unique Type-1 and
+  Type-2 correspondences in adjacent nested diff regions in one file. It does
+  not attempt to reconstruct general developer intent, classify non-local
+  correspondences, or resolve repeated NxM groups.
 
 Richer structural similarity, contextual scoring, and ambiguous-group
 disambiguation are research directions rather than implemented features.
