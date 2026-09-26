@@ -18,6 +18,21 @@ location, not a CLI restriction: `--workload` accepts a file anywhere. The
 runner consumes existing srcDiff XML and does not generate it from source
 pairs.
 
+## Historical large-file archive
+
+The SDML [Calder data archive](https://calder.sdml.cs.kent.edu/data/) can be
+used to download large, pre-existing srcML and srcDiff files for exploratory
+testing and performance workloads. Place local downloads under
+`performance/cache/workloads/` rather than committing them.
+
+The archived files were produced with srcML 1.0, not srcML 1.1. Treat them as
+historical inputs: do not assume their XML shape, metadata, namespaces, or
+srcDiff behavior are identical to current output. Validate each file with the
+current parser before using it, and record its source URL, downloaded filename,
+byte size, checksum, download date, and srcML 1.0 provenance with any benchmark
+result. A successful run establishes compatibility for that file; it does not
+make the archive representative of srcML 1.1 output.
+
 For a quick view of one execution, use `srcMove --profile` directly. For
 repeatable comparative evidence, run from the srcMove repository root:
 
