@@ -10,6 +10,9 @@ def normalize_compactable_results(
 ) -> tuple[list[Any], dict[str, dict[str, int]]]:
     """Validate and normalize every result field needed by compact storage."""
 
+    if value.get("results_schema_version") != 1:
+        raise ValueError("srcMove results field 'results_schema_version' must be 1")
+
     required_counts = (
         "move_count",
         "move_group_count",
@@ -54,8 +57,8 @@ def _validate_move(value: Any, ordinal: int) -> None:
     if not isinstance(value, dict):
         raise ValueError(f"srcMove move {ordinal} must be an object")
     match_kind = value.get("match_kind")
-    if not isinstance(match_kind, str) or not match_kind:
-        raise ValueError(f"srcMove move {ordinal} has no match kind")
+    if match_kind not in {"type1", "type2", "type3"}:
+        raise ValueError(f"srcMove move {ordinal} has an invalid match kind")
     for name in ("from_xpaths", "to_xpaths", "from_raw_texts", "to_raw_texts"):
         field = value.get(name)
         if not isinstance(field, list) or not all(

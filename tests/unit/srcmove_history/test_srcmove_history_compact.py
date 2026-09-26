@@ -72,13 +72,14 @@ class CompactPairTests(unittest.TestCase):
             root = Path(temporary_directory)
             raw_text = "a very large moved source region"
             results = {
+                "results_schema_version": 1,
                 "move_count": 1,
                 "move_group_count": 1,
                 "move_pair_count": 1,
                 "annotated_region_count": 2,
                 "moves": [
                     {
-                        "match_kind": "exact",
+                        "match_kind": "type1",
                         "from_xpaths": ["/unit[1]/function[1]"],
                         "to_xpaths": ["/unit[1]/function[2]"],
                         "from_raw_texts": [raw_text],
@@ -86,7 +87,7 @@ class CompactPairTests(unittest.TestCase):
                     }
                 ],
                 "group_kinds": {"one_to_one": 1},
-                "match_kinds": {"exact": 1, "type2": 0},
+                "match_kinds": {"type1": 1, "type2": 0},
             }
             content = json.dumps(results).encode("utf-8")
             path = root / "results.json"
@@ -127,7 +128,7 @@ class CompactPairTests(unittest.TestCase):
             )
             self.assertNotIn(raw_text.encode("utf-8"), compact.metrics_json)
             self.assertEqual(
-                json.loads(compact.metrics_json)["match_kinds"]["exact"], 1
+                json.loads(compact.metrics_json)["match_kinds"]["type1"], 1
             )
 
     def test_failure_embeds_only_the_bounded_capture(self) -> None:
@@ -247,6 +248,7 @@ class CompactPairTests(unittest.TestCase):
             root = Path(temporary_directory)
             content = json.dumps(
                 {
+                    "results_schema_version": 1,
                     "move_count": 1,
                     "move_group_count": 1,
                     "move_pair_count": 1,
@@ -286,6 +288,7 @@ class CompactPairTests(unittest.TestCase):
             path.write_text(
                 json.dumps(
                     {
+                        "results_schema_version": 1,
                         "move_count": 1,
                         "move_group_count": 1,
                         "move_pair_count": 1,

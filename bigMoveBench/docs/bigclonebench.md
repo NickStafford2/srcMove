@@ -184,7 +184,7 @@ These are benchmark clone-strength scores: they describe how strongly the two
 BigCloneBench fragments resemble each other after BigCloneBench's normalization.
 They are useful for srcMove sampling and future similarity experiments, but they
 are not byte-for-byte raw source comparisons. Do not use them directly as the
-srcMove `exact` vs `type2` oracle.
+srcMove `type1` vs `type2` oracle.
 
 ### Size Metadata And Judgment Filters
 

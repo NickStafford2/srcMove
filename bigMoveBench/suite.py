@@ -442,7 +442,7 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
             )
         else:
             expected_kind = {
-                "type1": "exact",
+                "type1": "type1",
                 "type2": "type2",
                 "type3": "type3",
             }[result["pair_set"]]

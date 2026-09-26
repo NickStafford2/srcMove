@@ -89,7 +89,8 @@ from pathlib import Path
 source, output = Path(sys.argv[1]), Path(sys.argv[2])
 shutil.copy2(source, output)
 Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
-    json.dumps({'move_count': 0, 'match_kinds': {}, 'moves': []}))
+    json.dumps({'results_schema_version': 1, 'move_count': 0,
+                'match_kinds': {}, 'moves': []}))
 """,
             )
             args = SimpleNamespace(
@@ -199,7 +200,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 "Known false positives  PASS  passed 1/1 (100.0%)", report
             )
             self.assertIn("whole-fragment detections 0/1", report)
-            self.assertIn("expected class exact", report)
+            self.assertIn("expected class type1", report)
             self.assertIn("expected class type2", report)
             self.assertIn("expected class type3", report)
             self.assertIn("observational results (misses do not fail suite)", report)

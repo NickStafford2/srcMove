@@ -85,7 +85,7 @@ class Type3ReviewTests(unittest.TestCase):
                 "moves": [
                     {
                         "move_id": "m1",
-                        "match_kind": "exact",
+                        "match_kind": "type1",
                         "from_raw_texts": ["incidental source"],
                         "to_raw_texts": ["incidental destination"],
                     }

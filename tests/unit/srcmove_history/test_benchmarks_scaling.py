@@ -245,7 +245,7 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
             "metrics": {"move_count": 1},
             "timings": {"pair_seconds": 10.0},
             "results_observation": {"size_bytes": 10, "sha256": "e" * 64},
-            "moves": [{"match_kind": "exact"}],
+            "moves": [{"match_kind": "type1"}],
         }
 
         first = normalized_analysis_result(summary, [detail])

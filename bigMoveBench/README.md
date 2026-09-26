@@ -31,7 +31,7 @@ The cache remains under `bigMoveBench/cache/bigclonebench/` because it is a seal
 representation of the upstream dataset. BigMoveBench suite summaries are stored
 under `benchmark-results/bigMoveBench/`.
 The resulting pass rate is a strict synthetic detection-and-classification rate
-for the selected cases: Type-1 must report `exact`, Type-2 must report `type2`,
+for the selected cases: Type-1 must report `type1`, Type-2 must report `type2`,
 Type-3 must report `type3`, and the position/text oracle must pass. Type-3
 recall is observational: misses remain measurements rather than operational
 suite failures. These rates are not general accuracy, recall, or precision.
@@ -284,7 +284,7 @@ independent, large, pre-existing srcDiff XML workloads with the
 
 ## Validation
 
-- Type-1 expects the complete intended move to be `exact`.
+- Type-1 expects the complete intended move to be `type1`.
 - Type-2 expects the complete intended move to be `type2`.
 - Type-3 expects the complete intended move to be `type3`; its recall is observational.
 - A known-false-positive case expects no single reported move to link the full

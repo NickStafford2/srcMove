@@ -30,7 +30,7 @@ namespace {
 
 struct grouping_profile_stats {
   std::uint64_t exact_groups_built          = 0;
-  std::uint64_t exact_groups_selected       = 0;
+  std::uint64_t type1_groups_selected       = 0;
   std::uint64_t type2_groups_built          = 0;
   std::uint64_t type2_groups_selected       = 0;
   std::uint64_t type3_delete_candidates     = 0;
@@ -119,7 +119,7 @@ void add_hash_bucket_groups(content_groups           &out,
        registry.hash_buckets()) {
     const match_kind match =
         (!kv.second.del_ids.empty() && !kv.second.ins_ids.empty())
-            ? match_kind::exact
+            ? match_kind::type1
             : match_kind::unmatched;
     add_group(out, kv.first, kv.second.del_ids, kv.second.ins_ids, match);
   }
@@ -190,7 +190,7 @@ build_exact_groups(const candidate_registry &registry) {
       auto it = ins_by_text.find(text);
       if (it != ins_by_text.end()) {
         exact_groups.push_back(
-            pending_group{content_hash, match_kind::exact, dels, it->second});
+            pending_group{content_hash, match_kind::type1, dels, it->second});
       } else {
         exact_groups.push_back(
             pending_group{content_hash, match_kind::unmatched, dels, kEmpty});
@@ -379,7 +379,7 @@ match_proposal make_pair_proposal(const candidate_registry &registry,
                         matched_units,
                         matched_units,
                         covered_span,
-                        match == match_kind::exact
+                        match == match_kind::type1
                             ? 3
                             : (match == match_kind::type2 ? 2 : 1),
                         source_construct,
@@ -465,7 +465,7 @@ std::vector<match_proposal> build_match_proposals(
       const candidate_id del_id = group.del_ids.front();
       const candidate_id ins_id = group.ins_ids.front();
       proposals.push_back(make_pair_proposal(
-          registry, del_id, ins_id, match_kind::exact,
+          registry, del_id, ins_id, match_kind::type1,
           std::min(candidate_units(registry.candidate(del_id)),
                    candidate_units(registry.candidate(ins_id))),
           1000));
@@ -519,7 +519,7 @@ void reject_stationary_exact_proposals(
       std::remove_if(
           proposals.begin(), proposals.end(),
           [&](const match_proposal &proposal) {
-            if (proposal.group.match != match_kind::exact ||
+            if (proposal.group.match != match_kind::type1 ||
                 proposal.group.del_ids.size() != 1 ||
                 proposal.group.ins_ids.size() != 1) {
               return false;
@@ -969,8 +969,8 @@ content_groups build_content_groups(const candidate_registry &registry,
       if (stats == nullptr)
         continue;
       switch (proposal.group.match) {
-      case match_kind::exact:
-        ++stats->exact_groups_selected;
+      case match_kind::type1:
+        ++stats->type1_groups_selected;
         break;
       case match_kind::type2:
         ++stats->type2_groups_selected;
@@ -1021,8 +1021,8 @@ content_groups build_content_groups(const candidate_registry &registry,
   if (profile != nullptr) {
     profile->add_counter("content_groups.exact_groups_built",
                          profile_stats.exact_groups_built);
-    profile->add_counter("content_groups.exact_groups_selected",
-                         profile_stats.exact_groups_selected);
+    profile->add_counter("content_groups.type1_groups_selected",
+                         profile_stats.type1_groups_selected);
     profile->add_counter("content_groups.type2_groups_built",
                          profile_stats.type2_groups_built);
     profile->add_counter("content_groups.type2_groups_selected",

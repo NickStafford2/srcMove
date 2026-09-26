@@ -10,6 +10,8 @@
 
 namespace srcmove {
 
+inline constexpr std::uint32_t results_schema_version = 1;
+
 struct move_entry {
   std::string              move_id;
   std::string              match_kind;
@@ -33,7 +35,7 @@ struct group_kind_counts {
 };
 
 struct match_kind_counts {
-  std::size_t exact = 0;
+  std::size_t type1 = 0;
   std::size_t type2 = 0;
   std::size_t type3 = 0;
 };

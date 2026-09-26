@@ -74,7 +74,7 @@ def main() -> int:
         if "--results" in arguments:
             results = Path(arguments[arguments.index("--results") + 1])
             results.write_text(
-                '{"move_count":0,"move_group_count":0,'
+                '{"results_schema_version":1,"move_count":0,"move_group_count":0,'
                 '"move_pair_count":0,"annotated_region_count":0,'
                 '"match_kinds":{},"moves":[]}\n',
                 encoding="utf-8",

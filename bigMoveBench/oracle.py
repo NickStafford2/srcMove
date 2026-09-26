@@ -280,6 +280,9 @@ def _validate_results_schema(
     if not isinstance(results, dict):
         return ["results.json root must be an object"]
 
+    if results.get("results_schema_version") != 1:
+        failures.append("results_schema_version: expected 1")
+
     moves = results.get("moves")
     move_count = results.get("move_count")
     if not isinstance(moves, list):
@@ -290,7 +293,7 @@ def _validate_results_schema(
     elif move_count != len(moves):
         failures.append("move_count does not match the moves list")
 
-    observed_counts = {"exact": 0, "type2": 0, "type3": 0}
+    observed_counts = {"type1": 0, "type2": 0, "type3": 0}
     move_ids: set[str] = set()
     for index, move in enumerate(moves):
         prefix = f"moves[{index}]"
@@ -353,7 +356,7 @@ def assess_positive_case(
     detection_failures: list[str] = []
     classification_failures: list[str] = []
     text_validation: TextValidation = {"from": "not_checked", "to": "not_checked"}
-    expected_match_kinds = {1: "exact", 2: "type2", 3: "type3"}
+    expected_match_kinds = {1: "type1", 2: "type2", 3: "type3"}
     if syntactic_type not in expected_match_kinds:
         raise ValueError(f"unsupported BigCloneBench syntactic type: {syntactic_type}")
     expected_match_kind = expected_match_kinds[syntactic_type]

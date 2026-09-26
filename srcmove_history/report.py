@@ -315,7 +315,7 @@ def render_report(report: ReportSnapshot) -> str:
     )
 
     lines.extend(("", "Match classification"))
-    for name in ("exact", "type2", "type3"):
+    for name in ("type1", "type2", "type3"):
         count = match_kinds.pop(name, 0)
         lines.append(
             _field(
@@ -659,7 +659,7 @@ def _maximum_label(maximum: CommitPairMaximum | None) -> str:
 
 
 def _match_label(name: str) -> str:
-    return {"exact": "Exact", "type2": "Type 2", "type3": "Type 3"}[name]
+    return {"type1": "Type 1", "type2": "Type 2", "type3": "Type 3"}[name]
 
 
 def _group_label(name: str) -> str:

@@ -56,7 +56,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 ("{}", "invalid_structure"),
                 (
                     json.dumps(
-                        {"move_count": 0, "match_kinds": {}, "moves": []}
+                        {"results_schema_version": 1, "move_count": 0, "match_kinds": {}, "moves": []}
                     ),
                     "valid",
                 ),
@@ -80,12 +80,12 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             },
         }
         results = {
-            "move_count": 1,
-            "match_kinds": {"exact": 1},
+            "results_schema_version": 1, "move_count": 1,
+            "match_kinds": {"type1": 1},
             "moves": [
                 {
                     "move_id": "m1",
-                    "match_kind": "exact",
+                    "match_kind": "type1",
                     "from_xpaths": [
                         "/src:unit[@filename='source/input.java']"
                         "/src:class[1]/src:block[1]/diff:delete[1]"
@@ -169,13 +169,13 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             )
             results_path = root / "results.json"
             for match_kind, expected_outcome in (
-                ("exact", "wrong_classification"),
+                ("type1", "wrong_classification"),
                 ("type2", "oracle_pass"),
             ):
                 results_path.write_text(
                     json.dumps(
                         {
-                            "move_count": 1,
+                            "results_schema_version": 1, "move_count": 1,
                             "match_kinds": {match_kind: 1},
                             "moves": [
                                 {
@@ -232,7 +232,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 results_path.write_text(
                     json.dumps(
                         {
-                            "move_count": 1,
+                            "results_schema_version": 1, "move_count": 1,
                             "match_kinds": {match_kind: 1},
                             "moves": [
                                 {
@@ -282,7 +282,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
         intended = move(
             "intended", "type3", "void before() {}\n", "void after() {}\n"
         )
-        incidental = move("incidental", "exact", "child();", "child();")
+        incidental = move("incidental", "type1", "child();", "child();")
         wrong_text = move("intended", "type3", "void wrong() {}", "void after() {}")
         xml = (
             "<unit xmlns:diff='urn:diff' xmlns:mv='http://www.srcML.org/srcMove' "
@@ -335,7 +335,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 results_path.write_text(
                     json.dumps(
                         {
-                            "move_count": len(moves),
+                            "results_schema_version": 1, "move_count": len(moves),
                             "match_kinds": counts,
                             "moves": moves,
                         }
@@ -378,11 +378,11 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             results_path.write_text(
                 json.dumps(
                     {
-                        "move_count": 1,
-                        "match_kinds": {"exact": 1},
+                        "results_schema_version": 1, "move_count": 1,
+                        "match_kinds": {"type1": 1},
                         "moves": [
                             {
-                                "match_kind": "exact",
+                                "match_kind": "type1",
                                 "from_raw_texts": ["void moved() {}"],
                                 "to_raw_texts": ["void moved() {}"],
                             }
@@ -399,7 +399,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             self.assertTrue(any("move_id" in failure for failure in failures))
 
             results_path.write_text(
-                json.dumps({"move_count": 0, "match_kinds": {}, "moves": []})
+                json.dumps({"results_schema_version": 1, "move_count": 0, "match_kinds": {}, "moves": []})
             )
             srcmove_xml.write_text("<unit>")
             outcome, _, _, _ = _score_completed_case(
@@ -421,17 +421,17 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
         }
         cases = (
             (
-                {"move_count": 0, "match_kinds": {}, "moves": []},
+                {"results_schema_version": 1, "move_count": 0, "match_kinds": {}, "moves": []},
                 "oracle_pass",
             ),
             (
                 {
-                    "move_count": 1,
-                    "match_kinds": {"exact": 1},
+                    "results_schema_version": 1, "move_count": 1,
+                    "match_kinds": {"type1": 1},
                     "moves": [
                         {
                             "move_id": "child",
-                            "match_kind": "exact",
+                            "match_kind": "type1",
                             "from_raw_texts": ["child();"],
                             "to_raw_texts": ["child();"],
                         }
@@ -441,8 +441,8 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             ),
             (
                 {
-                    "move_count": 2,
-                    "match_kinds": {"exact": 1, "type3": 1},
+                    "results_schema_version": 1, "move_count": 2,
+                    "match_kinds": {"type1": 1, "type3": 1},
                     "moves": [
                         {
                             "move_id": "whole",
@@ -452,7 +452,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                         },
                         {
                             "move_id": "child",
-                            "match_kind": "exact",
+                            "match_kind": "type1",
                             "from_raw_texts": ["child();"],
                             "to_raw_texts": ["child();"],
                         },

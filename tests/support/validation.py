@@ -97,6 +97,10 @@ def validate_move_record_shape(move: Any, index: int) -> list[str]:
         return [f"results.json moves[{index}] is not an object"]
 
     failures: list[str] = []
+    if move.get("match_kind") not in {"type1", "type2", "type3"}:
+        failures.append(
+            f"results.json moves[{index}].match_kind must be type1, type2, or type3"
+        )
     for key in ("confidence_milli", "selection_utility", "matched_units"):
         value = move.get(key)
         if type(value) is not int or value < 0:
@@ -214,6 +218,7 @@ def check_summary_fields(
     failures: list[str] = []
 
     required_top_level_keys = (
+        "results_schema_version",
         "move_count",
         "move_group_count",
         "move_pair_count",
@@ -234,6 +239,7 @@ def check_summary_fields(
             failures.append(f"results.json missing required field {key!r}")
 
     summary_checks = {
+        "results_schema_version": results_json.get("results_schema_version"),
         "move_count": results_json.get("move_count"),
         "move_group_count": results_json.get("move_group_count"),
         "move_pair_count": results_json.get("move_pair_count"),
@@ -290,7 +296,7 @@ def check_summary_fields(
         elif not isinstance(actual_match_kinds, dict):
             failures.append("results.json field 'match_kinds' is not an object")
         else:
-            for key in ("exact", "type2", "type3"):
+            for key in ("type1", "type2", "type3"):
                 if key not in expected_match_kinds:
                     failures.append(
                         f"expected.json match_kinds missing required field {key!r}"

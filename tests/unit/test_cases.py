@@ -112,7 +112,7 @@ class PolicyCaseDiscoveryTests(unittest.TestCase):
         positive_case["id"] = "context_positive"
         positive_case.update(
             {
-                "expected_match_kind": "exact",
+                "expected_match_kind": "type1",
                 "expected_from_lines": ["37"],
                 "expected_to_lines": ["37"],
             }
@@ -150,7 +150,7 @@ class PolicyCaseDiscoveryTests(unittest.TestCase):
                         "scenario": "transfer",
                         "from_lines": ["void moved(void) {}"],
                         "to_lines": ["void moved(void) {}"],
-                        "expected_match_kind": "exact",
+                        "expected_match_kind": "type1",
                         "expected_from_lines": ["void moved(void) {}"],
                         "expected_to_lines": ["void moved(void) {}"],
                     },
@@ -205,7 +205,7 @@ class PolicyCaseDiscoveryTests(unittest.TestCase):
             positive = dict(shared)
             positive.update(
                 {
-                    "expected_match_kind": "exact",
+                    "expected_match_kind": "type1",
                     "expected_from_lines": ["void moved(void) {}"],
                     "expected_to_lines": ["void moved(void) {}"],
                 }

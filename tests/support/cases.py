@@ -246,7 +246,7 @@ def _load_policy_catalog(
 
         if expect_move:
             match_kind = raw_case.get("expected_match_kind")
-            allowed_match_kinds = ("exact", "type2", "type3")
+            allowed_match_kinds = ("type1", "type2", "type3")
             if match_kind not in allowed_match_kinds:
                 raise CaseDefinitionError(
                     f"{context}: expected_match_kind must be one of "

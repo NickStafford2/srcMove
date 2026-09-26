@@ -148,6 +148,7 @@ inline void write_selection_diagnostics(std::ostream &out,
 
 inline void write_summary(std::ostream &out, const summary &summ) {
   out << "{\n";
+  out << "  \"results_schema_version\": " << results_schema_version << ",\n";
   out << "  \"move_count\": " << summ.move_count << ",\n";
   out << "  \"move_group_count\": " << summ.move_group_count << ",\n";
   out << "  \"move_pair_count\": " << summ.move_pair_count << ",\n";
@@ -176,7 +177,7 @@ inline void write_summary(std::ostream &out, const summary &summ) {
   out << "    \"ambiguous\": " << summ.group_kinds.ambiguous << "\n";
   out << "  },\n";
   out << "  \"match_kinds\": {\n";
-  out << "    \"exact\": " << summ.match_kinds.exact << ",\n";
+  out << "    \"type1\": " << summ.match_kinds.type1 << ",\n";
   out << "    \"type2\": " << summ.match_kinds.type2 << ",\n";
   out << "    \"type3\": " << summ.match_kinds.type3 << "\n";
   out << "  }";

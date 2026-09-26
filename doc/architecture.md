@@ -175,9 +175,10 @@ Annotations may be placed on a structural child inside a diff wrapper rather
 than on the wrapper itself. The optional `--results` output records move groups,
 match kinds, source/destination XPaths, raw texts, candidate counts, group
 classifications, confidence in thousandths, matched units, selection utility,
-and the selection reason as JSON. With `--results-only`, srcMove materializes
-that JSON evidence from candidate-owned XPaths and skips the second XML pass
-entirely.
+and the selection reason as JSON. The top-level `results_schema_version`
+identifies this contract and is currently `1`. With `--results-only`, srcMove
+materializes that JSON evidence from candidate-owned XPaths and skips the
+second XML pass entirely.
 
 `--diagnostics` is an opt-in results mode for algorithm review. It records the
 retained candidates and Type-3 shortlist decisions, including observed line and
@@ -188,7 +189,7 @@ selected. It requires `--results` and is not emitted during ordinary runs.
 
 The matcher reports four classification outcomes:
 
-- `exact` (Type 1): identical comment- and formatting-insensitive canonical
+- `type1`: identical comment- and formatting-insensitive canonical
   structure and meaningful text
 - `type2`: identical identifier- and literal-normalized canonical structure
 - `type3`: eligible unmatched candidates satisfy the 0.90 bounded-LCS rule

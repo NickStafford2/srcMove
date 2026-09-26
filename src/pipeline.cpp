@@ -69,8 +69,8 @@ match_kind_counts count_match_kinds(const content_groups &groups) {
     }
 
     switch (group.match) {
-    case match_kind::exact:
-      ++counts.exact;
+    case match_kind::type1:
+      ++counts.type1;
       break;
     case match_kind::type2:
       ++counts.type2;

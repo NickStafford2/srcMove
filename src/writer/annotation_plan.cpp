@@ -18,8 +18,8 @@ namespace {
 
 std::string match_kind_name(match_kind match) {
   switch (match) {
-  case match_kind::exact:
-    return "exact";
+  case match_kind::type1:
+    return "type1";
   case match_kind::type2:
     return "type2";
   case match_kind::type3:

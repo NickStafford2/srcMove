@@ -146,8 +146,9 @@ srcMove --help
 srcMove --version
 ```
 
-- `--results <file>` writes move groups, XPaths, raw texts, candidate counts,
-  group classifications, and match kinds as JSON.
+- `--results <file>` writes versioned move groups, XPaths, raw texts, candidate
+  counts, group classifications, and match kinds as JSON. The top-level
+  `results_schema_version` is currently `1`.
 - `--results-only` writes the JSON result without reparsing and writing annotated
   XML. It requires `--results <file>` and does not accept an output XML path.
 - `--min-granularity statement|fragment` selects the minimum move unit.
@@ -185,7 +186,7 @@ by this pipeline.
 
 ## Matching scope
 
-The deterministic classifier reports `exact` (Type 1), `type2`, and `type3`;
+The deterministic classifier reports `type1`, `type2`, and `type3`;
 pairs below the Type-3 threshold remain unmatched. Hash equality alone never
 establishes a match. The normalization rules, 0.70 similarity formula,
 ambiguity policy, and performance safeguards have one canonical description in

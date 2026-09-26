@@ -71,7 +71,7 @@ python3 performance/run.py \
   --warmups 1 --repetitions 6
 ```
 
-The profiler now exposes nesting/common counters and exact, Type-2, and Type-3
+The profiler now exposes nesting/common counters and Type-1, Type-2, and Type-3
 work counters, including Type-3 shortlist size, pair comparisons, LCS calls,
 edges produced, and selection rejections. These distinguish a faster result
 caused by better pruning from one caused by silently doing less useful work.

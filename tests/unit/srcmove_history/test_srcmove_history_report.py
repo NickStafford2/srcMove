@@ -94,7 +94,7 @@ class SrcMoveHistoryReportTests(unittest.TestCase):
             analyzable_paths=368,
             move_groups=65,
             move_bearing_commit_pairs=16,
-            match_kinds=(("exact", 20), ("type2", 4), ("type3", 41)),
+            match_kinds=(("type1", 20), ("type2", 4), ("type3", 41)),
             within_file_moves=52,
             cross_file_moves=13,
             unclassified_location_moves=0,

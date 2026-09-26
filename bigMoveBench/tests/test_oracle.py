@@ -9,11 +9,11 @@ from bigMoveBench.oracle import validate_case
 
 
 class BigMoveBenchOracleTests(unittest.TestCase):
-    def test_type_one_requires_exact_classification(self) -> None:
-        self.assertEqual(self._validate_case(1, "exact"), [])
+    def test_type_one_requires_type1_classification(self) -> None:
+        self.assertEqual(self._validate_case(1, "type1"), [])
 
     def test_type_two_rejects_wrong_classification(self) -> None:
-        failures = self._validate_case(2, "exact")
+        failures = self._validate_case(2, "type1")
         self.assertTrue(any("expected 'type2'" in failure for failure in failures))
 
     def test_type_three_requires_type3_classification(self) -> None:
@@ -38,6 +38,7 @@ class BigMoveBenchOracleTests(unittest.TestCase):
                 },
             }
             results = {
+                "results_schema_version": 1,
                 "move_count": 1,
                 "match_kinds": {match_kind: 1},
                 "moves": [

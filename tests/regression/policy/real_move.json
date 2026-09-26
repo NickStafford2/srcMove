@@ -5,27 +5,27 @@
     {
       "id": "direct_c_function", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A complete function is a real move.",
       "from_lines": ["int calculate(int value) {", "  return value * 2;", "}"], "to_lines": ["int calculate(int value) {", "  return value * 2;", "}"],
-      "expected_match_kind": "exact", "expected_from_lines": ["int calculate(int value) {", "  return value * 2;", "}"], "expected_to_lines": ["int calculate(int value) {", "  return value * 2;", "}"]
+      "expected_match_kind": "type1", "expected_from_lines": ["int calculate(int value) {", "  return value * 2;", "}"], "expected_to_lines": ["int calculate(int value) {", "  return value * 2;", "}"]
     },
     {
       "id": "direct_c_struct", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A complete struct is a real move.",
       "from_lines": ["struct Point {", "  int x;", "  int y;", "};"], "to_lines": ["struct Point {", "  int x;", "  int y;", "};"],
-      "expected_match_kind": "exact", "expected_from_lines": ["struct Point {", "  int x;", "  int y;", "};"], "expected_to_lines": ["struct Point {", "  int x;", "  int y;", "};"]
+      "expected_match_kind": "type1", "expected_from_lines": ["struct Point {", "  int x;", "  int y;", "};"], "expected_to_lines": ["struct Point {", "  int x;", "  int y;", "};"]
     },
     {
       "id": "direct_cpp_class", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A complete class is a real move.",
       "from_lines": ["class Counter {", "public:", "  void increment() { ++value; }", "private:", "  int value = 0;", "};"], "to_lines": ["class Counter {", "public:", "  void increment() { ++value; }", "private:", "  int value = 0;", "};"],
-      "expected_match_kind": "exact", "expected_from_lines": ["class Counter {", "public:", "  void increment() { ++value; }", "private:", "  int value = 0;", "};"], "expected_to_lines": ["class Counter {", "public:", "  void increment() { ++value; }", "private:", "  int value = 0;", "};"]
+      "expected_match_kind": "type1", "expected_from_lines": ["class Counter {", "public:", "  void increment() { ++value; }", "private:", "  int value = 0;", "};"], "expected_to_lines": ["class Counter {", "public:", "  void increment() { ++value; }", "private:", "  int value = 0;", "};"]
     },
     {
       "id": "direct_java_class", "language": "Java", "extension": ".java", "scenario": "transfer", "rationale": "A complete Java class is a real move.",
       "from_lines": ["class Formatter {", "  String format(int value) { return Integer.toString(value); }", "}"], "to_lines": ["class Formatter {", "  String format(int value) { return Integer.toString(value); }", "}"],
-      "expected_match_kind": "exact", "expected_from_lines": ["class Formatter {", "  String format(int value) { return Integer.toString(value); }", "}"], "expected_to_lines": ["class Formatter {", "  String format(int value) { return Integer.toString(value); }", "}"]
+      "expected_match_kind": "type1", "expected_from_lines": ["class Formatter {", "  String format(int value) { return Integer.toString(value); }", "}"], "expected_to_lines": ["class Formatter {", "  String format(int value) { return Integer.toString(value); }", "}"]
     },
     {
       "id": "direct_csharp_class", "language": "C#", "extension": ".cs", "scenario": "transfer", "rationale": "A complete C# class is a real move.",
       "from_lines": ["class Formatter {", "  string Format(int value) { return value.ToString(); }", "}"], "to_lines": ["class Formatter {", "  string Format(int value) { return value.ToString(); }", "}"],
-      "expected_match_kind": "exact", "expected_from_lines": ["class Formatter {", "  string Format(int value) { return value.ToString(); }", "}"], "expected_to_lines": ["class Formatter {", "  string Format(int value) { return value.ToString(); }", "}"]
+      "expected_match_kind": "type1", "expected_from_lines": ["class Formatter {", "  string Format(int value) { return value.ToString(); }", "}"], "expected_to_lines": ["class Formatter {", "  string Format(int value) { return value.ToString(); }", "}"]
     },
     {
       "id": "direct_type2_c_function", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A complete function with consistent renaming is Type-2.",
@@ -42,7 +42,7 @@
         "Source.java": ["class Source {}"],
         "Destination.java": ["class Destination {", "", "    int calculate( int value )", "    {", "        int doubled = value * 2;", "        return doubled;", "    }", "}"]
       },
-      "expected_match_kind": "exact",
+      "expected_match_kind": "type1",
       "expected_from_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }"],
       "expected_to_lines": ["int calculate( int value )", "    {", "        int doubled = value * 2;", "        return doubled;", "    }"]
     },
@@ -70,7 +70,7 @@
         "Source.java": ["class Source {}"],
         "Destination.java": ["class Destination {", "  int calculate(int value) {", "    int doubled = value * 2;", "    System.out.println(doubled);", "    return doubled;", "  }", "}"]
       },
-      "expected_match_kind": "exact",
+      "expected_match_kind": "type1",
       "expected_from_lines": ["int doubled = value * 2;"],
       "expected_to_lines": ["int doubled = value * 2;"]
     },
@@ -84,7 +84,7 @@
         "Source.java": ["class Source {}"],
         "Destination.java": ["class Destination {", "  int calculate(int value) {", "    // Return twice the supplied number.", "    int doubled = value * 2;", "    return doubled;", "  }", "}"]
       },
-      "expected_match_kind": "exact",
+      "expected_match_kind": "type1",
       "expected_from_lines": ["int calculate(int value) {", "    // Double the input.", "    int doubled = value * 2;", "    return doubled;", "  }"],
       "expected_to_lines": ["int calculate(int value) {", "    // Return twice the supplied number.", "    int doubled = value * 2;", "    return doubled;", "  }"]
     },
@@ -126,7 +126,7 @@
         "Source.java": ["class Source {}"],
         "Destination.java": ["class Destination {", "  int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }", "}"]
       },
-      "expected_match_kind": "exact",
+      "expected_match_kind": "type1",
       "expected_from_lines": ["int doubled = value * 2;"],
       "expected_to_lines": ["int doubled = value * 2;"]
     },
@@ -154,7 +154,7 @@
         "Source.java": ["class Source {}"],
         "Destination.java": ["class Destination {", "  int subtract(int right, int left) {", "    return left - right;", "  }", "}"]
       },
-      "expected_match_kind": "exact",
+      "expected_match_kind": "type1",
       "expected_from_lines": ["return left - right;"],
       "expected_to_lines": ["return left - right;"]
     }

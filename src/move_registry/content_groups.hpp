@@ -43,7 +43,7 @@ enum class group_kind : std::uint8_t {
 };
 
 enum class match_kind : std::uint8_t {
-  exact,
+  type1,
   type2,
   unmatched,
   type3

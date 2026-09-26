@@ -24,7 +24,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
             "move_group_count": 59,
             "move_pair_count": 67,
             "annotated_region_count": 156,
-            "match_kinds": {"exact": 31, "type2": 7, "type3": 21},
+            "match_kinds": {"type1": 31, "type2": 7, "type3": 21},
             "newest_commit": "3f523613528194d3487853ed6e5367c6f215ec4f",
             "oldest_completed_commit": "0a4af54a7e67e3cf87a7cec44d80870f5df260cf",
             "cumulative_wall_seconds": 301.2,
@@ -52,7 +52,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
         )
         self.assertIn("Failures   18 srcDiff · 1 srcMove", rendered)
         self.assertIn(
-            "Moves      59 detected · 31 exact · 7 Type 2 · 21 Type 3",
+            "Moves      59 detected · 31 Type 1 · 7 Type 2 · 21 Type 3",
             rendered,
         )
         self.assertIn(
@@ -88,7 +88,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
                     "groups": 1,
                     "pairs": 1,
                     "annotated_regions": 1,
-                    "by_type": {"exact": 1},
+                    "by_type": {"type1": 1},
                 },
             }
         )
@@ -98,7 +98,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
             "Outcomes   1 compared · 0 without analyzable changes · 0 failed",
             rendered,
         )
-        self.assertIn("Moves      1 detected · 1 exact", rendered)
+        self.assertIn("Moves      1 detected · 1 Type 1", rendered)
         self.assertNotIn("Failures", rendered)
         self.assertNotIn("Inspect:", rendered)
 

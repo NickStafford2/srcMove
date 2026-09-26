@@ -24,7 +24,7 @@ from moveSelectionBench.benchmark import (
 FIXTURE_XML = REPO_ROOT / "tests" / "fixtures" / "benchmark" / "input.srcdiff.xml"
 
 
-def move(from_text: str, to_text: str, kind: str = "exact") -> dict[str, object]:
+def move(from_text: str, to_text: str, kind: str = "type1") -> dict[str, object]:
     return {
         "move_id": "m1",
         "match_kind": kind,
@@ -43,6 +43,7 @@ def write_fake_srcmove(
 ) -> Path:
     encoded = repr(
         {
+            "results_schema_version": 1,
             "move_count": len(moves),
             "moves": moves,
             "candidates_total": 2,
@@ -51,6 +52,7 @@ def write_fake_srcmove(
     )
     results_only_encoded = repr(
         {
+            "results_schema_version": 1,
             "move_count": len(
                 results_only_moves if results_only_moves is not None else moves
             ),
@@ -130,7 +132,7 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid shape"):
             evaluate_results(
                 {"required": [], "forbidden": []},
-                {"moves": [{"match_kind": "exact"}]},
+                {"moves": [{"match_kind": "type1"}]},
             )
 
     def test_summary_reports_baseline_transitions(self) -> None:

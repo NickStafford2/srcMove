@@ -286,8 +286,8 @@ class _SummaryView:
     @property
     def moves_text(self) -> str:
         parts = [_count(self.move_groups, "detected", "detected")]
-        labels = {"exact": "exact", "type2": "Type 2", "type3": "Type 3"}
-        for name in ("exact", "type2", "type3"):
+        labels = {"type1": "Type 1", "type2": "Type 2", "type3": "Type 3"}
+        for name in ("type1", "type2", "type3"):
             count = self.move_types.get(name, 0)
             if count:
                 parts.append(f"{count} {labels[name]}")

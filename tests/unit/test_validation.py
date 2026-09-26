@@ -36,9 +36,15 @@ class ResultValidationTests(unittest.TestCase):
         self.assertTrue(any("confidence_milli" in item for item in failures))
         self.assertTrue(any("selection_reason" in item for item in failures))
 
+    def test_legacy_exact_match_kind_is_rejected(self) -> None:
+        failures = validate_moves(
+            {"moves": [move()]}, {"moves": [move(match_kind="exact")]}
+        )
+        self.assertTrue(any("match_kind must be type1" in item for item in failures))
+
     def test_type3_summary_count_is_required_and_compared(self) -> None:
-        expected = {"match_kinds": {"exact": 0, "type2": 0, "type3": 1}}
-        actual = {"match_kinds": {"exact": 0, "type2": 0}}
+        expected = {"match_kinds": {"type1": 0, "type2": 0, "type3": 1}}
+        actual = {"match_kinds": {"type1": 0, "type2": 0}}
         failures = check_summary_fields(actual, expected)
         self.assertIn("results.json match_kinds missing required field 'type3'", failures)
 

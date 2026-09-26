@@ -1,4 +1,5 @@
 {
+  "results_schema_version": 1,
   "move_count": 2,
   "move_group_count": 2,
   "move_pair_count": 2,
@@ -48,7 +49,7 @@
     "ambiguous": 0
   },
   "match_kinds": {
-    "exact": 2,
+    "type1": 2,
     "type2": 0,
     "type3": 0
   }

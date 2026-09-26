@@ -567,7 +567,7 @@ def publish_benchmark_cases(
                 expected_match_kind = (
                     "whole_fragment_rejection"
                     if case_kind == "known_false_positive"
-                    else {1: "exact", 2: "type2", 3: "type3"}[representative_type]
+                    else {1: "type1", 2: "type2", 3: "type3"}[representative_type]
                 )
                 connection.execute(
                     "INSERT INTO cases VALUES "

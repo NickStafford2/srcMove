@@ -66,7 +66,7 @@ The two distinct container classes prevent the wrappers themselves from looking
 like a cross-file move.
 
 The current evaluation uses a strict detection-and-classification oracle:
-Type-1 cases must classify the intended whole-fragment move as `exact`, Type-2
+Type-1 cases must classify the intended whole-fragment move as `type1`, Type-2
 as `type2`, and Type-3 as `type3`. Position and per-side text validation are
 correlated to the same JSON result; the result's XPaths supply its position
 evidence from the admitted srcDiff XML.

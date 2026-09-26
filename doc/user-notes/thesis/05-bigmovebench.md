@@ -302,7 +302,7 @@ oracle pass.
 ### 5.8.1 Positive detection and classification
 
 A positive case passes only when one reported move links both complete generated
-fragments and reports the expected match kind. Type-1 expects `exact`, Type-2
+fragments and reports the expected match kind. Type-1 expects `type1`, Type-2
 expects `type2`, and the declared Type-3 experiment expects `type3`. Position
 evidence is obtained by resolving that result's source and destination XPaths
 against the admitted srcDiff XML. Position evidence from different reported

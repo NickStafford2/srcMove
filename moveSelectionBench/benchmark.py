@@ -30,7 +30,7 @@ from performance.benchmark import parse_named_path, parse_profile_output, valida
 CATALOG_SCHEMA_VERSION = 2
 RUN_SCHEMA_VERSION = 1
 SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9_]*$")
-ALLOWED_MATCH_KINDS = {"exact", "type2", "type3"}
+ALLOWED_MATCH_KINDS = {"type1", "type2", "type3"}
 ALLOWED_INPUT_SHAPES = {"single_file", "archive"}
 ALLOWED_CASE_STATUSES = {"contract", "hypothesis"}
 
@@ -61,7 +61,7 @@ def _validate_expectation(value: Any, context: str) -> dict[str, Any]:
             or not all(isinstance(kind, str) and kind in ALLOWED_MATCH_KINDS for kind in kinds)
         ):
             raise CatalogError(
-                f"{context}: match_kinds must contain exact, type2, or type3"
+                f"{context}: match_kinds must contain type1, type2, or type3"
             )
     return result
 
@@ -237,6 +237,8 @@ def _load_result_file(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError("results root must be an object")
+    if value.get("results_schema_version") != 1:
+        raise ValueError("results.results_schema_version must be 1")
     _result_moves(value)
     return value
 

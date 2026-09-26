@@ -74,7 +74,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "move_group_count": 4,
                 "move_pair_count": 5,
                 "annotated_region_count": 9,
-                "match_kinds": {"exact": 3, "type3": 1},
+                "match_kinds": {"type1": 3, "type3": 1},
                 "oldest_completed_commit": "a" * 40,
                 "newest_commit": "b" * 40,
                 "timings": {"pair_seconds": 12.5, "srcmove_seconds": 3.0},
@@ -117,7 +117,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "detections": 4,
                 "source_destination_pairings": 5,
                 "annotated_regions": 9,
-                "by_match_type": {"exact": 3, "type3": 1},
+                "by_match_type": {"type1": 3, "type3": 1},
             },
         )
         self.assertEqual(
@@ -562,7 +562,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 },
                 "moves": [
                     {
-                        "match_kind": "exact",
+                        "match_kind": "type1",
                         "from_xpaths": ["/secret/source"],
                         "to_xpaths": ["/secret/destination"],
                         "from_text_digests": [{"sha256": "c" * 64}],
@@ -571,7 +571,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             }
         )
 
-        self.assertIn("1. exact · 1 source region → 1 destination region", output)
+        self.assertIn("1. type1 · 1 source region → 1 destination region", output)
         self.assertIn("1 unsupported_git_mode: symlink", output)
         self.assertNotIn("/secret", output)
         self.assertNotIn("sha256", output)

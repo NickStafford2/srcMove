@@ -78,7 +78,7 @@ class FakeToolAttempts:
         )
         if stage == "srcmove":
             (attempt_dir / "results.json").write_text(
-                json.dumps({"move_count": 1, "moves": []}), encoding="utf-8"
+                json.dumps({"results_schema_version": 1, "move_count": 1, "moves": []}), encoding="utf-8"
             )
             if "--results-only" not in command:
                 (attempt_dir / "srcmove.xml").write_text(

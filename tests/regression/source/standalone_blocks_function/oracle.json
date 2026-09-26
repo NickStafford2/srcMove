@@ -1,11 +1,12 @@
 {
+  "results_schema_version": 1,
   "move_count": 1,
   "move_group_count": 1,
   "move_pair_count": 1,
   "moves": [
     {
       "move_id": "97b1dcdaf",
-      "match_kind": "exact",
+      "match_kind": "type1",
       "confidence_milli": 1000,
       "selection_utility": 5000,
       "matched_units": 5,
@@ -38,7 +39,7 @@
     "ambiguous": 0
   },
   "match_kinds": {
-    "exact": 1,
+    "type1": 1,
     "type2": 0,
     "type3": 0
   }
