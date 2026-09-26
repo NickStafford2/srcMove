@@ -46,6 +46,13 @@ public:
   std::size_t start_index;
   std::size_t start_idx;
   std::size_t end_idx;
+  // The enclosing srcDiff region and its revision-independent structural
+  // parent. Selection uses this context to distinguish an adjacent in-place
+  // replacement from a relocation.
+  std::size_t diff_region_start_idx;
+  std::size_t diff_region_end_idx;
+  std::string structural_parent_key;
+  std::size_t structural_parent_depth = 0;
   std::string raw_text;             // exact region inner text, for debug
   std::string canonical_text;       // normalized subtree identity, for matching
   std::string type2_canonical_text; // compact, consistently normalized identity

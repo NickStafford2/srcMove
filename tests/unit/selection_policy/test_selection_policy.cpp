@@ -58,6 +58,38 @@ int main() {
     require(!descendant_bundle_preferred(fragmented),
             "fragmentation cost should grow with the number of children");
 
+    const stationary_exact_context stationary_delete{
+        "same.cpp", "/unit/function/block", 3, 10, 20};
+    const stationary_exact_context stationary_insert{
+        "same.cpp", "/unit/function/block", 3, 21, 30};
+    require(stationary_exact_pair(stationary_delete, stationary_insert),
+            "an adjacent exact replacement in one nested context is stationary");
+
+    stationary_exact_context moved_parent = stationary_insert;
+    moved_parent.structural_parent_key = "/unit/other_function/block";
+    require(!stationary_exact_pair(stationary_delete, moved_parent),
+            "a changed structural parent is move evidence");
+
+    stationary_exact_context moved_file = stationary_insert;
+    moved_file.filename = "other.cpp";
+    require(!stationary_exact_pair(stationary_delete, moved_file),
+            "a changed file is move evidence");
+
+    stationary_exact_context reordered = stationary_insert;
+    reordered.diff_region_start_idx = 40;
+    reordered.diff_region_end_idx   = 50;
+    require(!stationary_exact_pair(stationary_delete, reordered),
+            "separated regions may represent a same-parent reorder");
+
+    stationary_exact_context file_root_delete = stationary_delete;
+    stationary_exact_context file_root_insert = stationary_insert;
+    file_root_delete.structural_parent_key = "/unit";
+    file_root_insert.structural_parent_key = "/unit";
+    file_root_delete.structural_parent_depth = 1;
+    file_root_insert.structural_parent_depth = 1;
+    require(!stationary_exact_pair(file_root_delete, file_root_insert),
+            "a file root alone is insufficient stationary context");
+
     std::cout << "PASS selection policy tests\n";
     return 0;
   } catch (const std::exception &error) {

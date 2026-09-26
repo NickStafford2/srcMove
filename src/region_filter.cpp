@@ -79,6 +79,71 @@ static std::string trim_ws(std::string s) {
   return std::string(begin, end);
 }
 
+static std::string xpath_parent(std::string_view xpath) {
+  std::size_t bracket_depth = 0;
+  char        quote         = '\0';
+  for (std::size_t i = xpath.size(); i-- > 0;) {
+    const char ch = xpath[i];
+    if (quote != '\0') {
+      if (ch == quote)
+        quote = '\0';
+      continue;
+    }
+    if (ch == '\'' || ch == '"') {
+      quote = ch;
+    } else if (ch == ']') {
+      ++bracket_depth;
+    } else if (ch == '[') {
+      --bracket_depth;
+    } else if (ch == '/' && bracket_depth == 0) {
+      return std::string(xpath.substr(0, i));
+    }
+  }
+  return {};
+}
+
+static std::size_t xpath_depth(std::string_view xpath) {
+  std::size_t depth         = 0;
+  std::size_t bracket_depth = 0;
+  char        quote         = '\0';
+  for (char ch : xpath) {
+    if (quote != '\0') {
+      if (ch == quote)
+        quote = '\0';
+      continue;
+    }
+    if (ch == '\'' || ch == '"') {
+      quote = ch;
+    } else if (ch == '[') {
+      ++bracket_depth;
+    } else if (ch == ']') {
+      --bracket_depth;
+    } else if (ch == '/' && bracket_depth == 0) {
+      ++depth;
+    }
+  }
+  return depth;
+}
+
+static void set_structural_context(move_candidate &candidate,
+                                   std::string_view region_xpath,
+                                   std::size_t region_start_idx,
+                                   std::size_t region_end_idx) {
+  candidate.diff_region_start_idx = region_start_idx;
+  candidate.diff_region_end_idx   = region_end_idx;
+
+  const std::string outer_parent = xpath_parent(region_xpath);
+  std::string       relative_parent;
+  if (candidate.xpath.size() > region_xpath.size() &&
+      candidate.xpath.compare(0, region_xpath.size(), region_xpath) == 0) {
+    relative_parent = xpath_parent(
+        std::string_view(candidate.xpath).substr(region_xpath.size()));
+  }
+  candidate.structural_parent_key = outer_parent + relative_parent;
+  candidate.structural_parent_depth =
+      xpath_depth(candidate.structural_parent_key);
+}
+
 static bool is_structural_child_name(std::string_view name) {
   return name == "function" || name == "function_decl" ||
          name == "constructor" || name == "class" || name == "struct" ||
@@ -209,6 +274,8 @@ extract_preferred_child_candidates(const diff_region           &region,
     candidate.full_name = first.node.full_name();
     candidate.end_idx   = last.index;
     candidate.role      = move_candidate::Role::structural_child;
+    set_structural_context(candidate, region.start_xpath, region.start_idx,
+                           region.end_idx);
     out.candidates.push_back(std::move(candidate));
 
     candidate_begin = kNoParent;
@@ -424,6 +491,11 @@ void finish_streamed_region(
   canonical_forms forms = region.forms->finish();
   std::vector<move_candidate> &out = candidate_sets.at(region_id);
 
+  for (move_candidate &candidate : region.preferred_candidates) {
+    set_structural_context(candidate, region.start_xpath, region.start_idx,
+                           end_idx);
+  }
+
   if (!keep_streamed_region(region, opt)) {
     out.insert(out.end(),
                std::make_move_iterator(region.preferred_candidates.begin()),
@@ -444,6 +516,8 @@ void finish_streamed_region(
         forms.normalized_tokens, false);
     candidate.xpath   = region.start_xpath;
     candidate.end_idx = end_idx;
+    set_structural_context(candidate, region.start_xpath, region.start_idx,
+                           end_idx);
     if (region.complete_construct_count == 1) {
       candidate.role = move_candidate::Role::single_child_wrapper;
     } else if (region.complete_construct_count > 1) {
@@ -825,6 +899,7 @@ filter_regions_for_registry(const std::vector<diff_region> &regions,
                        false);
       c.xpath   = r.start_xpath;
       c.end_idx = r.end_idx; // preserve the true close position
+      set_structural_context(c, r.start_xpath, r.start_idx, r.end_idx);
       if (preferred.complete_construct_count == 1) {
         c.role = move_candidate::Role::single_child_wrapper;
       } else if (preferred.complete_construct_count > 1) {

@@ -94,6 +94,7 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
                 "deep_nesting",
                 "cross_file",
                 "one_sided_overlap",
+                "stationary_correspondence",
             },
         )
         indexed = {case["id"]: case for case in cases}

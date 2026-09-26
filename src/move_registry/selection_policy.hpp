@@ -4,6 +4,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <string_view>
 
 namespace srcmove {
 
@@ -36,6 +37,19 @@ struct descendant_bundle_metrics {
 };
 
 bool descendant_bundle_preferred(const descendant_bundle_metrics &metrics);
+
+struct stationary_exact_context {
+  std::string_view filename;
+  std::string_view structural_parent_key;
+  std::size_t      structural_parent_depth = 0;
+  std::size_t      diff_region_start_idx   = 0;
+  std::size_t      diff_region_end_idx     = 0;
+};
+
+// True only for the narrow high-confidence stationary case: an exact pair in
+// adjacent replacement regions at the same nested structural location.
+bool stationary_exact_pair(const stationary_exact_context &deleted,
+                           const stationary_exact_context &inserted);
 
 } // namespace srcmove
 

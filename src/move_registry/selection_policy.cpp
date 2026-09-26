@@ -78,4 +78,26 @@ bool descendant_bundle_preferred(const descendant_bundle_metrics &m) {
   return adjusted_utility > m.parent_utility;
 }
 
+bool stationary_exact_pair(const stationary_exact_context &deleted,
+                           const stationary_exact_context &inserted) {
+  if (deleted.filename != inserted.filename ||
+      deleted.structural_parent_key.empty() ||
+      deleted.structural_parent_key != inserted.structural_parent_key) {
+    return false;
+  }
+
+  // A file root alone is not enough context to distinguish a top-level move
+  // from a stationary construct.
+  if (deleted.structural_parent_depth <= 1 ||
+      inserted.structural_parent_depth <= 1) {
+    return false;
+  }
+
+  const bool delete_then_insert =
+      deleted.diff_region_end_idx + 1 == inserted.diff_region_start_idx;
+  const bool insert_then_delete =
+      inserted.diff_region_end_idx + 1 == deleted.diff_region_start_idx;
+  return delete_then_insert || insert_then_delete;
+}
+
 } // namespace srcmove

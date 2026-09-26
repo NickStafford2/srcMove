@@ -64,6 +64,21 @@
       ]
     },
     {
+      "id": "adjacent_exact_replacement_is_stationary",
+      "status": "contract",
+      "input": "cases/adjacent_exact_replacement_is_stationary.xml",
+      "category": "stationary_correspondence",
+      "rationale": "An exact delete/insert pair at one nested structural location is stationary code exposed by srcDiff, not a move.",
+      "required": [],
+      "forbidden": [
+        {
+          "from": "stable();",
+          "to": "stable();",
+          "reason": "The statement remained between the same siblings in the same function."
+        }
+      ]
+    },
+    {
       "id": "independent_children_not_false_parent",
       "status": "contract",
       "input": "cases/independent_children_not_false_parent.xml",

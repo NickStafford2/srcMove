@@ -9,7 +9,7 @@ srcDiff ownership and complete-construct gates
                     |
                     v
         sparse candidate-pair retrieval
-   exact hash | Type-2 hash | Type-3 shortlist
+   exact hash | Type 2 hash | Type 3 shortlist
                     |
                     v
              pair confidence
@@ -32,7 +32,7 @@ Keep two values distinct:
 - **confidence** ranks how credible one deletion/insertion correspondence is;
 - **utility** ranks how well selecting that edge explains the changed material.
 
-Type-1, Type-2, and Type-3 are correlated evidence classes, not independent
+Type 1, Type 2, and Type 3 are correlated evidence classes, not independent
 bonuses to add. Location is a weak prior or tie-breaker because valid moves may
 be nearby, distant, or cross-file. Revision impurity is an eligibility failure,
 not a small penalty.

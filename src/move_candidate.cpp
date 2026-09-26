@@ -33,6 +33,8 @@ move_candidate::move_candidate(Kind        k,
                                bool        type2_ok)
     : kind(k), filename(std::move(file)), xpath(), full_name(),
       sibling_index(0), start_index(0), start_idx(start), end_idx(0),
+      diff_region_start_idx(start), diff_region_end_idx(0),
+      structural_parent_key(), structural_parent_depth(0),
       raw_text(std::move(raw)), canonical_text(std::move(canonical)),
       type2_canonical_text(std::move(type2_canonical)),
       type2_normalized_lines(std::move(type2_lines)),

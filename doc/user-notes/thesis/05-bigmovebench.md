@@ -5,7 +5,7 @@
 BigMoveBench is the evaluation system developed for srcMove. It transforms
 evidence from BigCloneBench into controlled cross-file move cases, preserves the
 identity and provenance of every transformation stage, and applies explicit
-oracles to srcDiff and srcMove. Its contribution is not a new ground-truth
+oracles to srcDiff and srcMove. BigMoveBench is not a new ground-truth
 history of moves. Instead, it makes a large clone corpus usable for repeatable
 questions about whole-fragment detection, match-kind classification, and
 rejection.

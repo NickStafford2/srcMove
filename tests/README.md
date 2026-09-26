@@ -38,8 +38,9 @@ python3 tests/regression/policy/list.py --catalog contextual
   with `make test-bigmovebench` and included by `make test-unit`.
 - `performance`: focused workload-runner tests under `performance/tests/`; run
   explicitly with `make test-performance` and included by `make test-unit`.
-- `move-selection`: focused runner unit tests plus accepted semantic contracts.
-  Hypotheses remain observational benchmark cases. Run with
+- `move-selection`: focused runner unit tests plus accepted semantic contracts,
+  including stationary exact correspondences exposed as adjacent delete/insert
+  regions. Hypotheses remain observational benchmark cases. Run with
   `make test-move-selection`; it is also included by `make test-unit`.
 - `srcmove-history`: focused unit tests under
   `tests/unit/srcmove_history/`; run explicitly with

@@ -102,40 +102,43 @@ in-memory matching phase between them. Results-only execution uses the first
 pass and the matching phase but omits the output pass.
 
 1. **Stream regions and construct candidates.** As XML events arrive, srcMove
-   tracks deletion and insertion nesting and archive-file ownership. It applies
-   the leaf-region policy, rejects unsuitable fragments, recognizes preferred
+   tracks deletion and insertion nesting, revision ownership, and archive-file
+   ownership. It rejects mixed or unsuitable fragments, recognizes preferred
    structural children, and incrementally builds the exact, Type-2, and Type-3
    representations. Completed candidates retain their spans, XPaths, raw text,
    and cached matching forms, not captured XML subtrees.
-2. **Build groups in evidence order.** Exact matches are selected first,
-   followed by Type-2 identities and then Type-3 similarities among candidates
-   not already consumed.
-3. **Resolve overlap and ambiguity.** Selection prevents a broad parent and its
-   nested child from both describing the same evidence, and applies explicit
-   rules to repeated candidates.
+2. **Build all correspondence evidence.** Exact and Type-2 equivalence groups
+   are formed, and structurally compatible Type-3 pairs are verified with the
+   bounded-LCS rule. The three evidence classes become one proposal set before
+   selection.
+3. **Rank and select non-overlapping explanations.** Proposals are ranked by a
+   size-aware utility, confidence, evidence class, structural preference, and
+   deterministic tie-breakers. A local hierarchy pass can prefer a strong
+   descendant bundle over its parent. Greedy selection then enforces one-use
+   and source/destination span-overlap constraints. Repeated exact groups retain
+   group-level ambiguity; ambiguous Type-2 groups remain unresolved.
 4. **Produce output.** In normal mode, the writer performs a second pass,
    preserves unmodified nodes, and inserts move attributes. With
    `--results-only`, srcMove materializes the JSON result from candidate-owned
    evidence without rereading and rewriting the XML.
 
 This ordering is part of the algorithm rather than a presentation convenience.
-A candidate supported by exact evidence should not be relabeled by a weaker
-normalization or similarity rule. Likewise, an ambiguous Type-2 identity is not
-silently converted into Type-3 merely because approximate pairing would force
-a result.
+All evidence is available before proposals compete, so a large verified
+near-match can outrank a small exact descendant. An ambiguous Type-2 identity
+is not silently converted into Type-3 merely because approximate pairing would
+force a result.
 
-**TODO (figure):** Draw the end-to-end pipeline and label the implementation
-boundaries in `src/parse/diff_region.cpp`, `src/region_filter.cpp`,
-`src/parse/canonical_subtree.cpp`,
-`src/move_registry/content_group_builder.cpp`, and the annotation writer.
+**Figure source:** The [algorithm flowcharts](../../diagrams/pipeline_diagram.md)
+provide a simple chapter overview and a detailed decision flow with
+implementation boundaries.
 
 ## 4.5 Candidate selection and granularity
 
 A diff wrapper is not automatically a useful move unit. It may contain only
 whitespace, a token fragment, several independent constructs, or a larger
 region around the source element that a reader would actually describe as
-moved. srcMove therefore starts from leaf diff regions and applies a candidate
-policy before matching.
+moved. srcMove therefore applies a revision-aware candidate policy before
+matching.
 
 The default policy excludes whitespace-only payloads and fragments smaller than
 a complete statement or declaration. For an eligible wrapper, the filter can

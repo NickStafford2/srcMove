@@ -8,8 +8,8 @@ and command-line usage.
 
 - [Architecture](architecture.md): verified current pipeline, matching behavior,
   output annotations, performance model, and limitations
-- [Pipeline diagram](diagrams/pipeline_diagram.md): one-page view of the
-  processing stages
+- [Algorithm flowcharts](diagrams/pipeline_diagram.md): simple thesis overview
+  and detailed candidate, matching, and selection decision flow
 - [Data structure diagram](diagrams/data_structure_diagram.md): relationships
   among the primary implementation types
 - [Scoring model diagram](diagrams/scoring_model_diagram.md): move-selection

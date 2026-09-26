@@ -1,10 +1,16 @@
 # srcMove Architecture
 
 srcMove is a C++ command-line tool that post-processes srcDiff XML and marks
-delete/insert regions that represent relocated source code. Its primary research
-focus is move detection across file boundaries, where an operation that a
-developer understands as one move otherwise appears as an unrelated deletion
-and insertion in different files.
+regions that represent relocated source code. Its primary research
+focus is move detection across file boundaries and semantic blocks, as well as 
+identifying type 1, type 2, and type 3 moves. 
+
+## What is a Move?
+Developers frequently copy code from one location to another, often making minor 
+edits that do not fundimentally change the code's purpose. You know it when you 
+see it. 
+
+## Implementation
 
 The current implementation is a deterministic structural matcher with an
 interpretable, uncalibrated selection utility. It uses the srcML structure
@@ -30,20 +36,28 @@ The pipeline is coordinated by [`src/pipeline.cpp`](../src/pipeline.cpp).
 
 ### 1. Stream the input and construct candidates
 
-The production path in
-[`src/region_filter.cpp`](../src/region_filter.cpp) makes one streaming pass over
-the input. It distinguishes single-file and archive srcDiff shapes, tracks the
-file ownership and nesting of each `diff:delete` and `diff:insert`, and builds
-move candidates as XML events arrive. That file ownership permits a deletion in
-one file to match an insertion in another.
+[`src/region_filter.cpp`](../src/region_filter.cpp) makes one streaming pass over the input. It 
+- distinguishes single-file and archive srcDiff shapes
+- tracks the file ownership and nesting of each `diff:delete` and `diff:insert`
+- builds move candidates as XML events arrive. // what are events? did not define
 
-Candidate construction and canonicalization are part of this same pass. A
-revision-state stack gives substantive events the ownership of their nearest
-`diff:delete`, `diff:insert`, or `diff:common` wrapper. Same-side nesting retains
-parents and complete descendants as alternatives. A candidate containing
-substantive common or opposite-side material is rejected as an atomic move,
-while pure descendants survive. Completed candidates own compact matching
-representations; the pipeline does not retain captured srcML trees.
+That file ownership permits a deletion in one file to match an insertion in another. // Delete this? why have this line?
+
+For performance reasons, candidate construction and canonicalization are part of this same pass. 
+
+// what is revision state stack? it isn't introduced. 
+// what are events? revision-state? substantive events? how do they own things? that makes no sense
+A revision-state stack gives substantive events the ownership of their nearest
+`diff:delete`, `diff:insert`, or `diff:common` wrapper. 
+
+// same side of what? define same side? "same side nesting" isn't a noun. so how can it retain anything? this section does not follow english gramatical rules.
+Same-side nesting retains parents and complete descendants as alternatives. 
+
+// opposite-side? we need to be using our vocabulary clearly. common or opposite-side material? aren't those the same? 
+A candidate containing substantive common or opposite-side material is rejected as an atomic move,
+while pure descendants survive.
+
+Completed candidates own compact matching representations; the pipeline does not retain captured srcML trees.
 
 [`src/parse/diff_region.cpp`](../src/parse/diff_region.cpp) retains the older
 captured-region path for focused tests and callers that explicitly need region
@@ -100,12 +114,15 @@ bundle policy, including its declared constants, lives in
 3. generates Type-3 edges for structurally compatible candidates
 4. turns unique exact and Type-2 correspondences plus verified Type-3 edges
    into one proposal set
-5. ranks proposals by size-aware utility plus an internal structural-coverage
+5. rejects the narrow stationary Type-1 case where an exact one-to-one pair
+   occupies adjacent delete/insert regions at the same nested structural
+   parent in one file
+6. ranks proposals by size-aware utility plus an internal structural-coverage
    term, then confidence, evidence class, source-construct preference, and
    deterministic candidate identifiers
-6. greedily selects proposals subject to one-use and source/destination span
+7. greedily selects proposals subject to one-use and source/destination span
    overlap constraints
-7. emits remaining delete-only and insert-only groups for reporting
+8. emits remaining delete-only and insert-only groups for reporting
 
 Repeated exact equivalence classes are retained as multi-endpoint move/copy
 groups with ambiguity-aware confidence; they do not claim an individual
@@ -219,6 +236,9 @@ performance result for arbitrary projects.
 - srcMove depends on the regions exposed by srcDiff; it is not a general diff
   engine and does not recover changes that srcDiff does not represent as usable
   candidates.
+- Stationary-code rejection is intentionally limited to exact adjacent
+  replacements with a shared nested structural parent. It does not attempt to
+  reconstruct general developer intent or reject in-place Type-2 changes.
 
 Richer structural similarity, contextual scoring, and ambiguous-group
 disambiguation are research directions rather than implemented features.
