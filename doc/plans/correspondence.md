@@ -6,8 +6,8 @@ complete in srcMove 0.5.0, including source-input normalization (3.2) and
 retained real-history evaluation (3.3). Phase 4 unifies Type-1/2/3 movement
 classification; Phase 5 addresses repeated groups; Phase 6 evaluates and
 consolidates the system. Phase 4.0 has shared-classifier code, Type-2 observation
-contracts, and fixture baseline evidence; historical Type-2 acceptance coverage
-remains incomplete. Production adoption and Phases 5/6 are not implemented. This
+contracts, fixture baseline evidence, and exposed historical Type-2 examples;
+same-file edited-move and historical improvement evidence remain incomplete. Production adoption and Phases 5/6 are not implemented. This
 document records rationale, semantics, decision points, and future
 implementation phases rather than the full current behavior. The verified
 implementation remains documented in

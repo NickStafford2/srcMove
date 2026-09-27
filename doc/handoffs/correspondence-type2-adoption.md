@@ -21,16 +21,24 @@ does not demonstrate improvement. Audit missed real moves alongside false moves.
 
 ## Starting point
 
-The Phase 4.0 working tree is based on `6538ed7`. It generalizes the location
+Phase 4.0 implementation is committed as `8a24935`. It generalizes the location
 classifier into `src/movement_classifier.*`, adds observation-only Type-2
 diagnostics (schema 3), and adds an independent Type-2 contract catalog. Normal
 production behavior remains unchanged. The fixture baseline is audited; the
-historical sample does not yet establish unique Type-2 positive/negative
-classification coverage. Finish that evidence before Phase 4.1 adoption.
+historical follow-up now exposes eight pre-reviewed moved functions across two
+file transfers and two retrospectively source-reviewed stationary declarations.
+Same-file edited-move coverage and a demonstrated historical precision gain
+remain missing; changed-access declaration semantics remain unresolved. Finish
+that tradeoff evaluation before Phase 4.1 adoption.
 
 Current evidence and reproduction details belong in
 [`moveSelectionBench/README.md`](../../moveSelectionBench/README.md#type-2-observation-baseline).
 Do not repeat the completed refactor or regenerate expected labels from output.
+Use the [default-granularity follow-up](../../moveSelectionBench/README.md#default-granularity-historical-follow-up)
+as the starting evidence. The source-led search is bounded and complete; select
+the next evaluation window explicitly rather than continuing until favorable
+results appear. The retained srcDiff crash is an upstream failure, not a
+classifier outcome.
 
 srcMove remains version `0.5.0`. Phase 3 is complete:
 
@@ -106,7 +114,7 @@ do not weaken the classifier to preserve them.
 
 ## Required Phase 4.0: shared decisions, oracle, and observation-only diagnostics
 
-Implementation and fixture-contract work below is present in the working tree;
+Implementation and fixture-contract work below is committed;
 the historical acceptance requirement (item 6) remains open. The baseline audit
 does not establish that suppressing all ambiguous Type-2 pairs improves accuracy.
 

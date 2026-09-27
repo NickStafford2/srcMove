@@ -205,11 +205,10 @@ held-out precision/recall benchmark:
 Both comparisons preserve ordinary baseline output. Crucially, neither exposes
 any unique Type-2 correspondence: handler bodies are exact, case labels are
 outside Type-2 eligibility, and srcDiff exposes finer changes for the renamed
-methods. **Historical Type-2 positive and negative classification coverage is
-still missing. Phase 4.0 acceptance is incomplete and Phase 4.1 production
-adoption is not justified by these samples.** Find source-reviewed history
-pairs that actually expose eligible normalized correspondences, retaining
-upstream exposure failures as limitations rather than changing the oracle.
+methods. **These initial samples did not establish historical Type-2 classification
+coverage.** The follow-up below adds exposed positives and limited negative
+evidence; upstream exposure failures remain limitations rather than changed
+oracle labels.
 
 Ignored `benchmark-results/correspondence-phase4-history/` retains
 `source-review.json`, source snapshots/diffs, `evaluate.py`, `manifest.json`,
@@ -228,6 +227,60 @@ from the parent workspace using:
 
 The scripts regenerate raw reports/outputs; source review and interpretation
 remain independent human-readable evidence, not labels regenerated from output.
+
+### Default-granularity historical follow-up
+
+After committing the observation-only implementation as `8a24935`, a bounded
+source-led search evaluated 14 repository/commit subsets: three SQLite, six
+OpenCV, and five Notepad++ comparisons. Thirteen completed; one failed in
+srcDiff. This convenience sample is exploratory, not held out or representative.
+Selection used source history and diffs before detector output; the two exposed
+Notepad++ declaration negatives were subsequently reviewed by a separate reviewer
+who inspected source only. That retrospective targeting is a sampling limitation.
+All runs use the product default statement granularity and real logical paths.
+
+| Source-reviewed case | Observed evidence | What this establishes |
+| --- | --- | --- |
+| SQLite `3d006d0d00cc79bb8cfb9dc63f2db2acb080ac82`: `ext/misc/analyze.c` becomes `ext/misc/diskused.c` | 41 unique Type-2 correspondences, all `relocated/different_file`; 14 selected | The three pre-reviewed functions `analysisReset`, `analysisPrepare`, and `analysisPercent` become their `diskused` counterparts and are each selected as Type-2. No loss among these three. This is file-rename movement, not internal reordering. |
+| Notepad++ `fd02b9df00a129b8e6c318c8d5f101c5a7f2a340`: `NppLocalization.cpp` becomes `localization.cpp`, `Notepad_plus` methods become `NativeLangSpeaker` methods | 12 unique Type-2 correspondences, all `relocated/different_file`; nine selected | All five pre-reviewed methods (`changeStyleCtrlsLang`, `changeShortcutLang`, `changeShortcutmapperLang`, `searchDlgNode`, `changeDlgLang`) are selected Type-2 moves. No loss among these five; nested unselected pairs are not additional missed moves. |
+| Notepad++ `682a8edafa2048e0cf7d88060fda772e2ed0f30b`: `CFile` becomes `Win32_IO_File` | Three unique Type-2 declarations, all `ambiguous/insufficient_context`, none selected | Source-only independent review confirms `Read/read` and `Write/write` remain public declarations in the same order at lines 52–53. Their non-move output agrees with the review, but the classifier cannot establish stationarity. The copy-assignment declaration changes access section and order; movement versus restructuring remains unresolved. |
+| SQLite `c799c15dbef70dd8ee63be2c4b77ebeacce1df00` (`ext/qrf/qrf.c`) and `3b440ce573e6567691dac106a961e4d658b09c03` (`src/select.c`) | Zero candidates and zero moves for the reviewed in-place renames | Fine-grained srcDiff edits do not exercise Type-2 classification. They are not evidence of improved classifier precision. |
+| Six OpenCV subsets, including five edits-in-place and the exact `calibrationMatrixValues` transfer at `99fc5739130dbbbe4010545457ad11666cfcc0cb` | No Type-2 observations; the transfer is selected as one whole Type-1 function, negative subsets report no moves | Confirms the exposure limitation on another repository; does not add Type-2 acceptance coverage. Full commit/file inventory is retained in the source review. |
+| Notepad++ `c9003fa60` and `e59774add`, rerun at default granularity | No Type-2 observations or selected moves; the latter retains 17 ambiguous Type-1 observations | These remain exposure controls, not Type-2 positives/negatives. |
+| Notepad++ `f127ba02d`, `NppDarkMode.cpp` | srcDiff exits with SIGSEGV after an encoding/BOM parser error | Upstream failure retained with stderr; no detector conclusion and no encoding rewrite to manufacture an input. |
+
+All thirteen successful comparisons preserve baseline ordinary results; XML
+byte equality was additionally checked for the seven SQLite/Notepad++ pairs.
+The baseline and observation-only executable hashes are unchanged from the
+fixture audit above. No production classifier gate was enabled in these runs.
+The eight reviewed selected functions across two file transfers have positive
+relocation evidence; this establishes correspondence/location support, not the
+output of an unimplemented selection policy or population recall. Two reviewed
+stationary declarations already remain unselected under the baseline, so these
+results do not demonstrate a new precision gain.
+
+**Acceptance remains limited:** no reviewed same-file edited move exercises the
+proposed gate, no reviewed historical false move is demonstrated to be removed,
+and the changed-access declaration remains unresolved. Do not interpret the
+absence of observed regressions in these easy cross-file positives as proof of
+improved historical analysis. Keep production behavior unchanged until a bounded
+comparison addresses those tradeoffs; retain the reviewed cases for that trial.
+
+Evidence is retained under ignored
+`benchmark-results/correspondence-phase4-history-next/{sqlite,notepadpp,opencv}/`.
+Each contains source review, exact revisions/files, snapshots/diffs, commands,
+input/executable hashes, outputs, and conclusions or summary. Source labels are
+not regenerated from classifications. The SQLite positive labels and the two
+Notepad++ declaration negatives received independent source review.
+
+From the parent workspace, the retained scripts reproduce the runs:
+
+```bash
+./bin/srcml-dev-shell python3 /workspace/srcMove/benchmark-results/correspondence-phase4-history-next/sqlite/evaluate.py
+./bin/srcml-dev-shell python3 /workspace/srcMove/benchmark-results/correspondence-phase4-history-next/notepadpp/evaluate.py
+./bin/srcml-dev-shell python3 /workspace/srcMove/benchmark-results/correspondence-phase4-history-next/notepadpp/compare_baseline.py
+./bin/srcml-dev-shell python3 /workspace/srcMove/benchmark-results/correspondence-phase4-history-next/opencv/evaluate.py
+```
 
 ## Retained Notepad++ evaluation
 
