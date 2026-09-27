@@ -10,6 +10,7 @@ from moveSelectionBench.historical_study.study import (
     match_event, xpath_endpoint, source_endpoint, source_text, endpoint_is_unique,
     verify_execution,
 )
+from moveSelectionBench.historical_study.attribution import resolve_endpoint, attribute_event
 
 
 class HistoricalStudyTests(unittest.TestCase):
@@ -77,6 +78,22 @@ class HistoricalStudyTests(unittest.TestCase):
                 verify_execution(dest,receipt | {'artifact_hashes':{}},'run',case)
             (dest/'results.json').write_bytes(b'changed')
             with self.assertRaises(ValueError): verify_execution(dest,receipt,'run',case)
+
+    def test_source_positions_resolve_comment_boundary_without_descendant_credit(self):
+        text='int value; // member\n'
+        tree=ET.ElementTree(ET.fromstring('''<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff"><unit filename="a.cpp|b.cpp"><diff:delete><decl_stmt>int value;</decl_stmt> <comment>// member</comment>
+</diff:delete><diff:insert><decl_stmt>int value;</decl_stmt> <comment>// member</comment>
+</diff:insert></unit></unit>'''))
+        path="/src:unit[@filename='a.cpp|b.cpp']/diff:delete[1]/src:decl_stmt[1]"
+        diag={'candidates':[{'candidate_id':1,'side':'delete','filename':'a.cpp|b.cpp','xpath':path}]}
+        endpoint={'path':'a.cpp','start_line':1,'end_line':1,'text_sha256':hashlib.sha256(text.encode()).hexdigest()}
+        resolved=resolve_endpoint(endpoint,text,tree,diag,'delete')
+        self.assertTrue(resolved['whole_exposed'])
+        self.assertEqual(resolved['candidate_ids'],[1])
+        parent_text='void f(){int value;}\n'
+        parent=endpoint | {'text_sha256':hashlib.sha256(parent_text.encode()).hexdigest()}
+        unresolved=resolve_endpoint(parent,parent_text,tree,diag,'delete')
+        self.assertFalse(unresolved['candidate_ids'])
 
 
 if __name__ == '__main__': unittest.main()

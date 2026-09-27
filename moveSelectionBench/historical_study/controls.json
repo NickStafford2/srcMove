@@ -1,0 +1,450 @@
+{
+  "schema_version": 1,
+  "reviewer": "Codex /root/sqlite_review",
+  "detector_blind": true,
+  "oracle_status": "Source-defined before first execution; development diagnostic controls, not independent historical evidence.",
+  "scope": "Six Type1 positives and six nonmovement/restructuring negatives. Whole endpoints and independent descendants scored separately. No Type2-positive accuracy claim.",
+  "cases": [
+    {
+      "id": "type1-cross-file-function",
+      "before": {
+        "a.cpp": "int transfer(int value) {\n    int doubled = value * 2;\n    record(doubled);\n    return doubled + 1;\n}\nvoid stay_a() {}\n",
+        "b.cpp": "void stay_b() {}\n"
+      },
+      "after": {
+        "a.cpp": "void stay_a() {}\n",
+        "b.cpp": "void stay_b() {}\nint transfer(int value) {\n    int doubled = value * 2;\n    record(doubled);\n    return doubled + 1;\n}\n"
+      },
+      "expected": [
+        {
+          "old": {
+            "path": "a.cpp",
+            "text": "int transfer(int value) {\n    int doubled = value * 2;\n    record(doubled);\n    return doubled + 1;\n}"
+          },
+          "new": {
+            "path": "b.cpp",
+            "text": "int transfer(int value) {\n    int doubled = value * 2;\n    record(doubled);\n    return doubled + 1;\n}"
+          },
+          "scope": "whole_construct",
+          "construct_kind": "function",
+          "id": "type1-cross-file-function-expected-1",
+          "type": "type1",
+          "parent_event": null
+        }
+      ],
+      "forbidden": [],
+      "source_rationale": "Complete unique function transfers between continuing files.",
+      "source_sha256": {
+        "before": {
+          "a.cpp": "fdde3f3cb1284dbf695afc4161216c7121381770c88d1beb355f3032b16a893d",
+          "b.cpp": "55a411d5102346a4a7f5c68cc29f2965dbb0ae62ce0fc054f37b58ddce1f000b"
+        },
+        "after": {
+          "a.cpp": "125715d297b85b01be27ffea12219aa2cd243fcdbeffc63fd975867765544d94",
+          "b.cpp": "22c412e264a5451bd74cd8935254bc0883ad5416a04899fbb8b75035b87d688a"
+        }
+      }
+    },
+    {
+      "id": "type1-cross-container-statement",
+      "before": {
+        "case.cpp": "void alpha() {\n    if (enabled) {\n        audit(value);\n        record(value + 1);\n    }\n    int marker_a = 10;\n    consume(marker_a);\n}\nvoid beta() {\n    int marker_b = 20;\n    consume(marker_b);\n}\n"
+      },
+      "after": {
+        "case.cpp": "void alpha() {\n    int marker_a = 10;\n    consume(marker_a);\n}\nvoid beta() {\n    if (enabled) {\n        audit(value);\n        record(value + 1);\n    }\n    int marker_b = 20;\n    consume(marker_b);\n}\n"
+      },
+      "expected": [
+        {
+          "old": {
+            "path": "case.cpp",
+            "text": "if (enabled) {\n        audit(value);\n        record(value + 1);\n    }"
+          },
+          "new": {
+            "path": "case.cpp",
+            "text": "if (enabled) {\n        audit(value);\n        record(value + 1);\n    }"
+          },
+          "scope": "independent_descendant",
+          "construct_kind": "if_stmt",
+          "id": "type1-cross-container-statement-expected-1",
+          "type": "type1",
+          "parent_event": null
+        }
+      ],
+      "forbidden": [],
+      "source_rationale": "Complete conditional crosses from alpha to continuing beta; children carried.",
+      "source_sha256": {
+        "before": {
+          "case.cpp": "d11849b4c373a9c1da1940bc984c9e0a6ee86be4e28acab16ae309bddeea5266"
+        },
+        "after": {
+          "case.cpp": "d8a534c56e47a646bf3529e4fbf83d2cd07a867133a9ae7a8c7c31906ca7abb6"
+        }
+      }
+    },
+    {
+      "id": "type1-reorder-declaration",
+      "before": {
+        "case.cpp": "void run() {\n    if (enabled) {\n        audit(value);\n        record(value + 1);\n    }\n    int boundary = 7;\n    finish();\n}\n"
+      },
+      "after": {
+        "case.cpp": "void run() {\n    int boundary = 7;\n    if (enabled) {\n        audit(value);\n        record(value + 1);\n    }\n    finish();\n}\n"
+      },
+      "expected": [
+        {
+          "old": {
+            "path": "case.cpp",
+            "text": "if (enabled) {\n        audit(value);\n        record(value + 1);\n    }"
+          },
+          "new": {
+            "path": "case.cpp",
+            "text": "if (enabled) {\n        audit(value);\n        record(value + 1);\n    }"
+          },
+          "scope": "independent_descendant",
+          "construct_kind": "if_stmt",
+          "id": "type1-reorder-declaration-expected-1",
+          "type": "type1",
+          "parent_event": null
+        }
+      ],
+      "forbidden": [],
+      "source_rationale": "Conditional crosses a continuing independent anchor. Count moved conditional once; its body is carried.",
+      "source_sha256": {
+        "before": {
+          "case.cpp": "dca195644f47342a14d2e5aa786e8bb916c7479c8b96f8a86d3ae132b3e24a21"
+        },
+        "after": {
+          "case.cpp": "da2effdc68911ed368991b16d15be22006c841a46c9545613087c976646063b8"
+        }
+      }
+    },
+    {
+      "id": "type1-reorder-conditional",
+      "before": {
+        "case.cpp": "void run() {\n    if (enabled) {\n        audit(value);\n        record(value + 1);\n    }\n    if (ready) { consume(7); }\n    finish();\n}\n"
+      },
+      "after": {
+        "case.cpp": "void run() {\n    if (ready) { consume(7); }\n    if (enabled) {\n        audit(value);\n        record(value + 1);\n    }\n    finish();\n}\n"
+      },
+      "expected": [
+        {
+          "old": {
+            "path": "case.cpp",
+            "text": "if (enabled) {\n        audit(value);\n        record(value + 1);\n    }"
+          },
+          "new": {
+            "path": "case.cpp",
+            "text": "if (enabled) {\n        audit(value);\n        record(value + 1);\n    }"
+          },
+          "scope": "independent_descendant",
+          "construct_kind": "if_stmt",
+          "id": "type1-reorder-conditional-expected-1",
+          "type": "type1",
+          "parent_event": null
+        }
+      ],
+      "forbidden": [],
+      "source_rationale": "Conditional crosses a continuing independent anchor. Count moved conditional once; its body is carried.",
+      "source_sha256": {
+        "before": {
+          "case.cpp": "c37354e8605702c685a070ce295920b973023dcce54a85f49e2822abb024fc28"
+        },
+        "after": {
+          "case.cpp": "e99db162007045980b4852340dc4ca5840204d54e4e978ebaf5198d9d7a9de03"
+        }
+      }
+    },
+    {
+      "id": "type1-parent-transfer",
+      "before": {
+        "a.cpp": "void transfer_parent(int value) {\n    if (value > 0) {\n        audit(value);\n        record(value + 1);\n    }\n    finish();\n}\nvoid stay_a() {}\n",
+        "b.cpp": "void stay_b() {}\n"
+      },
+      "after": {
+        "a.cpp": "void stay_a() {}\n",
+        "b.cpp": "void stay_b() {}\nvoid transfer_parent(int value) {\n    if (value > 0) {\n        audit(value);\n        record(value + 1);\n    }\n    finish();\n}\n"
+      },
+      "expected": [
+        {
+          "old": {
+            "path": "a.cpp",
+            "text": "void transfer_parent(int value) {\n    if (value > 0) {\n        audit(value);\n        record(value + 1);\n    }\n    finish();\n}"
+          },
+          "new": {
+            "path": "b.cpp",
+            "text": "void transfer_parent(int value) {\n    if (value > 0) {\n        audit(value);\n        record(value + 1);\n    }\n    finish();\n}"
+          },
+          "scope": "whole_construct",
+          "construct_kind": "function",
+          "id": "type1-parent-transfer-expected-1",
+          "type": "type1",
+          "parent_event": null
+        }
+      ],
+      "forbidden": [],
+      "source_rationale": "Whole parent transferred. Its conditional and calls are coverage, not additional independent positives.",
+      "source_sha256": {
+        "before": {
+          "a.cpp": "025fe3b55ceb2adf5f62c41bef899b2f9e1e00ea4d4a31a58aaf8134d064e9db",
+          "b.cpp": "55a411d5102346a4a7f5c68cc29f2965dbb0ae62ce0fc054f37b58ddce1f000b"
+        },
+        "after": {
+          "a.cpp": "125715d297b85b01be27ffea12219aa2cd243fcdbeffc63fd975867765544d94",
+          "b.cpp": "aea669421449147820898dc0f21ba0577697e7e9db7fc4088b10ef559eb061f1"
+        }
+      }
+    },
+    {
+      "id": "type1-independent-child-edited-parent",
+      "before": {
+        "case.cpp": "void run() {\n    int state = 1;\n    if (enabled) {\n        audit(value);\n        record(value + 1);\n    }\n    int boundary = 7;\n    consume(state);\n}\n"
+      },
+      "after": {
+        "case.cpp": "void run() {\n    int state = 2;\n    int boundary = 7;\n    if (enabled) {\n        audit(value);\n        record(value + 1);\n    }\n    consume(state);\n}\n"
+      },
+      "expected": [
+        {
+          "old": {
+            "path": "case.cpp",
+            "text": "if (enabled) {\n        audit(value);\n        record(value + 1);\n    }"
+          },
+          "new": {
+            "path": "case.cpp",
+            "text": "if (enabled) {\n        audit(value);\n        record(value + 1);\n    }"
+          },
+          "scope": "independent_descendant",
+          "construct_kind": "if_stmt",
+          "id": "type1-independent-child-edited-parent-expected-1",
+          "type": "type1",
+          "parent_event": null
+        }
+      ],
+      "forbidden": [],
+      "source_rationale": "Continuing run function edited in place; unchanged conditional independently crosses boundary declaration.",
+      "source_sha256": {
+        "before": {
+          "case.cpp": "9c5620153e155c5bc3324f66c86e8e49f309ed5545414684f3871f20ced13fff"
+        },
+        "after": {
+          "case.cpp": "95eae82357fc8db80d238ddf8240c5c23f3bbabc966f9fafc42c3b92902aa3d8"
+        }
+      }
+    },
+    {
+      "id": "negative-stationary-line-shift",
+      "before": {
+        "case.cpp": "void run() {\n    if (enabled) {\n        audit(value);\n        record(value + 1);\n    }\n    finish();\n}\n"
+      },
+      "after": {
+        "case.cpp": "// New file documentation\n// Another line\nvoid run() {\n    if (enabled) {\n        audit(value);\n        record(value + 1);\n    }\n    finish();\n}\n"
+      },
+      "expected": [],
+      "forbidden": [
+        {
+          "old": {
+            "path": "case.cpp",
+            "text": "if (enabled) {\n        audit(value);\n        record(value + 1);\n    }"
+          },
+          "new": {
+            "path": "case.cpp",
+            "text": "if (enabled) {\n        audit(value);\n        record(value + 1);\n    }"
+          },
+          "scope": "independent_descendant",
+          "construct_kind": "if_stmt",
+          "id": "negative-stationary-line-shift-forbidden-1",
+          "type": "forbidden_any_type",
+          "parent_event": null
+        }
+      ],
+      "source_rationale": "Only comment lines added before continuing function; no independent relocation.",
+      "source_sha256": {
+        "before": {
+          "case.cpp": "25ad88bc6fde6cb0f83c4dc0b72e78183286d0261fb3fba9fbd13cf64045c73d"
+        },
+        "after": {
+          "case.cpp": "210a3aeefecf533328ea72f609edd73b3e59d6bf516fe629757d8b4d7e96a190"
+        }
+      }
+    },
+    {
+      "id": "negative-wrapper-added",
+      "before": {
+        "case.cpp": "void run() {\n    audit(value + 1);\n    finish();\n}\n"
+      },
+      "after": {
+        "case.cpp": "void run() {\n    if (ready) {\n        audit(value + 1);\n    }\n    finish();\n}\n"
+      },
+      "expected": [],
+      "forbidden": [
+        {
+          "old": {
+            "path": "case.cpp",
+            "text": "audit(value + 1);"
+          },
+          "new": {
+            "path": "case.cpp",
+            "text": "audit(value + 1);"
+          },
+          "scope": "independent_descendant",
+          "construct_kind": "expr_stmt",
+          "id": "negative-wrapper-added-forbidden-1",
+          "type": "forbidden_any_type",
+          "parent_event": null
+        }
+      ],
+      "source_rationale": "Continuing statement receives wrapper in place; restructuring under declared evaluation taxonomy.",
+      "source_sha256": {
+        "before": {
+          "case.cpp": "942d946582075938635b3b12d357ff22b88fe08359742aaf8538aee326bf3794"
+        },
+        "after": {
+          "case.cpp": "ccee8cdce26b1e8c7cb417f14e7fb3cfb463d5161e96e8a70a0200c220b1788f"
+        }
+      }
+    },
+    {
+      "id": "negative-wrapper-removed",
+      "before": {
+        "case.cpp": "void run() {\n    if (ready) {\n        audit(value + 1);\n    }\n    finish();\n}\n"
+      },
+      "after": {
+        "case.cpp": "void run() {\n    audit(value + 1);\n    finish();\n}\n"
+      },
+      "expected": [],
+      "forbidden": [
+        {
+          "old": {
+            "path": "case.cpp",
+            "text": "audit(value + 1);"
+          },
+          "new": {
+            "path": "case.cpp",
+            "text": "audit(value + 1);"
+          },
+          "scope": "independent_descendant",
+          "construct_kind": "expr_stmt",
+          "id": "negative-wrapper-removed-forbidden-1",
+          "type": "forbidden_any_type",
+          "parent_event": null
+        }
+      ],
+      "source_rationale": "Continuing statement loses wrapper in place; restructuring, no independent anchor crossing.",
+      "source_sha256": {
+        "before": {
+          "case.cpp": "ccee8cdce26b1e8c7cb417f14e7fb3cfb463d5161e96e8a70a0200c220b1788f"
+        },
+        "after": {
+          "case.cpp": "942d946582075938635b3b12d357ff22b88fe08359742aaf8538aee326bf3794"
+        }
+      }
+    },
+    {
+      "id": "negative-in-place-identifier-literal",
+      "before": {
+        "case.cpp": "void run() {\n    audit(old_value + 1);\n    finish();\n}\n"
+      },
+      "after": {
+        "case.cpp": "void run() {\n    audit(new_value + 2);\n    finish();\n}\n"
+      },
+      "expected": [],
+      "forbidden": [
+        {
+          "old": {
+            "path": "case.cpp",
+            "text": "audit(old_value + 1);"
+          },
+          "new": {
+            "path": "case.cpp",
+            "text": "audit(new_value + 2);"
+          },
+          "scope": "independent_descendant",
+          "construct_kind": "expr_stmt",
+          "id": "negative-in-place-identifier-literal-forbidden-1",
+          "type": "forbidden_any_type",
+          "parent_event": null
+        }
+      ],
+      "source_rationale": "Identifier and literal edited at continuing same role and position; not Type2 movement.",
+      "source_sha256": {
+        "before": {
+          "case.cpp": "7a9bb739480c75ca4c6b4e3f51b41732dd5cab634e791c0f7850dfb0593097fa"
+        },
+        "after": {
+          "case.cpp": "45119478c5fa1f005773c0cd8f904be163c72ab003e6bfcadcceeb1315a05ef9"
+        }
+      }
+    },
+    {
+      "id": "negative-repeated-stationary",
+      "before": {
+        "case.cpp": "void run() {\n    audit(value + 1);\n    audit(value + 1);\n    finish();\n}\n"
+      },
+      "after": {
+        "case.cpp": "void run() {\n    int marker = 0;\n    audit(value + 1);\n    audit(value + 1);\n    finish();\n}\n"
+      },
+      "expected": [],
+      "forbidden": [
+        {
+          "old": {
+            "path": "case.cpp",
+            "text": "audit(value + 1);"
+          },
+          "new": {
+            "path": "case.cpp",
+            "text": "audit(value + 1);"
+          },
+          "scope": "independent_descendant",
+          "construct_kind": "expr_stmt",
+          "cardinality": "any",
+          "id": "negative-repeated-stationary-forbidden-1",
+          "type": "forbidden_any_type",
+          "parent_event": null
+        }
+      ],
+      "source_rationale": "Repeated indistinguishable statements remain in order; new preceding declaration is a line shift. No source-level independent movement; report group output separately.",
+      "source_sha256": {
+        "before": {
+          "case.cpp": "30716f8aba2cfcde1280fd89f980af00613c3ce434809ac7dd16a380835990cf"
+        },
+        "after": {
+          "case.cpp": "5d9cf1f3055e0b3ef02d8d9dee17aea5512aa9b108917142ff429e1507c2b271"
+        }
+      }
+    },
+    {
+      "id": "negative-unrelated-same-shape",
+      "before": {
+        "case.cpp": "void run() {\n    charge(account_id, amount);\n    finish();\n}\n"
+      },
+      "after": {
+        "case.cpp": "void run() {\n    notify(recipient_id, count);\n    finish();\n}\n"
+      },
+      "expected": [],
+      "forbidden": [
+        {
+          "old": {
+            "path": "case.cpp",
+            "text": "charge(account_id, amount);"
+          },
+          "new": {
+            "path": "case.cpp",
+            "text": "notify(recipient_id, count);"
+          },
+          "scope": "independent_descendant",
+          "construct_kind": "expr_stmt",
+          "id": "negative-unrelated-same-shape-forbidden-1",
+          "type": "forbidden_any_type",
+          "parent_event": null
+        }
+      ],
+      "source_rationale": "Stationary replacement changes business role from charge to notify; same normalized syntax does not establish identity or movement.",
+      "source_sha256": {
+        "before": {
+          "case.cpp": "e2cee4baf72a65cad78e37253ff1fa40926d4ddf9c825da0711a4acb85d0fd3c"
+        },
+        "after": {
+          "case.cpp": "3121910c6786db020f525eeb21378b572522e462495a495b0251607f20854e31"
+        }
+      }
+    }
+  ]
+}
