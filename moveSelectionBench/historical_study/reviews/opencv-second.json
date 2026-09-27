@@ -1,0 +1,405 @@
+{
+  "schema_version": 1,
+  "repository": "opencv",
+  "reviewer": "Codex source-review agent /root/sqlite_review (second reviewer)",
+  "reviewed_on": "2026-09-27",
+  "detector_blind": true,
+  "primary_manifest": "opencv.json",
+  "primary_manifest_sha256": "38bafe5fbfcd61333f23d5ce94f986a53f1cab80df762cc218cecc296d509825",
+  "review_method": "Read primary event labels, independently retrieved both endpoint source revisions and surrounding lines with git show, verified all 26 endpoint hashes, checked cross-file source deletion/new destination occurrence, and reviewed source-only change statistics. No detector outputs accessed.",
+  "review_scope": "Second adjudication of the 13 proposed positive events only. No independent exhaustive re-inventory of ordinary windows or all large extraction revisions.",
+  "summary": {
+    "confirm": 13,
+    "disagree": 0,
+    "uncertain": 0,
+    "type1": 13,
+    "type2": 0,
+    "whole_construct": 12,
+    "independent_descendant": 1
+  },
+  "limitations": [
+    "Second AI corroboration, not human adjudication or independent target discovery.",
+    "Five standalone typedefs are legitimate complete targets but should remain identifiable by construct kind; do not describe all twelve whole constructs as whole functions.",
+    "IPP extraction events are correlated within three campaigns; event count is not the number of independent revisions.",
+    "For the JPEG two-statement permutation, the declared one-event convention prevents double counting and does not establish a uniquely privileged moved side."
+  ],
+  "events": [
+    {
+      "event_id": "opencv-targeted-02-event-1",
+      "case_id": "opencv-targeted-02",
+      "parent": "1bea199e008070b3256d60854511682c9b102470",
+      "commit": "e6b1ef272ebe4fb9f2e3b6c3b7020e915dc3e812",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "IppiHistogram_C1",
+      "old": {
+        "path": "modules/imgproc/src/histogram.cpp",
+        "start_line": 693,
+        "end_line": 694,
+        "text_sha256": "7063ec976a73669270d155e957d7e7791566f34ea96f8659353533f40356b371"
+      },
+      "new": {
+        "path": "hal/ipp/src/histogram_ipp.cpp",
+        "start_line": 23,
+        "end_line": 24,
+        "text_sha256": "7063ec976a73669270d155e957d7e7791566f34ea96f8659353533f40356b371"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": true,
+      "whitespace_only_difference": false,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Standalone namespace/file-scope typedef, outside neighboring function/class/struct bodies. It transfers as its own complete declaration; association with a larger IPP extraction campaign does not make it a syntactic descendant of a moved function. No whole namespace is labeled as a moved parent.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-02-event-2",
+      "case_id": "opencv-targeted-02",
+      "parent": "1bea199e008070b3256d60854511682c9b102470",
+      "commit": "e6b1ef272ebe4fb9f2e3b6c3b7020e915dc3e812",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "getIppiHistogramFunction_C1",
+      "old": {
+        "path": "modules/imgproc/src/histogram.cpp",
+        "start_line": 696,
+        "end_line": 705,
+        "text_sha256": "b3c5a1e6decb48a31728110266de727f4e995b7d533af70849bef51c17343dc8"
+      },
+      "new": {
+        "path": "hal/ipp/src/histogram_ipp.cpp",
+        "start_line": 26,
+        "end_line": 35,
+        "text_sha256": "b3c5a1e6decb48a31728110266de727f4e995b7d533af70849bef51c17343dc8"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": true,
+      "whitespace_only_difference": false,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Full named function definition, including signature/template prefix and closing delimiter, transferred across files. Its methods, fields, and statements are carried descendants and must not receive additional independent credit.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-02-event-3",
+      "case_id": "opencv-targeted-02",
+      "parent": "1bea199e008070b3256d60854511682c9b102470",
+      "commit": "e6b1ef272ebe4fb9f2e3b6c3b7020e915dc3e812",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "ipp_calcHistParallelTLS",
+      "old": {
+        "path": "modules/imgproc/src/histogram.cpp",
+        "start_line": 707,
+        "end_line": 715,
+        "text_sha256": "18f17109ea6947dbe6b5869823b9d0a462b99e36f8a045e2c4845a7d954cd8d4"
+      },
+      "new": {
+        "path": "hal/ipp/src/histogram_ipp.cpp",
+        "start_line": 37,
+        "end_line": 45,
+        "text_sha256": "18f17109ea6947dbe6b5869823b9d0a462b99e36f8a045e2c4845a7d954cd8d4"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": true,
+      "whitespace_only_difference": false,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Full named class definition, including signature/template prefix and closing delimiter, transferred across files. Its methods, fields, and statements are carried descendants and must not receive additional independent credit.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-05-event-1",
+      "case_id": "opencv-targeted-05",
+      "parent": "93cd614472d62044f61fb4da78476b316a06bbed",
+      "commit": "7230c1ce0872196e760907c0f9c8dbdaa955ed21",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "ippimatchTemplate",
+      "old": {
+        "path": "modules/imgproc/src/templmatch.cpp",
+        "start_line": 1041,
+        "end_line": 1041,
+        "text_sha256": "788a952f9cf9826b94558aa263701e8f6fad8a879c4dd8dd64ba488d7d6628ac"
+      },
+      "new": {
+        "path": "hal/ipp/src/matchtemplate_ipp.cpp",
+        "start_line": 22,
+        "end_line": 22,
+        "text_sha256": "788a952f9cf9826b94558aa263701e8f6fad8a879c4dd8dd64ba488d7d6628ac"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": true,
+      "whitespace_only_difference": false,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Standalone namespace/file-scope typedef, outside neighboring function/class/struct bodies. It transfers as its own complete declaration; association with a larger IPP extraction campaign does not make it a syntactic descendant of a moved function. No whole namespace is labeled as a moved parent.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-10-event-1",
+      "case_id": "opencv-targeted-10",
+      "parent": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "commit": "dd541965e9fc406f03cd6b56f1d62ecfc6cac4ab",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "ippiReorderFunc",
+      "old": {
+        "path": "modules/imgproc/src/color.hpp",
+        "start_line": 350,
+        "end_line": 350,
+        "text_sha256": "e4162a89926a7e4d4534e0698cbdd607c38eacea61386cb8676a7b18490285ce"
+      },
+      "new": {
+        "path": "hal/ipp/src/color_ipp.cpp",
+        "start_line": 33,
+        "end_line": 33,
+        "text_sha256": "e4162a89926a7e4d4534e0698cbdd607c38eacea61386cb8676a7b18490285ce"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": true,
+      "whitespace_only_difference": false,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Standalone namespace/file-scope typedef, outside neighboring function/class/struct bodies. It transfers as its own complete declaration; association with a larger IPP extraction campaign does not make it a syntactic descendant of a moved function. No whole namespace is labeled as a moved parent.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-10-event-2",
+      "case_id": "opencv-targeted-10",
+      "parent": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "commit": "dd541965e9fc406f03cd6b56f1d62ecfc6cac4ab",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "ippiGeneralFunc",
+      "old": {
+        "path": "modules/imgproc/src/color.hpp",
+        "start_line": 351,
+        "end_line": 351,
+        "text_sha256": "a435fde3d43d5cfcb00e899d55b57c1bd06ad811af9ec9050321712c8f840afd"
+      },
+      "new": {
+        "path": "hal/ipp/src/color_ipp.cpp",
+        "start_line": 31,
+        "end_line": 31,
+        "text_sha256": "a435fde3d43d5cfcb00e899d55b57c1bd06ad811af9ec9050321712c8f840afd"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": true,
+      "whitespace_only_difference": false,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Standalone namespace/file-scope typedef, outside neighboring function/class/struct bodies. It transfers as its own complete declaration; association with a larger IPP extraction campaign does not make it a syntactic descendant of a moved function. No whole namespace is labeled as a moved parent.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-10-event-3",
+      "case_id": "opencv-targeted-10",
+      "parent": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "commit": "dd541965e9fc406f03cd6b56f1d62ecfc6cac4ab",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "ippiColor2GrayFunc",
+      "old": {
+        "path": "modules/imgproc/src/color.hpp",
+        "start_line": 352,
+        "end_line": 352,
+        "text_sha256": "72730ecaf5107849141451a1365de00a22c4b7a1c783735c8359da9757b5a555"
+      },
+      "new": {
+        "path": "hal/ipp/src/color_ipp.cpp",
+        "start_line": 32,
+        "end_line": 32,
+        "text_sha256": "72730ecaf5107849141451a1365de00a22c4b7a1c783735c8359da9757b5a555"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": true,
+      "whitespace_only_difference": false,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Standalone namespace/file-scope typedef, outside neighboring function/class/struct bodies. It transfers as its own complete declaration; association with a larger IPP extraction campaign does not make it a syntactic descendant of a moved function. No whole namespace is labeled as a moved parent.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-10-event-4",
+      "case_id": "opencv-targeted-10",
+      "parent": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "commit": "dd541965e9fc406f03cd6b56f1d62ecfc6cac4ab",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "IPPGeneralFunctor",
+      "old": {
+        "path": "modules/imgproc/src/color.hpp",
+        "start_line": 420,
+        "end_line": 429,
+        "text_sha256": "c805cf70b8e54ba3bce0f4eb9cee1f4c3c0f22f11c2eb6f97069f514b135e9b9"
+      },
+      "new": {
+        "path": "hal/ipp/src/color_ipp.cpp",
+        "start_line": 116,
+        "end_line": 125,
+        "text_sha256": "c805cf70b8e54ba3bce0f4eb9cee1f4c3c0f22f11c2eb6f97069f514b135e9b9"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": true,
+      "whitespace_only_difference": false,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Full named struct definition, including signature/template prefix and closing delimiter, transferred across files. Its methods, fields, and statements are carried descendants and must not receive additional independent credit.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-10-event-5",
+      "case_id": "opencv-targeted-10",
+      "parent": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "commit": "dd541965e9fc406f03cd6b56f1d62ecfc6cac4ab",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "IPPReorderFunctor",
+      "old": {
+        "path": "modules/imgproc/src/color.hpp",
+        "start_line": 432,
+        "end_line": 448,
+        "text_sha256": "ca0566422059f3ee55ed97b2f0c377447e8f987b7aa4af69277e6009843fc90d"
+      },
+      "new": {
+        "path": "hal/ipp/src/color_ipp.cpp",
+        "start_line": 127,
+        "end_line": 143,
+        "text_sha256": "ca0566422059f3ee55ed97b2f0c377447e8f987b7aa4af69277e6009843fc90d"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": true,
+      "whitespace_only_difference": false,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Full named struct definition, including signature/template prefix and closing delimiter, transferred across files. Its methods, fields, and statements are carried descendants and must not receive additional independent credit.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-10-event-6",
+      "case_id": "opencv-targeted-10",
+      "parent": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "commit": "dd541965e9fc406f03cd6b56f1d62ecfc6cac4ab",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "IPPColor2GrayFunctor",
+      "old": {
+        "path": "modules/imgproc/src/color_rgb.dispatch.cpp",
+        "start_line": 76,
+        "end_line": 92,
+        "text_sha256": "67208eb3d232abdd2bcaf20f3b0182dc435ae03d8864f99a3bdd2736704b9d33"
+      },
+      "new": {
+        "path": "hal/ipp/src/color_ipp.cpp",
+        "start_line": 201,
+        "end_line": 216,
+        "text_sha256": "0b173065f690f093f7b1aa85426ad557de5c8a3902749c259508c55862701fd3"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": false,
+      "whitespace_only_difference": true,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Full named struct definition, including signature/template prefix and closing delimiter, transferred across files. Its methods, fields, and statements are carried descendants and must not receive additional independent credit.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-10-event-7",
+      "case_id": "opencv-targeted-10",
+      "parent": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "commit": "dd541965e9fc406f03cd6b56f1d62ecfc6cac4ab",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "IPPGray2BGRFunctor",
+      "old": {
+        "path": "modules/imgproc/src/color_rgb.dispatch.cpp",
+        "start_line": 94,
+        "end_line": 103,
+        "text_sha256": "92d14de68d41baff724bfe9f6bd14eb9aa308695b476f3e6b6d4f8996fb2af24"
+      },
+      "new": {
+        "path": "hal/ipp/src/color_ipp.cpp",
+        "start_line": 246,
+        "end_line": 254,
+        "text_sha256": "4590b1ab30983fa3358621660f26e584b018cfb440d7be47f4ba333bcc444c28"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": false,
+      "whitespace_only_difference": true,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Full named template_struct definition, including signature/template prefix and closing delimiter, transferred across files. Its methods, fields, and statements are carried descendants and must not receive additional independent credit.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-10-event-8",
+      "case_id": "opencv-targeted-10",
+      "parent": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "commit": "dd541965e9fc406f03cd6b56f1d62ecfc6cac4ab",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "whole_construct",
+      "identity": "IPPGray2BGRAFunctor",
+      "old": {
+        "path": "modules/imgproc/src/color_rgb.dispatch.cpp",
+        "start_line": 105,
+        "end_line": 119,
+        "text_sha256": "de01dd630dcee101b2035398ec402b8efa4572d736f84975d5e89cbcdae69218"
+      },
+      "new": {
+        "path": "hal/ipp/src/color_ipp.cpp",
+        "start_line": 256,
+        "end_line": 268,
+        "text_sha256": "9deb1ef0a568f4fb734f017a545c5ae872f058359c738a9e60449c734209c777"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": false,
+      "whitespace_only_difference": true,
+      "identity_reason": "Same uniquely named complete construct disappears from source file and appears once in previously absent destination file, with byte equality or only visible whitespace changes.",
+      "hierarchy_assessment": "Full named template_struct definition, including signature/template prefix and closing delimiter, transferred across files. Its methods, fields, and statements are carried descendants and must not receive additional independent credit.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    },
+    {
+      "event_id": "opencv-targeted-18-event-1",
+      "case_id": "opencv-targeted-18",
+      "parent": "dd214962a5dd98658436b5d31160d1d250dfc9ad",
+      "commit": "ffd0cf49a71b9c2c65c371610d3e2f365db85d2d",
+      "decision": "confirm",
+      "confirmed_type": "type1",
+      "confirmed_scope": "independent_descendant",
+      "identity": "cinfo.comp_info[0].v_samp_factor assignment",
+      "old": {
+        "path": "modules/imgcodecs/src/grfmt_jpeg.cpp",
+        "start_line": 828,
+        "end_line": 828,
+        "text_sha256": "79d966eb0a176d6ba9c66c690aec819eb626a5b1fb7fe86a80fa5d05d62e5167"
+      },
+      "new": {
+        "path": "modules/imgcodecs/src/grfmt_jpeg.cpp",
+        "start_line": 829,
+        "end_line": 829,
+        "text_sha256": "79d966eb0a176d6ba9c66c690aec819eb626a5b1fb7fe86a80fa5d05d62e5167"
+      },
+      "endpoint_hashes_verified": true,
+      "raw_bytes_equal": true,
+      "whitespace_only_difference": false,
+      "identity_reason": "Same unique component-0 vertical-sampling assignment crosses the unchanged component-0 horizontal-sampling assignment in the same conditional; surrounding component assignments change separately.",
+      "hierarchy_assessment": "Independent statement reorder inside continuing JpegEncoder code. Count the vertical/horizontal order reversal once under the primary predeclared convention. Source establishes the reversed pair order, not a unique causal choice of which of the two statements was edited first.",
+      "parent_event": null,
+      "strict_recall_eligible": true
+    }
+  ]
+}

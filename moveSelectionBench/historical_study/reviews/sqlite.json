@@ -1,0 +1,1706 @@
+{
+  "schema_version": 1,
+  "repository": "sqlite",
+  "anchor": "9e5727e51dfc007636ad2be2c16b2dcf5576ddf4",
+  "reviewer": "Codex source-review agent /root/sqlite_review",
+  "reviewed_on": "2026-09-27",
+  "detector_blind": true,
+  "detector_blind_scope": "Fresh target labels and all ordinary revisions except flagged prior-known c799c15. Canonical architecture/evaluation audit read; no detector outputs opened.",
+  "language_scope": [
+    ".c",
+    ".h",
+    ".cpp",
+    ".cc",
+    ".cxx",
+    ".hpp",
+    ".hxx",
+    ".hh"
+  ],
+  "review_limitations": [
+    "Single AI source reviewer; independent second adjudication pending.",
+    "Ordinary review inventories changed hunks and source candidates, not every unchanged construct in repository.",
+    "No confirmed strict Type2 target found. Do not equate storage-class removal or edited function extension with identifier/literal-only Type2.",
+    "Diff labels are source-grounded, not claims of measured detector accuracy.",
+    "One ordinary revision is previously known. .in source templates are excluded by declared default-history scope and listed explicitly."
+  ],
+  "targeted_search_policy": {
+    "diff_cap": 20,
+    "diffs_inspected": 9,
+    "selected_revision_cap": 6,
+    "selected_revisions": 6,
+    "stop_reason": "Six complete strict-positive revisions selected; Type2 quota not met.",
+    "metadata_queries": [
+      "git log --first-parent --extended-regexp --regexp-ignore-case --grep='(^| )(move |moved |moving |refactor|reorder|relocat)' -- '*.c' '*.h' '*.cpp' '*.hpp'",
+      "git log --first-parent --extended-regexp --regexp-ignore-case --grep='(^| )(move |moving |relocat|refactor)' -- src ext/misc"
+    ],
+    "metadata_selection": "Purposive selection of source-relevant move descriptions from search listing; not all earlier metadata matches had diffs inspected."
+  },
+  "ordinary": [
+    {
+      "id": "sqlite-ordinary-01",
+      "parent": "7fa8cff00cfc82c65fc9c3b9028ad0c9d5cc07ea",
+      "commit": "9e5727e51dfc007636ad2be2c16b2dcf5576ddf4",
+      "subject": "Correctly process \"x IS TRUE\" and similar expressions that appear in the second or later rows of a VALUES() clause. Report [bugs:/info/2026-08-18T05:06:40Z | 2026-08-18T05:06:40Z].",
+      "merge": true,
+      "parents": [
+        "7fa8cff00cfc82c65fc9c3b9028ad0c9d5cc07ea",
+        "6252e83bec6f36b34d5df465120a0567bf121459"
+      ],
+      "changed_source_paths": [
+        "src/expr.c",
+        "src/insert.c",
+        "src/sqliteInt.h"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "test/values.test"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_with_out_of_scope_or_uncertain_movement",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [
+        {
+          "label": "outside_strict_type12_or_unresolved",
+          "rationale": "Cross-file exprListIsConstant extraction is extended with an extra argument, declaration, and extra call argument. Whole function is outside strict Type1/Type2. Its carried declaration/return are not independent moves."
+        }
+      ],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "Cross-file exprListIsConstant extraction is extended with an extra argument, declaration, and extra call argument. Whole function is outside strict Type1/Type2. Its carried declaration/return are not independent moves."
+    },
+    {
+      "id": "sqlite-ordinary-02",
+      "parent": "048112def64ee49e28f0e81607323d63fdea7e5c",
+      "commit": "7fa8cff00cfc82c65fc9c3b9028ad0c9d5cc07ea",
+      "subject": "Fix a buffer overread in the fts5vocab virtual table when processing \"term < 123\" constraints. Problem recently introduced by [db05b203f4].",
+      "merge": false,
+      "parents": [
+        "048112def64ee49e28f0e81607323d63fdea7e5c"
+      ],
+      "changed_source_paths": [
+        "ext/fts5/fts5_vocab.c"
+      ],
+      "excluded_paths": [
+        "ext/fts5/test/fts5vocab2.test",
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "Deletion of redundant nLeTerm assignment only."
+    },
+    {
+      "id": "sqlite-ordinary-03",
+      "parent": "f919d9924621293cb71696ab9b98300b37c679ab",
+      "commit": "048112def64ee49e28f0e81607323d63fdea7e5c",
+      "subject": "The geopoly_regular() SQL function now returns NULL if the radius argument is too large (+1.0e+300 or larger). [bugs:/info/2026-08-18T09:12:02Z|Bug 2026-08-18T09:12:02Z]",
+      "merge": false,
+      "parents": [
+        "f919d9924621293cb71696ab9b98300b37c679ab"
+      ],
+      "changed_source_paths": [
+        "ext/rtree/geopoly.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "In-place extra radius constraint and documentation."
+    },
+    {
+      "id": "sqlite-ordinary-04",
+      "parent": "fe8153124afa11584ff84ebc9f7272f4ac0d41f9",
+      "commit": "f919d9924621293cb71696ab9b98300b37c679ab",
+      "subject": "Filter the rtree tests out of speedtest1's default configuration when built without SQLITE_ENABLE_RTREE. Resolves [forum:e19d434249|forum post 2026-08-18T11:15:33Z].",
+      "merge": false,
+      "parents": [
+        "fe8153124afa11584ff84ebc9f7272f4ac0d41f9"
+      ],
+      "changed_source_paths": [
+        "test/speedtest1.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "String initializer split with compile-time guard; not a relocation of an independent construct."
+    },
+    {
+      "id": "sqlite-ordinary-05",
+      "parent": "9ac0c79e1129219cbbdd9db08d0990fac89b06d5",
+      "commit": "fe8153124afa11584ff84ebc9f7272f4ac0d41f9",
+      "subject": "Prevent a corrupt database from causing a CPU stack overflow in PRAGMA integrity_check.  Report the excess btree depth instead. [bugs:/info/2026-08-18T10:33:10Z|Bug 2026-08-18T10:33:10Z].",
+      "merge": false,
+      "parents": [
+        "9ac0c79e1129219cbbdd9db08d0990fac89b06d5"
+      ],
+      "changed_source_paths": [
+        "src/btree.c",
+        "src/btreeInt.h"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "New recursion-depth tracking and checks; no continuing construct relocated."
+    },
+    {
+      "id": "sqlite-ordinary-06",
+      "parent": "714ab82489995fc4803a6d3e1c9544b9f7ec6a7c",
+      "commit": "9ac0c79e1129219cbbdd9db08d0990fac89b06d5",
+      "subject": "Use a typecast to fix a possible integer overflow in the (unsupported) ext/misc/compress.c extension. [bugs:/info/2026-08-18T09:33:57Z|Bug 2026-08-18T09:33:57Z].",
+      "merge": false,
+      "parents": [
+        "714ab82489995fc4803a6d3e1c9544b9f7ec6a7c"
+      ],
+      "changed_source_paths": [
+        "ext/misc/compress.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "In-place integer cast."
+    },
+    {
+      "id": "sqlite-ordinary-07",
+      "parent": "9fd4cbde74cbec8b08e4474a8f2939b14fb66556",
+      "commit": "714ab82489995fc4803a6d3e1c9544b9f7ec6a7c",
+      "subject": "Limit the number of nested RIGHT JOINs (or FULL JOINs) that can occur in a single query.  Report [bugs:/info/2026-08-18T07:03:05Z|2026-08-18T07:03:05Z].",
+      "merge": false,
+      "parents": [
+        "9fd4cbde74cbec8b08e4474a8f2939b14fb66556"
+      ],
+      "changed_source_paths": [
+        "src/wherecode.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "test/join.test"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "Assertion replaced with error guard; no relocation."
+    },
+    {
+      "id": "sqlite-ordinary-08",
+      "parent": "0489a60a425bc3858dd90ce4e64c089476fe2177",
+      "commit": "9fd4cbde74cbec8b08e4474a8f2939b14fb66556",
+      "subject": "Add SQLITE_LIMIT_TRIGGER_STEPS and -DSQLITE_MAX_TRIGGER_STEPS=n.  Default maximum is 65000.",
+      "merge": false,
+      "parents": [
+        "0489a60a425bc3858dd90ce4e64c089476fe2177"
+      ],
+      "changed_source_paths": [
+        "src/main.c",
+        "src/sqliteInt.h",
+        "src/sqliteLimit.h",
+        "src/test1.c",
+        "src/test_config.c",
+        "src/trigger.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "src/shell.c.in",
+        "src/sqlite.h.in",
+        "test/sqllimits1.test",
+        "test/trigger1.test"
+      ],
+      "excluded_in_paths": [
+        "src/shell.c.in",
+        "src/sqlite.h.in"
+      ],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "New trigger-limit configuration and check; existing while changed to for, not a move."
+    },
+    {
+      "id": "sqlite-ordinary-09",
+      "parent": "d51b8992634271eea313f3695ea7a04d50a5c5b7",
+      "commit": "0489a60a425bc3858dd90ce4e64c089476fe2177",
+      "subject": "Plaform portability improvements for autosetup/find_tclconfig.tcl, from Dan Shearer at forum post [bugs:778223d22549a1a1|2026-08-13T20:55:18Z].",
+      "merge": false,
+      "parents": [
+        "d51b8992634271eea313f3695ea7a04d50a5c5b7"
+      ],
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "autosetup/find_tclconfig.tcl",
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "no_in_scope_source_changes",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "No in-scope C/C++ changes."
+    },
+    {
+      "id": "sqlite-ordinary-10",
+      "parent": "5271f86cfaf639170cccf5f279bd47ad890da65e",
+      "commit": "d51b8992634271eea313f3695ea7a04d50a5c5b7",
+      "subject": "Fix the include guard on pcache.h, as requested by Report [bugs:/info/2026-08-17T20:09:10Z|2026-08-17T20:09:10Z].",
+      "merge": false,
+      "parents": [
+        "5271f86cfaf639170cccf5f279bd47ad890da65e"
+      ],
+      "changed_source_paths": [
+        "src/pcache.h"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "Include guard define added."
+    },
+    {
+      "id": "sqlite-ordinary-11",
+      "parent": "13bcd6f6b26a9eb3656ba8f51cad7ee29e260475",
+      "commit": "5271f86cfaf639170cccf5f279bd47ad890da65e",
+      "subject": "Declare fts5 structure records corrupt if they contain a page number greater than 0x7FFFFF00. Report [bugs:/info/2026-08-17T20:07:33Z | 2026-08-17T20:07:33Z].",
+      "merge": false,
+      "parents": [
+        "13bcd6f6b26a9eb3656ba8f51cad7ee29e260475"
+      ],
+      "changed_source_paths": [
+        "ext/fts5/fts5_index.c"
+      ],
+      "excluded_paths": [
+        "ext/fts5/test/fts5corruptB.test",
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "New maximum-page macro and in-place guard extension."
+    },
+    {
+      "id": "sqlite-ordinary-12",
+      "parent": "a87bd2471a9c0606e78d3c3678bcd9cecaa0e731",
+      "commit": "13bcd6f6b26a9eb3656ba8f51cad7ee29e260475",
+      "subject": "New -pgo option to test/speedtest.tcl compiles using gcc-style PGO.",
+      "merge": false,
+      "parents": [
+        "a87bd2471a9c0606e78d3c3678bcd9cecaa0e731"
+      ],
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "test/speedtest.tcl"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "no_in_scope_source_changes",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "No in-scope C/C++ changes."
+    },
+    {
+      "id": "sqlite-ordinary-13",
+      "parent": "0085ea144363b4df8c9a37afbc67a82071b40f0b",
+      "commit": "a87bd2471a9c0606e78d3c3678bcd9cecaa0e731",
+      "subject": "Avoid a problem causing a use-after-free in the fts3 snippet() function. Report [bugs:/info/2026-08-17T09:18:24Z | 2026-08-17T09:18:24Z].",
+      "merge": false,
+      "parents": [
+        "0085ea144363b4df8c9a37afbc67a82071b40f0b"
+      ],
+      "changed_source_paths": [
+        "ext/fts3/fts3_snippet.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "test/fts3snippet2.test"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "Continuing iterator call edited and duplicated under new guard; duplication is not a unique movement."
+    },
+    {
+      "id": "sqlite-ordinary-14",
+      "parent": "64459c87cc702d600704fb77ee40ca1782398a52",
+      "commit": "0085ea144363b4df8c9a37afbc67a82071b40f0b",
+      "subject": "Have the fts5term and fts3aux virtual table modules only process constraints on the term column that use binary collation. Report [bugs:/info/2026-08-17T10:17:15Z | 2026-08-17T10:17:15Z].",
+      "merge": false,
+      "parents": [
+        "64459c87cc702d600704fb77ee40ca1782398a52"
+      ],
+      "changed_source_paths": [
+        "ext/fts3/fts3_aux.c",
+        "ext/fts5/fts5_vocab.c"
+      ],
+      "excluded_paths": [
+        "ext/fts5/test/fts5vocab.test",
+        "manifest",
+        "manifest.uuid",
+        "test/fts3aux2.test"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "Two new near-identical helpers added in different modules; neither has an old deletion. Added clones are not moves."
+    },
+    {
+      "id": "sqlite-ordinary-15",
+      "parent": "58332de7a68934dd592cab1995fb6d3c75541300",
+      "commit": "64459c87cc702d600704fb77ee40ca1782398a52",
+      "subject": "Avoid a buffer overrun when processing a strategically corrupted changeset. Report [bugs:/info/2026-08-16T10:15:25Z | 2026-08-16T10:15:25Z].",
+      "merge": false,
+      "parents": [
+        "58332de7a68934dd592cab1995fb6d3c75541300"
+      ],
+      "changed_source_paths": [
+        "ext/session/sqlite3session.c"
+      ],
+      "excluded_paths": [
+        "ext/session/sessioncorrupt.test",
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "nTab tracking replaced by bNew tracking and iterator API change; different roles, not a renamed moved declaration."
+    },
+    {
+      "id": "sqlite-ordinary-16",
+      "parent": "e5bf119821f25be1d7f10ef0a2edbe175289166e",
+      "commit": "58332de7a68934dd592cab1995fb6d3c75541300",
+      "subject": "Add the \"Variable Number Bitmap Cache\" to speed up parsing of queries that have a large number of \"?NNN\" style variables.",
+      "merge": true,
+      "parents": [
+        "e5bf119821f25be1d7f10ef0a2edbe175289166e",
+        "464f5129c21792f54514ceb3cca9c1d937b4fb45"
+      ],
+      "changed_source_paths": [
+        "src/expr.c",
+        "src/sqliteInt.h"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "New variable bitmap cache fields, macro and checks."
+    },
+    {
+      "id": "sqlite-ordinary-17",
+      "parent": "67c202ab67398f6a27eaa6316e31254c065928cd",
+      "commit": "e5bf119821f25be1d7f10ef0a2edbe175289166e",
+      "subject": "When reading a frame from a WAL file where the WAL pagesize and the database pagesize disagree, be sure to fully initialize the page that is read.",
+      "merge": false,
+      "parents": [
+        "67c202ab67398f6a27eaa6316e31254c065928cd"
+      ],
+      "changed_source_paths": [
+        "src/wal.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "New zero-fill guard and shortened continuing read-call argument."
+    },
+    {
+      "id": "sqlite-ordinary-18",
+      "parent": "f17a2ee06b2ba5e65528aa3e0e3f2508c75987fb",
+      "commit": "67c202ab67398f6a27eaa6316e31254c065928cd",
+      "subject": "Add -DBUILD_sqlite to the T.compile.tcl makefile definition for the sake of Unix-on-Windows environments as a partial resolution to [forum:fe9e99eb27c8c2ba|forum post fe9e99eb27].",
+      "merge": false,
+      "parents": [
+        "f17a2ee06b2ba5e65528aa3e0e3f2508c75987fb"
+      ],
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "main.mk",
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "no_in_scope_source_changes",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "No in-scope C/C++ changes."
+    },
+    {
+      "id": "sqlite-ordinary-19",
+      "parent": "c578ca72709ef221f97e11dd2958fee89f8ab330",
+      "commit": "f17a2ee06b2ba5e65528aa3e0e3f2508c75987fb",
+      "subject": "Fix the fts5vocab virtual table so that columns always behave as if they have blob affinity. Report [bugs:/info/2026-08-15T07:03:55Z | 2026-08-15T07:03:55Z].",
+      "merge": false,
+      "parents": [
+        "c578ca72709ef221f97e11dd2958fee89f8ab330"
+      ],
+      "changed_source_paths": [
+        "ext/fts5/fts5_vocab.c"
+      ],
+      "excluded_paths": [
+        "ext/fts5/test/fts5vocab.test",
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_with_out_of_scope_or_uncertain_movement",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [
+        {
+          "label": "outside_strict_type12_or_unresolved",
+          "rationale": "Helper extraction consolidates repeated value_text/value_bytes calls from pEq and pGe branches. Several plausible old origins, new guard and output parameter. Preserve unresolved source identity; not unique Type2 oracle."
+        }
+      ],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "Helper extraction consolidates repeated value_text/value_bytes calls from pEq and pGe branches. Several plausible old origins, new guard and output parameter. Preserve unresolved source identity; not unique Type2 oracle."
+    },
+    {
+      "id": "sqlite-ordinary-20",
+      "parent": "3d18207a6f17e1ffc0c81c3812c93de7885f157f",
+      "commit": "c578ca72709ef221f97e11dd2958fee89f8ab330",
+      "subject": "In the CLI, fix the internal modeDup() routine so that it correctly handles zIFmt and zFpFmt.",
+      "merge": false,
+      "parents": [
+        "3d18207a6f17e1ffc0c81c3812c93de7885f157f"
+      ],
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "src/shell.c.in"
+      ],
+      "excluded_in_paths": [
+        "src/shell.c.in"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "Only shell .in template changed; excluded by declared extension scope."
+    },
+    {
+      "id": "sqlite-ordinary-21",
+      "parent": "c799c15dbef70dd8ee63be2c4b77ebeacce1df00",
+      "commit": "3d18207a6f17e1ffc0c81c3812c93de7885f157f",
+      "subject": "Fix typos.  Turn off -fpfmt and -ifmt using \"auto\" instead of \"default\".",
+      "merge": false,
+      "parents": [
+        "c799c15dbef70dd8ee63be2c4b77ebeacce1df00"
+      ],
+      "changed_source_paths": [
+        "ext/qrf/qrf.h",
+        "src/tclsqlite.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "src/shell.c.in",
+        "test/modeA.sql",
+        "test/qrf01.test"
+      ],
+      "excluded_in_paths": [
+        "src/shell.c.in"
+      ],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "Comment correction and stationary literal default-to-auto changes; shell .in excluded."
+    },
+    {
+      "id": "sqlite-ordinary-22",
+      "parent": "753df3d91adc227b9ae503458212efea12c44af7",
+      "commit": "c799c15dbef70dd8ee63be2c4b77ebeacce1df00",
+      "subject": "Refactor \"realfmt\"&rarr;\"fpfmt\" and \"intfmt\"&rarr;\"ifmt\".",
+      "merge": false,
+      "parents": [
+        "753df3d91adc227b9ae503458212efea12c44af7"
+      ],
+      "changed_source_paths": [
+        "ext/qrf/qrf.c",
+        "ext/qrf/qrf.h",
+        "src/tclsqlite.c"
+      ],
+      "excluded_paths": [
+        "ext/qrf/README.md",
+        "manifest",
+        "manifest.uuid",
+        "src/shell.c.in",
+        "test/modeA.sql",
+        "test/qrf01.test"
+      ],
+      "excluded_in_paths": [
+        "src/shell.c.in"
+      ],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": true,
+      "detector_blind": false,
+      "review_notes": "Previously known revision retained because fixed window. In-scope qrf/tcl changes rename members and literals in place. Known shell reorder lives in excluded src/shell.c.in; do not promote window to fully held-out.",
+      "contamination": "Prior audit describes excluded shell detector outcome; source reviewer did not open detector artifacts in this study."
+    },
+    {
+      "id": "sqlite-ordinary-23",
+      "parent": "92a1fc50b9bce500c2fecf2d2d37667e67cc242e",
+      "commit": "753df3d91adc227b9ae503458212efea12c44af7",
+      "subject": "Remove redundant offsetof definition from qrf.c.",
+      "merge": false,
+      "parents": [
+        "92a1fc50b9bce500c2fecf2d2d37667e67cc242e"
+      ],
+      "changed_source_paths": [
+        "ext/qrf/qrf.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "Delete redundant preprocessor offsetof definition."
+    },
+    {
+      "id": "sqlite-ordinary-24",
+      "parent": "14385e5a25cbb3537e465d1812b03afef5935267",
+      "commit": "92a1fc50b9bce500c2fecf2d2d37667e67cc242e",
+      "subject": "Enhance QRF with options to supply format strings used to render integers and floating point numbers.  Make those options accessible in the shell using the \".mode --intfmt\" and \".mode --realfmt\" respectively. Also make those options available to the \"format\" method of the sqlite3 object in the TCL interface.",
+      "merge": true,
+      "parents": [
+        "14385e5a25cbb3537e465d1812b03afef5935267",
+        "0fc163ea1fdb074084c1ef542a3ce2b6745bbca0"
+      ],
+      "changed_source_paths": [
+        "ext/qrf/qrf.c",
+        "ext/qrf/qrf.h",
+        "src/tclsqlite.c"
+      ],
+      "excluded_paths": [
+        "ext/qrf/README.md",
+        "manifest",
+        "manifest.uuid",
+        "src/shell.c.in",
+        "test/modeA.sql",
+        "test/qrf01.test"
+      ],
+      "excluded_in_paths": [
+        "src/shell.c.in"
+      ],
+      "review_status": "source_reviewed_with_out_of_scope_or_uncertain_movement",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [
+        {
+          "label": "outside_strict_type12_or_unresolved",
+          "rationale": "New formatting support; existing float rendering is wrapped in else, a restructuring observation rather than independent move. No strict Type1/Type2 move confirmed."
+        }
+      ],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "New formatting support; existing float rendering is wrapped in else, a restructuring observation rather than independent move. No strict Type1/Type2 move confirmed."
+    },
+    {
+      "id": "sqlite-ordinary-25",
+      "parent": "bb7e3ddc610163fd224d8468453fdca79f8bbd76",
+      "commit": "14385e5a25cbb3537e465d1812b03afef5935267",
+      "subject": "Build portability improvements for buildtclext.tcl, from [bugs:2026-08-13T19:40:39Z|bug forum post 2026-08-13T19:40:39Z].",
+      "merge": false,
+      "parents": [
+        "bb7e3ddc610163fd224d8468453fdca79f8bbd76"
+      ],
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "tool/buildtclext.tcl"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "no_in_scope_source_changes",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "No in-scope C/C++ changes."
+    },
+    {
+      "id": "sqlite-ordinary-26",
+      "parent": "b1c41f40b0bfe305a592e8f1ca9bb3b12f1b579d",
+      "commit": "bb7e3ddc610163fd224d8468453fdca79f8bbd76",
+      "subject": "Adjust the bytecode generated for RIGHT JOIN so that it checks for duplicate RHS rows when the LHS is NULL. [bugs:/info/2026-08-14T04:56:02Z|Bug 2026-08-14T04:56:02Z]",
+      "merge": true,
+      "parents": [
+        "b1c41f40b0bfe305a592e8f1ca9bb3b12f1b579d",
+        "14031447d4e726d6968903ca4e92f879d48c898f"
+      ],
+      "changed_source_paths": [
+        "src/wherecode.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "test/join.test"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "RIGHT JOIN body modified with record insertion; existing initial declarations only gain comments. No source relocation confirmed."
+    },
+    {
+      "id": "sqlite-ordinary-27",
+      "parent": "9e3e03dfcf4f387a6df3e4012ce604da21383666",
+      "commit": "b1c41f40b0bfe305a592e8f1ca9bb3b12f1b579d",
+      "subject": "Fix the fts4aux virtual table so that it consistently behaves as if its columns have blob affinity. Report [bugs:/info/2026-08-14T07:27:28Z | 2026-08-14T07:27:28Z].",
+      "merge": false,
+      "parents": [
+        "9e3e03dfcf4f387a6df3e4012ce604da21383666"
+      ],
+      "changed_source_paths": [
+        "ext/fts3/fts3_aux.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "test/fts3aux2.test"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "In-place affinity guards."
+    },
+    {
+      "id": "sqlite-ordinary-28",
+      "parent": "1238b6d4f7b2b19012c1715d0393a1f06c9a8dfa",
+      "commit": "9e3e03dfcf4f387a6df3e4012ce604da21383666",
+      "subject": "Try to make test/testrunner.tcl work on other BSD variants. This change is untested as I don't have access to any of those BSDs. [bugs:/info/2026-08-13T17:55:42Z|Bug 2026-08-13T17:55:42Z].",
+      "merge": false,
+      "parents": [
+        "1238b6d4f7b2b19012c1715d0393a1f06c9a8dfa"
+      ],
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "test/testrunner.tcl"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "no_in_scope_source_changes",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "No in-scope C/C++ changes."
+    },
+    {
+      "id": "sqlite-ordinary-29",
+      "parent": "2665df90e7bbdcffa59102204090f7c9ede04cc4",
+      "commit": "1238b6d4f7b2b19012c1715d0393a1f06c9a8dfa",
+      "subject": "Disable the seekscan optimization for IN(...) expressions when the RHS is a SELECT that returns more than one column. This was previously only possible if the sqlite_stat1 table was populated with inconsistent information, and was malfunctioning in some circumstances. Report [bugs:/info/2026-08-13T08:45:47 | 2026-08-13T08:45:47Z].",
+      "merge": true,
+      "parents": [
+        "2665df90e7bbdcffa59102204090f7c9ede04cc4",
+        "cb928efd50cad7b51b84f00f14adc306857af261"
+      ],
+      "changed_source_paths": [
+        "src/wherecode.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid",
+        "test/seekscan1.test"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "New seekscan guard before continuing code."
+    },
+    {
+      "id": "sqlite-ordinary-30",
+      "parent": "7b83f65a33534fcaa98ebdcdf0292235d395c920",
+      "commit": "2665df90e7bbdcffa59102204090f7c9ede04cc4",
+      "subject": "Disable misuse testing unless the ENABLE_MISUSE environment variable is set. [bugs:/info/2026-08-13T13:27:50Z|Bug 2026-08-13T13:27:50Z]",
+      "merge": false,
+      "parents": [
+        "7b83f65a33534fcaa98ebdcdf0292235d395c920"
+      ],
+      "changed_source_paths": [
+        "src/test1.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_no_confirmed_move",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "review_notes": "In-place environment gate replacement."
+    }
+  ],
+  "targeted_search": [
+    {
+      "id": "sqlite-search-01",
+      "parent": "d9e70f2b906ebf180231f617e7b33b73bb41aeca",
+      "commit": "3c1f727603ee27cc631048f48985f9adc4fb784c",
+      "subject": "Because version 3.52.0 was withdrawn, that means QRF has never been officially released.  Hence the new nMultiInsert field of the spec can be moved out of the extensions area and into the main part of the spec, and the version number can drop back from 2 to 1.",
+      "merge": false,
+      "parents": [
+        "d9e70f2b906ebf180231f617e7b33b73bb41aeca"
+      ],
+      "changed_source_paths": [
+        "ext/qrf/qrf.c",
+        "ext/qrf/qrf.h",
+        "src/tclsqlite.c"
+      ],
+      "excluded_paths": [
+        "ext/qrf/README.md",
+        "manifest",
+        "manifest.uuid",
+        "src/shell.c.in"
+      ],
+      "excluded_in_paths": [
+        "src/shell.c.in"
+      ],
+      "review_status": "source_diff_reviewed",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "selection_reason": "Purposive source-only Git subject search for move/refactor/reorder; candidate selected from metadata before inspecting diff.",
+      "selected": true,
+      "decision": "Included: bounded complete construct labels available."
+    },
+    {
+      "id": "sqlite-search-02",
+      "parent": "98772d6e75f4033373c806e4e44f675971e55e38",
+      "commit": "deb5ad6297490ddb910a1fcec61875b109d0a34e",
+      "subject": "Reorder conditions in sqlite3PagerDirectReadOk() for coverage.",
+      "merge": false,
+      "parents": [
+        "98772d6e75f4033373c806e4e44f675971e55e38"
+      ],
+      "changed_source_paths": [
+        "src/pager.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_diff_reviewed",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "selection_reason": "Purposive source-only Git subject search for move/refactor/reorder; candidate selected from metadata before inspecting diff.",
+      "selected": true,
+      "decision": "Included: bounded complete construct labels available."
+    },
+    {
+      "id": "sqlite-search-03",
+      "parent": "6d02d2647b4f1bbc455b252ef8794aa8b5708586",
+      "commit": "5529ec74da95b6d9ea9e4631a989620e8594ce17",
+      "subject": "Move a misplaced va_end, as reported in [forum:702c79e9da|forum post 702c79e9da].",
+      "merge": false,
+      "parents": [
+        "6d02d2647b4f1bbc455b252ef8794aa8b5708586"
+      ],
+      "changed_source_paths": [
+        "ext/recover/sqlite3recover.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_diff_reviewed",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "observations": [
+        {
+          "label": "movement_vs_restructuring",
+          "label_uncertain": true,
+          "count_in_strict_recall": false,
+          "rationale": "Source statement leaves existing conditional; independently real code-motion/semantic change but excluded from strict relocation oracle pending agreed taxonomy.",
+          "id": "sqlite-challenge-va-end",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "expr_stmt",
+          "old": {
+            "path": "ext/recover/sqlite3recover.c",
+            "start_line": 366,
+            "end_line": 366,
+            "text_sha256": "18fb2fee65fc5aaf1ccf82d9f99032e20681367b5f18574cb2e2430e66decebc",
+            "file_sha256": "569a6fe1d927925f7425605c85f1d1a1821fa235f11a63db12538c81f008e715"
+          },
+          "new": {
+            "path": "ext/recover/sqlite3recover.c",
+            "start_line": 367,
+            "end_line": 367,
+            "text_sha256": "c01ce4b0ae0582ae3c0d9f51bf963030d5f6bc6bb8216d8b94438e17501b9daa",
+            "file_sha256": "0ef6c892b4f971c237042edb7b8adfb0177fb260055e1932ca825910118e3ded"
+          }
+        }
+      ],
+      "prior_known": false,
+      "detector_blind": true,
+      "selection_reason": "Purposive source-only Git subject search for move/refactor/reorder; candidate selected from metadata before inspecting diff.",
+      "selected": false,
+      "decision": "Not in strict recall: source-proven hoisting across an existing conditional changes ancestry; retain movement-versus-restructuring challenge."
+    },
+    {
+      "id": "sqlite-search-04",
+      "parent": "4e9b48cfc4bbb4d5909e1ce0b88e6635df6cc024",
+      "commit": "bdb149d063755ddb183de29e45676a688c3b6a1b",
+      "subject": "Move a metrics counter so that it can be used to indirectly witness the race condition fix from [f5274e00f17d58e0] by recording varying final values for that metric across consecutive multi-threaded test runs.",
+      "merge": false,
+      "parents": [
+        "4e9b48cfc4bbb4d5909e1ce0b88e6635df6cc024"
+      ],
+      "changed_source_paths": [
+        "ext/jni/src/c/sqlite3-jni.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_diff_reviewed",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "observations": [
+        {
+          "label": "movement_vs_restructuring",
+          "label_uncertain": true,
+          "count_in_strict_recall": false,
+          "rationale": "Source statement leaves existing conditional; independently real code-motion/semantic change but excluded from strict relocation oracle pending agreed taxonomy.",
+          "id": "sqlite-challenge-counter-1",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "expr_stmt",
+          "old": {
+            "path": "ext/jni/src/c/sqlite3-jni.c",
+            "start_line": 1270,
+            "end_line": 1270,
+            "text_sha256": "c092a21eedb1f235bdb98ed1ce50d32c546b55de5b58122f2e19f9e349d6d2fe",
+            "file_sha256": "01136ef52902f1d22b63a0e932c0b7ff768046461044bcd60139a3080910d39f"
+          },
+          "new": {
+            "path": "ext/jni/src/c/sqlite3-jni.c",
+            "start_line": 1266,
+            "end_line": 1266,
+            "text_sha256": "6d6bf5ff57e23e5c2b3e78e0960a41d8ffc03d9aa6984a0f95d5dfdc9197bea1",
+            "file_sha256": "6a4918ccd9f1d8c02b259558b7aa932e997e60e0ddf2da0895120cdc5ff86313"
+          }
+        },
+        {
+          "label": "movement_vs_restructuring",
+          "label_uncertain": true,
+          "count_in_strict_recall": false,
+          "rationale": "Source statement leaves existing conditional; independently real code-motion/semantic change but excluded from strict relocation oracle pending agreed taxonomy.",
+          "id": "sqlite-challenge-counter-2",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "expr_stmt",
+          "old": {
+            "path": "ext/jni/src/c/sqlite3-jni.c",
+            "start_line": 1294,
+            "end_line": 1294,
+            "text_sha256": "c092a21eedb1f235bdb98ed1ce50d32c546b55de5b58122f2e19f9e349d6d2fe",
+            "file_sha256": "01136ef52902f1d22b63a0e932c0b7ff768046461044bcd60139a3080910d39f"
+          },
+          "new": {
+            "path": "ext/jni/src/c/sqlite3-jni.c",
+            "start_line": 1292,
+            "end_line": 1292,
+            "text_sha256": "6d6bf5ff57e23e5c2b3e78e0960a41d8ffc03d9aa6984a0f95d5dfdc9197bea1",
+            "file_sha256": "6a4918ccd9f1d8c02b259558b7aa932e997e60e0ddf2da0895120cdc5ff86313"
+          }
+        },
+        {
+          "label": "movement_vs_restructuring",
+          "label_uncertain": true,
+          "count_in_strict_recall": false,
+          "rationale": "Source statement leaves existing conditional; independently real code-motion/semantic change but excluded from strict relocation oracle pending agreed taxonomy.",
+          "id": "sqlite-challenge-counter-3",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "expr_stmt",
+          "old": {
+            "path": "ext/jni/src/c/sqlite3-jni.c",
+            "start_line": 1493,
+            "end_line": 1493,
+            "text_sha256": "c092a21eedb1f235bdb98ed1ce50d32c546b55de5b58122f2e19f9e349d6d2fe",
+            "file_sha256": "01136ef52902f1d22b63a0e932c0b7ff768046461044bcd60139a3080910d39f"
+          },
+          "new": {
+            "path": "ext/jni/src/c/sqlite3-jni.c",
+            "start_line": 1491,
+            "end_line": 1491,
+            "text_sha256": "6d6bf5ff57e23e5c2b3e78e0960a41d8ffc03d9aa6984a0f95d5dfdc9197bea1",
+            "file_sha256": "6a4918ccd9f1d8c02b259558b7aa932e997e60e0ddf2da0895120cdc5ff86313"
+          }
+        },
+        {
+          "label": "movement_vs_restructuring",
+          "label_uncertain": true,
+          "count_in_strict_recall": false,
+          "rationale": "Source statement leaves existing conditional; independently real code-motion/semantic change but excluded from strict relocation oracle pending agreed taxonomy.",
+          "id": "sqlite-challenge-counter-4",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "expr_stmt",
+          "old": {
+            "path": "ext/jni/src/c/sqlite3-jni.c",
+            "start_line": 1680,
+            "end_line": 1680,
+            "text_sha256": "c092a21eedb1f235bdb98ed1ce50d32c546b55de5b58122f2e19f9e349d6d2fe",
+            "file_sha256": "01136ef52902f1d22b63a0e932c0b7ff768046461044bcd60139a3080910d39f"
+          },
+          "new": {
+            "path": "ext/jni/src/c/sqlite3-jni.c",
+            "start_line": 1678,
+            "end_line": 1678,
+            "text_sha256": "6d6bf5ff57e23e5c2b3e78e0960a41d8ffc03d9aa6984a0f95d5dfdc9197bea1",
+            "file_sha256": "6a4918ccd9f1d8c02b259558b7aa932e997e60e0ddf2da0895120cdc5ff86313"
+          }
+        }
+      ],
+      "prior_known": false,
+      "detector_blind": true,
+      "selection_reason": "Purposive source-only Git subject search for move/refactor/reorder; candidate selected from metadata before inspecting diff.",
+      "selected": false,
+      "decision": "Not in strict recall: source-proven hoisting across an existing conditional changes ancestry; retain movement-versus-restructuring challenge."
+    },
+    {
+      "id": "sqlite-search-05",
+      "parent": "80c438613a687d41ce820f113a2b20e1aade93a6",
+      "commit": "bb51af68f404b0be76acd3173f6933520f75c71e",
+      "subject": "Move ext/wasm/version-info.c to tool/ for re-use in build other dist bundles.",
+      "merge": false,
+      "parents": [
+        "80c438613a687d41ce820f113a2b20e1aade93a6"
+      ],
+      "changed_source_paths": [
+        "tool/version-info.c"
+      ],
+      "excluded_paths": [
+        "Makefile.in",
+        "ext/wasm/GNUmakefile",
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [
+        "Makefile.in"
+      ],
+      "review_status": "source_diff_reviewed",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "selection_reason": "Purposive source-only Git subject search for move/refactor/reorder; candidate selected from metadata before inspecting diff.",
+      "selected": true,
+      "decision": "Included: bounded complete construct labels available."
+    },
+    {
+      "id": "sqlite-search-06",
+      "parent": "73cdbeb632fe2fcb81d8f1b73ce24146569a2897",
+      "commit": "80c438613a687d41ce820f113a2b20e1aade93a6",
+      "subject": "Minor cleanups in sqlite3Int.h.  By reordering some fields in the Parse object, it packs more tightly and uses less memory and less CPU to initialize.",
+      "merge": false,
+      "parents": [
+        "73cdbeb632fe2fcb81d8f1b73ce24146569a2897"
+      ],
+      "changed_source_paths": [
+        "src/sqliteInt.h"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_diff_reviewed",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "selection_reason": "Purposive source-only Git subject search for move/refactor/reorder; candidate selected from metadata before inspecting diff.",
+      "selected": true,
+      "decision": "Included: bounded complete construct labels available."
+    },
+    {
+      "id": "sqlite-search-07",
+      "parent": "79cf2b7120ea382a2649698656860d09740e6205",
+      "commit": "f38524d20db165c94dc94e06b62f0aad5942a03b",
+      "subject": "Refactor the Table object to reduce its memory footprint.",
+      "merge": false,
+      "parents": [
+        "79cf2b7120ea382a2649698656860d09740e6205"
+      ],
+      "changed_source_paths": [
+        "src/alter.c",
+        "src/build.c",
+        "src/delete.c",
+        "src/expr.c",
+        "src/fkey.c",
+        "src/insert.c",
+        "src/main.c",
+        "src/pragma.c",
+        "src/select.c",
+        "src/sqliteInt.h",
+        "src/trigger.c",
+        "src/update.c",
+        "src/vdbeblob.c",
+        "src/vtab.c",
+        "src/where.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "partial_source_review",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "selection_reason": "Purposive source-only Git subject search for move/refactor/reorder; candidate selected from metadata before inspecting diff.",
+      "selected": false,
+      "decision": "Excluded: broad Table refactor; only first 27000 of 47682 diff bytes inspected. No exhaustive labels and no results-dependent exclusion."
+    },
+    {
+      "id": "sqlite-search-08",
+      "parent": "ca74fbf6f164ad6fa9c6bd79050dc57cdcd69388",
+      "commit": "e40cc16b472071f553700c7208394e6cf73d5688",
+      "subject": "Move some utility Walker callbacks into the walker.c source file, as they seem to belong there better.",
+      "merge": false,
+      "parents": [
+        "ca74fbf6f164ad6fa9c6bd79050dc57cdcd69388"
+      ],
+      "changed_source_paths": [
+        "src/expr.c",
+        "src/select.c",
+        "src/sqliteInt.h",
+        "src/walker.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_diff_reviewed",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "selection_reason": "Purposive source-only Git subject search for move/refactor/reorder; candidate selected from metadata before inspecting diff.",
+      "selected": true,
+      "decision": "Included: bounded complete construct labels available."
+    },
+    {
+      "id": "sqlite-search-09",
+      "parent": "898c527eafd8bf263a3c3626ff421804558132f9",
+      "commit": "a5d0911546c0d41f142a33fc3622df7ef7d8a81d",
+      "subject": "Move the sqlite3LocateCollSeq(), sqlite3FindCollSeq(), and sqlite3GetCollSeq() routines so that they are all beside one another in the callback.c source file.  No logic changes.",
+      "merge": false,
+      "parents": [
+        "898c527eafd8bf263a3c3626ff421804558132f9"
+      ],
+      "changed_source_paths": [
+        "src/build.c",
+        "src/callback.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_diff_reviewed",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "selection_reason": "Purposive source-only Git subject search for move/refactor/reorder; candidate selected from metadata before inspecting diff.",
+      "selected": true,
+      "decision": "Included: bounded complete construct labels available."
+    }
+  ],
+  "targets": [
+    {
+      "id": "sqlite-target-01",
+      "parent": "d9e70f2b906ebf180231f617e7b33b73bb41aeca",
+      "commit": "3c1f727603ee27cc631048f48985f9adc4fb784c",
+      "subject": "Because version 3.52.0 was withdrawn, that means QRF has never been officially released.  Hence the new nMultiInsert field of the spec can be moved out of the extensions area and into the main part of the spec, and the version number can drop back from 2 to 1.",
+      "merge": false,
+      "parents": [
+        "d9e70f2b906ebf180231f617e7b33b73bb41aeca"
+      ],
+      "changed_source_paths": [
+        "ext/qrf/qrf.c",
+        "ext/qrf/qrf.h",
+        "src/tclsqlite.c"
+      ],
+      "excluded_paths": [
+        "ext/qrf/README.md",
+        "manifest",
+        "manifest.uuid",
+        "src/shell.c.in"
+      ],
+      "excluded_in_paths": [
+        "src/shell.c.in"
+      ],
+      "review_status": "source_reviewed_positive",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [
+        {
+          "id": "sqlite-target-01-nMultiInsert",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "decl_stmt",
+          "old": {
+            "path": "ext/qrf/qrf.h",
+            "start_line": 60,
+            "end_line": 60,
+            "text_sha256": "a0d5cbfbf53339356354b8c222844dbd0f1e0435312ede762d950441306becc4",
+            "file_sha256": "a23b0fe6cacec139dc2bcbc1b94c41c04d4288a777459e1675563b4c8394a221"
+          },
+          "new": {
+            "path": "ext/qrf/qrf.h",
+            "start_line": 45,
+            "end_line": 45,
+            "text_sha256": "a0d5cbfbf53339356354b8c222844dbd0f1e0435312ede762d950441306becc4",
+            "file_sha256": "a2672df52354407c1e3b2b534d7d4fc6a37e6fd992d542d94887a7f4cfcf2807"
+          },
+          "rationale": "Same field moves from extension tail to before nCharLimit across continuing fields; unique name and unchanged declaration.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        }
+      ],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true
+    },
+    {
+      "id": "sqlite-target-02",
+      "parent": "98772d6e75f4033373c806e4e44f675971e55e38",
+      "commit": "deb5ad6297490ddb910a1fcec61875b109d0a34e",
+      "subject": "Reorder conditions in sqlite3PagerDirectReadOk() for coverage.",
+      "merge": false,
+      "parents": [
+        "98772d6e75f4033373c806e4e44f675971e55e38"
+      ],
+      "changed_source_paths": [
+        "src/pager.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_positive",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [
+        {
+          "id": "sqlite-target-02-device-assert",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "expr_stmt",
+          "old": {
+            "path": "src/pager.c",
+            "start_line": 820,
+            "end_line": 820,
+            "text_sha256": "852e494c81f3b55590312958c1038dcef5c35a2c1457a835fbf11f2da3c05c15",
+            "file_sha256": "f227560bc1d93237b49a14b66078cf40e33ff33d0886369cbc868ed35ab78228"
+          },
+          "new": {
+            "path": "src/pager.c",
+            "start_line": 828,
+            "end_line": 828,
+            "text_sha256": "852e494c81f3b55590312958c1038dcef5c35a2c1457a835fbf11f2da3c05c15",
+            "file_sha256": "1aee18215f6468c2824cad8c2db2577a2a9cb33512186018b3bc74059fd73b41"
+          },
+          "rationale": "Device capability assertion crosses continuing dirty-cache and WAL conditionals.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        },
+        {
+          "id": "sqlite-target-02-device-if",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "if_stmt",
+          "old": {
+            "path": "src/pager.c",
+            "start_line": 821,
+            "end_line": 824,
+            "text_sha256": "66c9445398f1f4e8049797ab554565eac9402e923cc1376483a7a5792893d8ae",
+            "file_sha256": "f227560bc1d93237b49a14b66078cf40e33ff33d0886369cbc868ed35ab78228"
+          },
+          "new": {
+            "path": "src/pager.c",
+            "start_line": 829,
+            "end_line": 832,
+            "text_sha256": "66c9445398f1f4e8049797ab554565eac9402e923cc1376483a7a5792893d8ae",
+            "file_sha256": "1aee18215f6468c2824cad8c2db2577a2a9cb33512186018b3bc74059fd73b41"
+          },
+          "rationale": "Whole device-capability guard crosses continuing dirty-cache and WAL conditionals; return child is carried, not separately counted.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        }
+      ],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true
+    },
+    {
+      "id": "sqlite-target-03",
+      "parent": "80c438613a687d41ce820f113a2b20e1aade93a6",
+      "commit": "bb51af68f404b0be76acd3173f6933520f75c71e",
+      "subject": "Move ext/wasm/version-info.c to tool/ for re-use in build other dist bundles.",
+      "merge": false,
+      "parents": [
+        "80c438613a687d41ce820f113a2b20e1aade93a6"
+      ],
+      "changed_source_paths": [
+        "tool/version-info.c"
+      ],
+      "excluded_paths": [
+        "Makefile.in",
+        "ext/wasm/GNUmakefile",
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [
+        "Makefile.in"
+      ],
+      "review_status": "source_reviewed_positive",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [
+        {
+          "id": "sqlite-target-03-usage",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "function",
+          "old": {
+            "path": "ext/wasm/version-info.c",
+            "start_line": 25,
+            "end_line": 35,
+            "text_sha256": "ba79460456bc45913ad5823b16b4bf681ad9e55d965e39f2c1388b70974402a1",
+            "file_sha256": "98cfdcca331c3f1fe125aaf1e05a65c910f7df545231271a3383ad8f9029fba8"
+          },
+          "new": {
+            "path": "tool/version-info.c",
+            "start_line": 25,
+            "end_line": 35,
+            "text_sha256": "ba79460456bc45913ad5823b16b4bf681ad9e55d965e39f2c1388b70974402a1",
+            "file_sha256": "98cfdcca331c3f1fe125aaf1e05a65c910f7df545231271a3383ad8f9029fba8"
+          },
+          "rationale": "Whole function transported unchanged with file rename; descendants are carried. File-level relocation is not an additional function event.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        },
+        {
+          "id": "sqlite-target-03-main",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "function",
+          "old": {
+            "path": "ext/wasm/version-info.c",
+            "start_line": 37,
+            "end_line": 106,
+            "text_sha256": "77683419c9b0693e450455e0254635d52a5eac8d149f5dfef33d6233aa1d2138",
+            "file_sha256": "98cfdcca331c3f1fe125aaf1e05a65c910f7df545231271a3383ad8f9029fba8"
+          },
+          "new": {
+            "path": "tool/version-info.c",
+            "start_line": 37,
+            "end_line": 106,
+            "text_sha256": "77683419c9b0693e450455e0254635d52a5eac8d149f5dfef33d6233aa1d2138",
+            "file_sha256": "98cfdcca331c3f1fe125aaf1e05a65c910f7df545231271a3383ad8f9029fba8"
+          },
+          "rationale": "Whole function transported unchanged with file rename; descendants are carried. File-level relocation is not an additional function event.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        }
+      ],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true,
+      "file_level_observation": {
+        "old": "ext/wasm/version-info.c",
+        "new": "tool/version-info.c",
+        "relation": "unchanged file rename",
+        "counted_separately": false
+      }
+    },
+    {
+      "id": "sqlite-target-04",
+      "parent": "73cdbeb632fe2fcb81d8f1b73ce24146569a2897",
+      "commit": "80c438613a687d41ce820f113a2b20e1aade93a6",
+      "subject": "Minor cleanups in sqlite3Int.h.  By reordering some fields in the Parse object, it packs more tightly and uses less memory and less CPU to initialize.",
+      "merge": false,
+      "parents": [
+        "73cdbeb632fe2fcb81d8f1b73ce24146569a2897"
+      ],
+      "changed_source_paths": [
+        "src/sqliteInt.h"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_positive",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [
+        {
+          "id": "sqlite-target-04-nProgressSteps",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "decl_stmt",
+          "old": {
+            "path": "src/sqliteInt.h",
+            "start_line": 3798,
+            "end_line": 3798,
+            "text_sha256": "de700a7b1cf68a879e2f06702d5e9a90324e6bbc85d9b8b7ebadf7011988dad1",
+            "file_sha256": "dae7ec7c352b25c9a1234fbc340c2f921405b6879a8c09f0cbd14628e97ec661"
+          },
+          "new": {
+            "path": "src/sqliteInt.h",
+            "start_line": 3781,
+            "end_line": 3781,
+            "text_sha256": "de700a7b1cf68a879e2f06702d5e9a90324e6bbc85d9b8b7ebadf7011988dad1",
+            "file_sha256": "a1b486b3609c33ccf2cc6d1cdbf89bad5d0b3f88a67ae840e4d106fd7f0b55d2"
+          },
+          "rationale": "Unique continuing Parse field reordered across other continuing declarations. Preprocessor guard moves with nProgressSteps; no carried child count.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        },
+        {
+          "id": "sqlite-target-04-nQueryLoop",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "decl_stmt",
+          "old": {
+            "path": "src/sqliteInt.h",
+            "start_line": 3794,
+            "end_line": 3794,
+            "text_sha256": "7f4633ce857d4b3785ec926d36e8e21c909961e943eb71a58c31c7dd939c9f0c",
+            "file_sha256": "dae7ec7c352b25c9a1234fbc340c2f921405b6879a8c09f0cbd14628e97ec661"
+          },
+          "new": {
+            "path": "src/sqliteInt.h",
+            "start_line": 3798,
+            "end_line": 3798,
+            "text_sha256": "7f4633ce857d4b3785ec926d36e8e21c909961e943eb71a58c31c7dd939c9f0c",
+            "file_sha256": "a1b486b3609c33ccf2cc6d1cdbf89bad5d0b3f88a67ae840e4d106fd7f0b55d2"
+          },
+          "rationale": "Unique continuing Parse field reordered across other continuing declarations. Preprocessor guard moves with nProgressSteps; no carried child count.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        }
+      ],
+      "observations": [],
+      "prior_known": false,
+      "detector_blind": true
+    },
+    {
+      "id": "sqlite-target-05",
+      "parent": "ca74fbf6f164ad6fa9c6bd79050dc57cdcd69388",
+      "commit": "e40cc16b472071f553700c7208394e6cf73d5688",
+      "subject": "Move some utility Walker callbacks into the walker.c source file, as they seem to belong there better.",
+      "merge": false,
+      "parents": [
+        "ca74fbf6f164ad6fa9c6bd79050dc57cdcd69388"
+      ],
+      "changed_source_paths": [
+        "src/expr.c",
+        "src/select.c",
+        "src/sqliteInt.h",
+        "src/walker.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_positive",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [
+        {
+          "id": "sqlite-target-05-sqlite3ExprWalkNoop",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "function",
+          "old": {
+            "path": "src/select.c",
+            "start_line": 5241,
+            "end_line": 5244,
+            "text_sha256": "27c464ab6558cde10711764a92debd4695ef3989bd9ae3a18df25b13041c5d52",
+            "file_sha256": "2223fed38382ad12415e5cc63762f3968104ac9854d2f34f340ce7d9df86cf6b"
+          },
+          "new": {
+            "path": "src/walker.c",
+            "start_line": 234,
+            "end_line": 237,
+            "text_sha256": "27c464ab6558cde10711764a92debd4695ef3989bd9ae3a18df25b13041c5d52",
+            "file_sha256": "e77e674db4b5ce44e5b652c693128a5b607337a19dc3b9089fbe0fbf1e32b492"
+          },
+          "rationale": "Unchanged complete callback transferred from select.c to walker.c; name and role persist.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        },
+        {
+          "id": "sqlite-target-05-sqlite3SelectWalkNoop",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "function",
+          "old": {
+            "path": "src/select.c",
+            "start_line": 5250,
+            "end_line": 5253,
+            "text_sha256": "951f2b3258c87f9a1fdac5805ba9792f2cccf3f774173e9322eded50b5a4d69e",
+            "file_sha256": "2223fed38382ad12415e5cc63762f3968104ac9854d2f34f340ce7d9df86cf6b"
+          },
+          "new": {
+            "path": "src/walker.c",
+            "start_line": 243,
+            "end_line": 246,
+            "text_sha256": "951f2b3258c87f9a1fdac5805ba9792f2cccf3f774173e9322eded50b5a4d69e",
+            "file_sha256": "e77e674db4b5ce44e5b652c693128a5b607337a19dc3b9089fbe0fbf1e32b492"
+          },
+          "rationale": "Unchanged complete callback transferred from select.c to walker.c; name and role persist.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        }
+      ],
+      "observations": [
+        {
+          "label": "outside_strict_type12",
+          "rationale": "analyzeAggregatesInSelect and analyzeAggregatesInSelectEnd also transfer as sqlite3WalkerDepthIncrease/Decrease, but static is removed. Whole definitions are not pure identifier/literal-only Type2; exact bodies are carried, not independent moves."
+        }
+      ],
+      "prior_known": false,
+      "detector_blind": true
+    },
+    {
+      "id": "sqlite-target-06",
+      "parent": "898c527eafd8bf263a3c3626ff421804558132f9",
+      "commit": "a5d0911546c0d41f142a33fc3622df7ef7d8a81d",
+      "subject": "Move the sqlite3LocateCollSeq(), sqlite3FindCollSeq(), and sqlite3GetCollSeq() routines so that they are all beside one another in the callback.c source file.  No logic changes.",
+      "merge": false,
+      "parents": [
+        "898c527eafd8bf263a3c3626ff421804558132f9"
+      ],
+      "changed_source_paths": [
+        "src/build.c",
+        "src/callback.c"
+      ],
+      "excluded_paths": [
+        "manifest",
+        "manifest.uuid"
+      ],
+      "excluded_in_paths": [],
+      "review_status": "source_reviewed_positive",
+      "review_coverage": "All changed C/C++ diff hunks reviewed; surrounding source inspected for positive targets. Single AI source review; not a second-reviewer gold standard.",
+      "events": [
+        {
+          "id": "sqlite-target-06-sqlite3GetCollSeq",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "function",
+          "old": {
+            "path": "src/callback.c",
+            "start_line": 82,
+            "end_line": 111,
+            "text_sha256": "0cae6d2476fd8e2ad7354133bd636013a89646ce89b63c69ffde3e7140b1d6cf",
+            "file_sha256": "a1e939a10dede43e74e9fb711b44cc6d7ccf2424ff2a49d3b5fbfbfdfa417685"
+          },
+          "new": {
+            "path": "src/callback.c",
+            "start_line": 191,
+            "end_line": 220,
+            "text_sha256": "0cae6d2476fd8e2ad7354133bd636013a89646ce89b63c69ffde3e7140b1d6cf",
+            "file_sha256": "4c2a86087eb2b0e1f29a4408019a7ebb38aabd75cdea76e1d581a926b3948d38"
+          },
+          "rationale": "Whole function reordered across continuing sqlite3CheckCollSeq/findCollSeqEntry/sqlite3FindCollSeq.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        },
+        {
+          "id": "sqlite-target-06-sqlite3LocateCollSeq",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "function",
+          "old": {
+            "path": "src/build.c",
+            "start_line": 1543,
+            "end_line": 1555,
+            "text_sha256": "372373aa32fcc1a07307ab1851ada589e765cbac3ecda54cc7eb4128af57b330",
+            "file_sha256": "7c94533fa34f9a2ad5115e1d9b57bf95a621616f6fab0033194ec3ec9e490624"
+          },
+          "new": {
+            "path": "src/callback.c",
+            "start_line": 242,
+            "end_line": 254,
+            "text_sha256": "372373aa32fcc1a07307ab1851ada589e765cbac3ecda54cc7eb4128af57b330",
+            "file_sha256": "4c2a86087eb2b0e1f29a4408019a7ebb38aabd75cdea76e1d581a926b3948d38"
+          },
+          "rationale": "Whole function transferred unchanged from build.c into callback.c; adjacent comment editing is outside construct.",
+          "label_status": "confirmed_single_reviewer",
+          "source_evidence": "Git first-parent source diff and surrounding source; exact unchanged construct text",
+          "count_in_strict_recall": true
+        }
+      ],
+      "observations": [
+        {
+          "label": "stationary",
+          "rationale": "sqlite3FindCollSeq gains parameter comments and shifts because another function is reordered; not independently counted as a second side of the same permutation."
+        }
+      ],
+      "prior_known": false,
+      "detector_blind": true
+    }
+  ]
+}

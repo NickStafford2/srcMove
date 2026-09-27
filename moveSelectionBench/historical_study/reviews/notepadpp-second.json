@@ -1,0 +1,174 @@
+{
+  "schema_version": 1,
+  "repository": "notepadpp",
+  "reviewer": "Codex source-only second reviewer /root/opencv_review",
+  "detector_blind": true,
+  "reviewed_primary_sha256": "7d8407088d309b9f51e13ea6ee4a755953b83d088ace75d44dea456167171a75",
+  "method": "Read every primary event endpoint with surrounding Git source; read full ShortcutMapper and WordStyleDlg source diffs; validate all raw-byte line-range hashes. No detector output inspected. AI second review, not human annotation.",
+  "events": [
+    {
+      "event_id": "notepadpp-ordinary-13-event-01",
+      "case_id": "notepadpp-ordinary-13",
+      "verdict": "confirm",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "confirm",
+      "endpoint_hashes_match": true,
+      "rationale": "Exact continuing named method declaration crosses the four-declaration timers/FineTicker run. That larger unchanged run supplies an explicit order reference; selected three declarations also internally reorder. Source identity and displacement confirmed, not a whole-class move."
+    },
+    {
+      "event_id": "notepadpp-ordinary-13-event-02",
+      "case_id": "notepadpp-ordinary-13",
+      "verdict": "confirm",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "confirm",
+      "endpoint_hashes_match": true,
+      "rationale": "Exact continuing named method declaration crosses the four-declaration timers/FineTicker run. That larger unchanged run supplies an explicit order reference; selected three declarations also internally reorder. Source identity and displacement confirmed, not a whole-class move."
+    },
+    {
+      "event_id": "notepadpp-ordinary-13-event-03",
+      "case_id": "notepadpp-ordinary-13",
+      "verdict": "confirm",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "confirm",
+      "endpoint_hashes_match": true,
+      "rationale": "Exact continuing named method declaration crosses the four-declaration timers/FineTicker run. That larger unchanged run supplies an explicit order reference; selected three declarations also internally reorder. Source identity and displacement confirmed, not a whole-class move."
+    },
+    {
+      "event_id": "notepadpp-target-03-event-01",
+      "case_id": "notepadpp-target-03",
+      "verdict": "confirm",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "confirm",
+      "endpoint_hashes_match": true,
+      "rationale": "The SQL checkbox initialization is deleted from IndentationSubDlg and inserted in LanguageSubDlg. Same arguments and role; no enclosing transferred parent. Exact independent statement transfer confirmed."
+    },
+    {
+      "event_id": "notepadpp-target-13-event-01",
+      "case_id": "notepadpp-target-13",
+      "verdict": "uncertain",
+      "identity": "confirm",
+      "type": "type2",
+      "type_verdict": "confirm",
+      "scope_verdict": "uncertain",
+      "endpoint_hashes_match": true,
+      "rationale": "Endpoint identity and lexical Type2 are confirmed: the paired babygrid rectangle query/resize operations survive with rect renamed rcClient. They change function and move after other control-positioning operations. However they form one adjacent two-statement extracted sequence; neither moves independently of the other. Under the strict rule excluding carried components of edited extraction parents, these are two coverage endpoints of one extraction event, not two independent events. Coordinator must apply the same extraction policy as OpenCV ordinary-04 before counting."
+    },
+    {
+      "event_id": "notepadpp-target-13-event-02",
+      "case_id": "notepadpp-target-13",
+      "verdict": "uncertain",
+      "identity": "confirm",
+      "type": "type2",
+      "type_verdict": "confirm",
+      "scope_verdict": "uncertain",
+      "endpoint_hashes_match": true,
+      "rationale": "Endpoint identity and lexical Type2 are confirmed: the paired babygrid rectangle query/resize operations survive with rect renamed rcClient. They change function and move after other control-positioning operations. However they form one adjacent two-statement extracted sequence; neither moves independently of the other. Under the strict rule excluding carried components of edited extraction parents, these are two coverage endpoints of one extraction event, not two independent events. Coordinator must apply the same extraction policy as OpenCV ordinary-04 before counting."
+    },
+    {
+      "event_id": "notepadpp-target-14-event-01",
+      "case_id": "notepadpp-target-14",
+      "verdict": "confirm",
+      "identity": "confirm",
+      "type": "type2",
+      "type_verdict": "confirm",
+      "scope_verdict": "confirm",
+      "endpoint_hashes_match": true,
+      "rationale": "The same WM_DPICHANGED rectangle refresh continues from getClientRect(_rc) to getWindowRect(_rc), now after the unchanged setPositionDpi(lParam). The deleted initialization-time getClientRect is a distinct role and not the origin. This is a valid lexical Type2 identity/displacement label, but the API changes from client bounds to window bounds; do not describe it as a semantics-preserving identifier rename."
+    },
+    {
+      "event_id": "notepadpp-target-16-event-01",
+      "case_id": "notepadpp-target-16",
+      "verdict": "uncertain",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "uncertain",
+      "endpoint_hashes_match": true,
+      "rationale": "Exact endpoint identity confirmed. Three declarations reverse A,B,C to C,B,A between unchanged outer neighbors. The primary labels assume C (m_wstrDirectory) stationary, but source gives no privileged stationary reference among these three. B retains its middle ordinal position and numerical line, while reversing its relations to both neighbors. Record one unresolved reorder cluster or a declared order-relation convention; do not treat the chosen two relocated declarations as uniquely source-established independent moves."
+    },
+    {
+      "event_id": "notepadpp-target-16-event-02",
+      "case_id": "notepadpp-target-16",
+      "verdict": "uncertain",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "uncertain",
+      "endpoint_hashes_match": true,
+      "rationale": "Exact endpoint identity confirmed. Three declarations reverse A,B,C to C,B,A between unchanged outer neighbors. The primary labels assume C (m_wstrDirectory) stationary, but source gives no privileged stationary reference among these three. B retains its middle ordinal position and numerical line, while reversing its relations to both neighbors. Record one unresolved reorder cluster or a declared order-relation convention; do not treat the chosen two relocated declarations as uniquely source-established independent moves."
+    },
+    {
+      "event_id": "notepadpp-target-17-event-01",
+      "case_id": "notepadpp-target-17",
+      "verdict": "uncertain",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "uncertain",
+      "endpoint_hashes_match": true,
+      "rationale": "Exact endpoint identity and transfer from WM_DESTROY to new destroy helper confirmed; original handler calls helper. Four cleanup statements form a shared extraction. Foreground delete crosses background destroy, establishing internal reordering of that pair; the foreground destroy and background delete preserve boundary order within the extracted sequence. Null guards and resets are added. Counting all four as independent needs an extraction-granularity convention consistent with OpenCV ordinary-04; otherwise retain carried coverage plus separately adjudicated internal reorder, not four independent events."
+    },
+    {
+      "event_id": "notepadpp-target-17-event-02",
+      "case_id": "notepadpp-target-17",
+      "verdict": "uncertain",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "uncertain",
+      "endpoint_hashes_match": true,
+      "rationale": "Exact endpoint identity and transfer from WM_DESTROY to new destroy helper confirmed; original handler calls helper. Four cleanup statements form a shared extraction. Foreground delete crosses background destroy, establishing internal reordering of that pair; the foreground destroy and background delete preserve boundary order within the extracted sequence. Null guards and resets are added. Counting all four as independent needs an extraction-granularity convention consistent with OpenCV ordinary-04; otherwise retain carried coverage plus separately adjudicated internal reorder, not four independent events."
+    },
+    {
+      "event_id": "notepadpp-target-17-event-03",
+      "case_id": "notepadpp-target-17",
+      "verdict": "uncertain",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "uncertain",
+      "endpoint_hashes_match": true,
+      "rationale": "Exact endpoint identity and transfer from WM_DESTROY to new destroy helper confirmed; original handler calls helper. Four cleanup statements form a shared extraction. Foreground delete crosses background destroy, establishing internal reordering of that pair; the foreground destroy and background delete preserve boundary order within the extracted sequence. Null guards and resets are added. Counting all four as independent needs an extraction-granularity convention consistent with OpenCV ordinary-04; otherwise retain carried coverage plus separately adjudicated internal reorder, not four independent events."
+    },
+    {
+      "event_id": "notepadpp-target-17-event-04",
+      "case_id": "notepadpp-target-17",
+      "verdict": "uncertain",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "uncertain",
+      "endpoint_hashes_match": true,
+      "rationale": "Exact endpoint identity and transfer from WM_DESTROY to new destroy helper confirmed; original handler calls helper. Four cleanup statements form a shared extraction. Foreground delete crosses background destroy, establishing internal reordering of that pair; the foreground destroy and background delete preserve boundary order within the extracted sequence. Null guards and resets are added. Counting all four as independent needs an extraction-granularity convention consistent with OpenCV ordinary-04; otherwise retain carried coverage plus separately adjudicated internal reorder, not four independent events."
+    },
+    {
+      "event_id": "notepadpp-target-18-event-01",
+      "case_id": "notepadpp-target-18",
+      "verdict": "confirm",
+      "identity": "confirm",
+      "type": "type1",
+      "type_verdict": "confirm",
+      "scope_verdict": "confirm",
+      "endpoint_hashes_match": true,
+      "rationale": "Exact dlgT declaration moves from after status-bar resize to before the unchanged if(w == _initialWindowRect.right) conditional in the same resize-toggle case. Stable conditional crossing establishes independent relocation despite surrounding coordinate rewrite."
+    }
+  ],
+  "summary": {
+    "confirm": 6,
+    "uncertain": 8,
+    "disagree": 0
+  },
+  "limitations": [
+    "This verifies proposed positives, not completeness of all historical negative labels.",
+    "Extraction counting must use one consistent definition across OpenCV and Notepad++; endpoint identity alone does not settle independence.",
+    "Three-field reversal movement attribution unresolved."
+  ]
+}

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "files": {
+    "selection.json": "4114d60c92382a0ff9d68ef98746debcf30b52b4883be2d0b44bc90c72bebac5",
+    "reviews/sqlite.json": "f9703a2ae764d3773abf4175f9e2c967b5588d3d8bf8450ed562989930ca3e8b",
+    "reviews/sqlite-second.json": "f9dd1bc131891a18cc7c2d326d6cad195375da2d3a895665d180b305bc0b5384",
+    "reviews/notepadpp.json": "7d8407088d309b9f51e13ea6ee4a755953b83d088ace75d44dea456167171a75",
+    "reviews/notepadpp-second.json": "837244dc0ca18c842cbad1edf8463a23010a234d1b551567e0169e77a42e4350",
+    "reviews/opencv.json": "38bafe5fbfcd61333f23d5ce94f986a53f1cab80df762cc218cecc296d509825",
+    "reviews/opencv-second.json": "616215fb8e45cb7bb249f1e9d8f85b3556163c8e9c4fee8babd44bcd1339bfac"
+  },
+  "meaning": "Source labels sealed before first detector execution; AI review, not human ground truth."
+}

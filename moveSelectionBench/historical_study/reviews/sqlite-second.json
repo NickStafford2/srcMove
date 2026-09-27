@@ -1,0 +1,156 @@
+{
+  "schema_version": 1,
+  "repository": "sqlite",
+  "reviewer": "AI agent /root/notepad_review; independent second source reviewer",
+  "reviewed_on": "2026-09-27",
+  "detector_blind": true,
+  "primary_review": "sqlite.json",
+  "primary_review_sha256": "f9703a2ae764d3773abf4175f9e2c967b5588d3d8bf8450ed562989930ca3e8b",
+  "method": "Read primary labels, then independently inspected Git first-parent diffs and exact original/new Git source ranges. Verified 22 endpoint and 22 whole-file SHA256 values and exact old/new source byte equality for all 11 events. No detector output inspected.",
+  "coverage": "Second review of all 11 labeled positive targets only. Not a second exhaustive ordinary-history negative audit or discovery inventory.",
+  "summary": {
+    "confirm": 11,
+    "disagree": 0,
+    "uncertain": 0
+  },
+  "events": [
+    {
+      "event_id": "sqlite-target-01-nMultiInsert",
+      "revision_id": "sqlite-target-01",
+      "commit": "3c1f727603ee27cc631048f48985f9adc4fb784c",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "independent_descendant",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm exact complete field declaration and same continuing role. It crosses the retained nCharLimit-through-pzOutput field sequence within the same struct. Adjacent version comment removal does not edit the declaration or turn this into wrapper restructuring. Anchoring the much longer continuing field sequence is a defensible minimal-move convention."
+    },
+    {
+      "event_id": "sqlite-target-02-device-assert",
+      "revision_id": "sqlite-target-02",
+      "commit": "deb5ad6297490ddb910a1fcec61875b109d0a34e",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "independent_descendant",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm exact assertion reorders after the continuing dirty-cache guard and WAL guard. Same function and same structural nesting; not a line shift or wrapper change. Assertion and following device guard are adjacent independent statements, with no enclosing moved source construct counted."
+    },
+    {
+      "event_id": "sqlite-target-02-device-if",
+      "revision_id": "sqlite-target-02",
+      "commit": "deb5ad6297490ddb910a1fcec61875b109d0a34e",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "independent_descendant",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm complete unchanged device guard (including its return) crosses dirty-cache/WAL checks. Retain one event for whole if, no separate return child. The executing order changes, so identity does not rely on semantic equivalence."
+    },
+    {
+      "event_id": "sqlite-target-03-usage",
+      "revision_id": "sqlite-target-03",
+      "commit": "bb51af68f404b0be76acd3173f6933520f75c71e",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "whole_construct",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm full usage definition is byte-identical in the renamed file and source path changes ext/wasm\u2192tool. This is a whole-function transport under the study file-relocation policy; it is not an independent function extraction. Keep file-rename subtype visible."
+    },
+    {
+      "event_id": "sqlite-target-03-main",
+      "revision_id": "sqlite-target-03",
+      "commit": "bb51af68f404b0be76acd3173f6933520f75c71e",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "whole_construct",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm full main definition is byte-identical in the renamed file and source path changes ext/wasm\u2192tool. Count once at function scale, not additional inner statements. This shares one file-rename revision with usage and is not a statistically independent repository sample."
+    },
+    {
+      "event_id": "sqlite-target-04-nProgressSteps",
+      "revision_id": "sqlite-target-04",
+      "commit": "80c438613a687d41ce820f113a2b20e1aade93a6",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "independent_descendant",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm exact field declaration crosses multiple retained Parse fields; its preprocessor condition remains SQLITE_OMIT_PROGRESS_CALLBACK with the same polarity. Guard transport does not create a changed declaration. Reorder is unambiguous against the longer retained field sequence."
+    },
+    {
+      "event_id": "sqlite-target-04-nQueryLoop",
+      "revision_id": "sqlite-target-04",
+      "commit": "80c438613a687d41ce820f113a2b20e1aade93a6",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "independent_descendant",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm exact field shifts from before oldmask/newmask to after them. Minimal-move convention treats retained oldmask/newmask pair as reference and one nQueryLoop declaration as moved; do not also count oldmask/newmask as converse movements. Source alone cannot recover editing gestures, but endpoint identity and relative order are definite."
+    },
+    {
+      "event_id": "sqlite-target-05-sqlite3ExprWalkNoop",
+      "revision_id": "sqlite-target-05",
+      "commit": "e40cc16b472071f553700c7208394e6cf73d5688",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "whole_construct",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm full named function deleted from select.c and inserted unchanged into walker.c. Same signature, body and role; no copied surviving original endpoint. Whole target independent of differently edited adjacent callbacks."
+    },
+    {
+      "event_id": "sqlite-target-05-sqlite3SelectWalkNoop",
+      "revision_id": "sqlite-target-05",
+      "commit": "e40cc16b472071f553700c7208394e6cf73d5688",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "whole_construct",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm full named function deleted from select.c and inserted unchanged into walker.c. Distinct Select parameter and function identity prevent confusing it with Expr callback; unchanged descendants are carried and not extra events."
+    },
+    {
+      "event_id": "sqlite-target-06-sqlite3GetCollSeq",
+      "revision_id": "sqlite-target-06",
+      "commit": "a5d0911546c0d41f142a33fc3622df7ef7d8a81d",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "whole_construct",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm complete byte-identical function moves within callback.c across sqlite3CheckCollSeq, findCollSeqEntry, and sqlite3FindCollSeq. Anchor the longer retained sequence, not changed line numbers. This is a same-file whole-function reorder."
+    },
+    {
+      "event_id": "sqlite-target-06-sqlite3LocateCollSeq",
+      "revision_id": "sqlite-target-06",
+      "commit": "a5d0911546c0d41f142a33fc3622df7ef7d8a81d",
+      "verdict": "confirm",
+      "type": "type1",
+      "scope": "whole_construct",
+      "endpoint_hashes_verified": true,
+      "whole_file_hashes_verified": true,
+      "old_new_exact_bytes_equal": true,
+      "reason": "Confirm complete byte-identical function transfers from build.c to callback.c. Changed preceding documentation is outside the function endpoint. No descendant target should be added for this same transport."
+    }
+  ],
+  "limitations": [
+    "Two AI reviewers are not a human-adjudicated gold standard.",
+    "Reorder direction uses minimal moved-construct convention relative to a longer retained sequence; does not claim knowledge of developer editing gestures.",
+    "Two whole-function targets come from one unchanged file rename; report separately from extraction and keep per-revision clustering visible.",
+    "Primary target-03 changed_source_paths lists only the new file due Git rename presentation. Execution must include old path from event endpoints or explicit rename metadata."
+  ]
+}

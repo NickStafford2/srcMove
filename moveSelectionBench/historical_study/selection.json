@@ -1,0 +1,658 @@
+{
+  "schema_version": 1,
+  "study_id": "type12-20260927",
+  "status": "frozen_selection_before_execution",
+  "production_revision": "f6debcbb32759a8f2872d6ebe12250a0d1b5a16f",
+  "scope": "All changed production-admitted C/C++ paths, including tests and third-party files; no size-based post-selection exclusions. Other languages and .in excluded from production history scope.",
+  "ordinary_pairs_per_repository": 30,
+  "targeted_diff_review_cap_per_repository": 20,
+  "targeted_selected_revision_cap_per_repository": 6,
+  "reviewers": "Source-only AI agents; second review by coordinating AI, not independent human annotation. Record prior-known cases and uncertainties.",
+  "repositories": {
+    "sqlite": {
+      "anchor": "9e5727e51dfc007636ad2be2c16b2dcf5576ddf4",
+      "ordinary": [
+        {
+          "id": "sqlite-ordinary-01",
+          "commit": "9e5727e51dfc007636ad2be2c16b2dcf5576ddf4",
+          "parent": "7fa8cff00cfc82c65fc9c3b9028ad0c9d5cc07ea",
+          "merge": true,
+          "subject": "Correctly process \"x IS TRUE\" and similar expressions that appear in the second or later rows of a VALUES() clause. Report [bugs:/info/2026-08-18T05:06:40Z | 2026-08-18T05:06:40Z]."
+        },
+        {
+          "id": "sqlite-ordinary-02",
+          "commit": "7fa8cff00cfc82c65fc9c3b9028ad0c9d5cc07ea",
+          "parent": "048112def64ee49e28f0e81607323d63fdea7e5c",
+          "merge": false,
+          "subject": "Fix a buffer overread in the fts5vocab virtual table when processing \"term < 123\" constraints. Problem recently introduced by [db05b203f4]."
+        },
+        {
+          "id": "sqlite-ordinary-03",
+          "commit": "048112def64ee49e28f0e81607323d63fdea7e5c",
+          "parent": "f919d9924621293cb71696ab9b98300b37c679ab",
+          "merge": false,
+          "subject": "The geopoly_regular() SQL function now returns NULL if the radius argument is too large (+1.0e+300 or larger). [bugs:/info/2026-08-18T09:12:02Z|Bug 2026-08-18T09:12:02Z]"
+        },
+        {
+          "id": "sqlite-ordinary-04",
+          "commit": "f919d9924621293cb71696ab9b98300b37c679ab",
+          "parent": "fe8153124afa11584ff84ebc9f7272f4ac0d41f9",
+          "merge": false,
+          "subject": "Filter the rtree tests out of speedtest1's default configuration when built without SQLITE_ENABLE_RTREE. Resolves [forum:e19d434249|forum post 2026-08-18T11:15:33Z]."
+        },
+        {
+          "id": "sqlite-ordinary-05",
+          "commit": "fe8153124afa11584ff84ebc9f7272f4ac0d41f9",
+          "parent": "9ac0c79e1129219cbbdd9db08d0990fac89b06d5",
+          "merge": false,
+          "subject": "Prevent a corrupt database from causing a CPU stack overflow in PRAGMA integrity_check.  Report the excess btree depth instead. [bugs:/info/2026-08-18T10:33:10Z|Bug 2026-08-18T10:33:10Z]."
+        },
+        {
+          "id": "sqlite-ordinary-06",
+          "commit": "9ac0c79e1129219cbbdd9db08d0990fac89b06d5",
+          "parent": "714ab82489995fc4803a6d3e1c9544b9f7ec6a7c",
+          "merge": false,
+          "subject": "Use a typecast to fix a possible integer overflow in the (unsupported) ext/misc/compress.c extension. [bugs:/info/2026-08-18T09:33:57Z|Bug 2026-08-18T09:33:57Z]."
+        },
+        {
+          "id": "sqlite-ordinary-07",
+          "commit": "714ab82489995fc4803a6d3e1c9544b9f7ec6a7c",
+          "parent": "9fd4cbde74cbec8b08e4474a8f2939b14fb66556",
+          "merge": false,
+          "subject": "Limit the number of nested RIGHT JOINs (or FULL JOINs) that can occur in a single query.  Report [bugs:/info/2026-08-18T07:03:05Z|2026-08-18T07:03:05Z]."
+        },
+        {
+          "id": "sqlite-ordinary-08",
+          "commit": "9fd4cbde74cbec8b08e4474a8f2939b14fb66556",
+          "parent": "0489a60a425bc3858dd90ce4e64c089476fe2177",
+          "merge": false,
+          "subject": "Add SQLITE_LIMIT_TRIGGER_STEPS and -DSQLITE_MAX_TRIGGER_STEPS=n.  Default maximum is 65000."
+        },
+        {
+          "id": "sqlite-ordinary-09",
+          "commit": "0489a60a425bc3858dd90ce4e64c089476fe2177",
+          "parent": "d51b8992634271eea313f3695ea7a04d50a5c5b7",
+          "merge": false,
+          "subject": "Plaform portability improvements for autosetup/find_tclconfig.tcl, from Dan Shearer at forum post [bugs:778223d22549a1a1|2026-08-13T20:55:18Z]."
+        },
+        {
+          "id": "sqlite-ordinary-10",
+          "commit": "d51b8992634271eea313f3695ea7a04d50a5c5b7",
+          "parent": "5271f86cfaf639170cccf5f279bd47ad890da65e",
+          "merge": false,
+          "subject": "Fix the include guard on pcache.h, as requested by Report [bugs:/info/2026-08-17T20:09:10Z|2026-08-17T20:09:10Z]."
+        },
+        {
+          "id": "sqlite-ordinary-11",
+          "commit": "5271f86cfaf639170cccf5f279bd47ad890da65e",
+          "parent": "13bcd6f6b26a9eb3656ba8f51cad7ee29e260475",
+          "merge": false,
+          "subject": "Declare fts5 structure records corrupt if they contain a page number greater than 0x7FFFFF00. Report [bugs:/info/2026-08-17T20:07:33Z | 2026-08-17T20:07:33Z]."
+        },
+        {
+          "id": "sqlite-ordinary-12",
+          "commit": "13bcd6f6b26a9eb3656ba8f51cad7ee29e260475",
+          "parent": "a87bd2471a9c0606e78d3c3678bcd9cecaa0e731",
+          "merge": false,
+          "subject": "New -pgo option to test/speedtest.tcl compiles using gcc-style PGO."
+        },
+        {
+          "id": "sqlite-ordinary-13",
+          "commit": "a87bd2471a9c0606e78d3c3678bcd9cecaa0e731",
+          "parent": "0085ea144363b4df8c9a37afbc67a82071b40f0b",
+          "merge": false,
+          "subject": "Avoid a problem causing a use-after-free in the fts3 snippet() function. Report [bugs:/info/2026-08-17T09:18:24Z | 2026-08-17T09:18:24Z]."
+        },
+        {
+          "id": "sqlite-ordinary-14",
+          "commit": "0085ea144363b4df8c9a37afbc67a82071b40f0b",
+          "parent": "64459c87cc702d600704fb77ee40ca1782398a52",
+          "merge": false,
+          "subject": "Have the fts5term and fts3aux virtual table modules only process constraints on the term column that use binary collation. Report [bugs:/info/2026-08-17T10:17:15Z | 2026-08-17T10:17:15Z]."
+        },
+        {
+          "id": "sqlite-ordinary-15",
+          "commit": "64459c87cc702d600704fb77ee40ca1782398a52",
+          "parent": "58332de7a68934dd592cab1995fb6d3c75541300",
+          "merge": false,
+          "subject": "Avoid a buffer overrun when processing a strategically corrupted changeset. Report [bugs:/info/2026-08-16T10:15:25Z | 2026-08-16T10:15:25Z]."
+        },
+        {
+          "id": "sqlite-ordinary-16",
+          "commit": "58332de7a68934dd592cab1995fb6d3c75541300",
+          "parent": "e5bf119821f25be1d7f10ef0a2edbe175289166e",
+          "merge": true,
+          "subject": "Add the \"Variable Number Bitmap Cache\" to speed up parsing of queries that have a large number of \"?NNN\" style variables."
+        },
+        {
+          "id": "sqlite-ordinary-17",
+          "commit": "e5bf119821f25be1d7f10ef0a2edbe175289166e",
+          "parent": "67c202ab67398f6a27eaa6316e31254c065928cd",
+          "merge": false,
+          "subject": "When reading a frame from a WAL file where the WAL pagesize and the database pagesize disagree, be sure to fully initialize the page that is read."
+        },
+        {
+          "id": "sqlite-ordinary-18",
+          "commit": "67c202ab67398f6a27eaa6316e31254c065928cd",
+          "parent": "f17a2ee06b2ba5e65528aa3e0e3f2508c75987fb",
+          "merge": false,
+          "subject": "Add -DBUILD_sqlite to the T.compile.tcl makefile definition for the sake of Unix-on-Windows environments as a partial resolution to [forum:fe9e99eb27c8c2ba|forum post fe9e99eb27]."
+        },
+        {
+          "id": "sqlite-ordinary-19",
+          "commit": "f17a2ee06b2ba5e65528aa3e0e3f2508c75987fb",
+          "parent": "c578ca72709ef221f97e11dd2958fee89f8ab330",
+          "merge": false,
+          "subject": "Fix the fts5vocab virtual table so that columns always behave as if they have blob affinity. Report [bugs:/info/2026-08-15T07:03:55Z | 2026-08-15T07:03:55Z]."
+        },
+        {
+          "id": "sqlite-ordinary-20",
+          "commit": "c578ca72709ef221f97e11dd2958fee89f8ab330",
+          "parent": "3d18207a6f17e1ffc0c81c3812c93de7885f157f",
+          "merge": false,
+          "subject": "In the CLI, fix the internal modeDup() routine so that it correctly handles zIFmt and zFpFmt."
+        },
+        {
+          "id": "sqlite-ordinary-21",
+          "commit": "3d18207a6f17e1ffc0c81c3812c93de7885f157f",
+          "parent": "c799c15dbef70dd8ee63be2c4b77ebeacce1df00",
+          "merge": false,
+          "subject": "Fix typos.  Turn off -fpfmt and -ifmt using \"auto\" instead of \"default\"."
+        },
+        {
+          "id": "sqlite-ordinary-22",
+          "commit": "c799c15dbef70dd8ee63be2c4b77ebeacce1df00",
+          "parent": "753df3d91adc227b9ae503458212efea12c44af7",
+          "merge": false,
+          "subject": "Refactor \"realfmt\"&rarr;\"fpfmt\" and \"intfmt\"&rarr;\"ifmt\"."
+        },
+        {
+          "id": "sqlite-ordinary-23",
+          "commit": "753df3d91adc227b9ae503458212efea12c44af7",
+          "parent": "92a1fc50b9bce500c2fecf2d2d37667e67cc242e",
+          "merge": false,
+          "subject": "Remove redundant offsetof definition from qrf.c."
+        },
+        {
+          "id": "sqlite-ordinary-24",
+          "commit": "92a1fc50b9bce500c2fecf2d2d37667e67cc242e",
+          "parent": "14385e5a25cbb3537e465d1812b03afef5935267",
+          "merge": true,
+          "subject": "Enhance QRF with options to supply format strings used to render integers and floating point numbers.  Make those options accessible in the shell using the \".mode --intfmt\" and \".mode --realfmt\" respectively. Also make those options available to the \"format\" method of the sqlite3 object in the TCL interface."
+        },
+        {
+          "id": "sqlite-ordinary-25",
+          "commit": "14385e5a25cbb3537e465d1812b03afef5935267",
+          "parent": "bb7e3ddc610163fd224d8468453fdca79f8bbd76",
+          "merge": false,
+          "subject": "Build portability improvements for buildtclext.tcl, from [bugs:2026-08-13T19:40:39Z|bug forum post 2026-08-13T19:40:39Z]."
+        },
+        {
+          "id": "sqlite-ordinary-26",
+          "commit": "bb7e3ddc610163fd224d8468453fdca79f8bbd76",
+          "parent": "b1c41f40b0bfe305a592e8f1ca9bb3b12f1b579d",
+          "merge": true,
+          "subject": "Adjust the bytecode generated for RIGHT JOIN so that it checks for duplicate RHS rows when the LHS is NULL. [bugs:/info/2026-08-14T04:56:02Z|Bug 2026-08-14T04:56:02Z]"
+        },
+        {
+          "id": "sqlite-ordinary-27",
+          "commit": "b1c41f40b0bfe305a592e8f1ca9bb3b12f1b579d",
+          "parent": "9e3e03dfcf4f387a6df3e4012ce604da21383666",
+          "merge": false,
+          "subject": "Fix the fts4aux virtual table so that it consistently behaves as if its columns have blob affinity. Report [bugs:/info/2026-08-14T07:27:28Z | 2026-08-14T07:27:28Z]."
+        },
+        {
+          "id": "sqlite-ordinary-28",
+          "commit": "9e3e03dfcf4f387a6df3e4012ce604da21383666",
+          "parent": "1238b6d4f7b2b19012c1715d0393a1f06c9a8dfa",
+          "merge": false,
+          "subject": "Try to make test/testrunner.tcl work on other BSD variants. This change is untested as I don't have access to any of those BSDs. [bugs:/info/2026-08-13T17:55:42Z|Bug 2026-08-13T17:55:42Z]."
+        },
+        {
+          "id": "sqlite-ordinary-29",
+          "commit": "1238b6d4f7b2b19012c1715d0393a1f06c9a8dfa",
+          "parent": "2665df90e7bbdcffa59102204090f7c9ede04cc4",
+          "merge": true,
+          "subject": "Disable the seekscan optimization for IN(...) expressions when the RHS is a SELECT that returns more than one column. This was previously only possible if the sqlite_stat1 table was populated with inconsistent information, and was malfunctioning in some circumstances. Report [bugs:/info/2026-08-13T08:45:47 | 2026-08-13T08:45:47Z]."
+        },
+        {
+          "id": "sqlite-ordinary-30",
+          "commit": "2665df90e7bbdcffa59102204090f7c9ede04cc4",
+          "parent": "7b83f65a33534fcaa98ebdcdf0292235d395c920",
+          "merge": false,
+          "subject": "Disable misuse testing unless the ENABLE_MISUSE environment variable is set. [bugs:/info/2026-08-13T13:27:50Z|Bug 2026-08-13T13:27:50Z]"
+        }
+      ]
+    },
+    "notepadpp": {
+      "anchor": "de0a77ba7f9d0d81f5862f527e8afc2693ce49ff",
+      "ordinary": [
+        {
+          "id": "notepadpp-ordinary-01",
+          "commit": "de0a77ba7f9d0d81f5862f527e8afc2693ce49ff",
+          "parent": "bf5987d337efb44e28933ed107ef64c967baa213",
+          "merge": false,
+          "subject": "Fix Notepad++ UIPI Bypass via WM_COPYDATA"
+        },
+        {
+          "id": "notepadpp-ordinary-02",
+          "commit": "bf5987d337efb44e28933ed107ef64c967baa213",
+          "parent": "e52bb94d1ba1b1ec941cc9da9598bf06334fb657",
+          "merge": false,
+          "subject": "Fix loading session for alone subview and doc/tab with untitle name"
+        },
+        {
+          "id": "notepadpp-ordinary-03",
+          "commit": "e52bb94d1ba1b1ec941cc9da9598bf06334fb657",
+          "parent": "e9113542ced88013e887ccd0e56c6aedf8e3246b",
+          "merge": false,
+          "subject": "Update german.xml"
+        },
+        {
+          "id": "notepadpp-ordinary-04",
+          "commit": "e9113542ced88013e887ccd0e56c6aedf8e3246b",
+          "parent": "af5a1baef269127fb02931a63818d1bdcddbdb46",
+          "merge": false,
+          "subject": "Add an option to allow loading symlinks in Folder as Workspace"
+        },
+        {
+          "id": "notepadpp-ordinary-05",
+          "commit": "af5a1baef269127fb02931a63818d1bdcddbdb46",
+          "parent": "39419d36a8f7db47cdc51fce755d5a4807edef75",
+          "merge": false,
+          "subject": "Update to Scintilla 5.6.6 & Lexilla 5.5.3"
+        },
+        {
+          "id": "notepadpp-ordinary-06",
+          "commit": "39419d36a8f7db47cdc51fce755d5a4807edef75",
+          "parent": "4f6711674e5a8ce41ac01bededfff8d6e5882676",
+          "merge": false,
+          "subject": "[xml] Update german.xml"
+        },
+        {
+          "id": "notepadpp-ordinary-07",
+          "commit": "4f6711674e5a8ce41ac01bededfff8d6e5882676",
+          "parent": "8315de0a5d0750b3a64f07739e4fc31d6b49f8c5",
+          "merge": false,
+          "subject": "Update Turkish localization"
+        },
+        {
+          "id": "notepadpp-ordinary-08",
+          "commit": "8315de0a5d0750b3a64f07739e4fc31d6b49f8c5",
+          "parent": "65888f0de73f7b8a85866f30729166c8eb118885",
+          "merge": false,
+          "subject": "Update Slovak language items for enable/disable"
+        },
+        {
+          "id": "notepadpp-ordinary-09",
+          "commit": "65888f0de73f7b8a85866f30729166c8eb118885",
+          "parent": "007a23038edc121eddc9d6bacba6af5acf3b0c5e",
+          "merge": false,
+          "subject": "Add const for some class methods"
+        },
+        {
+          "id": "notepadpp-ordinary-10",
+          "commit": "007a23038edc121eddc9d6bacba6af5acf3b0c5e",
+          "parent": "9f54785853da953a5dd851ead4ac49b24e190e93",
+          "merge": false,
+          "subject": "Fix outgoing communication while verifying certificat's chain of trust"
+        },
+        {
+          "id": "notepadpp-ordinary-11",
+          "commit": "9f54785853da953a5dd851ead4ac49b24e190e93",
+          "parent": "10d4f2ef8c124aff2a7f4371e14f1d4b10842fa8",
+          "merge": false,
+          "subject": "Fix eventual crash while loading UDL"
+        },
+        {
+          "id": "notepadpp-ordinary-12",
+          "commit": "10d4f2ef8c124aff2a7f4371e14f1d4b10842fa8",
+          "parent": "e59774add26b0130d38aaf722aceb0259ccc0078",
+          "merge": false,
+          "subject": "Fix a eventual crash on loading a UTF-16 file"
+        },
+        {
+          "id": "notepadpp-ordinary-13",
+          "commit": "e59774add26b0130d38aaf722aceb0259ccc0078",
+          "parent": "bf9f8b4c9549dadd23f483190dd1e1e4707da3ea",
+          "merge": false,
+          "subject": "Update to Scintilla 5.6.5 & Lexilla 5.5.2"
+        },
+        {
+          "id": "notepadpp-ordinary-14",
+          "commit": "bf9f8b4c9549dadd23f483190dd1e1e4707da3ea",
+          "parent": "366406ab48893ae6a5f55cf3309eb5e0faa21ab1",
+          "merge": false,
+          "subject": "[xml] Update croatian.xml"
+        },
+        {
+          "id": "notepadpp-ordinary-15",
+          "commit": "366406ab48893ae6a5f55cf3309eb5e0faa21ab1",
+          "parent": "0b2b8442f319e669aabae3b82ba30b29a98e5a94",
+          "merge": false,
+          "subject": "[xml] Update czech.xml"
+        },
+        {
+          "id": "notepadpp-ordinary-16",
+          "commit": "0b2b8442f319e669aabae3b82ba30b29a98e5a94",
+          "parent": "b8dd0e72bb1041da4b5a78c75c267b120007b6ab",
+          "merge": false,
+          "subject": "Fix potential exposure of Windows login info via UNC path"
+        },
+        {
+          "id": "notepadpp-ordinary-17",
+          "commit": "b8dd0e72bb1041da4b5a78c75c267b120007b6ab",
+          "parent": "c647879f8a0238081247c57c0e0ad9ff3dbd2de2",
+          "merge": false,
+          "subject": "[xml] Update brazilian_portuguese.xml"
+        },
+        {
+          "id": "notepadpp-ordinary-18",
+          "commit": "c647879f8a0238081247c57c0e0ad9ff3dbd2de2",
+          "parent": "4d57b8ec637f8931765b6f838ff60884a51b3175",
+          "merge": false,
+          "subject": "[xml] Update hungarian.xml"
+        },
+        {
+          "id": "notepadpp-ordinary-19",
+          "commit": "4d57b8ec637f8931765b6f838ff60884a51b3175",
+          "parent": "0fdbf4c502a353ac2527d310d3cefc7f095ecd1a",
+          "merge": false,
+          "subject": "[xml] Update japanese.xml"
+        },
+        {
+          "id": "notepadpp-ordinary-20",
+          "commit": "0fdbf4c502a353ac2527d310d3cefc7f095ecd1a",
+          "parent": "2ccb9d7abbf4c096d4a109f98c30d7e83fc6cb3f",
+          "merge": false,
+          "subject": "Update swedish.xml"
+        },
+        {
+          "id": "notepadpp-ordinary-21",
+          "commit": "2ccb9d7abbf4c096d4a109f98c30d7e83fc6cb3f",
+          "parent": "1ede41f811847b871cdb245223c81bc33ebd1855",
+          "merge": false,
+          "subject": "[xml] Update Bulgarian localization"
+        },
+        {
+          "id": "notepadpp-ordinary-22",
+          "commit": "1ede41f811847b871cdb245223c81bc33ebd1855",
+          "parent": "a3fd3597ae221be18b5c14d307e86b17f38196f8",
+          "merge": false,
+          "subject": "[xml] Update russian.xml"
+        },
+        {
+          "id": "notepadpp-ordinary-23",
+          "commit": "a3fd3597ae221be18b5c14d307e86b17f38196f8",
+          "parent": "151e1985156e30656ca6ace1be8324c2ce2cdc35",
+          "merge": false,
+          "subject": "[xml] Update Slovak translation"
+        },
+        {
+          "id": "notepadpp-ordinary-24",
+          "commit": "151e1985156e30656ca6ace1be8324c2ce2cdc35",
+          "parent": "603f7008e0fcf9ad32996c1db9e9b4bc4742c875",
+          "merge": false,
+          "subject": "Update italian.xml from 8.8.0 to 8.9.6.4 to match english.xml"
+        },
+        {
+          "id": "notepadpp-ordinary-25",
+          "commit": "603f7008e0fcf9ad32996c1db9e9b4bc4742c875",
+          "parent": "89f9745483123b042dee152292ab329321b8fcd1",
+          "merge": false,
+          "subject": "Fix file name being selected while a CJK IME is composing in Save As dialog"
+        },
+        {
+          "id": "notepadpp-ordinary-26",
+          "commit": "89f9745483123b042dee152292ab329321b8fcd1",
+          "parent": "f85033104f046c9e74b4ca9ee7fd2d9bbb9fba4d",
+          "merge": false,
+          "subject": "Fix a logic error"
+        },
+        {
+          "id": "notepadpp-ordinary-27",
+          "commit": "f85033104f046c9e74b4ca9ee7fd2d9bbb9fba4d",
+          "parent": "15f32ff6a4ef37c2a860c799f478c5c6441ac574",
+          "merge": false,
+          "subject": "Update localization files"
+        },
+        {
+          "id": "notepadpp-ordinary-28",
+          "commit": "15f32ff6a4ef37c2a860c799f478c5c6441ac574",
+          "parent": "9d5eb7e47afc74523a2085ed25467634f6c4adc5",
+          "merge": false,
+          "subject": "Add plugin deactivation ability"
+        },
+        {
+          "id": "notepadpp-ordinary-29",
+          "commit": "9d5eb7e47afc74523a2085ed25467634f6c4adc5",
+          "parent": "112e6d90e81afd1726a5ca25644a2e088f5416d3",
+          "merge": false,
+          "subject": "Fix potential exposure of Windows login info via UNC path of clickable link"
+        },
+        {
+          "id": "notepadpp-ordinary-30",
+          "commit": "112e6d90e81afd1726a5ca25644a2e088f5416d3",
+          "parent": "c9a65d9c9d56b104cd785e658d89b8f7cdffb535",
+          "merge": false,
+          "subject": "Fix potential exposure of Windows login info via UNC path in session.xml 2"
+        }
+      ]
+    },
+    "opencv": {
+      "anchor": "1c59b23c9fe1bf1d41169460914174b295b2635b",
+      "ordinary": [
+        {
+          "id": "opencv-ordinary-01",
+          "commit": "1c59b23c9fe1bf1d41169460914174b295b2635b",
+          "parent": "690f3d25c2367ea085531ce062c9c2beffb2f276",
+          "merge": true,
+          "subject": "Merge pull request #29680 from Ijtihed:fix/tiff-multichannel-26771-v2"
+        },
+        {
+          "id": "opencv-ordinary-02",
+          "commit": "690f3d25c2367ea085531ce062c9c2beffb2f276",
+          "parent": "cc293eaff62cd4f072ca808962a0e279221c13f3",
+          "merge": false,
+          "subject": "Merge pull request #29071 from zitonwei:fix-masked-ccoeff-normed-constant-template"
+        },
+        {
+          "id": "opencv-ordinary-03",
+          "commit": "cc293eaff62cd4f072ca808962a0e279221c13f3",
+          "parent": "3621c83f2f6b45db87cd657c550cd6b01ecef63c",
+          "merge": false,
+          "subject": " Merge pull request #29691 from DPug888:fix-resize-area-channel-limit"
+        },
+        {
+          "id": "opencv-ordinary-04",
+          "commit": "3621c83f2f6b45db87cd657c550cd6b01ecef63c",
+          "parent": "eca8ab3038e1700bbe51f98d54723de49ef2a926",
+          "merge": false,
+          "subject": "Merge pull request #29512 from Akansha-977:rectsubpix_IPP_4.x"
+        },
+        {
+          "id": "opencv-ordinary-05",
+          "commit": "eca8ab3038e1700bbe51f98d54723de49ef2a926",
+          "parent": "c3e1b10d3d24d2d46ab670c993fb9a72d20a74c3",
+          "merge": true,
+          "subject": "Merge pull request #29720 from amd:imp_jacobisvd"
+        },
+        {
+          "id": "opencv-ordinary-06",
+          "commit": "c3e1b10d3d24d2d46ab670c993fb9a72d20a74c3",
+          "parent": "f5cce0bdc4e7ec256f3326709553389df35a1fff",
+          "merge": false,
+          "subject": "Merge pull request #29718 from amd:fast_accumulate_2"
+        },
+        {
+          "id": "opencv-ordinary-07",
+          "commit": "f5cce0bdc4e7ec256f3326709553389df35a1fff",
+          "parent": "2eebb803cbb4fb90d83dec0b9f9b8584bcefaa94",
+          "merge": true,
+          "subject": "Merge pull request #29717 from asmorkalov:as/mjpeg_disable_test"
+        },
+        {
+          "id": "opencv-ordinary-08",
+          "commit": "2eebb803cbb4fb90d83dec0b9f9b8584bcefaa94",
+          "parent": "466dff53c25913494a9bcf676e5c7199d8e9bc4f",
+          "merge": true,
+          "subject": "Merge pull request #29709 from Nikhi00718:agent/fix-high-channel-ndarray-4x"
+        },
+        {
+          "id": "opencv-ordinary-09",
+          "commit": "466dff53c25913494a9bcf676e5c7199d8e9bc4f",
+          "parent": "0a17023d1e068774893a1b06def3bf67f9e91e4f",
+          "merge": true,
+          "subject": "Merge pull request #29711 from asmorkalov:revert-29394-fast_accumulate"
+        },
+        {
+          "id": "opencv-ordinary-10",
+          "commit": "0a17023d1e068774893a1b06def3bf67f9e91e4f",
+          "parent": "681d3ecd2b589ea15ed6f4d5d9a23f3cdfee25b6",
+          "merge": true,
+          "subject": "Merge pull request #29700 from lazerg:fix/issue-29699-ffmpeg-pixfmt-change"
+        },
+        {
+          "id": "opencv-ordinary-11",
+          "commit": "681d3ecd2b589ea15ed6f4d5d9a23f3cdfee25b6",
+          "parent": "52aa8c296145364280590eb0d9e8d1a2f71d774c",
+          "merge": true,
+          "subject": "Merge pull request #29695 from Parth1353:fix/26447-cvtcolor-depth-docs"
+        },
+        {
+          "id": "opencv-ordinary-12",
+          "commit": "52aa8c296145364280590eb0d9e8d1a2f71d774c",
+          "parent": "fece2acfbaf83a985b9fcddf942234e10da00999",
+          "merge": false,
+          "subject": "Merge pull request #29439 from uwezkhan:gdal-write-pixel-channel-bound"
+        },
+        {
+          "id": "opencv-ordinary-13",
+          "commit": "fece2acfbaf83a985b9fcddf942234e10da00999",
+          "parent": "c6e84d494cf45db8bae6ed1fe62c996cf7034c4a",
+          "merge": false,
+          "subject": "Merge pull request #28728 from pratham-mcw:calchist-simd-opt"
+        },
+        {
+          "id": "opencv-ordinary-14",
+          "commit": "c6e84d494cf45db8bae6ed1fe62c996cf7034c4a",
+          "parent": "bfa07fc52a1c7dc2de5819cd0dd6bb286c02a9e0",
+          "merge": false,
+          "subject": "Merge pull request #29394 from amd:fast_accumulate"
+        },
+        {
+          "id": "opencv-ordinary-15",
+          "commit": "bfa07fc52a1c7dc2de5819cd0dd6bb286c02a9e0",
+          "parent": "4afa329a7873caaab477718832837d2b1daa051a",
+          "merge": false,
+          "subject": "Merge pull request #29638 from aarochu:feature-medianblur-arbitrary-channels"
+        },
+        {
+          "id": "opencv-ordinary-16",
+          "commit": "4afa329a7873caaab477718832837d2b1daa051a",
+          "parent": "21d60a9afeeb78b6a150ae3419df378e74a4ae21",
+          "merge": true,
+          "subject": "Merge pull request #29696 from Parth1353:fix/29694-avx512icl-baseline-dispatch"
+        },
+        {
+          "id": "opencv-ordinary-17",
+          "commit": "21d60a9afeeb78b6a150ae3419df378e74a4ae21",
+          "parent": "f347805418235374f54064f36fc8c248bd599e86",
+          "merge": true,
+          "subject": "Merge pull request #29693 from asmorkalov:as/handeye_test_4.x"
+        },
+        {
+          "id": "opencv-ordinary-18",
+          "commit": "f347805418235374f54064f36fc8c248bd599e86",
+          "parent": "49c8d21f16e205647fb77535b3d182f14b2debfe",
+          "merge": true,
+          "subject": "Merge pull request #29533 from Aadhu23:fix-29504-clean"
+        },
+        {
+          "id": "opencv-ordinary-19",
+          "commit": "49c8d21f16e205647fb77535b3d182f14b2debfe",
+          "parent": "bbab7da39facfb2a41168d2b81a386ad2a38237b",
+          "merge": true,
+          "subject": "Merge pull request #29674 from karpovantonme:docs/read-options-param"
+        },
+        {
+          "id": "opencv-ordinary-20",
+          "commit": "bbab7da39facfb2a41168d2b81a386ad2a38237b",
+          "parent": "dea9ce421d687c49ec374ff0a4e917c375e5ef89",
+          "merge": true,
+          "subject": "Merge pull request #29563 from developer0hye:agent/msmf-close-event-handle"
+        },
+        {
+          "id": "opencv-ordinary-21",
+          "commit": "dea9ce421d687c49ec374ff0a4e917c375e5ef89",
+          "parent": "d53047927be4a6c879d7cb0180a0df2369c109c5",
+          "merge": false,
+          "subject": "Merge pull request #28517 from asmorkalov:as/charuco_bindings"
+        },
+        {
+          "id": "opencv-ordinary-22",
+          "commit": "d53047927be4a6c879d7cb0180a0df2369c109c5",
+          "parent": "9b1aa94e698df49832b92df4ac831ad543ca9313",
+          "merge": true,
+          "subject": "Merge pull request #29661 from anupamme:fix-repo-opencv-v004-bilateral-filter-integer-overflow"
+        },
+        {
+          "id": "opencv-ordinary-23",
+          "commit": "9b1aa94e698df49832b92df4ac831ad543ca9313",
+          "parent": "77dfa297d08fdecdc509fc01ad92a2e9ec776a57",
+          "merge": false,
+          "subject": "Merge pull request #29623 from Aryan171:fix/features2d-akaze-subsample-overflow"
+        },
+        {
+          "id": "opencv-ordinary-24",
+          "commit": "77dfa297d08fdecdc509fc01ad92a2e9ec776a57",
+          "parent": "59a0461d502c2fb1ef013f99e8dde9817015a798",
+          "merge": true,
+          "subject": "Merge pull request #29640 from yvonnelxxxx/fix/int-overflow-absdiff"
+        },
+        {
+          "id": "opencv-ordinary-25",
+          "commit": "59a0461d502c2fb1ef013f99e8dde9817015a798",
+          "parent": "49ca26154e52194465f7dd1251b86c1dced2aef7",
+          "merge": true,
+          "subject": "Merge pull request #29567 from Adel-Ayoub/fix/tiff-planar-decode"
+        },
+        {
+          "id": "opencv-ordinary-26",
+          "commit": "49ca26154e52194465f7dd1251b86c1dced2aef7",
+          "parent": "3ea443b670db18ae6d2e09146dc218fef9b27a9a",
+          "merge": true,
+          "subject": "Merge pull request #29554 from mvanhorn/fix/29279-ipp-warpaffine-nearest-bitexact"
+        },
+        {
+          "id": "opencv-ordinary-27",
+          "commit": "3ea443b670db18ae6d2e09146dc218fef9b27a9a",
+          "parent": "a21f7a1d1b03254e9e008f81f3e6899fef7998bb",
+          "merge": true,
+          "subject": "Merge pull request #29667 from intel-staging/ipp/iw_build_fix"
+        },
+        {
+          "id": "opencv-ordinary-28",
+          "commit": "a21f7a1d1b03254e9e008f81f3e6899fef7998bb",
+          "parent": "4bee6895ebf48f998ab8cfeccf2b5eb56b9dfa3a",
+          "merge": true,
+          "subject": "Merge pull request #29668 from karpovantonme/docs/memset-param-names"
+        },
+        {
+          "id": "opencv-ordinary-29",
+          "commit": "4bee6895ebf48f998ab8cfeccf2b5eb56b9dfa3a",
+          "parent": "6e82dddfb565ac45828a6f3accccbaf1a1ac4fdf",
+          "merge": true,
+          "subject": "Merge pull request #29643 from uwezkhan/apng-dispose-elem-size"
+        },
+        {
+          "id": "opencv-ordinary-30",
+          "commit": "6e82dddfb565ac45828a6f3accccbaf1a1ac4fdf",
+          "parent": "e35ad60e4e1db55be854df5770f706af65803690",
+          "merge": true,
+          "subject": "Merge pull request #29649 from kaingwade/thead_rvv_check"
+        }
+      ]
+    }
+  }
+}

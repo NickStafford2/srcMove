@@ -1,0 +1,1149 @@
+{
+  "schema_version": 1,
+  "repository": "notepadpp",
+  "anchor": "de0a77ba7f9d0d81f5862f527e8afc2693ce49ff",
+  "reviewer": "AI agent /root/notepad_review; single source reviewer",
+  "detector_blind": true,
+  "review_date": "2026-09-27",
+  "hash_convention": "SHA256 of exact git blob bytes for inclusive one-based lines using bytes.splitlines(keepends=True); preserves CRLF.",
+  "method": "Ordinary: latest 30 first-parent adjacent pairs. Targeted: latest 20 first-parent commits whose messages (including bodies) match case-insensitive whole-word move/extract/reorder/refactor; source-screened without detector output. C/C++ extension inventory includes .c,.cpp,.h,.hpp,.cc,.cxx,.hh,.hxx.",
+  "limitations": [
+    "Single AI reviewer; not human-adjudicated or second-reviewed.",
+    "No outputs read; detector-blind does not make known retained ordinary #13 held out.",
+    "Targeted positive endpoints are a lower-bound inventory; broad refactors and repeated group identity unresolved.",
+    "All confirmed targets are independent smaller constructs; this repository sample establishes no whole-function Type1/Type2 recall denominator.",
+    "Search yielded the desired small-move types, not a representative population sample; do not pool with ordinary history."
+  ],
+  "ordinary": [
+    {
+      "id": "notepadpp-ordinary-01",
+      "parent": "bf5987d337efb44e28933ed107ef64c967baa213",
+      "commit": "de0a77ba7f9d0d81f5862f527e8afc2693ce49ff",
+      "subject": "Fix Notepad++ UIPI Bypass via WM_COPYDATA",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/NppBigSwitch.cpp",
+        "PowerEditor/src/NppNotification.cpp",
+        "PowerEditor/src/winmain.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "All source diff hunks reviewed. Adds sender authentication; removes try/catch wrapper around continuing switch. Unwrapping and stationary SendMessage identifier edits are not independent moves.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-02",
+      "parent": "e52bb94d1ba1b1ec941cc9da9598bf06334fb657",
+      "commit": "bf5987d337efb44e28933ed107ef64c967baa213",
+      "subject": "Fix loading session for alone subview and doc/tab with untitle name",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/NppIO.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed: new condition and initialization change at continuing clonedBuf declaration; no independent relocation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-03",
+      "parent": "e9113542ced88013e887ccd0e56c6aedf8e3246b",
+      "commit": "e52bb94d1ba1b1ec941cc9da9598bf06334fb657",
+      "subject": "Update german.xml",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/german.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-04",
+      "parent": "af5a1baef269127fb02931a63818d1bdcddbdb46",
+      "commit": "e9113542ced88013e887ccd0e56c6aedf8e3246b",
+      "subject": "Add an option to allow loading symlinks in Folder as Workspace",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/Parameters.cpp",
+        "PowerEditor/src/Parameters.h",
+        "PowerEditor/src/WinControls/AboutDlg/AboutDlg.cpp",
+        "PowerEditor/src/WinControls/FileBrowser/fileBrowser.cpp",
+        "PowerEditor/src/WinControls/Preference/preferenceDlg.cpp",
+        "PowerEditor/src/WinControls/Preference/preference_rc.h"
+      ],
+      "excluded_paths": [
+        "PowerEditor/src/Notepad_plus.rc",
+        "PowerEditor/src/WinControls/Preference/preference.rc"
+      ],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed: symlink option additions, same-site condition edit and AboutDlg URL replacement. No independent relocation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-05",
+      "parent": "39419d36a8f7db47cdc51fce755d5a4807edef75",
+      "commit": "af5a1baef269127fb02931a63818d1bdcddbdb46",
+      "subject": "Update to Scintilla 5.6.6 & Lexilla 5.5.3",
+      "merge": false,
+      "changed_source_paths": [
+        "lexilla/lexers/LexProgress.cxx",
+        "scintilla/src/EditModel.cxx",
+        "scintilla/src/EditModel.h",
+        "scintilla/src/Editor.cxx",
+        "scintilla/src/Editor.h",
+        "scintilla/src/Geometry.h",
+        "scintilla/src/Indicator.cxx",
+        "scintilla/src/Indicator.h",
+        "scintilla/src/PositionCache.cxx"
+      ],
+      "excluded_paths": [
+        "PowerEditor/scintilla.original.forUpdating/lexilla553.zip",
+        "PowerEditor/scintilla.original.forUpdating/scintilla566.zip",
+        "lexilla/doc/Lexilla.html",
+        "lexilla/doc/LexillaDownload.html",
+        "lexilla/doc/LexillaHistory.html",
+        "lexilla/src/Lexilla.vcxproj",
+        "lexilla/src/Lexilla/Info.plist",
+        "lexilla/src/Lexilla/Lexilla.xcodeproj/project.pbxproj",
+        "lexilla/src/LexillaVersion.rc",
+        "lexilla/test/examples/progress/annotations.p",
+        "lexilla/test/examples/progress/annotations.p.folded",
+        "lexilla/test/examples/progress/annotations.p.styled",
+        "lexilla/version.txt",
+        "scintilla/cocoa/Scintilla/Info.plist",
+        "scintilla/cocoa/Scintilla/Scintilla.xcodeproj/project.pbxproj",
+        "scintilla/cppcheck.suppress",
+        "scintilla/doc/ScintillaDownload.html",
+        "scintilla/doc/ScintillaHistory.html",
+        "scintilla/doc/index.html",
+        "scintilla/include/Scintilla.iface",
+        "scintilla/qt/ScintillaEdit/ScintillaEdit.pro",
+        "scintilla/qt/ScintillaEditBase/ScintillaEditBase.pro",
+        "scintilla/version.txt",
+        "scintilla/win32/ScintRes.rc"
+      ],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed. Scintilla/lexilla update includes same-site rewrites, new accessors and conversion of constructor initialization to member defaults. No confirmed Type1/Type2 independent move; annotation branches restructure and indicator assignment extraction changes expression structure, not pure name/literal substitution.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-06",
+      "parent": "4f6711674e5a8ce41ac01bededfff8d6e5882676",
+      "commit": "39419d36a8f7db47cdc51fce755d5a4807edef75",
+      "subject": "[xml] Update german.xml",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/german.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-07",
+      "parent": "8315de0a5d0750b3a64f07739e4fc31d6b49f8c5",
+      "commit": "4f6711674e5a8ce41ac01bededfff8d6e5882676",
+      "subject": "Update Turkish localization",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/turkish.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-08",
+      "parent": "65888f0de73f7b8a85866f30729166c8eb118885",
+      "commit": "8315de0a5d0750b3a64f07739e4fc31d6b49f8c5",
+      "subject": "Update Slovak language items for enable/disable",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/slovak.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-09",
+      "parent": "007a23038edc121eddc9d6bacba6af5acf3b0c5e",
+      "commit": "65888f0de73f7b8a85866f30729166c8eb118885",
+      "subject": "Add const for some class methods",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/MISC/Common/verifySignedfile.cpp",
+        "PowerEditor/src/MISC/Common/verifySignedfile.h"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed: const qualifications added to continuing methods/declarations, not relocation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-10",
+      "parent": "9f54785853da953a5dd851ead4ac49b24e190e93",
+      "commit": "007a23038edc121eddc9d6bacba6af5acf3b0c5e",
+      "subject": "Fix outgoing communication while verifying certificat's chain of trust",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/MISC/Common/verifySignedfile.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed: one new flag assignment, no deletion endpoint.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-11",
+      "parent": "10d4f2ef8c124aff2a7f4371e14f1d4b10842fa8",
+      "commit": "9f54785853da953a5dd851ead4ac49b24e190e93",
+      "subject": "Fix eventual crash while loading UDL",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/ScintillaComponent/UserDefineDialog.cpp",
+        "PowerEditor/src/ScintillaComponent/UserDefineDialog.h"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed: same-site bound checks, signature changes and consistent caller updates; no independent relocation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-12",
+      "parent": "e59774add26b0130d38aaf722aceb0259ccc0078",
+      "commit": "10d4f2ef8c124aff2a7f4371e14f1d4b10842fa8",
+      "subject": "Fix a eventual crash on loading a UTF-16 file",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/Utf8_16.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed: bounds checking additions and continuing assignment wrapped in a block; no independent relocation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-13",
+      "parent": "bf9f8b4c9549dadd23f483190dd1e1e4707da3ea",
+      "commit": "e59774add26b0130d38aaf722aceb0259ccc0078",
+      "subject": "Update to Scintilla 5.6.5 & Lexilla 5.5.2",
+      "merge": false,
+      "changed_source_paths": [
+        "lexilla/access/LexillaAccess.cxx",
+        "lexilla/lexers/LexCPP.cxx",
+        "lexilla/lexers/LexHTML.cxx",
+        "lexilla/lexers/LexRuby.cxx",
+        "lexilla/src/Lexilla.cxx",
+        "lexilla/test/TestLexers.cxx",
+        "lexilla/test/examples/cpp/regex.cxx",
+        "scintilla/include/Scintilla.h",
+        "scintilla/include/ScintillaStructures.h",
+        "scintilla/include/ScintillaTypes.h",
+        "scintilla/qt/ScintillaEdit/ScintillaDocument.cpp",
+        "scintilla/qt/ScintillaEdit/ScintillaDocument.h",
+        "scintilla/qt/ScintillaEditBase/ScintillaQt.cpp",
+        "scintilla/qt/ScintillaEditBase/ScintillaQt.h",
+        "scintilla/src/Decoration.cxx",
+        "scintilla/src/Decoration.h",
+        "scintilla/src/Document.cxx",
+        "scintilla/src/Document.h",
+        "scintilla/src/EditModel.h",
+        "scintilla/src/EditView.cxx",
+        "scintilla/src/Editor.cxx",
+        "scintilla/src/Editor.h",
+        "scintilla/src/LineMarker.cxx",
+        "scintilla/src/MarginView.cxx",
+        "scintilla/src/RunStyles.h",
+        "scintilla/src/RunThreads.h",
+        "scintilla/src/Selection.cxx",
+        "scintilla/test/unit/testDocument.cxx",
+        "scintilla/win32/ScintillaWin.cxx"
+      ],
+      "excluded_paths": [
+        "PowerEditor/scintilla.original.forUpdating/lexilla552.zip",
+        "PowerEditor/scintilla.original.forUpdating/scintilla565.zip",
+        "lexilla/cppcheck.suppress",
+        "lexilla/doc/Lexilla.html",
+        "lexilla/doc/LexillaDoc.html",
+        "lexilla/doc/LexillaDownload.html",
+        "lexilla/doc/LexillaHistory.html",
+        "lexilla/src/Lexilla.vcxproj",
+        "lexilla/src/Lexilla/Info.plist",
+        "lexilla/src/Lexilla/Lexilla.xcodeproj/project.pbxproj",
+        "lexilla/src/LexillaVersion.rc",
+        "lexilla/test/examples/cpp/regex.cxx.folded",
+        "lexilla/test/examples/cpp/regex.cxx.styled",
+        "lexilla/test/examples/hypertext/Issue250RegEx.html",
+        "lexilla/test/examples/hypertext/Issue250RegEx.html.folded",
+        "lexilla/test/examples/hypertext/Issue250RegEx.html.styled",
+        "lexilla/version.txt",
+        "lexilla/zipsrc.bat",
+        "scintilla/cocoa/Scintilla/Info.plist",
+        "scintilla/cocoa/Scintilla/Scintilla.xcodeproj/project.pbxproj",
+        "scintilla/cocoa/ScintillaView.mm",
+        "scintilla/cppcheck.suppress",
+        "scintilla/doc/ScintillaDoc.html",
+        "scintilla/doc/ScintillaDownload.html",
+        "scintilla/doc/ScintillaHistory.html",
+        "scintilla/doc/ScintillaRelated.html",
+        "scintilla/doc/index.html",
+        "scintilla/gtk/deps.mak",
+        "scintilla/include/Scintilla.iface",
+        "scintilla/qt/ScintillaEdit/ScintillaEdit.pro",
+        "scintilla/qt/ScintillaEditBase/ScintillaEditBase.pro",
+        "scintilla/scripts/HeaderOrder.txt",
+        "scintilla/version.txt",
+        "scintilla/win32/ScintRes.rc",
+        "scintilla/win32/Scintilla.vcxproj",
+        "scintilla/win32/deps.mak",
+        "scintilla/win32/nmdeps.mak",
+        "scintilla/zipsrc.bat"
+      ],
+      "review_status": "source_reviewed",
+      "review_notes": "All 29 source-file diffs reviewed. Known retained revision; not held out. Three exact declarations reorder across the unchanged timers/FineTicker declarations. Other changes include initializer additions, nodiscard qualifiers, same-site rewrites, moved-and-edited member declarations (initialization adds syntax), repeated thread-launch extraction and wrapper removal. The latter are not uniquely labeled Type1/Type2 pairs. File lexilla/test/examples/cpp/regex.cxx explicitly contains JavaScript despite extension; exclude its contents from C++ labels.",
+      "events": [
+        {
+          "id": "notepadpp-ordinary-13-event-01",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "scintilla/win32/ScintillaWin.cxx",
+            "start_line": 654,
+            "end_line": 654,
+            "text_sha256": "4f6d1d172f7891eecfa8e761c0ee8cb9bddf1083dcee4373b1a9fce9ca0227b8"
+          },
+          "new": {
+            "path": "scintilla/win32/ScintillaWin.cxx",
+            "start_line": 659,
+            "end_line": 659,
+            "text_sha256": "4f6d1d172f7891eecfa8e761c0ee8cb9bddf1083dcee4373b1a9fce9ca0227b8"
+          },
+          "rationale": "Complete method declaration reordered from before timers/FineTicker declarations to after them; continuing signature uniquely identifies endpoint. Count independently, not as moved ScintillaWin class."
+        },
+        {
+          "id": "notepadpp-ordinary-13-event-02",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "scintilla/win32/ScintillaWin.cxx",
+            "start_line": 655,
+            "end_line": 655,
+            "text_sha256": "0efdbce650637cfc1268aecf43278bbea49c4957dbe2731cf7cca85ccf11fa21"
+          },
+          "new": {
+            "path": "scintilla/win32/ScintillaWin.cxx",
+            "start_line": 660,
+            "end_line": 660,
+            "text_sha256": "0efdbce650637cfc1268aecf43278bbea49c4957dbe2731cf7cca85ccf11fa21"
+          },
+          "rationale": "Complete method declaration reordered from before timers/FineTicker declarations to after them; continuing signature uniquely identifies endpoint. Count independently, not as moved ScintillaWin class."
+        },
+        {
+          "id": "notepadpp-ordinary-13-event-03",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "scintilla/win32/ScintillaWin.cxx",
+            "start_line": 656,
+            "end_line": 656,
+            "text_sha256": "4ef76b4028b8ab73a3cd86970c8eea59232cdfdf497b5ed8d83ebf540c60112c"
+          },
+          "new": {
+            "path": "scintilla/win32/ScintillaWin.cxx",
+            "start_line": 658,
+            "end_line": 658,
+            "text_sha256": "4ef76b4028b8ab73a3cd86970c8eea59232cdfdf497b5ed8d83ebf540c60112c"
+          },
+          "rationale": "Complete method declaration reordered from before timers/FineTicker declarations to after them; continuing signature uniquely identifies endpoint. Count independently, not as moved ScintillaWin class."
+        }
+      ],
+      "uncertainties": [],
+      "prior_exposure": "Revision is explicitly identified in canonical retained evidence audit; no detector output inspected by this reviewer."
+    },
+    {
+      "id": "notepadpp-ordinary-14",
+      "parent": "366406ab48893ae6a5f55cf3309eb5e0faa21ab1",
+      "commit": "bf9f8b4c9549dadd23f483190dd1e1e4707da3ea",
+      "subject": "[xml] Update croatian.xml",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/croatian.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-15",
+      "parent": "0b2b8442f319e669aabae3b82ba30b29a98e5a94",
+      "commit": "366406ab48893ae6a5f55cf3309eb5e0faa21ab1",
+      "subject": "[xml] Update czech.xml",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/czech.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-16",
+      "parent": "b8dd0e72bb1041da4b5a78c75c267b120007b6ab",
+      "commit": "0b2b8442f319e669aabae3b82ba30b29a98e5a94",
+      "subject": "Fix potential exposure of Windows login info via UNC path",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/Parameters.cpp",
+        "PowerEditor/src/WinControls/AboutDlg/AboutDlg.cpp",
+        "PowerEditor/src/WinControls/ProjectPanel/ProjectPanel.cpp",
+        "PowerEditor/src/WinControls/ToolBar/ToolBar.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed: new UNC warnings and same-site ToolBar binding refactor. New similar warning code is copying/addition, no source deletion.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-17",
+      "parent": "c647879f8a0238081247c57c0e0ad9ff3dbd2de2",
+      "commit": "b8dd0e72bb1041da4b5a78c75c267b120007b6ab",
+      "subject": "[xml] Update brazilian_portuguese.xml",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/brazilian_portuguese.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-18",
+      "parent": "4d57b8ec637f8931765b6f838ff60884a51b3175",
+      "commit": "c647879f8a0238081247c57c0e0ad9ff3dbd2de2",
+      "subject": "[xml] Update hungarian.xml",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/hungarian.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-19",
+      "parent": "0fdbf4c502a353ac2527d310d3cefc7f095ecd1a",
+      "commit": "4d57b8ec637f8931765b6f838ff60884a51b3175",
+      "subject": "[xml] Update japanese.xml",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/japanese.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-20",
+      "parent": "2ccb9d7abbf4c096d4a109f98c30d7e83fc6cb3f",
+      "commit": "0fdbf4c502a353ac2527d310d3cefc7f095ecd1a",
+      "subject": "Update swedish.xml",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/swedish.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-21",
+      "parent": "1ede41f811847b871cdb245223c81bc33ebd1855",
+      "commit": "2ccb9d7abbf4c096d4a109f98c30d7e83fc6cb3f",
+      "subject": "[xml] Update Bulgarian localization",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/bulgarian.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-22",
+      "parent": "a3fd3597ae221be18b5c14d307e86b17f38196f8",
+      "commit": "1ede41f811847b871cdb245223c81bc33ebd1855",
+      "subject": "[xml] Update russian.xml",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/russian.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-23",
+      "parent": "151e1985156e30656ca6ace1be8324c2ce2cdc35",
+      "commit": "a3fd3597ae221be18b5c14d307e86b17f38196f8",
+      "subject": "[xml] Update Slovak translation",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/slovak.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-24",
+      "parent": "603f7008e0fcf9ad32996c1db9e9b4bc4742c875",
+      "commit": "151e1985156e30656ca6ace1be8324c2ce2cdc35",
+      "subject": "Update italian.xml from 8.8.0 to 8.9.6.4 to match english.xml",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/italian.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-25",
+      "parent": "89f9745483123b042dee152292ab329321b8fcd1",
+      "commit": "603f7008e0fcf9ad32996c1db9e9b4bc4742c875",
+      "subject": "Fix file name being selected while a CJK IME is composing in Save As dialog",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/WinControls/OpenSaveFileDialog/CustomFileDialog.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed: new IME helper and call guards. Existing call gains a conditional wrapper; no independent relocation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-26",
+      "parent": "f85033104f046c9e74b4ca9ee7fd2d9bbb9fba4d",
+      "commit": "89f9745483123b042dee152292ab329321b8fcd1",
+      "subject": "Fix a logic error",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/WinControls/PluginsAdmin/pluginsAdmin.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed: break replaced with return false at same position.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-27",
+      "parent": "15f32ff6a4ef37c2a860c799f478c5c6441ac574",
+      "commit": "f85033104f046c9e74b4ca9ee7fd2d9bbb9fba4d",
+      "subject": "Update localization files",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/english.xml",
+        "PowerEditor/installer/nativeLang/english_customizable.xml",
+        "PowerEditor/installer/nativeLang/french.xml",
+        "PowerEditor/installer/nativeLang/taiwaneseMandarin.xml"
+      ],
+      "review_status": "no_in_scope_source_changes",
+      "review_notes": "Changed-path inventory has no recognized C/C++ files; not a source negative and not a precision/recall observation.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-28",
+      "parent": "9d5eb7e47afc74523a2085ed25467634f6c4adc5",
+      "commit": "15f32ff6a4ef37c2a860c799f478c5c6441ac574",
+      "subject": "Add plugin deactivation ability",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/MISC/PluginsManager/PluginsManager.cpp",
+        "PowerEditor/src/WinControls/PluginsAdmin/pluginsAdmin.cpp",
+        "PowerEditor/src/WinControls/PluginsAdmin/pluginsAdmin.h",
+        "PowerEditor/src/WinControls/PluginsAdmin/pluginsAdminRes.h",
+        "PowerEditor/src/localization.cpp"
+      ],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/english.xml",
+        "PowerEditor/installer/nativeLang/russian.xml",
+        "PowerEditor/src/WinControls/PluginsAdmin/pluginsAdmin.rc"
+      ],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed (including full pluginsAdmin additions). New deactivation helpers copy patterns from retained install helpers. Operation enum relocates private-to-public but also gains enumerators: not whole Type1/Type2. Continuing checkedArray/showButton declarations are unwrapped from a guard, not independently relocated.",
+      "events": [],
+      "uncertainties": []
+    },
+    {
+      "id": "notepadpp-ordinary-29",
+      "parent": "112e6d90e81afd1726a5ca25644a2e088f5416d3",
+      "commit": "9d5eb7e47afc74523a2085ed25467634f6c4adc5",
+      "subject": "Fix potential exposure of Windows login info via UNC path of clickable link",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/MISC/Common/Common.cpp",
+        "PowerEditor/src/MISC/Common/Common.h",
+        "PowerEditor/src/NppNotification.cpp",
+        "PowerEditor/src/Parameters.cpp",
+        "PowerEditor/src/WinControls/AboutDlg/AboutDlg.cpp",
+        "PowerEditor/src/WinControls/AboutDlg/AboutDlg.h",
+        "PowerEditor/src/localization.cpp",
+        "PowerEditor/src/localization.h"
+      ],
+      "excluded_paths": [
+        "PowerEditor/installer/nativeLang/english.xml",
+        "PowerEditor/installer/nativeLang/english_customizable.xml",
+        "PowerEditor/installer/nativeLang/french.xml",
+        "PowerEditor/installer/nativeLang/taiwaneseMandarin.xml",
+        "PowerEditor/src/Notepad_plus.rc"
+      ],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed. Two old always-skip assignments and two old always-load assignments in Parameters.cpp consolidate into one each in AboutDlg.cpp with _nppGUI\u2192nppGUI. Real transfer at group level, but no unique old-to-new identity; withheld from unique-pair recall. NppGUI declaration unwrap also removes const, and changeLang body gains conditional wrapper; no confirmed independent unique Type1/Type2 pair.",
+      "events": [],
+      "uncertainties": [
+        "Two-to-one Type2 consolidations for networkPathAlwaysSkip and networkPathAlwaysLoad; exact individual source identity unresolved. Do not force document-order pairing."
+      ]
+    },
+    {
+      "id": "notepadpp-ordinary-30",
+      "parent": "c9a65d9c9d56b104cd785e658d89b8f7cdffb535",
+      "commit": "112e6d90e81afd1726a5ca25644a2e088f5416d3",
+      "subject": "Fix potential exposure of Windows login info via UNC path in session.xml 2",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/Parameters.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "All source hunks reviewed: additional backup-path warning copies retained source-name warning; no deletion endpoint.",
+      "events": [],
+      "uncertainties": []
+    }
+  ],
+  "targeted_search": [
+    {
+      "id": "notepadpp-search-01",
+      "commit": "e792b20652c4ae1566d4a8f0d6099dd0a33455d9",
+      "parent": "aca2274ca11f48792f5f69cbbc3a689f7dac642a",
+      "subject": "Update german.xml to latest state v8.9.5",
+      "review_status": "screened_not_selected",
+      "selection_reason": "No matching source changes."
+    },
+    {
+      "id": "notepadpp-search-02",
+      "commit": "d5b5e5e1076658212f379e2ce1c2832579e657c0",
+      "parent": "331030ce6673fb0698a9c84e1bf72a28f97043e8",
+      "subject": "Refactor fluent icon color feature code",
+      "review_status": "screened_not_selected",
+      "selection_reason": "Broad cross-file fluent-icon refactor; functions gain qualification/const or other syntax and structs edited. Unchanged carried bodies must not count as independent Type1 targets. Screen only."
+    },
+    {
+      "id": "notepadpp-search-03",
+      "commit": "a1f5405387df3f13d0addef8aba8a7ac5b484848",
+      "parent": "1331002c74ad8b958ea2588e1508a7841626906c",
+      "subject": "Fix SQL Backslash Preference state regression (from v8.7)",
+      "review_status": "selected",
+      "selection_reason": "Selected for exact independently reviewed positive endpoint labels."
+    },
+    {
+      "id": "notepadpp-search-04",
+      "commit": "3d4a53adb48bf60f915e3b0dc9097ed71b000331",
+      "parent": "83755ca15584bddf8e83cffcc8a5c71ce1f594e2",
+      "subject": "Add the ability to hide selected toolbar buttons via a XML conf file",
+      "review_status": "screened_not_selected",
+      "selection_reason": "New toolbar-hide functionality; no independently established transfer."
+    },
+    {
+      "id": "notepadpp-search-05",
+      "commit": "17287d75672b0a54f9428e4898dfd6c3c7d48b3f",
+      "parent": "c2f84143d9a95126e3b646aa2690260f9221f6ef",
+      "subject": "Style Configurator: reorder Global Override style in all themes",
+      "review_status": "screened_not_selected",
+      "selection_reason": "Theme/localization changes only, no matching source."
+    },
+    {
+      "id": "notepadpp-search-06",
+      "commit": "d7ddb6ea3a38646fad61ef4e74add63c9d6eeed2",
+      "parent": "e28324b8d09bd201911043bc74b6b8b10f5e1cb8",
+      "subject": "Enhance UX in \"Find in file\" action while Directory field is empty",
+      "review_status": "screened_not_selected",
+      "selection_reason": "Only focus-control additions."
+    },
+    {
+      "id": "notepadpp-search-07",
+      "commit": "f40df3cdf114d181f2f30754acd58a72eba2cf31",
+      "parent": "de9ffd2ea8507d033f7f111d8b48762f7d3b9436",
+      "subject": "Optimize Scintilla notification code performance",
+      "review_status": "excluded_prior_exposure",
+      "selection_reason": "Parent coordinator verified this revision was previously evaluated; source-screened but excluded from fresh targeted set. No detector artifacts inspected."
+    },
+    {
+      "id": "notepadpp-search-08",
+      "commit": "10ae99e7909ed26b06f55f1edb5396a7acd481a0",
+      "parent": "dc583bf34e253ddbe452f5c9cf92e659ffc505e1",
+      "subject": "Fix unsaved documents lost on next launch if portable npp change path",
+      "review_status": "screened_not_selected",
+      "selection_reason": "Stationary backup-path rewrite."
+    },
+    {
+      "id": "notepadpp-search-09",
+      "commit": "c5094fee8b08e306fb030c14b265edee5c2beff4",
+      "parent": "d9c24ad78f17adc6b16d30111b126b2e7513d8fa",
+      "subject": "Refactoring to move the message definitions to the right place",
+      "review_status": "excluded_prior_exposure",
+      "selection_reason": "Parent coordinator verified this revision was previously evaluated; source-screened but excluded from fresh targeted set. No detector artifacts inspected."
+    },
+    {
+      "id": "notepadpp-search-10",
+      "commit": "e17d77ceab00931a8b2bbcb6cbdc92b095c6d962",
+      "parent": "a16261caaa173689da468d5be66e32866681e152",
+      "subject": "Fix edit zone not getting focus while clicking the active tab",
+      "review_status": "screened_not_selected",
+      "selection_reason": "Conditional wrapper restructuring, not independent move."
+    },
+    {
+      "id": "notepadpp-search-11",
+      "commit": "955b042fcbd4bea93d84cc42eabc30b37c0c53d7",
+      "parent": "bdbd65182c18e79bb5665772c30cdfc8717dcf78",
+      "subject": "Enhance DoubleBuffer and fix the debug assert issue",
+      "review_status": "screened_not_selected",
+      "selection_reason": "DoubleBuffer extraction is broad; whole method signatures change qualification and class is edited; screen only, no forced pure Type1/Type2 whole labels."
+    },
+    {
+      "id": "notepadpp-search-12",
+      "commit": "f2fbeadfea670b0001f3b44e3156fd5022daf71a",
+      "parent": "7a6768b029df2ed8f09004648841fe64a83d6326",
+      "subject": "Refactor docking panel tab bar to improve dpi compatibility",
+      "review_status": "screened_not_selected",
+      "selection_reason": "DPI refactor primarily rewrites same-site drawing logic."
+    },
+    {
+      "id": "notepadpp-search-13",
+      "commit": "49340a87074dfc843c9634285fb14e905b9a24e0",
+      "parent": "106bdcc0164e819cc83f999bd4f95978ecf2f1ea",
+      "subject": "Refactor ShortcutMapper resizing for new dpi compatibility",
+      "review_status": "selected",
+      "selection_reason": "Selected for exact independently reviewed positive endpoint labels."
+    },
+    {
+      "id": "notepadpp-search-14",
+      "commit": "fb086bbcdaadc2b0c434948e0397c8395b6b3a94",
+      "parent": "d0e3a1a210c6a2ea5eb3e92db4c248added8ec9b",
+      "subject": "Fix moving Find dialog to center of Notepad++ bug (new DPI manager)",
+      "review_status": "selected",
+      "selection_reason": "Selected for exact independently reviewed positive endpoint labels."
+    },
+    {
+      "id": "notepadpp-search-15",
+      "commit": "e25e15b9b25afee7f56fe6e02ef4a314468f6d7b",
+      "parent": "71914ed5453c550882929c1ef19ff6b77d80a5ff",
+      "subject": "Refactor 'FindReplaceDlg::resizeDialogElements()' to be more compatible with HiDPI",
+      "review_status": "screened_not_selected",
+      "selection_reason": "Large same-function coordinate rewrite; no selected independently established move."
+    },
+    {
+      "id": "notepadpp-search-16",
+      "commit": "c64d706871d1770793160c047cbcae06f09333d2",
+      "parent": "e53bb4c88fe2e7c253519f3e5b7456f7fe793ec3",
+      "subject": "Fix GCC reorder warning, use override, remove duplicated code",
+      "review_status": "selected",
+      "selection_reason": "Selected for exact independently reviewed positive endpoint labels."
+    },
+    {
+      "id": "notepadpp-search-17",
+      "commit": "560f29fc8c7220a9bbbcab98ea3bfff6213671e5",
+      "parent": "2531b4d12c4eddc6c0a519eb37c6edf25196619e",
+      "subject": "Add dpi support to Style Configurator dialog",
+      "review_status": "selected",
+      "selection_reason": "Selected for exact independently reviewed positive endpoint labels."
+    },
+    {
+      "id": "notepadpp-search-18",
+      "commit": "5b8e13ab9be99f53c4848129ff1422a50012584e",
+      "parent": "fc52cd3f4fff2133d45d4fe4314ffee9bf6b3a99",
+      "subject": "Refactor controls in Find & Replace dialog to improve compatibility with HiDPI",
+      "review_status": "selected",
+      "selection_reason": "Selected for exact independently reviewed positive endpoint labels."
+    },
+    {
+      "id": "notepadpp-search-19",
+      "commit": "2e4ad67dff16269c42eb9e3f9b06fb5bf71bc64a",
+      "parent": "9d848b6a4758c4ea63b364c0c3a1941f0ac77b31",
+      "subject": "Refactor FindFirstFile-FindNextFile code blocks",
+      "review_status": "screened_not_selected",
+      "selection_reason": "Repeated first/next-file loops consolidated and wrapped in do/while; individual origins ambiguous."
+    },
+    {
+      "id": "notepadpp-search-20",
+      "commit": "91074da46d2d0110b151e8d31aeb4b872ebaf77c",
+      "parent": "f09b653d191419b359c31c3ea13d095b56afc366",
+      "subject": "Fix macro recording twice for some commands",
+      "review_status": "screened_not_selected",
+      "selection_reason": "Switch-label routing changes; labels without their bodies are not default statement-sized targets."
+    }
+  ],
+  "targets": [
+    {
+      "id": "notepadpp-target-03",
+      "parent": "1331002c74ad8b958ea2588e1508a7841626906c",
+      "commit": "a1f5405387df3f13d0addef8aba8a7ac5b484848",
+      "subject": "Fix SQL Backslash Preference state regression (from v8.7)",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/WinControls/Preference/preferenceDlg.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed_targeted",
+      "review_notes": "All source hunks reviewed; one cross-function transfer.",
+      "events": [
+        {
+          "id": "notepadpp-target-03-event-01",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/WinControls/Preference/preferenceDlg.cpp",
+            "start_line": 3364,
+            "end_line": 3364,
+            "text_sha256": "363b76a150943abfd5883ca8a52dc3e916fed6a505e9b0d74ead0b89fa7b4a17"
+          },
+          "new": {
+            "path": "PowerEditor/src/WinControls/Preference/preferenceDlg.cpp",
+            "start_line": 3791,
+            "end_line": 3791,
+            "text_sha256": "363b76a150943abfd5883ca8a52dc3e916fed6a505e9b0d74ead0b89fa7b4a17"
+          },
+          "rationale": "SQL checkbox initialization transfers unchanged from IndentationSubDlg::run_dlgProc to LanguageSubDlg::run_dlgProc; old statement deleted and new statement inserted. Parent functions remain in place."
+        }
+      ]
+    },
+    {
+      "id": "notepadpp-target-13",
+      "parent": "106bdcc0164e819cc83f999bd4f95978ecf2f1ea",
+      "commit": "49340a87074dfc843c9634285fb14e905b9a24e0",
+      "subject": "Refactor ShortcutMapper resizing for new dpi compatibility",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/WinControls/Grid/ShortcutMapper.cpp",
+        "PowerEditor/src/WinControls/Grid/ShortcutMapper.h"
+      ],
+      "excluded_paths": [
+        "PowerEditor/src/WinControls/Grid/ShortcutMapper.rc"
+      ],
+      "review_status": "source_reviewed_targeted",
+      "review_notes": "All source hunks reviewed; new resizeDialogElements replaces WM_SIZE body. Two independently identified continuing operations labeled. Other rewritten coordinate logic lacks strict Type1/Type2 identity. Repeated new control declarations and Window::getClientRect calls remain unpaired; labels are targeted, not exhaustive recall oracle.",
+      "events": [
+        {
+          "id": "notepadpp-target-13-event-01",
+          "type": "type2",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/WinControls/Grid/ShortcutMapper.cpp",
+            "start_line": 596,
+            "end_line": 596,
+            "text_sha256": "7f31a818932c0f2a3c4bda068996bf76dadf8bb752aebcd83546926e0eb08cd6"
+          },
+          "new": {
+            "path": "PowerEditor/src/WinControls/Grid/ShortcutMapper.cpp",
+            "start_line": 582,
+            "end_line": 582,
+            "text_sha256": "c10ece722b4aefe16419ec201981863d5b2ce3bb2cf4903706a56d88f2df7be3"
+          },
+          "rationale": "Client-rectangle query transfers from WM_SIZE in run_dlgProc into new resizeDialogElements; rect consistently becomes rcClient for the paired query/resize operations. The continuing initBabyGrid occurrence is not the source."
+        },
+        {
+          "id": "notepadpp-target-13-event-02",
+          "type": "type2",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/WinControls/Grid/ShortcutMapper.cpp",
+            "start_line": 597,
+            "end_line": 597,
+            "text_sha256": "1519562c27f2e66ecb681da0da694ff0d82d474279cb4723b99dc25888d2c980"
+          },
+          "new": {
+            "path": "PowerEditor/src/WinControls/Grid/ShortcutMapper.cpp",
+            "start_line": 583,
+            "end_line": 583,
+            "text_sha256": "fdc1a9c57e2c6e5f2f2af4d15e3ca1ddf98460aae444104656b3c6e8b3b01b55"
+          },
+          "rationale": "Babygrid resize transfers from WM_SIZE in run_dlgProc into new resizeDialogElements; rect becomes rcClient. The earlier initBabyGrid occurrence remains, so pair follows the removed WM_SIZE operation, not textual first occurrence."
+        }
+      ]
+    },
+    {
+      "id": "notepadpp-target-14",
+      "parent": "d0e3a1a210c6a2ea5eb3e92db4c248added8ec9b",
+      "commit": "fb086bbcdaadc2b0c434948e0397c8395b6b3a94",
+      "subject": "Fix moving Find dialog to center of Notepad++ bug (new DPI manager)",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/MISC/md5/md5Dlgs.cpp",
+        "PowerEditor/src/ScintillaComponent/FindReplaceDlg.cpp",
+        "PowerEditor/src/WinControls/AboutDlg/AboutDlg.cpp",
+        "PowerEditor/src/WinControls/StaticDialog/RunDlg/RunDlg.cpp",
+        "PowerEditor/src/WinControls/StaticDialog/StaticDialog.cpp",
+        "PowerEditor/src/WinControls/StaticDialog/StaticDialog.h"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed_targeted",
+      "review_notes": "All source hunks reviewed. DPI rectangle capture reordered and renamed. Repeated goToCenter statements consolidate into one new helper; these do not provide unique individual identity and are not silently negatives.",
+      "events": [
+        {
+          "id": "notepadpp-target-14-event-01",
+          "type": "type2",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/WinControls/AboutDlg/AboutDlg.cpp",
+            "start_line": 384,
+            "end_line": 384,
+            "text_sha256": "7e2d4782e58d1afdb631e655848fc52996eee2d112c7877064048b7fc73bffbb"
+          },
+          "new": {
+            "path": "PowerEditor/src/WinControls/AboutDlg/AboutDlg.cpp",
+            "start_line": 381,
+            "end_line": 381,
+            "text_sha256": "b9d64d99039917c083dc7240596b4ea8ff197e4b0316f29f8313490f68fb81fc"
+          },
+          "rationale": "Within DebugInfoDlg WM_DPICHANGED, rectangle capture changes getClientRect\u2192getWindowRect and crosses the unchanged setPositionDpi(lParam) call. Continuing DPI handler context distinguishes this from deleted initialization-time getClientRect. This is explicit reorder past a call; does not require detector-supported declaration/conditional anchors."
+        }
+      ]
+    },
+    {
+      "id": "notepadpp-target-16",
+      "parent": "e53bb4c88fe2e7c253519f3e5b7456f7fe793ec3",
+      "commit": "c64d706871d1770793160c047cbcae06f09333d2",
+      "subject": "Fix GCC reorder warning, use override, remove duplicated code",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/Notepad_plus_Window.h",
+        "PowerEditor/src/WinControls/ReadDirectoryChanges/ReadDirectoryChangesPrivate.h",
+        "PowerEditor/src/dpiManagerV2.cpp",
+        "PowerEditor/src/dpiManagerV2.h"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed_targeted",
+      "review_notes": "All source hunks reviewed. Three-field reversal uses m_wstrDirectory as source-reviewed stationary reference; two relocated declarations. Deleted loadIcon duplicates an existing DPIManagerV2 helper and is not a new transfer. Single reviewer direction convention needs second-review adjudication.",
+      "events": [
+        {
+          "id": "notepadpp-target-16-event-01",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/WinControls/ReadDirectoryChanges/ReadDirectoryChangesPrivate.h",
+            "start_line": 80,
+            "end_line": 80,
+            "text_sha256": "b47d6ac50ba594fb179a5f0f633be726891acd66d98796b9ce03f60d475dbeb2"
+          },
+          "new": {
+            "path": "PowerEditor/src/WinControls/ReadDirectoryChanges/ReadDirectoryChangesPrivate.h",
+            "start_line": 82,
+            "end_line": 82,
+            "text_sha256": "b47d6ac50ba594fb179a5f0f633be726891acd66d98796b9ce03f60d475dbeb2"
+          },
+          "rationale": "m_dwFilterFlags declaration reverses order relative to both m_wstrDirectory and m_bIncludeChildren; preserve exact declaration endpoint."
+        },
+        {
+          "id": "notepadpp-target-16-event-02",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/WinControls/ReadDirectoryChanges/ReadDirectoryChangesPrivate.h",
+            "start_line": 81,
+            "end_line": 81,
+            "text_sha256": "35198e9e6a7029452c7b6906c8f3dcb8be55d6a4e9619151d5b26b746a4aabe7"
+          },
+          "new": {
+            "path": "PowerEditor/src/WinControls/ReadDirectoryChanges/ReadDirectoryChangesPrivate.h",
+            "start_line": 81,
+            "end_line": 81,
+            "text_sha256": "35198e9e6a7029452c7b6906c8f3dcb8be55d6a4e9619151d5b26b746a4aabe7"
+          },
+          "rationale": "m_bIncludeChildren remains on the same numerical line but reverses order relative to m_wstrDirectory. Reorder labeling convention anchors the unchanged m_wstrDirectory declaration; two declarations formerly preceding it now follow. This is a relative-order event, not a line-shift event."
+        }
+      ]
+    },
+    {
+      "id": "notepadpp-target-17",
+      "parent": "2531b4d12c4eddc6c0a519eb37c6edf25196619e",
+      "commit": "560f29fc8c7220a9bbbcab98ea3bfff6213671e5",
+      "subject": "Add dpi support to Style Configurator dialog",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/WinControls/ColourPicker/ColourPopup.cpp",
+        "PowerEditor/src/WinControls/ColourPicker/ColourPopup.h",
+        "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.cpp",
+        "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.h"
+      ],
+      "excluded_paths": [
+        "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.rc"
+      ],
+      "review_status": "source_reviewed_targeted",
+      "review_notes": "All source hunks reviewed; four extracted continuing cleanup statements. Added DPI behavior and copied color popup wrapper are not moves.",
+      "events": [
+        {
+          "id": "notepadpp-target-17-event-01",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.cpp",
+            "start_line": 254,
+            "end_line": 254,
+            "text_sha256": "ea36bb20fe00128918bbc47b9a13fe1a29b7ff89b46a848a744218233726d717"
+          },
+          "new": {
+            "path": "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.cpp",
+            "start_line": 1227,
+            "end_line": 1227,
+            "text_sha256": "532c5e2239f5aa55f44908c16892b31fd248de9be571d865cae8a8e1114d13dd"
+          },
+          "rationale": "Exact foreground destroy statement extracted from WM_DESTROY branch of run_dlgProc into new WordStyleDlg::destroy. New helper adds null guards and resets. The original handler remains and calls the new helper, so these are independent descendant transfers, not carried children of a whole transferred function."
+        },
+        {
+          "id": "notepadpp-target-17-event-02",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.cpp",
+            "start_line": 255,
+            "end_line": 255,
+            "text_sha256": "1b7b0e4ee837b297cbaa03750f41d8e71c5aba8207a4b0cc482036ef830ee43f"
+          },
+          "new": {
+            "path": "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.cpp",
+            "start_line": 1234,
+            "end_line": 1234,
+            "text_sha256": "1bd69955bf632ff0a27e426cfb413946a8a760893f03e59785cbb44003129ccc"
+          },
+          "rationale": "Exact background destroy statement extracted from WM_DESTROY branch of run_dlgProc into new WordStyleDlg::destroy. New helper adds null guards and resets. The original handler remains and calls the new helper, so these are independent descendant transfers, not carried children of a whole transferred function."
+        },
+        {
+          "id": "notepadpp-target-17-event-03",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.cpp",
+            "start_line": 256,
+            "end_line": 256,
+            "text_sha256": "5e1cd6b08895fdd4b1bdb8d100770126537b7237d776fae8bb8269e60b03855a"
+          },
+          "new": {
+            "path": "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.cpp",
+            "start_line": 1228,
+            "end_line": 1228,
+            "text_sha256": "ddbaede2252908c2cb11b48871096480622489be1a2fa408a7f0fe3dc1f7d52c"
+          },
+          "rationale": "Exact foreground delete statement extracted from WM_DESTROY branch of run_dlgProc into new WordStyleDlg::destroy. New helper adds null guards and resets. The original handler remains and calls the new helper, so these are independent descendant transfers, not carried children of a whole transferred function."
+        },
+        {
+          "id": "notepadpp-target-17-event-04",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.cpp",
+            "start_line": 257,
+            "end_line": 257,
+            "text_sha256": "472cc16d0c50d22b754195e29f89a28932879341fd488a0db3e2adc2b2808838"
+          },
+          "new": {
+            "path": "PowerEditor/src/WinControls/ColourPicker/WordStyleDlg.cpp",
+            "start_line": 1235,
+            "end_line": 1235,
+            "text_sha256": "b08b9f392ae7487d7200844b2cefdd79a39cfb6003d5a678b33df1c2b90b67ee"
+          },
+          "rationale": "Exact background delete statement extracted from WM_DESTROY branch of run_dlgProc into new WordStyleDlg::destroy. New helper adds null guards and resets. The original handler remains and calls the new helper, so these are independent descendant transfers, not carried children of a whole transferred function."
+        }
+      ]
+    },
+    {
+      "id": "notepadpp-target-18",
+      "parent": "fc52cd3f4fff2133d45d4fe4314ffee9bf6b3a99",
+      "commit": "5b8e13ab9be99f53c4848129ff1422a50012584e",
+      "subject": "Refactor controls in Find & Replace dialog to improve compatibility with HiDPI",
+      "merge": false,
+      "changed_source_paths": [
+        "PowerEditor/src/ScintillaComponent/FindReplaceDlg.cpp",
+        "PowerEditor/src/ScintillaComponent/FindReplaceDlg.h"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed_targeted",
+      "review_notes": "All changed hunks inspected, but coordinate refactor is broad; selected clear declaration reorder only. Additional pure transfers were not established; no exhaustive recall claim for this revision.",
+      "events": [
+        {
+          "id": "notepadpp-target-18-event-01",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/ScintillaComponent/FindReplaceDlg.cpp",
+            "start_line": 2377,
+            "end_line": 2377,
+            "text_sha256": "2427445ef28f44a7b3441413d761f72c07472133a645b81ce0586d93d03b6f62"
+          },
+          "new": {
+            "path": "PowerEditor/src/ScintillaComponent/FindReplaceDlg.cpp",
+            "start_line": 2294,
+            "end_line": 2294,
+            "text_sha256": "2427445ef28f44a7b3441413d761f72c07472133a645b81ce0586d93d03b6f62"
+          },
+          "rationale": "Complete dlgT declaration moves upward within resize-toggle case, crossing the continuing if(w == _initialWindowRect.right) conditional and status-bar resize code. Not a mere line shift; other source nearby is rewritten."
+        }
+      ]
+    }
+  ]
+}

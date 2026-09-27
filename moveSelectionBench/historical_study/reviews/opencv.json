@@ -1,0 +1,1150 @@
+{
+  "schema_version": 1,
+  "repository": "opencv",
+  "anchor": "1c59b23c9fe1bf1d41169460914174b295b2635b",
+  "reviewer": "Codex source-only subagent /root/opencv_review",
+  "detector_blind": true,
+  "review_method": "Git source diffs and surrounding source only; no srcMove outputs consulted. One AI reviewer, no human or second blind adjudicator. Inclusion scope is recognized C/C++ changed paths. Whole standalone typedefs/functions/classes/structs are primary units; descendants carried inside edited extraction parents do not become independent positives.",
+  "targeted_search_method": "First 20 first-parent commits starting at anchor~30 whose full commit message matches case-insensitive extended regexp move|refactor|extract. Initial accidental --skip=30 metadata-only log query was not used for diff selection. All 20 selected diffs were screened; complex cases explicitly incomplete.",
+  "endpoint_hash_rule": "SHA-256 of UTF-8 source lines start_line..end_line inclusive, preserving line endings and indentation, including terminal newline when present.",
+  "limitations": [
+    "No confirmed Type2 positive in this OpenCV sample; target quota unmet.",
+    "Four ordinary revisions have incomplete/unresolved source review and cannot supply exhaustive recall or clean-negative claims.",
+    "Targeted selection dominated by correlated IPP extraction campaign; no population accuracy claim.",
+    "Source-screened nonselected targeted revisions are search records, not complete negative oracles.",
+    "Type1 ordinal swap has one event by declared convention; reciprocal swap is not another positive."
+  ],
+  "ordinary": [
+    {
+      "id": "opencv-ordinary-01",
+      "parent": "690f3d25c2367ea085531ce062c9c2beffb2f276",
+      "commit": "1c59b23c9fe1bf1d41169460914174b295b2635b",
+      "subject": "Merge pull request #29680 from Ijtihed:fix/tiff-multichannel-26771-v2",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/imgcodecs/src/grfmt_tiff.cpp",
+        "modules/imgcodecs/test/test_tiff.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "In-place channel validation and conditional wrapping; added regression test. No independent relocation.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-02",
+      "parent": "cc293eaff62cd4f072ca808962a0e279221c13f3",
+      "commit": "690f3d25c2367ea085531ce062c9c2beffb2f276",
+      "subject": "Merge pull request #29071 from zitonwei:fix-masked-ccoeff-normed-constant-template",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgproc/src/templmatch.cpp",
+        "modules/imgproc/test/test_templmatchmask.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Additions only, including constant-template guard and regression test; no deletion endpoint.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-03",
+      "parent": "3621c83f2f6b45db87cd657c550cd6b01ecef63c",
+      "commit": "cc293eaff62cd4f072ca808962a0e279221c13f3",
+      "subject": "Merge pull request #29691 from DPug888:fix-resize-area-channel-limit",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgproc/src/resize.cpp",
+        "modules/imgproc/test/test_imgwarp.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "In-place assertion relaxation and added test; no relocation.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-04",
+      "parent": "eca8ab3038e1700bbe51f98d54723de49ef2a926",
+      "commit": "3621c83f2f6b45db87cd657c550cd6b01ecef63c",
+      "subject": "Merge pull request #29512 from Akansha-977:rectsubpix_IPP_4.x",
+      "merge": false,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/samplers_ipp.cpp",
+        "modules/imgproc/perf/perf_getrectsubpix.cpp",
+        "modules/imgproc/src/hal_replacement.hpp",
+        "modules/imgproc/src/samplers.cpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "source_reviewed",
+      "review_notes": "Sampler IPP extraction to HAL is structurally edited (new signature, return/error handling and argument expressions), not whole Type1/2. Local typedef/minpt/function-pointer declarations are carried coverage of that extraction, not independent descendant events.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-05",
+      "parent": "c3e1b10d3d24d2d46ab670c993fb9a72d20a74c3",
+      "commit": "eca8ab3038e1700bbe51f98d54723de49ef2a926",
+      "subject": "Merge pull request #29720 from amd:imp_jacobisvd",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/core/src/lapack.dispatch.cpp",
+        "modules/core/src/lapack.simd.hpp"
+      ],
+      "excluded_paths": [
+        "modules/core/CMakeLists.txt"
+      ],
+      "review_status": "source_reviewed",
+      "review_notes": "Recognized source changes add two new LAPACK files only; no deleted source endpoint in scope. Copies from unchanged files are not moves.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-06",
+      "parent": "f5cce0bdc4e7ec256f3326709553389df35a1fff",
+      "commit": "c3e1b10d3d24d2d46ab670c993fb9a72d20a74c3",
+      "subject": "Merge pull request #29718 from amd:fast_accumulate_2",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgproc/src/accum.simd.hpp"
+      ],
+      "excluded_paths": [
+        "modules/imgproc/CMakeLists.txt"
+      ],
+      "review_status": "partial_unresolved",
+      "review_notes": "SIMD restructuring/reintroduction. Source diff reviewed; declaration reordering, repeated alternatives and preprocessor branch identity remain unresolved. Not a negative oracle.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-07",
+      "parent": "2eebb803cbb4fb90d83dec0b9f9b8584bcefaa94",
+      "commit": "f5cce0bdc4e7ec256f3326709553389df35a1fff",
+      "subject": "Merge pull request #29717 from asmorkalov:as/mjpeg_disable_test",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/videoio/test/test_ffmpeg.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Platform preprocessor guard wraps continuing test in place.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-08",
+      "parent": "466dff53c25913494a9bcf676e5c7199d8e9bc4f",
+      "commit": "2eebb803cbb4fb90d83dec0b9f9b8584bcefaa94",
+      "subject": "Merge pull request #29709 from Nikhi00718:agent/fix-high-channel-ndarray-4x",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/python/src2/cv2_convert.cpp"
+      ],
+      "excluded_paths": [
+        "modules/python/test/test_mat.py"
+      ],
+      "review_status": "source_reviewed",
+      "review_notes": "In-place boolean condition relaxation.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-09",
+      "parent": "0a17023d1e068774893a1b06def3bf67f9e91e4f",
+      "commit": "466dff53c25913494a9bcf676e5c7199d8e9bc4f",
+      "subject": "Merge pull request #29711 from asmorkalov:revert-29394-fast_accumulate",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/imgproc/src/accum.simd.hpp"
+      ],
+      "excluded_paths": [
+        "modules/imgproc/CMakeLists.txt"
+      ],
+      "review_status": "partial_unresolved",
+      "review_notes": "Revert of ordinary-14 SIMD change. Correlated with ordinary-06/14. Macro branch and repeated-declaration identity unresolved; not a negative oracle.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-10",
+      "parent": "681d3ecd2b589ea15ed6f4d5d9a23f3cdfee25b6",
+      "commit": "0a17023d1e068774893a1b06def3bf67f9e91e4f",
+      "subject": "Merge pull request #29700 from lazerg:fix/issue-29699-ffmpeg-pixfmt-change",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/videoio/src/cap_ffmpeg_impl.hpp",
+        "modules/videoio/test/test_ffmpeg.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "In-place cached pixel-format tracking plus new regression test.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-11",
+      "parent": "52aa8c296145364280590eb0d9e8d1a2f71d774c",
+      "commit": "681d3ecd2b589ea15ed6f4d5d9a23f3cdfee25b6",
+      "subject": "Merge pull request #29695 from Parth1353:fix/26447-cvtcolor-depth-docs",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/imgproc/include/opencv2/imgproc.hpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Documentation comments only.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-12",
+      "parent": "fece2acfbaf83a985b9fcddf942234e10da00999",
+      "commit": "52aa8c296145364280590eb0d9e8d1a2f71d774c",
+      "subject": "Merge pull request #29439 from uwezkhan:gdal-write-pixel-channel-bound",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgcodecs/src/grfmt_gdal.cpp",
+        "modules/imgcodecs/test/test_gdal.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Additions only: GDAL guard and test; no deletion endpoint.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-13",
+      "parent": "c6e84d494cf45db8bae6ed1fe62c996cf7034c4a",
+      "commit": "fece2acfbaf83a985b9fcddf942234e10da00999",
+      "subject": "Merge pull request #28728 from pratham-mcw:calchist-simd-opt",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgproc/src/histogram.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Existing scalar loop gains conditional fallback wrapper after new SIMD path. Restructuring in the same role, not independently displaced code.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-14",
+      "parent": "bfa07fc52a1c7dc2de5819cd0dd6bb286c02a9e0",
+      "commit": "c6e84d494cf45db8bae6ed1fe62c996cf7034c4a",
+      "subject": "Merge pull request #29394 from amd:fast_accumulate",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgproc/src/accum.simd.hpp"
+      ],
+      "excluded_paths": [
+        "modules/imgproc/CMakeLists.txt"
+      ],
+      "review_status": "partial_unresolved",
+      "review_notes": "SIMD optimization with declaration reorder and alternative preprocessor branches. Correlated with ordinary-09 revert and ordinary-06 reintroduction. Movement identity unresolved; not a negative oracle.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-15",
+      "parent": "4afa329a7873caaab477718832837d2b1daa051a",
+      "commit": "bfa07fc52a1c7dc2de5819cd0dd6bb286c02a9e0",
+      "subject": "Merge pull request #29638 from aarochu:feature-medianblur-arbitrary-channels",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgproc/src/median_blur.dispatch.cpp",
+        "modules/imgproc/test/test_filter.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Additions only: median filter path and test; no deletion endpoint.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-16",
+      "parent": "21d60a9afeeb78b6a150ae3419df378e74a4ae21",
+      "commit": "4afa329a7873caaab477718832837d2b1daa051a",
+      "subject": "Merge pull request #29696 from Parth1353:fix/29694-avx512icl-baseline-dispatch",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/core/include/opencv2/core/cv_cpu_dispatch.h",
+        "modules/core/include/opencv2/core/cv_cpu_helper.h",
+        "modules/core/src/lut.dispatch.cpp",
+        "modules/imgproc/src/equalize_hist.dispatch.cpp"
+      ],
+      "excluded_paths": [
+        "cmake/OpenCVCompilerOptimizations.cmake"
+      ],
+      "review_status": "source_reviewed",
+      "review_notes": "Local function bodies replaced by dispatch macros; macro definition additions. No whole Type1/2 transfer identified; macro expansion is not reviewed as source movement.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-17",
+      "parent": "f347805418235374f54064f36fc8c248bd599e86",
+      "commit": "21d60a9afeeb78b6a150ae3419df378e74a4ae21",
+      "subject": "Merge pull request #29693 from asmorkalov:as/handeye_test_4.x",
+      "merge": true,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "modules/calib3d/misc/python/test/test_calibration.py"
+      ],
+      "review_status": "no_source_changes",
+      "review_notes": "No recognized source path changes.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-18",
+      "parent": "49c8d21f16e205647fb77535b3d182f14b2debfe",
+      "commit": "f347805418235374f54064f36fc8c248bd599e86",
+      "subject": "Merge pull request #29533 from Aadhu23:fix-29504-clean",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/videoio/src/cap_ffmpeg_hw.hpp",
+        "modules/videoio/src/cap_ffmpeg_impl.hpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Additions only in FFmpeg hardware code; no deletion endpoint.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-19",
+      "parent": "bbab7da39facfb2a41168d2b81a386ad2a38237b",
+      "commit": "49c8d21f16e205647fb77535b3d182f14b2debfe",
+      "subject": "Merge pull request #29674 from karpovantonme:docs/read-options-param",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/imgcodecs/src/grfmt_base.hpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Documentation parameter name only.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-20",
+      "parent": "dea9ce421d687c49ec374ff0a4e917c375e5ef89",
+      "commit": "bbab7da39facfb2a41168d2b81a386ad2a38237b",
+      "subject": "Merge pull request #29563 from developer0hye:agent/msmf-close-event-handle",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/videoio/src/cap_msmf.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Destructor adds event-handle close; no deleted source endpoint.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-21",
+      "parent": "d53047927be4a6c879d7cb0180a0df2369c109c5",
+      "commit": "dea9ce421d687c49ec374ff0a4e917c375e5ef89",
+      "subject": "Merge pull request #28517 from asmorkalov:as/charuco_bindings",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/objdetect/include/opencv2/objdetect/aruco_board.hpp"
+      ],
+      "excluded_paths": [
+        "modules/objdetect/misc/objc/gen_dict.json"
+      ],
+      "review_status": "source_reviewed",
+      "review_notes": "In-place CV_PROP to CV_WRAP annotations.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-22",
+      "parent": "9b1aa94e698df49832b92df4ac831ad543ca9313",
+      "commit": "d53047927be4a6c879d7cb0180a0df2369c109c5",
+      "subject": "Merge pull request #29661 from anupamme:fix-repo-opencv-v004-bilateral-filter-integer-overflow",
+      "merge": true,
+      "changed_source_paths": [
+        "hal/ndsrvp/src/bilateralFilter.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "In-place arithmetic widening cast.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-23",
+      "parent": "77dfa297d08fdecdc509fc01ad92a2e9ec776a57",
+      "commit": "9b1aa94e698df49832b92df4ac831ad543ca9313",
+      "subject": "Merge pull request #29623 from Aryan171:fix/features2d-akaze-subsample-overflow",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/features2d/src/kaze/AKAZEFeatures.cpp",
+        "modules/features2d/test/test_akaze.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Unrolled channel assignments become loop, with regression test addition. Same role, structural rewrite, no independent transfer.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-24",
+      "parent": "59a0461d502c2fb1ef013f99e8dde9817015a798",
+      "commit": "77dfa297d08fdecdc509fc01ad92a2e9ec776a57",
+      "subject": "Merge pull request #29640 from yvonnelxxxx/fix/int-overflow-absdiff",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/core/include/opencv2/core.hpp",
+        "modules/core/src/arithm.simd.hpp",
+        "modules/core/test/test_arithm.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Comment change plus added integer absdiff specialization and test.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-25",
+      "parent": "49ca26154e52194465f7dd1251b86c1dced2aef7",
+      "commit": "59a0461d502c2fb1ef013f99e8dde9817015a798",
+      "subject": "Merge pull request #29567 from Adel-Ayoub/fix/tiff-planar-decode",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/imgcodecs/src/grfmt_tiff.cpp",
+        "modules/imgcodecs/test/test_tiff.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "partial_unresolved",
+      "review_notes": "TIFF implementation expansion; deleted expressions are replaced in place. Large addition includes new helper/test code. Review is incomplete for all newly introduced correspondence alternatives; not an exhaustive negative oracle.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-26",
+      "parent": "3ea443b670db18ae6d2e09146dc218fef9b27a9a",
+      "commit": "49ca26154e52194465f7dd1251b86c1dced2aef7",
+      "subject": "Merge pull request #29554 from mvanhorn/fix/29279-ipp-warpaffine-nearest-bitexact",
+      "merge": true,
+      "changed_source_paths": [
+        "hal/ipp/src/warp_ipp.cpp",
+        "modules/imgproc/test/test_imgwarp.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "In-place IPP table literals changed, plus regression test addition.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-27",
+      "parent": "a21f7a1d1b03254e9e008f81f3e6899fef7998bb",
+      "commit": "3ea443b670db18ae6d2e09146dc218fef9b27a9a",
+      "subject": "Merge pull request #29667 from intel-staging/ipp/iw_build_fix",
+      "merge": true,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "cmake/OpenCVFindIPPIW.cmake"
+      ],
+      "review_status": "no_source_changes",
+      "review_notes": "No recognized source path changes.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-28",
+      "parent": "4bee6895ebf48f998ab8cfeccf2b5eb56b9dfa3a",
+      "commit": "a21f7a1d1b03254e9e008f81f3e6899fef7998bb",
+      "subject": "Merge pull request #29668 from karpovantonme/docs/memset-param-names",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/dnn/src/cuda4dnn/csl/memory.hpp",
+        "modules/dnn/src/cuda4dnn/csl/pointer.hpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Documentation parameter annotations only.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-29",
+      "parent": "6e82dddfb565ac45828a6f3accccbaf1a1ac4fdf",
+      "commit": "4bee6895ebf48f998ab8cfeccf2b5eb56b9dfa3a",
+      "subject": "Merge pull request #29643 from uwezkhan/apng-dispose-elem-size",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/imgcodecs/src/grfmt_png.cpp",
+        "modules/imgcodecs/test/test_animation.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "In-place element-size correction and added regression test; loop wrapper addition is restructuring.",
+      "events": []
+    },
+    {
+      "id": "opencv-ordinary-30",
+      "parent": "e35ad60e4e1db55be854df5770f706af65803690",
+      "commit": "6e82dddfb565ac45828a6f3accccbaf1a1ac4fdf",
+      "subject": "Merge pull request #29649 from kaingwade/thead_rvv_check",
+      "merge": true,
+      "changed_source_paths": [
+        "cmake/checks/cpu_rvv.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_reviewed",
+      "review_notes": "Preprocessor feature check in place.",
+      "events": []
+    }
+  ],
+  "targeted_search": [
+    {
+      "id": "opencv-targeted-01",
+      "parent": "f42fa7b214df34d5de52020bef5c37ea7f673a50",
+      "commit": "e35ad60e4e1db55be854df5770f706af65803690",
+      "subject": "Merge pull request #29544 from xi-guo-0/core-optimize-extract-channel-8uc2",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/core/perf/perf_split.cpp",
+        "modules/core/src/channels.cpp",
+        "modules/core/test/test_operations.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_screened",
+      "review_notes": "Addition-only extract-channel optimization, not relocation."
+    },
+    {
+      "id": "opencv-targeted-02",
+      "parent": "1bea199e008070b3256d60854511682c9b102470",
+      "commit": "e6b1ef272ebe4fb9f2e3b6c3b7020e915dc3e812",
+      "subject": "Merge pull request #29511 from Akansha-977:histogram_IPP_4.x",
+      "merge": true,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/histogram_ipp.cpp",
+        "hal/ipp/src/precomp_ipp.hpp",
+        "modules/imgproc/src/histogram.cpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "positive_targets_reviewed",
+      "review_notes": "Selected: whole exact helper function, TLS class, and standalone typedef transfer; edited parallel class and ipp_calchist have carried coverage only.",
+      "selected_target_id": "opencv-targeted-02"
+    },
+    {
+      "id": "opencv-targeted-03",
+      "parent": "be4ef205b10de3d0748cf6474a6bda1168e63b61",
+      "commit": "b41dd0fdfff2d196c59e0434caff8d92e7ce4ade",
+      "subject": "Merge pull request #29491 from Akansha-977:threshold_IPP_4.x",
+      "merge": true,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/threshold_ipp.cpp",
+        "modules/imgproc/src/thresh.cpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "source_screened",
+      "review_notes": "Threshold HAL consolidation structurally rewrites control/returns and merges three old routines; no whole Type1/2 target."
+    },
+    {
+      "id": "opencv-targeted-04",
+      "parent": "7230c1ce0872196e760907c0f9c8dbdaa955ed21",
+      "commit": "b022a9b321f606cd70b5c6cef8f4f4a4d01c0364",
+      "subject": "Merge pull request #29434 from Prasadayus:canny_ipp_extract",
+      "merge": false,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/canny_ipp.cpp",
+        "modules/core/include/opencv2/core/private.hpp",
+        "modules/imgproc/src/canny.cpp",
+        "modules/imgproc/src/hal_replacement.hpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "source_screened",
+      "review_notes": "Canny HAL extraction splits and edits original routine; no whole Type1/2 target. Macro-definition transfer is outside construct scope."
+    },
+    {
+      "id": "opencv-targeted-05",
+      "parent": "93cd614472d62044f61fb4da78476b316a06bbed",
+      "commit": "7230c1ce0872196e760907c0f9c8dbdaa955ed21",
+      "subject": "Merge pull request #29464 from Akansha-977:templatematch_IPP_4.x",
+      "merge": false,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/matchtemplate_ipp.cpp",
+        "modules/imgproc/src/hal_replacement.hpp",
+        "modules/imgproc/src/templmatch.cpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "positive_targets_reviewed",
+      "review_notes": "Selected: standalone exact function-pointer typedef transfers. Worker functions add/remove statements, so their unchanged children are coverage, not independent events.",
+      "selected_target_id": "opencv-targeted-05"
+    },
+    {
+      "id": "opencv-targeted-06",
+      "parent": "aa70c82ebe8317383af5ee2dbf76fe0e60de642d",
+      "commit": "d48bf69f65444a13f8a34b8982b083c1b78fa0e8",
+      "subject": "Merge pull request #29455 from anushkagupta200615-jpg:fix-issue-29452",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/core/src/hal_internal.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_screened",
+      "review_notes": "Include deletion and newline repair; no source construct move."
+    },
+    {
+      "id": "opencv-targeted-07",
+      "parent": "e6d0c0340b1a0d44a4f7e965f7d29f36bd96162e",
+      "commit": "c77286749ae8daff65b5dfa1f4d0608c613174ea",
+      "subject": "Merge pull request #29420 from Prasadayus:box_filter_ipp_extract",
+      "merge": false,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/box_filter_ipp.cpp",
+        "modules/imgproc/src/box_filter.dispatch.cpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "source_screened",
+      "review_notes": "Edited disabled box-filter extraction. New helpers copied from unchanged core headers are not move positives."
+    },
+    {
+      "id": "opencv-targeted-08",
+      "parent": "28a1d0dddb79ecd4e05a62d4f746328c109fa5f3",
+      "commit": "83ee55fcda91832ea98c34de9eff46e2d99f2d7e",
+      "subject": "Merge pull request #29417 from intel-staging:deriv_hal",
+      "merge": true,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/deriv_ipp.cpp",
+        "modules/imgproc/src/deriv.cpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "source_screened",
+      "review_notes": "Derivative HAL extraction substantially edits signature/body and introduces helper copies; no whole Type1/2 target."
+    },
+    {
+      "id": "opencv-targeted-09",
+      "parent": "3c10324630381b1ab39490bc5bdf3e8b14956be3",
+      "commit": "37f3c7539b30fb5b124f750658f3ca79551f9518",
+      "subject": "Merge pull request #29252 from JonasPerolini:pr-aruco-bit-threshold-in-refine",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/objdetect/include/opencv2/objdetect/aruco_dictionary.hpp",
+        "modules/objdetect/src/aruco/aruco_detector.cpp",
+        "modules/objdetect/src/aruco/aruco_dictionary.cpp",
+        "modules/objdetect/test/test_boarddetection.cpp"
+      ],
+      "excluded_paths": [
+        "modules/objdetect/misc/python/test/test_objdetect_aruco.py"
+      ],
+      "review_status": "source_screened",
+      "review_notes": "Dictionary extraction substantially edits two sections; possible smaller independent identity is not exhaustively adjudicated."
+    },
+    {
+      "id": "opencv-targeted-10",
+      "parent": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "commit": "dd541965e9fc406f03cd6b56f1d62ecfc6cac4ab",
+      "subject": "Merge pull request #29397 from Prasadayus:cvtcolor_ipp_extract",
+      "merge": true,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/color_ipp.cpp",
+        "hal/ipp/src/precomp_ipp.hpp",
+        "modules/imgproc/src/color.hpp",
+        "modules/imgproc/src/color_hsv.dispatch.cpp",
+        "modules/imgproc/src/color_lab.cpp",
+        "modules/imgproc/src/color_rgb.dispatch.cpp",
+        "modules/imgproc/src/color_yuv.dispatch.cpp",
+        "modules/imgproc/src/hal_replacement.hpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "positive_targets_reviewed",
+      "review_notes": "Selected: exact standalone typedefs and whole functor structs transfer across files. Qualified-name additions in other functors are structural token changes and are not forced into Type2; their members are carried coverage. Remaining large extraction is not exhaustively adjudicated.",
+      "selected_target_id": "opencv-targeted-10"
+    },
+    {
+      "id": "opencv-targeted-11",
+      "parent": "416e730a61cf32a99a3005068dc5418361b62ee4",
+      "commit": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "subject": "Merge pull request #29346 from Ijtihed:fix/flann-heap-pool-tls",
+      "merge": true,
+      "changed_source_paths": [
+        "modules/flann/include/opencv2/flann/hierarchical_clustering_index.h",
+        "modules/flann/include/opencv2/flann/kdtree_index.h",
+        "modules/flann/include/opencv2/flann/kmeans_index.h",
+        "modules/flann/test/test_heap.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_screened",
+      "review_notes": "In-place thread-local heap replacement and added tests."
+    },
+    {
+      "id": "opencv-targeted-12",
+      "parent": "577f395bee405986dc145e9eb8fd928ef5636d98",
+      "commit": "15367f7c52208c7107216c27e36207ba8188a016",
+      "subject": "Merge pull request #29374 from Akansha-977:Resize_IPP_4.x",
+      "merge": true,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/resize_ipp.cpp",
+        "modules/imgproc/src/resize.cpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "source_screened",
+      "review_notes": "Resize classes transfer but remove instrumentation and add qualifications; larger HAL function changes structurally. Unchanged children are carried coverage."
+    },
+    {
+      "id": "opencv-targeted-13",
+      "parent": "837f715eec60b09afd3586eca999d8c645650594",
+      "commit": "853ee9b96114f279630508b9f46be8ded6e8865e",
+      "subject": "Merge pull request #29329 from JonasPerolini:get-border-errors-once",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/objdetect/src/aruco/aruco_detector.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_screened",
+      "review_notes": "In-place border-error algorithm rewrite; no pure renamed move identified."
+    },
+    {
+      "id": "opencv-targeted-14",
+      "parent": "017a5138d1dade9b1829b246de0c8a4ed22c2eb3",
+      "commit": "41d48d6eebc8da5f77a0e6d2cd84e885fe2d7ee6",
+      "subject": "Merge pull request #29306 from asmorkalov:as/more_ipp_core",
+      "merge": true,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_core.hpp",
+        "hal/ipp/src/math_ipp.cpp",
+        "modules/core/src/mathfuncs_core.dispatch.cpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "source_screened",
+      "review_notes": "Math HAL extraction changes macro-wrapped expressions into declarations and new control flow; no complete Type1/2 target."
+    },
+    {
+      "id": "opencv-targeted-15",
+      "parent": "fa55ed2837bbf44e0d4463b64b200a9079d2e6d0",
+      "commit": "cadcb7e4e0a04867a0996a35c62960de8aa6da47",
+      "subject": "Merge pull request #29059 from ZNNAXLRQ:Project4_ZHUWanqi",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgproc/src/hough.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_screened",
+      "review_notes": "Hough serial path gains enclosing conditional; parallel path added. Structural wrapping, not independent movement."
+    },
+    {
+      "id": "opencv-targeted-16",
+      "parent": "1780a860756173c2b26adfb1e22f2109428d1346",
+      "commit": "ffa38e1b74654a78c17f65a992adeb60953b1d53",
+      "subject": "Merge pull request #29194 from Enilrats:opt-emd-performance",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgproc/perf/perf_emd.cpp",
+        "modules/imgproc/src/emd_new.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_screened",
+      "review_notes": "EMD linked-list algorithm rewritten to queues. Possible smaller correspondences remain unadjudicated; not a negative oracle."
+    },
+    {
+      "id": "opencv-targeted-17",
+      "parent": "c22a2b25a1d8ede57da8359a076af192e37f1077",
+      "commit": "8bc22eba5946100e9b2470c60939c3f2588c28d7",
+      "subject": "Merge pull request #29173 from s-trinh:add_parallel_for_tuto_link",
+      "merge": false,
+      "changed_source_paths": [],
+      "excluded_paths": [
+        "doc/tutorials/core/adding_images/adding_images.markdown",
+        "doc/tutorials/core/basic_linear_transform/basic_linear_transform.markdown",
+        "doc/tutorials/core/file_input_output_with_xml_yml/file_input_output_with_xml_yml.markdown",
+        "doc/tutorials/core/how_to_use_OpenCV_parallel_for_/how_to_use_OpenCV_parallel_for_.markdown",
+        "doc/tutorials/core/how_to_use_OpenCV_parallel_for_new/how_to_use_OpenCV_parallel_for_new.markdown",
+        "doc/tutorials/core/table_of_content_core.markdown",
+        "doc/tutorials/imgproc/gausian_median_blur_bilateral_filter/gausian_median_blur_bilateral_filter.markdown"
+      ],
+      "review_status": "source_screened",
+      "review_notes": "No recognized source changes."
+    },
+    {
+      "id": "opencv-targeted-18",
+      "parent": "dd214962a5dd98658436b5d31160d1d250dfc9ad",
+      "commit": "ffd0cf49a71b9c2c65c371610d3e2f365db85d2d",
+      "subject": "Merge pull request #28667 from jules-ai:jules_fix_jpeg_sampling_factor",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgcodecs/src/grfmt_jpeg.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "positive_targets_reviewed",
+      "review_notes": "Selected: vertical sampling assignment crosses horizontal assignment; other sampling assignments change in place.",
+      "selected_target_id": "opencv-targeted-18"
+    },
+    {
+      "id": "opencv-targeted-19",
+      "parent": "f28a52398eaa062ff2072a3a12ca2a2179c39508",
+      "commit": "01b23a0de5ccc738dc84d5fd2544c3e6f1d6a014",
+      "subject": "Merge pull request #29080 from kevinylin88:project4_kevinlin",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/core/include/opencv2/core/hal/intrin_rvv_scalable.hpp",
+        "modules/core/src/matmul.simd.hpp",
+        "modules/core/test/test_intrin_utils.hpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_screened",
+      "review_notes": "In-place RVV algorithm rewrite and test loop activation; no independent relocation identified."
+    },
+    {
+      "id": "opencv-targeted-20",
+      "parent": "4b031345f0c49b183d5e2b849188572984d44e10",
+      "commit": "da11697f8ce7f7168a35cac1c65ed1a7ce21c69a",
+      "subject": "Merge pull request #28938 from Shengyu-Wu:feat/fast-rvv",
+      "merge": false,
+      "changed_source_paths": [
+        "hal/riscv-rvv/src/features2d/fast.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "source_screened",
+      "review_notes": "FAST RVV substantial algorithm rewrite; source screening only, no exhaustive identity review."
+    }
+  ],
+  "targets": [
+    {
+      "id": "opencv-targeted-02",
+      "parent": "1bea199e008070b3256d60854511682c9b102470",
+      "commit": "e6b1ef272ebe4fb9f2e3b6c3b7020e915dc3e812",
+      "subject": "Merge pull request #29511 from Akansha-977:histogram_IPP_4.x",
+      "merge": true,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/histogram_ipp.cpp",
+        "hal/ipp/src/precomp_ipp.hpp",
+        "modules/imgproc/src/histogram.cpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "positive_targets_reviewed",
+      "review_notes": "Selected: whole exact helper function, TLS class, and standalone typedef transfer; edited parallel class and ipp_calchist have carried coverage only.",
+      "events": [
+        {
+          "id": "opencv-targeted-02-event-1",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "typedef",
+          "old": {
+            "path": "modules/imgproc/src/histogram.cpp",
+            "start_line": 693,
+            "end_line": 694,
+            "text_sha256": "7063ec976a73669270d155e957d7e7791566f34ea96f8659353533f40356b371"
+          },
+          "new": {
+            "path": "hal/ipp/src/histogram_ipp.cpp",
+            "start_line": 23,
+            "end_line": 24,
+            "text_sha256": "7063ec976a73669270d155e957d7e7791566f34ea96f8659353533f40356b371"
+          },
+          "rationale": "The complete standalone typedef continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        },
+        {
+          "id": "opencv-targeted-02-event-2",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "function",
+          "old": {
+            "path": "modules/imgproc/src/histogram.cpp",
+            "start_line": 696,
+            "end_line": 705,
+            "text_sha256": "b3c5a1e6decb48a31728110266de727f4e995b7d533af70849bef51c17343dc8"
+          },
+          "new": {
+            "path": "hal/ipp/src/histogram_ipp.cpp",
+            "start_line": 26,
+            "end_line": 35,
+            "text_sha256": "b3c5a1e6decb48a31728110266de727f4e995b7d533af70849bef51c17343dc8"
+          },
+          "rationale": "The complete standalone function continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        },
+        {
+          "id": "opencv-targeted-02-event-3",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "class",
+          "old": {
+            "path": "modules/imgproc/src/histogram.cpp",
+            "start_line": 707,
+            "end_line": 715,
+            "text_sha256": "18f17109ea6947dbe6b5869823b9d0a462b99e36f8a045e2c4845a7d954cd8d4"
+          },
+          "new": {
+            "path": "hal/ipp/src/histogram_ipp.cpp",
+            "start_line": 37,
+            "end_line": 45,
+            "text_sha256": "18f17109ea6947dbe6b5869823b9d0a462b99e36f8a045e2c4845a7d954cd8d4"
+          },
+          "rationale": "The complete standalone class continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        }
+      ]
+    },
+    {
+      "id": "opencv-targeted-05",
+      "parent": "93cd614472d62044f61fb4da78476b316a06bbed",
+      "commit": "7230c1ce0872196e760907c0f9c8dbdaa955ed21",
+      "subject": "Merge pull request #29464 from Akansha-977:templatematch_IPP_4.x",
+      "merge": false,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/matchtemplate_ipp.cpp",
+        "modules/imgproc/src/hal_replacement.hpp",
+        "modules/imgproc/src/templmatch.cpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "positive_targets_reviewed",
+      "review_notes": "Selected: standalone exact function-pointer typedef transfers. Worker functions add/remove statements, so their unchanged children are coverage, not independent events.",
+      "events": [
+        {
+          "id": "opencv-targeted-05-event-1",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "typedef",
+          "old": {
+            "path": "modules/imgproc/src/templmatch.cpp",
+            "start_line": 1041,
+            "end_line": 1041,
+            "text_sha256": "788a952f9cf9826b94558aa263701e8f6fad8a879c4dd8dd64ba488d7d6628ac"
+          },
+          "new": {
+            "path": "hal/ipp/src/matchtemplate_ipp.cpp",
+            "start_line": 22,
+            "end_line": 22,
+            "text_sha256": "788a952f9cf9826b94558aa263701e8f6fad8a879c4dd8dd64ba488d7d6628ac"
+          },
+          "rationale": "The complete standalone typedef continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        }
+      ]
+    },
+    {
+      "id": "opencv-targeted-10",
+      "parent": "da4a417b2a2f0de4e761f3328bcd7f040e6da345",
+      "commit": "dd541965e9fc406f03cd6b56f1d62ecfc6cac4ab",
+      "subject": "Merge pull request #29397 from Prasadayus:cvtcolor_ipp_extract",
+      "merge": true,
+      "changed_source_paths": [
+        "hal/ipp/include/ipp_hal_imgproc.hpp",
+        "hal/ipp/src/color_ipp.cpp",
+        "hal/ipp/src/precomp_ipp.hpp",
+        "modules/imgproc/src/color.hpp",
+        "modules/imgproc/src/color_hsv.dispatch.cpp",
+        "modules/imgproc/src/color_lab.cpp",
+        "modules/imgproc/src/color_rgb.dispatch.cpp",
+        "modules/imgproc/src/color_yuv.dispatch.cpp",
+        "modules/imgproc/src/hal_replacement.hpp"
+      ],
+      "excluded_paths": [
+        "hal/ipp/CMakeLists.txt"
+      ],
+      "review_status": "positive_targets_reviewed",
+      "review_notes": "Selected: exact standalone typedefs and whole functor structs transfer across files. Qualified-name additions in other functors are structural token changes and are not forced into Type2; their members are carried coverage. Remaining large extraction is not exhaustively adjudicated.",
+      "events": [
+        {
+          "id": "opencv-targeted-10-event-1",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "typedef",
+          "old": {
+            "path": "modules/imgproc/src/color.hpp",
+            "start_line": 350,
+            "end_line": 350,
+            "text_sha256": "e4162a89926a7e4d4534e0698cbdd607c38eacea61386cb8676a7b18490285ce"
+          },
+          "new": {
+            "path": "hal/ipp/src/color_ipp.cpp",
+            "start_line": 33,
+            "end_line": 33,
+            "text_sha256": "e4162a89926a7e4d4534e0698cbdd607c38eacea61386cb8676a7b18490285ce"
+          },
+          "rationale": "The complete standalone typedef continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        },
+        {
+          "id": "opencv-targeted-10-event-2",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "typedef",
+          "old": {
+            "path": "modules/imgproc/src/color.hpp",
+            "start_line": 351,
+            "end_line": 351,
+            "text_sha256": "a435fde3d43d5cfcb00e899d55b57c1bd06ad811af9ec9050321712c8f840afd"
+          },
+          "new": {
+            "path": "hal/ipp/src/color_ipp.cpp",
+            "start_line": 31,
+            "end_line": 31,
+            "text_sha256": "a435fde3d43d5cfcb00e899d55b57c1bd06ad811af9ec9050321712c8f840afd"
+          },
+          "rationale": "The complete standalone typedef continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        },
+        {
+          "id": "opencv-targeted-10-event-3",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "typedef",
+          "old": {
+            "path": "modules/imgproc/src/color.hpp",
+            "start_line": 352,
+            "end_line": 352,
+            "text_sha256": "72730ecaf5107849141451a1365de00a22c4b7a1c783735c8359da9757b5a555"
+          },
+          "new": {
+            "path": "hal/ipp/src/color_ipp.cpp",
+            "start_line": 32,
+            "end_line": 32,
+            "text_sha256": "72730ecaf5107849141451a1365de00a22c4b7a1c783735c8359da9757b5a555"
+          },
+          "rationale": "The complete standalone typedef continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        },
+        {
+          "id": "opencv-targeted-10-event-4",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "struct",
+          "old": {
+            "path": "modules/imgproc/src/color.hpp",
+            "start_line": 420,
+            "end_line": 429,
+            "text_sha256": "c805cf70b8e54ba3bce0f4eb9cee1f4c3c0f22f11c2eb6f97069f514b135e9b9"
+          },
+          "new": {
+            "path": "hal/ipp/src/color_ipp.cpp",
+            "start_line": 116,
+            "end_line": 125,
+            "text_sha256": "c805cf70b8e54ba3bce0f4eb9cee1f4c3c0f22f11c2eb6f97069f514b135e9b9"
+          },
+          "rationale": "The complete standalone struct continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        },
+        {
+          "id": "opencv-targeted-10-event-5",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "struct",
+          "old": {
+            "path": "modules/imgproc/src/color.hpp",
+            "start_line": 432,
+            "end_line": 448,
+            "text_sha256": "ca0566422059f3ee55ed97b2f0c377447e8f987b7aa4af69277e6009843fc90d"
+          },
+          "new": {
+            "path": "hal/ipp/src/color_ipp.cpp",
+            "start_line": 127,
+            "end_line": 143,
+            "text_sha256": "ca0566422059f3ee55ed97b2f0c377447e8f987b7aa4af69277e6009843fc90d"
+          },
+          "rationale": "The complete standalone struct continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        },
+        {
+          "id": "opencv-targeted-10-event-6",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "struct",
+          "old": {
+            "path": "modules/imgproc/src/color_rgb.dispatch.cpp",
+            "start_line": 76,
+            "end_line": 92,
+            "text_sha256": "67208eb3d232abdd2bcaf20f3b0182dc435ae03d8864f99a3bdd2736704b9d33"
+          },
+          "new": {
+            "path": "hal/ipp/src/color_ipp.cpp",
+            "start_line": 201,
+            "end_line": 216,
+            "text_sha256": "0b173065f690f093f7b1aa85426ad557de5c8a3902749c259508c55862701fd3"
+          },
+          "rationale": "The complete standalone struct continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        },
+        {
+          "id": "opencv-targeted-10-event-7",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "template_struct",
+          "old": {
+            "path": "modules/imgproc/src/color_rgb.dispatch.cpp",
+            "start_line": 94,
+            "end_line": 103,
+            "text_sha256": "92d14de68d41baff724bfe9f6bd14eb9aa308695b476f3e6b6d4f8996fb2af24"
+          },
+          "new": {
+            "path": "hal/ipp/src/color_ipp.cpp",
+            "start_line": 246,
+            "end_line": 254,
+            "text_sha256": "4590b1ab30983fa3358621660f26e584b018cfb440d7be47f4ba333bcc444c28"
+          },
+          "rationale": "The complete standalone template_struct continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        },
+        {
+          "id": "opencv-targeted-10-event-8",
+          "type": "type1",
+          "scope": "whole_construct",
+          "parent_event": null,
+          "construct_kind": "template_struct",
+          "old": {
+            "path": "modules/imgproc/src/color_rgb.dispatch.cpp",
+            "start_line": 105,
+            "end_line": 119,
+            "text_sha256": "de01dd630dcee101b2035398ec402b8efa4572d736f84975d5e89cbcdae69218"
+          },
+          "new": {
+            "path": "hal/ipp/src/color_ipp.cpp",
+            "start_line": 256,
+            "end_line": 268,
+            "text_sha256": "9deb1ef0a568f4fb734f017a545c5ae872f058359c738a9e60449c734209c777"
+          },
+          "rationale": "The complete standalone template_struct continues with the same name and code across files; formatting-only differences ignored. No contained member or statement receives a separate event."
+        }
+      ]
+    },
+    {
+      "id": "opencv-targeted-18",
+      "parent": "dd214962a5dd98658436b5d31160d1d250dfc9ad",
+      "commit": "ffd0cf49a71b9c2c65c371610d3e2f365db85d2d",
+      "subject": "Merge pull request #28667 from jules-ai:jules_fix_jpeg_sampling_factor",
+      "merge": false,
+      "changed_source_paths": [
+        "modules/imgcodecs/src/grfmt_jpeg.cpp"
+      ],
+      "excluded_paths": [],
+      "review_status": "positive_targets_reviewed",
+      "review_notes": "Selected: vertical sampling assignment crosses horizontal assignment; other sampling assignments change in place.",
+      "events": [
+        {
+          "id": "opencv-targeted-18-event-1",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "parent_event": null,
+          "construct_kind": "expr_stmt",
+          "old": {
+            "path": "modules/imgcodecs/src/grfmt_jpeg.cpp",
+            "start_line": 828,
+            "end_line": 828,
+            "text_sha256": "79d966eb0a176d6ba9c66c690aec819eb626a5b1fb7fe86a80fa5d05d62e5167"
+          },
+          "new": {
+            "path": "modules/imgcodecs/src/grfmt_jpeg.cpp",
+            "start_line": 829,
+            "end_line": 829,
+            "text_sha256": "79d966eb0a176d6ba9c66c690aec819eb626a5b1fb7fe86a80fa5d05d62e5167"
+          },
+          "rationale": "The same vertical-sampling assignment changes order across the unchanged horizontal-sampling assignment in the same conditional. One order-change event; the reciprocal crossing is not counted again."
+        }
+      ]
+    }
+  ]
+}

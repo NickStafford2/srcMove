@@ -1,5 +1,10 @@
 # Type-1 and Type-2 defense evidence
 
+The user authorized execution on 2026-09-27. The
+[historical study](historical_study/README.md) owns the implemented protocol,
+frozen windows, source labels, and results. Its 90 ordinary comparisons and
+bounded targeted search supersede the proposed historical sample caps below.
+
 Status: evidence audit and proposed bounded evaluation, 2026-09-27. No new
 detector experiment has been run for this proposal. Audited checkout:
 `8d72119af6f17446061899ed9b001cb38c6fc82d`; tracked and untracked status was clean.

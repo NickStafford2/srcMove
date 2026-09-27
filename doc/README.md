@@ -32,6 +32,8 @@ summaries or diagrams disagree with current behavior.
 - [Type-1/Type-2 defense evidence](../moveSelectionBench/type12_evaluation.md):
   historical evidence audit, endpoint correction, and bounded independent
   precision/recall evaluation proposal
+- [Historical study execution](../moveSelectionBench/historical_study/README.md):
+  frozen revision windows, source reviews, reproducible execution, and scoring
 - [Performance benchmark](../performance/README.md): repeatable comparisons of
   srcMove builds over fixed srcDiff XML workloads
 
