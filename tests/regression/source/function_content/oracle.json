@@ -8,10 +8,10 @@
       "move_id": "c89025cc1",
       "match_kind": "type1",
       "from_xpaths": [
-        "/src:unit[1]/src:function[src:name='bar']/src:block[1]/src:block_content[1]/src:return[1]/diff:delete[1]"
+        "/src:unit[@filename='source.cpp']/src:function[src:name='bar']/src:block[1]/src:block_content[1]/src:return[1]/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/src:unit[1]/src:function[src:name='foo']/src:block[1]/src:block_content[1]/src:return[1]/diff:insert[1]"
+        "/src:unit[@filename='source.cpp']/src:function[src:name='foo']/src:block[1]/src:block_content[1]/src:return[1]/diff:insert[1]"
       ],
       "from_raw_texts": [
         "456"
@@ -24,10 +24,10 @@
       "move_id": "97b1dcdaf",
       "match_kind": "type1",
       "from_xpaths": [
-        "/src:unit[1]/src:function[src:name='foo']/src:block[1]/src:block_content[1]/src:return[1]/diff:delete[1]"
+        "/src:unit[@filename='source.cpp']/src:function[src:name='foo']/src:block[1]/src:block_content[1]/src:return[1]/diff:delete[1]"
       ],
       "to_xpaths": [
-        "/src:unit[1]/src:function[src:name='bar']/src:block[1]/src:block_content[1]/src:return[1]/diff:insert[1]"
+        "/src:unit[@filename='source.cpp']/src:function[src:name='bar']/src:block[1]/src:block_content[1]/src:return[1]/diff:insert[1]"
       ],
       "from_raw_texts": [
         "123"

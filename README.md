@@ -216,7 +216,14 @@ test and benchmark entry points above.
 
 The project version has one source of truth: [`VERSION`](VERSION). CMake reads
 that file during configuration, and `srcMove --version` reports the configured
-value. Update `VERSION` when preparing a release-worthy change:
+value. Version changes happen at planned release boundaries, not automatically
+for every release-worthy commit. Multiple implementation phases and related
+behavior changes should normally be batched into one milestone release.
+
+Do not update `VERSION` unless the user explicitly requests a release/version
+change or an approved plan identifies that exact step as the release boundary.
+Otherwise, leave it unchanged and record any recommendation in the handoff.
+For a planned release:
 
 - increment the patch version for backward-compatible fixes
 - increment the minor version for backward-compatible features or substantial
@@ -226,6 +233,9 @@ value. Update `VERSION` when preparing a release-worthy change:
 
 While srcMove remains in initial `0.x` development, an incompatible change may
 advance the minor version instead of declaring the interface stable at 1.0.
+This does not mean every incompatible commit receives its own minor version;
+related work remains on the milestone's existing version until the next
+explicitly planned release.
 
 ## Developer utilities
 

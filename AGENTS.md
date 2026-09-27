@@ -52,19 +52,24 @@ workspace at `../docs/workspace.md`.
 
 ## Versioning
 
-Before finishing a release-worthy change, review the canonical
-[versioning policy](README.md#versioning) and update [`VERSION`](VERSION) in the
-same change when appropriate.
+Version changes are release decisions, not a routine part of finishing a task.
+Review the canonical [versioning policy](README.md#versioning), but do not edit
+[`VERSION`](VERSION) unless the user explicitly requests a release/version
+change or an approved plan names that exact step as the release boundary. When
+uncertain, leave the version unchanged and mention a recommendation in the
+handoff.
 
-- During `0.x` development, normally increment the minor version for new
-  behavior, meaningful algorithm changes, or changes to reported results.
-- Use a patch increment for a narrowly compatible correction that does not
-  intentionally change the detector's behavior contract.
+- Use one version for an entire coordinated milestone. Do not bump for each
+  implementation phase, commit, algorithm adjustment, changed golden, or
+  follow-up evaluation within that milestone.
+- Batch related behavior changes into the next planned release. A change being
+  “release-worthy” does not by itself authorize an immediate version bump.
+- Use a patch increment for a planned release containing compatible fixes and a
+  minor increment for a planned feature or behavior milestone.
 - Reserve a major increment for an explicitly approved, substantial breaking
-  milestone; do not infer a major release merely because an implementation is
-  large.
-- Documentation, tests, refactors, and internal tooling alone do not require a
-  version increment.
+  milestone; never infer it from the size or number of changes.
+- Documentation, tests, refactors, internal tooling, benchmark work, and
+  research evaluations do not independently require a version increment.
 - Treat `VERSION` as the single source of truth; do not duplicate the version
   number in source or build files.
 

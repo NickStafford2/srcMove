@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import shutil
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -49,6 +50,11 @@ def parse_args() -> argparse.Namespace:
         metavar="NAME",
         help="Run one case; repeat to select multiple cases.",
     )
+    parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Include opt-in correspondence diagnostics in generated results.",
+    )
     parser.add_argument("--list", action="store_true", help="List cases and exit.")
     return parser.parse_args()
 
@@ -62,11 +68,25 @@ class CaseResult:
     message: str = ""
 
 
-def prepare_srcdiff_inputs(case: SourceCaseSpec) -> tuple[str, str, Path | None]:
+def prepare_srcdiff_inputs(
+    case: SourceCaseSpec, case_out_dir: Path
+) -> tuple[str, str, Path | None]:
     if case.is_archive:
         return str(case.original), str(case.modified), None
 
-    return case.original.name, case.modified.name, case.case_dir
+    input_root = case_out_dir / "srcdiff-input"
+    if input_root.exists():
+        shutil.rmtree(input_root)
+
+    original_root = input_root / "original"
+    modified_root = input_root / "modified"
+    original_root.mkdir(parents=True)
+    modified_root.mkdir(parents=True)
+
+    logical_name = f"source{case.original.suffix}"
+    shutil.copyfile(case.original, original_root / logical_name)
+    shutil.copyfile(case.modified, modified_root / logical_name)
+    return str(original_root), str(modified_root), None
 
 
 def run_case(
@@ -75,12 +95,14 @@ def run_case(
     out_root: Path,
     srcdiff_bin: str,
     srcmove_bin: str,
+    diagnostics: bool = False,
 ) -> CaseResult:
     case_out_dir = out_root / case.name
     case_out_dir.mkdir(parents=True, exist_ok=True)
     srcdiff_xml = case_out_dir / "srcdiff.xml"
     srcmove_xml = case_out_dir / "srcmove.xml"
     results_json = case_out_dir / "results.json"
+    results_only_json = case_out_dir / "results-only.json"
 
     try:
         expected = load_json(case.oracle_json)
@@ -95,7 +117,7 @@ def run_case(
 
     expected_move_count = expected.get("move_count")
 
-    for path in (srcdiff_xml, srcmove_xml, results_json):
+    for path in (srcdiff_xml, srcmove_xml, results_json, results_only_json):
         if path.exists():
             path.unlink()
 
@@ -104,7 +126,7 @@ def run_case(
             srcdiff_original,
             srcdiff_modified,
             srcdiff_cwd,
-        ) = prepare_srcdiff_inputs(case)
+        ) = prepare_srcdiff_inputs(case, case_out_dir)
         srcdiff_cmd = [
             srcdiff_bin,
             srcdiff_original,
@@ -154,6 +176,8 @@ def run_case(
         "--min-granularity",
         "fragment",
     ]
+    if diagnostics:
+        srcmove_cmd.append("--diagnostics")
     srcmove_result = run_command(srcmove_cmd, cwd=repo_root)
 
     if srcmove_result.returncode != 0:
@@ -165,10 +189,42 @@ def run_case(
             message=format_process_failure("srcMove", srcmove_result),
         )
 
+    results_only_cmd = [
+        srcmove_bin,
+        str(srcdiff_xml),
+        "--results",
+        str(results_only_json),
+        "--results-only",
+        "--min-granularity",
+        "fragment",
+    ]
+    if diagnostics:
+        results_only_cmd.append("--diagnostics")
+    results_only_result = run_command(results_only_cmd, cwd=repo_root)
+    if results_only_result.returncode != 0:
+        return CaseResult(
+            name=case.name,
+            ok=False,
+            expected_move_count=expected_move_count,
+            actual_move_count=None,
+            message=format_process_failure(
+                "srcMove --results-only", results_only_result
+            ),
+        )
+
     try:
         results = load_json(results_json)
+        results_only = load_json(results_only_json)
         failures = validate_results(expected, results)
         failures.extend(assert_no_inline_xmlns(srcmove_xml))
+        ordinary_results = dict(results)
+        ordinary_results.pop("diagnostics", None)
+        ordinary_results_only = dict(results_only)
+        ordinary_results_only.pop("diagnostics", None)
+        if ordinary_results != ordinary_results_only:
+            failures.append(
+                "normal and --results-only ordinary JSON fields differ"
+            )
     except Exception as e:
         return CaseResult(
             name=case.name,
@@ -242,6 +298,7 @@ def main() -> int:
             out_root=out_root,
             srcdiff_bin=str(srcdiff_bin),
             srcmove_bin=str(srcmove_bin),
+            diagnostics=args.diagnostics,
         )
         results.append(result)
 

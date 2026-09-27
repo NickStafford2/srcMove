@@ -23,6 +23,7 @@ python3 tests/run.py --list
 python3 tests/run.py --case 1x1_basic
 python3 tests/run.py --case 1x1_basic --case blocks_swapped
 python3 tests/run.py --suite policy --case direct_numeric_literal
+python3 tests/regression/source/run.py --diagnostics
 python3 tests/regression/policy/list.py
 python3 tests/regression/policy/list.py --catalog false-positive
 python3 tests/regression/policy/list.py --catalog contextual
@@ -51,7 +52,11 @@ python3 tests/regression/policy/list.py --catalog contextual
   `make test-srcmove-history`.
 - `xml`: checked-in srcDiff XML fixtures run directly through `srcMove`.
 - `source`: checked-in source pairs regenerated with `srcdiff`, then run through
-  `srcMove`.
+  `srcMove`. Single-file fixture sides are materialized beneath separate
+  revision roots with the shared logical filename `source.<ext>` so fixture
+  names such as `original.cpp` and `modified.cpp` cannot become rename evidence.
+  The runner also requires normal annotated output and `--results-only` to
+  produce identical ordinary JSON fields.
 - `policy`: reviewer-owned main and contextual move-policy catalogs.
   Every entry generates an isolated before/after archive, then runs through
   `srcdiff` and `srcMove`. Negative cases require zero moves; positive cases

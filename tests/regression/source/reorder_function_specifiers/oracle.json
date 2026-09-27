@@ -12,10 +12,10 @@
       "matched_units": 10,
       "selection_reason": "greedy_utility",
       "from_xpaths": [
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/diff:delete[1]/src:decl_stmt[1]"
+        "/src:unit[@filename='source.cpp']/src:struct[1]/src:block[1]/src:public[1]/diff:delete[1]/src:decl_stmt[1]"
       ],
       "to_xpaths": [
-        "/src:unit[1]/src:struct[1]/src:block[1]/src:public[1]/diff:insert[1]/src:decl_stmt[1]"
+        "/src:unit[@filename='source.cpp']/src:struct[1]/src:block[1]/src:public[1]/diff:insert[1]/src:decl_stmt[1]"
       ],
       "from_raw_texts": [
         "signed long int foo2 = beta(2);"

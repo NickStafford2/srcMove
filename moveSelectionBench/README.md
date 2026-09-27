@@ -62,9 +62,10 @@ gate. The focused test seals this pre-adoption disagreement set so Phase 3.1
 cannot redefine its oracle from the implementation's output. After adoption,
 the same test requires the disagreement set to be empty.
 
-The checked-in XML and source-regression inventory was also rerun with
-diagnostics, using each suite's production granularity. It contains 37 selected
-unique Type-1 correspondences and seven non-1x1 Type-1 groups:
+The Phase 3.0 checked-in XML and source-regression inventory was rerun with
+diagnostics, using each suite's production granularity. Before source-fixture
+normalization it contained 37 selected unique Type-1 correspondences and seven
+non-1x1 Type-1 groups:
 
 | Category | Count | Cases |
 | --- | ---: | --- |
@@ -73,15 +74,42 @@ unique Type-1 correspondences and seven non-1x1 Type-1 groups:
 | Fixture filename artifact | 9 unique | `blocks_swapped`, `function_call_reorder`, `function_content`, `lines_swapped`, `lines_swapped_many`, `simple_cross_block`, `standalone_function` |
 | Existing non-1x1 policy | 7 groups | XML: `1x2_basic`, `2x1_basic`, `2x2_same`, `2x3_same`; source: `complex`, `standalone_blocks`, `standalone_blocks_function` |
 
-The filename-artifact cases are single-file source fixtures whose two sides are
-stored as `original.cpp` and `modified.cpp`. Their generated srcDiff filename
-is therefore `original.cpp|modified.cpp`, which the classifier correctly reads
-literally as different revision files even though those names encode fixture
-sides rather than a real rename. Phase 3 must regenerate these comparisons from
-directory roots containing one shared logical filename, as the retained
-Notepad++ evaluation already does. After normalization, each case needs
-positive container or stable-sibling evidence or must conservatively become
-non-move; the fixture naming convention is not relocation evidence.
+### Phase 3.2 normalized source inventory
+
+The source runner now copies every single-file pair beneath separate generated
+revision roots, using `source.<ext>` as the same logical relative filename on
+both sides. It also compares ordinary JSON from normal annotated output with
+`--results-only`. A diagnostic rerun manually audited the nine unique Type-1
+correspondences whose earlier classification depended on
+`original.cpp|modified.cpp`:
+
+| Normalized evidence | Count | Cases and outcome |
+| --- | ---: | --- |
+| Different mapped semantic container | 3 | `function_content` (both literal correspondences) and `simple_cross_block`; remain moves |
+| Same mapped container and anchor interval | 1 | `function_call_reorder`; structural child is stationary and not independently selected |
+| Insufficient structural context | 5 | `blocks_swapped`, `lines_swapped`, both `lines_swapped_many` correspondences, and `standalone_function`; no unique Type-1 move |
+
+Four golden files therefore change move membership:
+`blocks_swapped` (one to zero), `lines_swapped` (one to zero),
+`lines_swapped_many` (two to one), and `standalone_function` (one to zero).
+The remaining reviewed relocation goldens stay positive. Directory comparison
+also changes single-file archive XPaths from `/src:unit[1]` to
+`/src:unit[@filename='source.cpp']`; `function_call_reorder`,
+`function_content`, `reorder_function_specifiers`, `simple_cross_block`,
+`standalone_blocks`, and `standalone_blocks_function` receive only the
+corresponding serialization or selected-wrapper expectation update.
+
+Normalization exposes repeated wrapper candidates around `foo();` in
+`function_call_reorder` and `int i = 1;` in `lines_swapped_many`. Their reviewed
+structural-child correspondences are respectively stationary and ambiguous,
+but the existing non-1x1 exact-group path still emits one non-overlapping
+wrapper endpoint pair in each case. Those two groups remain intentionally
+outside the unique Type-1 gate; changing them here would alter the deferred
+non-1x1 policy. The normalized inventory is therefore 17 positively supported
+unique relocations (the prior 14 plus three), 20 reviewed unique conservative
+non-moves (the prior 14 insufficient-context correspondences plus these six),
+and nine non-1x1 exact groups (the prior seven plus the two newly exposed
+wrapper groups).
 
 The insufficient-context XML cases primarily protect matching, wrapper, and
 serialization mechanics. Their existing move goldens are not positive
