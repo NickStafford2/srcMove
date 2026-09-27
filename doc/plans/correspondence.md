@@ -521,9 +521,11 @@ understood and stable.
 
 ### Phase 4: unify movement classification across Type-1/2/3
 
-Status: Phases 4.0 and 4.1 complete; Phase 4.2 observation is implemented. The reviewed
-SQLite reorder survives production adoption after common-conditional context
-repair. See the [adoption evidence](../../moveSelectionBench/README.md#type-2-production-adoption).
+Status: Phases 4.0 and 4.1 complete; Phase 4.2 observation is implemented.
+The retained SQLite output survives adoption, but the
+[endpoint audit](../../moveSelectionBench/type12_evaluation.md#sqlite-endpoint-correction)
+finds a wrong destination identity; this does not establish recovery of the
+reviewed reorder. See the [adoption evidence](../../moveSelectionBench/README.md#type-2-production-adoption).
 Keep the existing matching representations, hierarchy selection, repeated-group
 policy, and Type-3 verification rule.
 

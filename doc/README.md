@@ -29,6 +29,9 @@ summaries or diagrams disagree with current behavior.
 - [Correctness tests](../tests/README.md): test entry points, suite boundaries,
   and fixture conventions
 - [Benchmarks](../benchmarking/README.md): benchmark types and runners
+- [Type-1/Type-2 defense evidence](../moveSelectionBench/type12_evaluation.md):
+  historical evidence audit, endpoint correction, and bounded independent
+  precision/recall evaluation proposal
 - [Performance benchmark](../performance/README.md): repeatable comparisons of
   srcMove builds over fixed srcDiff XML workloads
 

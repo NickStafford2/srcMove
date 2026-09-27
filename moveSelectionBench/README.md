@@ -135,6 +135,11 @@ under test unchanged. It applies to `nested_exact_parent_over_child`,
 
 ## Type-2 observation baseline
 
+For the current evidence audit and bounded independent evaluation proposal, see
+[Type-1 and Type-2 defense evidence](type12_evaluation.md). In particular, its
+[SQLite endpoint correction](type12_evaluation.md#sqlite-endpoint-correction)
+supersedes the historical whole-target recall interpretation below.
+
 Phase 4.0 uses `type2_contracts.json` and `type2_cases/` as an independent
 location oracle. The eighteen contracts cover cross-file/container movement,
 reordering, identifier/literal edits in place, wrapping, missing context,
@@ -285,6 +290,14 @@ From the parent workspace, the retained scripts reproduce the runs:
 ```
 
 ### Type-2 gate trial: same-file recall regression
+
+**Audit correction (2026-09-27):** the retained output pairs `zRealFmt` with
+`zIFmt`, whereas the source-reviewed continuation is `zFpFmt`. The account below
+records the earlier trial interpretation; its claims of losing and recovering
+the reviewed real move are superseded by the
+[endpoint audit](type12_evaluation.md#sqlite-endpoint-correction). The measured
+output and anchor changes remain valid observations, but do not establish
+correct continuing identity or whole-target recall.
 
 The next comparison enabled the proposed gate only in a detached, ignored
 worktree at `build/type2-gate-trial/source`, based on `9efc4eb`. Production source
@@ -441,11 +454,12 @@ function, the local- and parameter-rename fixtures also expose unmatched child
 declarations; their result counts include those children.
 
 All 14 retained historical ordinary JSON results and annotated XML outputs are
-unchanged, including the reviewed SQLite conditional reorder and the existing
-cross-file and same-file controls. Type-1 correspondence diagnostics are equal
-across all 172 comparisons. No reviewed real move was lost in this retained
-sample. This establishes compatibility on the reviewed history, not a measured
-historical precision/recall improvement.
+unchanged, including the SQLite input and the existing cross-file and same-file
+controls. Type-1 correspondence diagnostics are equal across all 172 comparisons.
+This establishes output compatibility, not independently measured historical
+precision/recall. The later [endpoint audit](type12_evaluation.md#sqlite-endpoint-correction)
+finds that the retained SQLite selection has the wrong destination identity;
+unchanged output must not be read as recovery of that reviewed target.
 
 The full Docker correctness run passes all 13 steps: 41 XML, 21 source, 75 policy,
 and 21 selection cases, with 17 move-selection unit tests including all 18 Type-2
