@@ -21,7 +21,6 @@ settled.
 - Add Type-2 failure categorization using metadata and/or canonical srcML forms.
 - Evaluate BigCloneEval clone matcher logic for ideas srcMove could use when
   deciding which code segment is the intended move.
-- Add cross-file/archive BigCloneBench synthetic move cases.
 - Add BigCloneBench coverage reporting that summarizes row counts, distinct raw
   text-pair counts, and functionality coverage across a run.
 - Decide whether BigCloneBench pair rows and distinct fragment-text cases should
@@ -33,7 +32,5 @@ settled.
 
 ## Questions
 
-- Should Type-2 pass rate be treated as a strict required pass suite or as a
-  research metric until Type-2 detection improves?
 - What should count as one independent BigCloneBench move test: a pair row, a
   distinct text pair, or a derived clone cluster?
