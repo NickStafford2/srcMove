@@ -141,7 +141,7 @@ CLI synopsis:
 ```text
 srcMove <srcdiff.xml> [out.xml] [--results results.json]
         [--results-only] [--min-granularity statement|fragment]
-        [--profile] [-v]
+        [--diagnostics] [--profile] [-v]
 srcMove --help
 srcMove --version
 ```
@@ -154,6 +154,8 @@ srcMove --version
 - `--min-granularity statement|fragment` selects the minimum move unit.
   `statement` is the default; `fragment` enables low-level diff fragments for
   specialized analysis.
+- `--diagnostics` adds retained-candidate and Type-3 comparison evidence to the
+  results JSON. It requires `--results <file>`.
 - `--profile` writes coarse `profile.<stage>_ms=<milliseconds>` timings to
   standard error.
 - `-v` and `--verbose` print selected move-match diagnostics to standard output.
@@ -188,9 +190,13 @@ by this pipeline.
 
 The deterministic classifier reports `type1`, `type2`, and `type3`;
 pairs below the Type-3 threshold remain unmatched. Hash equality alone never
-establishes a match. The normalization rules, 0.70 similarity formula,
+establishes a match. The normalization rules, 0.90 similarity formula,
 ambiguity policy, and performance safeguards have one canonical description in
 [Architecture](doc/architecture.md#matching-and-group-semantics).
+
+In srcMove documentation, a reported *move* is a selected correspondence
+between deleted and inserted candidates. It is evidence of relocation in the
+srcDiff representation, not proof of developer intent or semantic equivalence.
 
 ## Documentation and evaluation
 
@@ -222,7 +228,7 @@ advance the minor version instead of declaring the interface stable at 1.0.
 
 ## Developer utilities
 
-The build also produces text-oriented inspection tools from `src/tools/`:
+The build also produces text-oriented inspection tools from `tools/`:
 
 - `srcdiff_render`
 - `srcdiff_highlight`

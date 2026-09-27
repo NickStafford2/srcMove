@@ -1,8 +1,11 @@
 # Deckard-based move detection
 
-Seriously outdated plan. I may use deckard as a part in my upcoming rewrite, where I find correspondance first, and then classify. But that is later. I would use it to identify correspondance. I would use another algorithm to classify on a second pass. 
+Status: dormant and outdated. Nothing in this directory describes implemented
+srcMove behavior. If revisited, Deckard would be evaluated only as evidence for
+the correspondence stage; a separate stage would classify the resulting
+relationship.
 
-## orignal file
+## Original plan
 
 This plan evaluates an adaptation of Deckard's tree-similarity algorithm as a
 structural representation, approximate-retrieval strategy, and comparison

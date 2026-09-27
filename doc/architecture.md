@@ -1,14 +1,18 @@
 # srcMove Architecture
 
 srcMove is a C++ command-line tool that post-processes srcDiff XML and marks
-regions that represent relocated source code. Its primary research
-focus is move detection across file boundaries and semantic blocks, as well as 
-identifying type 1, type 2, and type 3 moves. 
+regions that its matching and selection policy identifies as relocated source
+code. Its primary research focus is move detection across file and structural
+boundaries, with Type-1, Type-2, and Type-3 correspondence evidence.
 
-## What is a Move?
-Developers frequently copy code from one location to another, often making minor 
-edits that do not fundimentally change the code's purpose. You know it when you 
-see it. 
+## Terminology
+
+srcDiff represents source present only in the original revision with
+`diff:delete` and source present only in the modified revision with
+`diff:insert`. srcMove calls one selected deletion/insertion correspondence a
+*move*. This is an operational detector result, not proof of developer intent
+or semantic equivalence. Type-1, Type-2, and Type-3 describe the correspondence
+evidence; group kind separately describes endpoint cardinality and ambiguity.
 
 ## Implementation
 
@@ -36,28 +40,32 @@ The pipeline is coordinated by [`src/pipeline.cpp`](../src/pipeline.cpp).
 
 ### 1. Stream the input and construct candidates
 
-[`src/region_filter.cpp`](../src/region_filter.cpp) makes one streaming pass over the input. It 
+[`src/region_filter.cpp`](../src/region_filter.cpp) makes one streaming pass
+over the input. It:
+
 - distinguishes single-file and archive srcDiff shapes
 - tracks the file ownership and nesting of each `diff:delete` and `diff:insert`
-- builds move candidates as XML events arrive. // what are events? did not define
+- builds move candidates as the reader encounters element starts, element ends,
+  and text in document order
 
-That file ownership permits a deletion in one file to match an insertion in another. // Delete this? why have this line?
+Each candidate retains its owning file, which permits a deletion in one archive
+unit to match an insertion in another.
 
-For performance reasons, candidate construction and canonicalization are part of this same pass. 
+For performance reasons, candidate construction and canonicalization are part
+of this same pass.
 
-// what is revision state stack? it isn't introduced. 
-// what are events? revision-state? substantive events? how do they own things? that makes no sense
-A revision-state stack gives substantive events the ownership of their nearest
-`diff:delete`, `diff:insert`, or `diff:common` wrapper. 
+While streaming, srcMove tracks the nearest enclosing srcDiff revision state.
+Source under `diff:delete` belongs to the original revision, source under
+`diff:insert` belongs to the modified revision, and source under `diff:common`
+belongs to both. A nested wrapper changes the state inherited from its parent.
 
-// same side of what? define same side? "same side nesting" isn't a noun. so how can it retain anything? this section does not follow english gramatical rules.
-Same-side nesting retains parents and complete descendants as alternatives. 
+Nested wrappers for the same revision can produce both an enclosing candidate
+and complete descendant candidates. An enclosing candidate is rejected when it
+also contains substantive common content or content owned by the other
+revision; independently complete descendants may remain eligible.
 
-// opposite-side? we need to be using our vocabulary clearly. common or opposite-side material? aren't those the same? 
-A candidate containing substantive common or opposite-side material is rejected as an atomic move,
-while pure descendants survive.
-
-Completed candidates own compact matching representations; the pipeline does not retain captured srcML trees.
+Completed candidates own compact matching representations; the pipeline does
+not retain captured srcML trees.
 
 [`src/parse/diff_region.cpp`](../src/parse/diff_region.cpp) retains the older
 captured-region path for focused tests and callers that explicitly need region
@@ -186,6 +194,26 @@ retained candidates and Type-3 shortlist decisions, including observed line and
 token LCS evidence for below-threshold pairs and whether a verified edge was
 selected. It requires `--results` and is not emitted during ordinary runs.
 
+### Results terminology
+
+The JSON contract distinguishes evidence, endpoint cardinality, and counts:
+
+- `match_kind` (`type1`, `type2`, or `type3`) states why candidate content
+  corresponds.
+- `group_kinds` classifies endpoint cardinality: `move_1_to_1` is one deletion
+  and one insertion, `moves_many` has equal counts greater than one, and
+  `copy_or_repeat` has unequal nonzero counts. `delete_only`, `insert_only`, and
+  `ambiguous` describe unmatched groups.
+- `move_group_count` counts selected groups. The legacy `move_count` field is an
+  alias for the same value; it does not count endpoint pairs.
+- `move_pair_count` sums `min(deletions, insertions)` over selected groups. For
+  repeated-content groups this is a capacity estimate, not a claimed pairing.
+- `annotated_region_count` counts selected endpoints. The legacy
+  `annotated_regions` field is an alias for the same value.
+
+`confidence_milli` is an internal ranking value on a 0–1000 scale. It is not a
+calibrated probability.
+
 ## Matching and group semantics
 
 The matcher reports four classification outcomes:
@@ -245,22 +273,3 @@ performance result for arbitrary projects.
 
 Richer structural similarity, contextual scoring, and ambiguous-group
 disambiguation are research directions rather than implemented features.
-
-## Scoped BigCloneBench results
-
-The archived thesis run from 2026-07-30 used srcMove commit `3afbc86` and
-BigCloneBench-derived synthetic move cases with `--dedupe raw-text-pair` and
-`--limit 1000`. The archived data lives in the separate thesis repository under
-`doc/thesis/thesis-data/20260730T215344Z/`.
-
-- Type-1 selected 915 deduplicated cases: 909 passed and 6 failed.
-- Type-2 selected 640 deduplicated cases: 286 passed and 354 failed.
-
-These cases are synthesized from known clone pairs: the runner extracts two
-Java fragments, places them in before/after source layouts, runs srcDiff and
-srcMove, and checks for the expected move. They are not historical edit ground
-truth and must not be reported as detector-wide precision or recall.
-
-See [BigCloneBench notes](../bigMoveBench/docs/bigclonebench.md) and
-[the conversion methodology](../bigMoveBench/docs/methodology.md) for the
-dataset interpretation and test construction details.

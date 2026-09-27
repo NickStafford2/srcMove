@@ -5,7 +5,7 @@
 #ifndef INCLUDED_MOVE_CANDIDATE_HPP
 #define INCLUDED_MOVE_CANDIDATE_HPP
 
-#include <boost/optional.hpp>
+#include <boost/optional.hpp> // May not be needed anymore. Try removing after thesis is finished. 
 #include <cstddef>
 #include <cstdint>
 #include <iostream>

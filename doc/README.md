@@ -10,10 +10,10 @@ and command-line usage.
   output annotations, performance model, and limitations
 - [Algorithm flowcharts](diagrams/pipeline_diagram.md): simple thesis overview
   and detailed candidate, matching, and selection decision flow
-- [Data structure diagram](diagrams/data_structure_diagram.md): relationships
-  among the primary implementation types
-- [Scoring model diagram](diagrams/scoring_model_diagram.md): move-selection
-  decision model
+- [Data structure diagram](diagrams/data_structure_diagram.md): current
+  candidate, grouping, selection, and output types
+- [Conceptual scoring diagram](diagrams/scoring_model_diagram.md): proposed
+  distinction between confidence and selection utility
 - [srcDiff notes](srcDiff_notes.md): investigated srcDiff behavior and XML
   format details
 - [XPath commands](sample_xpath_commands.md): example queries for srcMove XML
@@ -45,7 +45,7 @@ summaries or diagrams disagree with current behavior.
 
 ## Research notes and planned work
 
-- [Correspondence before change classification](user-notes/correspondance.md):
+- [Correspondence before change classification](plans/correspondence.md):
   proposed separation of Type-1/2/3 evidence from stationary, relocated,
   copied, restructured, and ambiguous outcomes
 - [Move-detection redesign](plans/move_detection_redesign.md): canonical
@@ -61,8 +61,6 @@ summaries or diagrams disagree with current behavior.
 - [Backlog](backlog.md): open questions and candidate improvements
 - [Active handoffs](handoffs/README.md): narrowly scoped unfinished tasks, when
   any exist
-- [`user-notes/`](user-notes/): terminology, hypotheses, and other exploratory
-  material that does not define current behavior
 
 The master's thesis draft, reference papers, and thesis-specific notes are
 maintained in the independent private `../thesis-workspace/` repository. This

@@ -4,9 +4,9 @@ Status: proposed design direction. This document records the rationale,
 semantics, decision points, and implementation path for a possible future
 srcMove classifier. It does not describe the full current behavior. The
 verified implementation remains documented in
-[`srcMove/doc/architecture.md`](../../srcMove/doc/architecture.md), and the existing candidate and
+[`doc/architecture.md`](../architecture.md), and the existing candidate and
 selection redesign remains documented in
-[`srcMove/doc/plans/move_detection_redesign.md`](../../srcMove/doc/plans/move_detection_redesign.md).
+[`doc/plans/move_detection_redesign.md`](move_detection_redesign.md).
 
 ## Central idea
 
@@ -389,10 +389,10 @@ for example `different_file`, `different_container`, `same_anchor_interval`,
 A future implementation should preserve the existing phase boundaries where
 possible:
 
-- [`srcMove/src/region_filter.cpp`](../../srcMove/src/region_filter.cpp) can collect lightweight
+- [`src/region_filter.cpp`](../../src/region_filter.cpp) can collect lightweight
   container, anchor, and ancestor summaries while it already streams the
   document. It should not retain the full XML tree solely for classification.
-- [`srcMove/src/move_registry/content_group_builder.cpp`](../../srcMove/src/move_registry/content_group_builder.cpp)
+- [`src/move_registry/content_group_builder.cpp`](../../src/move_registry/content_group_builder.cpp)
   can stop treating every accepted evidence proposal as an already interpreted
   move. Its exact, Type-2, and Type-3 construction remains useful.
 - A dedicated classifier module should consume correspondences and context and
@@ -401,7 +401,7 @@ possible:
 - Existing hierarchy and overlap selection should operate on classified
   correspondences. Normally only `relocated` correspondences compete for move
   annotations, while restructuring may affect parent/child explanation.
-- [`srcMove/src/summary.hpp`](../../srcMove/src/summary.hpp) and the JSON writer can expose
+- [`src/summary.hpp`](../../src/summary.hpp) and the JSON writer can expose
   classifications incrementally. Existing `moves` output can remain compatible
   while an opt-in `correspondences` diagnostics section is evaluated.
 - The annotation writer should continue to annotate only relationships that
