@@ -5,6 +5,14 @@ clone pairs into synthetic cross-file moves and uses known false-positive pairs
 as negative cases. BigCloneBench supplies the source data; BigMoveBench defines
 the conversion, selection, execution, and scoring methodology.
 
+BigCloneBench is the labeled dataset. BigCloneEval is the upstream evaluator and
+distribution layout through which this repository reads the BigCloneBench H2
+database and IJaDataset sources. In prose, use `BigMoveBench` for this benchmark;
+`bigMoveBench` is the repository directory and Python package, while
+`bigmovebench-*` names its Make targets. Prose uses Type-1, Type-2, and Type-3;
+machine-facing pair-set identifiers use `type1`, `type2`, `type3`, and
+`known-false-positive`.
+
 ## Layout
 
 - `installation.py` locates and validates the external BigCloneBench data and
@@ -30,11 +38,12 @@ the conversion, selection, execution, and scoring methodology.
 The cache remains under `bigMoveBench/cache/bigclonebench/` because it is a sealed
 representation of the upstream dataset. BigMoveBench suite summaries are stored
 under `benchmark-results/bigMoveBench/`.
-The resulting pass rate is a strict synthetic detection-and-classification rate
-for the selected cases: Type-1 must report `type1`, Type-2 must report `type2`,
-Type-3 must report `type3`, and the position/text oracle must pass. Type-3
-recall is observational: misses remain measurements rather than operational
-suite failures. These rates are not general accuracy, recall, or precision.
+For each positive pair set, BigMoveBench reports a strict synthetic
+detection-and-classification outcome rate: Type-1 must report `type1`, Type-2
+must report `type2`, Type-3 must report `type3`, and the position/text oracle
+must pass. Type-1 and Type-2 are required pass/fail categories. Type-3 recall is
+observational: misses remain measurements rather than operational suite
+failures. These rates are not general accuracy, recall, or precision.
 Known-false-positive results use a separate whole-fragment rejection metric and
 are never combined with the positive rates. See the
 [conversion methodology](docs/methodology.md).

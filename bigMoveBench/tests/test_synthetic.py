@@ -188,15 +188,17 @@ class BigMoveBenchSyntheticTests(unittest.TestCase):
                 self.assertEqual(result.returncode, 0, result.stderr)
                 diff_root = ET.parse(output_path).getroot()
 
-            for side in ("delete", "insert"):
-                regions = [
-                    node for node in diff_root.iter() if local_name(node.tag) == side
-                ]
-                self.assertTrue(regions, f"srcDiff emitted no {side} region")
-                self.assertTrue(
-                    any("moved" in "".join(region.itertext()) for region in regions),
-                    f"srcDiff {side} regions do not contain the moved payload",
-                )
+                for side in ("delete", "insert"):
+                    regions = [
+                        node
+                        for node in diff_root.iter()
+                        if local_name(node.tag) == side
+                    ]
+                    self.assertTrue(regions, f"srcDiff emitted no {side} region")
+                    self.assertTrue(
+                        any("moved" in "".join(region.itertext()) for region in regions),
+                        f"srcDiff {side} regions do not contain the moved payload",
+                    )
 
 
 if __name__ == "__main__":

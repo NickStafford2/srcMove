@@ -59,7 +59,7 @@ class BigCloneBenchInstallationTests(unittest.TestCase):
 
     def test_successful_cli_lists_every_verified_prerequisite(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
-            bce_dir = Path(temporary) / "BigCloneEval"
+            bce_dir = (Path(temporary) / "BigCloneEval").resolve()
             database = bce_dir / "bigclonebenchdb" / "bcb.h2.db"
             driver = bce_dir / "libs" / "h2-1.3.176.jar"
             source = bce_dir / "ijadataset" / "default" / "example.java"

@@ -1,14 +1,15 @@
-# Converting BigCloneEval Into srcMove Tests
+# Converting BigCloneBench Pairs Into srcMove Tests
 
-BigCloneEval is not a move-detection benchmark by itself. Its positive oracle is
-a set of clone pairs: two independently existing Java function fragments that
-implement the same functionality. The current srcMove evaluation synthesizes a
-before/after edit where one clone fragment is deleted from the old version and
-its paired clone fragment is inserted at a different location in the new
-version.
+BigCloneBench is not a move-detection benchmark. Its positive oracle is a set of
+clone pairs: two independently existing Java function fragments that implement
+the same functionality. BigCloneEval distributes the database and source layout
+used here. The current srcMove evaluation synthesizes a before/after edit where
+one clone fragment is deleted from the old version and its paired clone fragment
+is inserted at a different location in the new version.
 
-The resulting pass rate is a strict whole-fragment synthetic
-detection-and-classification rate for the declared slice and oracle. It is not
+The resulting strict outcome rate measures whole-fragment synthetic detection
+and classification for the declared slice and oracle. Type-1 and Type-2 are
+required pass/fail categories; Type-3 is observational. None of these rates is
 historical-move accuracy, general detector recall, overall accuracy, or
 precision.
 
@@ -137,10 +138,11 @@ then applies the same line-range overlap checks formerly read from annotated
 srcMove XML. The JSON move identities, classifications, and texts remain the
 other half of the dual oracle.
 
-The per-run summary reports both the end-to-end strict pass rate over generated
-cases and the conditional srcMove detection-and-classification rate over
-srcDiff-eligible cases. The eligibility and scoring oracle versions are recorded
-in the benchmark-case and execution artifacts.
+The per-run summary reports both the end-to-end strict outcome rate over
+generated cases and the conditional srcMove detection-and-classification rate
+over srcDiff-eligible cases. Type-3 reports use those same strict outcome rules
+but remain observational. The eligibility and scoring oracle versions are
+recorded in the benchmark-case and execution artifacts.
 
 ## Exploratory Query and Thesis Selection
 
@@ -197,14 +199,15 @@ direction. BigMoveBench uses one deterministic canonical direction per exact
 unordered fragment-content pair and retains reverse rows as provenance rather
 than executing the same generated input twice.
 
-The current compiled external dataset contains 8,648,734 available labeled pair
-rows: 47,146 Type-1 rows, 4,223 Type-2 rows, 8,323,944 Type-3 rows, and 273,421
-known-false-positive rows. These collapse to 6,011,979 unique unordered
-fragment-content pairs across label kinds. Type 1 collapses to 951 unique content
-pairs, Type 2 to 567, and known false positives to about 232,509; Type 3 accounts
-for the remaining multimillion-case scale. Counts are dataset-specific and must
-be read from the compiled manifest and selection manifests for every reported
-run rather than treated as timeless constants.
+The compiled external dataset identified by the checked-in
+[`frozen_profiles.jsonl`](../frozen_profiles.jsonl) manifest contains 8,648,734
+available labeled pair rows: 47,146 Type-1 rows, 4,223 Type-2 rows, 8,323,944
+Type-3 rows, and 273,421 known-false-positive rows. These collapse to 6,011,979
+unique unordered fragment-content pairs across label kinds. Type 1 collapses to
+951 unique content pairs, Type 2 to 567, and known false positives to about
+232,509; Type 3 accounts for the remaining multimillion-case scale. Counts are
+dataset-specific and must be read from the compiled manifest and selection
+manifests for every reported run rather than treated as timeless constants.
 
 For BigMoveBench, a full census means **all eligible unique
 BigCloneBench-labeled fragment pairs after declared exclusions and

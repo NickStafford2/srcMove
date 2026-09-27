@@ -262,8 +262,10 @@ BigMoveBench therefore groups the exact unordered pair of fragment hashes.
 BigCloneBench says two independently existing Java fragments are clones. It does
 not say one fragment historically moved to the other location. The local srcMove
 framework therefore synthesizes a before/after edit: delete one benchmark
-fragment from `original.java`, insert the paired fragment in `modified.java`,
-then check whether srcMove reports the expected move.
+fragment from `source/input.java` in the original revision, insert the paired
+fragment into `destination/input.java` in the modified revision, then check
+whether srcMove reports the expected move. Both files and their distinct stable
+container classes remain present in both revisions.
 
 This transformation is useful, but its metrics must be described honestly:
 
