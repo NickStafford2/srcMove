@@ -4,7 +4,11 @@ This directory contains task briefs for concrete unfinished work that a future
 session is expected to resume. It is not an archive or a second documentation
 system.
 
-There are currently no active handoffs.
+Active handoff:
+
+- [Adopt correspondence classification for unique Type-2 output](correspondence-type2-adoption.md):
+  build a reviewer-owned Type-2 oracle and observation-only diagnostics before
+  allowing the structural classifier to control unique normalized matches.
 
 When adding one, give it a specific objective and link it from the issue,
 backlog item, or user request that makes it relevant. Include current evidence,

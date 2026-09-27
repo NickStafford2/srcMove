@@ -491,6 +491,10 @@ understood and stable.
 
 ### Phase 4: extend the same classifier to Type-2
 
+Status: next. The diagnostics-first implementation sequence and checked-in
+baseline inventory are in the active
+[`Type-2 adoption handoff`](../handoffs/correspondence-type2-adoption.md).
+
 Reuse the Type-1 context and classification model for strong non-exact
 correspondences. Do not invent a separate definition of movement for Type-2;
 only its correspondence evidence and confidence should differ.
