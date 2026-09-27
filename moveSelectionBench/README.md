@@ -112,9 +112,8 @@ and nine non-1x1 exact groups (the prior seven plus the two newly exposed
 wrapper groups).
 
 The insufficient-context XML cases primarily protect matching, wrapper, and
-serialization mechanics. Their existing move goldens are not positive
-relocation evidence. Phase 3.2 must review them individually before removing
-or strengthening their move expectations. The inventory counts selected
+serialization mechanics. Their former move goldens were reviewed during
+adoption and now conservatively expect zero moves. The inventory counts
 correspondences, so `archive_2_files` and `two_independent_groups` each
 contribute two; `archive_whole_file_split_structural` contributes two supported
 cross-file relocations; `complex` contributes three unique relocations plus one
@@ -134,7 +133,7 @@ under test unchanged. It applies to `nested_exact_parent_over_child`,
 `shared_delete_stronger_edge`, and
 `coherent_type3_parent_over_partition`.
 
-## Retained Notepad++ shadow evaluation
+## Retained Notepad++ evaluation
 
 The retained evaluation uses Notepad++ commit
 `e59774add26b0130d38aaf722aceb0259ccc0078` and parent
@@ -175,6 +174,26 @@ non-relocation observations. This evaluation does **not** establish that those
 12 are stationary or restructured. The small reviewed contracts provide that
 interpretive evidence; the real comparison demonstrates the conservative
 fallback when srcDiff lacks sufficient common structure.
+
+The adopted srcMove 0.5.0 build at commit
+`1cb7b81b75c8192ac6caacbb14be4acb124235fe` was then rerun against that exact
+retained `shadow-srcdiff.xml`; the snapshot and srcDiff hashes above remained
+unchanged. The release executable has SHA-256
+`c0f92dc3d31be954f98418d5914970af1190d44fa691661319bdf47c0c78e491`
+and build receipt
+`build-receipt-sha256-98c15680e3d54bb0b6b4f7233ec55e6027601ea26cecb0cfa05c7ee58e80513a`
+(Clang 18.1.3, C++17, srcReader
+`b4b2a88fca88e5dae40fd181f2666961e3ce01dc`). The receipt records a clean
+srcMove checkout at that commit.
+
+The same 17 unique Type-1 correspondence keys remain
+`ambiguous/insufficient_context`. All 12 former Type-1 moves transition from
+`move` to `not_move`; the other five remain `not_move`. Adopted normal output
+contains zero move groups (`type1: 0`, `type2: 0`, `type3: 0`), with no
+remaining move outside the unique Type-1 diagnostic decisions. Normal and
+`--results-only` ordinary JSON are byte-identical. This is evidence for the
+conservative fallback under missing context, not evidence that the 17
+correspondences are stationary.
 
 Run the current build:
 

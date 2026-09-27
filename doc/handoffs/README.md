@@ -4,11 +4,7 @@ This directory contains task briefs for concrete unfinished work that a future
 session is expected to resume. It is not an archive or a second documentation
 system.
 
-Active handoff:
-
-- [Adopt correspondence classification for unique Type-1 output](correspondence-type1-adoption.md):
-  make positive shadow relocation evidence control unique exact production
-  moves while preserving Type-2, Type-3, and non-1x1 policy.
+There are currently no active handoffs.
 
 When adding one, give it a specific objective and link it from the issue,
 backlog item, or user request that makes it relevant. Include current evidence,

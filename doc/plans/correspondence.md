@@ -1,8 +1,9 @@
 # Correspondence before change classification
 
 Status: active roadmap. Delivery milestone 1 (context and shadow diagnostics)
-is complete in srcMove 0.4.0; Phase 3, unique Type-1 production adoption, is
-next. This document records rationale, semantics, decision points, and future
+is complete in srcMove 0.4.0, and Phase 3 unique Type-1 production adoption is
+complete in srcMove 0.5.0. Phase 4, conservative Type-2 adoption, is next. This
+document records rationale, semantics, decision points, and future
 implementation phases rather than the full current behavior. The verified
 implementation remains documented in
 [`doc/architecture.md`](../architecture.md), and the existing candidate and
@@ -466,6 +467,11 @@ record would state:
 - reason: `adjacent_nested_local_replacement`.
 
 ### Phase 3: adopt classification for Type-1 only
+
+Status: complete in srcMove 0.5.0. Unique Type-1 output now requires positive
+`relocated` classification; normalized source regressions and the retained
+Notepad++ comparison validate the adopted policy. Non-1x1 exact groups retain
+their earlier group policy.
 
 Let the new classifier control output for unique exact correspondences first.
 Type-1 offers the clearest correspondence evidence, so failures in this phase
