@@ -1,0 +1,135 @@
+{
+  "frozen_at": "2026-09-27T15:37:46.939235+00:00",
+  "selection": "Four convenience probes selected only from commit subjects and file statistics before detector execution: extraction, undefined-behavior edit, memcpy refactor, OpenCV refactor. All changed C/C++ source/header files; no outcome-based replacement. Not a random sample or held-out final evaluation.",
+  "cases": [
+    {
+      "id": "zlib-40d0519",
+      "repository": "zlib",
+      "commit": "40d05192c770090d3ed267cc9ee9a155ef8ec1d4",
+      "parent": "1ebcfc9ddcc5d18c5330914a70b0f73165b61cfe",
+      "files": [
+        "contrib/minizip/skipset.h"
+      ]
+    },
+    {
+      "id": "zlib-e3dc0a8",
+      "repository": "zlib",
+      "commit": "e3dc0a85b7032e98380dec011bc8f2c2ee0d8fca",
+      "parent": "bb0c497580e4ae2a20655af7d8557573bdaef776",
+      "files": [
+        "gzwrite.c"
+      ]
+    },
+    {
+      "id": "zlib-a456d89",
+      "repository": "zlib",
+      "commit": "a456d898bb5d81a5e33705bfe2d476af8d4fee98",
+      "parent": "03614c56ad299f9b238c75aa1e66f0c08fc4fc8b",
+      "files": [
+        "trees.c"
+      ]
+    },
+    {
+      "id": "opencv-51f7547bf1",
+      "repository": "opencv",
+      "commit": "51f7547bf152685660d44469a48c9d1ba25a0f39",
+      "parent": "57bcf14e7837c7faa7a6732f9eca46a1b3c49ec9",
+      "files": [
+        "apps/model-diagnostics/model_diagnostics.cpp",
+        "modules/dnn/include/opencv2/dnn/dnn.hpp"
+      ]
+    }
+  ],
+  "source_review": {
+    "reviewed_at": "2026-09-27T15:38:38.611975+00:00",
+    "sample_sha256": "c42974e47b4d3a33047ee6bbee775c34d157be03278ec7672d5f7a8255c278e3",
+    "method": "Read all frozen source.diff hunks and their enclosing source. Expectations fixed before srcDiff/srcMove execution. Eight targets include exact, normalized and edited transfers, not assumed Type-3. No population accuracy claim. Full inlined loop-to-memcpy rewrite has no same-construct identity asserted; additions/documentation edits are not moves.",
+    "targets": [
+      {
+        "case": "zlib-40d0519",
+        "id": "seed-extraction",
+        "construct": "expr_stmt",
+        "before_text": "set_seed(&set->gen, ((ui64_t)(ptrdiff_t)set << 32) ^ ((ui64_t)time(NULL) << 12) ^ clock(), 0);",
+        "after_text": "set_seed(gen, ((ui64_t)(ptrdiff_t)ptr << 32) ^ ((ui64_t)time(NULL) << 12) ^ clock(), 0);",
+        "expected_location": "relocated",
+        "source_reason": "Noise-seeding expression extracted from set_start into new set_uniq; &set->gen becomes parameter gen and set becomes ptr. The replacement call in set_start is not its continuing implementation."
+      },
+      {
+        "case": "zlib-e3dc0a8",
+        "id": "null-guard",
+        "construct": "if_stmt",
+        "before_text": "if (strm->next_in + strm->avail_in <= state->in + state->size) return 0;",
+        "after_text": "if (strm->next_in == NULL || strm->next_in + strm->avail_in <= state->in + state->size) return 0;",
+        "expected_location": "stationary",
+        "source_reason": "Same first conditional in gz_vacate after strm assignment; adds a NULL guard, crosses no sibling."
+      },
+      {
+        "case": "zlib-a456d89",
+        "id": "align-inlining",
+        "construct": "expr_stmt",
+        "before_text": "bi_windup(s);",
+        "after_text": "bi_windup(s);",
+        "expected_location": "relocated",
+        "source_reason": "copy_block removed; alignment now occurs directly in _tr_stored_block after send_bits."
+      },
+      {
+        "case": "zlib-a456d89",
+        "id": "length-inlining",
+        "construct": "expr_stmt",
+        "before_text": "put_short(s, (ush)len);",
+        "after_text": "put_short(s, (ush)stored_len);",
+        "expected_location": "relocated",
+        "source_reason": "Header write inlined from copy_block into _tr_stored_block; parameter substituted."
+      },
+      {
+        "case": "zlib-a456d89",
+        "id": "complement-inlining",
+        "construct": "expr_stmt",
+        "before_text": "put_short(s, (ush)~len);",
+        "after_text": "put_short(s, (ush)~stored_len);",
+        "expected_location": "relocated",
+        "source_reason": "Second header write inlined into caller, preserving complement role."
+      },
+      {
+        "case": "zlib-a456d89",
+        "id": "debug-count-inlining",
+        "construct": "expr_stmt",
+        "before_text": "s->bits_sent += (ulg)len<<3;",
+        "after_text": "s->bits_sent += stored_len<<3;",
+        "expected_location": "relocated",
+        "source_reason": "Debug accounting moves from removed copy_block to caller, removes cast since stored_len already has ulg type."
+      },
+      {
+        "case": "opencv-51f7547bf1",
+        "id": "engine-default",
+        "construct": "decl_stmt",
+        "before_text": "dnn::EngineType engine = dnn::ENGINE_OPENCV;",
+        "after_text": "dnn::EngineType engine = dnn::ENGINE_AUTO;",
+        "expected_location": "stationary",
+        "source_reason": "Same declaration in main between input shape declarations and engine argument handling."
+      },
+      {
+        "case": "opencv-51f7547bf1",
+        "id": "engine-branch",
+        "construct": "if_stmt",
+        "before_text": "if (argParser.has(\"engine\"))\n    {\n        std::string eng_name = argParser.get<std::string>(\"engine\");\n        if(eng_name == \"new\")\n            engine = dnn::ENGINE_OPENCV;\n        else if(eng_name == \"ort\")\n            engine = dnn::ENGINE_ORT;\n        else\n        {\n            std::cerr << \"Unknown DNN graph engine \\\"\" << eng_name << \"\\\" (use 'new' or 'ort')\\n\";\n            return -1;\n        }\n    }",
+        "after_text": "if (argParser.has(\"engine\"))\n    {\n        std::string eng_name = argParser.get<std::string>(\"engine\");\n        if(eng_name == \"auto\")\n            engine = dnn::ENGINE_AUTO;\n        else if(eng_name == \"opencv\")\n            engine = dnn::ENGINE_OPENCV;\n        else if(eng_name == \"ort\")\n            engine = dnn::ENGINE_ORT;\n        else\n        {\n            std::cerr << \"Unknown DNN graph engine \\\"\" << eng_name << \"\\\" (use 'auto', 'opencv' or 'ort')\\n\";\n            return -1;\n        }\n    }",
+        "expected_location": "stationary",
+        "source_reason": "Outer if (argParser.has(\"engine\")) stays in main; inserts auto branch, changes opencv spelling and error message. No source displacement; whole conditional is reviewed target."
+      }
+    ]
+  },
+  "source_sha256": {
+    "opencv-51f7547bf1/after/apps/model-diagnostics/model_diagnostics.cpp": "a7f1a3f55b91c534eca9aae64f1df85b5a2353d20a3e214bbe01f4f2becb4576",
+    "opencv-51f7547bf1/after/modules/dnn/include/opencv2/dnn/dnn.hpp": "60770fe5cd8a2dbe226f5ab5743de8121baf3c8bef7035bc4c1014e6808d4227",
+    "opencv-51f7547bf1/before/apps/model-diagnostics/model_diagnostics.cpp": "79bd61e2f4bcd92e962495313eaed1b917a2f59d6d7932b6afa0e0ab7644102c",
+    "opencv-51f7547bf1/before/modules/dnn/include/opencv2/dnn/dnn.hpp": "f31386072d71812f55244012eac58debf223aa3e817409a3579278ad5725aa23",
+    "zlib-40d0519/after/contrib/minizip/skipset.h": "3caad8af990ca765bfb8e29e2318757afc2b06f7e96f1832683fe6a09158c4ac",
+    "zlib-40d0519/before/contrib/minizip/skipset.h": "f4c207b907f5a3edbe5409590d1362d1ddd3a622307042b265ae022631eeea52",
+    "zlib-a456d89/after/trees.c": "f946b55feb26af3396050edbfcb5120a6ea9b6bd49e6edbe074b61d06305627b",
+    "zlib-a456d89/before/trees.c": "6de318aef5c9b0d9301258395012c794a5fae351897688a1452048c61fa28d7d",
+    "zlib-e3dc0a8/after/gzwrite.c": "30954811d62100372effb92db48305931716373e20a6aec9d2e5718e42bed924",
+    "zlib-e3dc0a8/before/gzwrite.c": "2ce783294c688330c716bfe106f43167d3dae5be84994176bc304d205d4f5b04"
+  },
+  "source_review_sha256": "5ead18d757d6fb9bc8e938f007cdfad24671f93d257b146bcf34f915a101744b"
+}

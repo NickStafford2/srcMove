@@ -561,16 +561,19 @@ move rather than relabeling it as a negative.
 
 #### Phase 4.2: migrate verified Type-3 correspondences
 
-Status: observation-only slice implemented. The initial contract matrix separates
+Status: observation-only classification and strict-ancestor context repair implemented.
+The initial contract matrix separates
 location classification, competing verified partners, and current selection.
 See [Type-3 observation evidence](../../moveSelectionBench/README.md#type-3-observation-baseline)
-for unchanged-output comparisons and two explicit structural-wrapper oracle gaps.
+for the baseline and [context/history evaluation](../../moveSelectionBench/README.md#type-3-context-repair-and-independent-history)
+for the repaired structural-wrapper oracles and independently frozen source sample.
 No Type-3 production eligibility or parent-carrying rule has changed.
 
-Next, review bounded historical Type-3 examples independently of detector output,
-including missed edited moves and edits in place. Resolve the structural-candidate
-wrap/unwrap context gap with justified positive/negative contracts before any
-production gate. Establish an explicit acceptance policy for competing edges;
+The four new source-selected comparisons expose matching/extraction limitations,
+but no verified Type-3 edges. They do not validate a Type-3 gate. Next, freeze a
+separate source-reviewed sample of larger eligible edited constructs, retaining
+misses and edits in place, before inspecting outcomes. Review the proposed
+acceptance policy below and its historical tradeoffs before implementation;
 neither degree one nor the winning utility rank alone proves correspondence.
 Do not treat the current synthetic operator edits as historical accuracy evidence.
 
@@ -590,6 +593,45 @@ moved children inside edited parents. Extend parent carrying only when stable
 relative position is supported; otherwise let existing overlap selection avoid
 duplicate output. Do not add an optimizer, new retrieval model, or generalized
 matching framework to accomplish this migration.
+
+##### Proposed Type-3 acceptance policy
+
+This proposal requires review; it is not active eligibility. Keep the current verifier,
+endpoint reservation, hierarchy selector, and observation-only location records
+while the following policy and evidence are reviewed:
+
+1. Freeze the verified edge set after stronger-identity endpoint reservation and
+   before location filtering or selection. An edge passing similarity is a
+   correspondence hypothesis. Degree one means only one *retrieved* partner;
+   missing candidates and weak alternative code can still invalidate identity.
+2. Require correspondence evidence independently of relocation. Source review
+   must establish continuing distinctive operations/data roles across the edit,
+   examine both endpoints and alternatives, and distinguish disappearance from
+   survival or copying. A proposed automatic content discriminator must reproduce
+   those judgments on positives, unrelated near-matches, edits in place, and
+   missed matches before adoption. No such extra discriminator is currently
+   implemented or validated; do not substitute a similarity-margin cutoff.
+3. For competing endpoints, default to unresolved correspondence and withhold
+   their edges in a future gate. Override that default only with a separately
+   validated identity rule that establishes a particular pair and rules out its
+   alternatives. A winning rank, larger span, cross-file displacement, different
+   container, degree after pruning, or graph connectivity is insufficient. Do
+   not repeatedly discard competitors until a surviving edge appears unique;
+   do not infer transitive edges or an equivalence group. Source-reviewed pairs
+   are evaluation labels, not a production allowlist.
+4. Only after correspondence acceptance, require shared `relocated` location
+   evidence. Keep stationary, restructured, missing-context, and unresolved
+   identity outcomes visible separately. Apply the existing hierarchy/non-overlap
+   selector to eligible proposals; selection cannot retroactively establish
+   identity. Do not extend carrying to edited parents from containment alone.
+
+Acceptance review must count real edited moves withheld by identity ambiguity,
+location ambiguity, and selection separately, alongside false moves suppressed.
+The current synthetic competition cases exercise the graph mechanics, but the
+retained history has no verified Type-3 competition to validate this policy.
+An independently frozen positive/negative sample with verified edges and an
+accepted identity rule remain blockers. Do not introduce a gate or start Phase 5
+on the strength of the context repair or zero-output historical comparisons.
 
 ### Phase 5: consistent treatment of repeated correspondence groups
 

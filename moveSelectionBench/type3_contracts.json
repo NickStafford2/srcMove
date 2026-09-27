@@ -95,12 +95,7 @@
           "delete_partners": 1,
           "insert_partners": 1
         }
-      ],
-      "known_observation_gap": {
-        "change": "ambiguous",
-        "reason": "incompatible_context",
-        "explanation": "The if_stmt candidate includes its own tag in its ancestry; inserting/removing an enclosing while does not form a prefix chain. Source-level restructuring remains the oracle."
-      }
+      ]
     },
     {
       "id": "wrapper_removed_edit",
@@ -116,12 +111,7 @@
           "delete_partners": 1,
           "insert_partners": 1
         }
-      ],
-      "known_observation_gap": {
-        "change": "ambiguous",
-        "reason": "incompatible_context",
-        "explanation": "The if_stmt candidate includes its own tag in its ancestry; inserting/removing an enclosing while does not form a prefix chain. Source-level restructuring remains the oracle."
-      }
+      ]
     },
     {
       "id": "edited_parent_child_reorder",

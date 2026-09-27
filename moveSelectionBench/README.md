@@ -428,8 +428,8 @@ No production algorithm, VERSION, or expected output was changed in this slice.
 ## Type-2 production adoption
 
 Phase 4.1 is complete. The [architecture](../doc/architecture.md) describes the
-shared eligibility/diagnostic decisions and endpoint reservation. Phase 4.2 and
-repeated-group policy remain deferred.
+shared eligibility/diagnostic decisions and endpoint reservation. Phase 4.2 is
+observation-only; repeated-group policy remains deferred.
 
 Validation against clean baseline `64be665` used all 172 retained inputs: 41 XML,
 21 source, 75 policy, 21 selection, and 14 history cases. Only the nine reviewed
@@ -492,17 +492,16 @@ ordinary, diagnostic, and results-only runs. A degree-one verified edge is not
 independently established semantic identity; these operator-edit examples test
 mechanics, not historical accuracy.
 
-Thirteen scenarios agree with the location oracle. Two structural wrapping
-scenarios retain explicit `known_observation_gap` records: source-level wrapping
-and unwrapping of an edited `if_stmt` should be restructuring, but the existing
-context captures the candidate's own structural tag. The chains are
-`[block, if_stmt]` and `[block, while, block, if_stmt]`, which are incompatible
-under the shared prefix rule. Diagnostics therefore say
-`ambiguous/incompatible_context`. The independent `restructured` expectation is
-retained alongside the gap; passing regression tests must not be reported as
-fifteen successful semantic classifications. Long declaration-statement
-wrap/unwrap controls exercise the supported prefix behavior. No shared location
-rule was changed to hide this limitation.
+At baseline commit `55185b6`, thirteen scenarios agreed with the location oracle.
+Two structural wrapping scenarios retained explicit `known_observation_gap`
+records: source-level wrapping and unwrapping of an edited `if_stmt` should be
+restructuring, but that context captured the candidate's own structural tag.
+The chains `[block, if_stmt]` and `[block, while, block, if_stmt]` were incompatible
+under the shared prefix rule, producing `ambiguous/incompatible_context`.
+The independent `restructured` expectation remained alongside the gap; those
+passing baseline tests established thirteen successful semantic classifications,
+not fifteen. Long declaration-statement controls already exercised supported
+prefix behavior. The follow-up repair below removes these gap overrides.
 
 Baseline comparison against `4b1d0f2` covers 187 inputs: the existing 172-case
 comparison plus fifteen Type-3 scenarios. Every ordinary JSON result and
@@ -516,9 +515,8 @@ All fourteen retained historical outputs remain identical, including the SQLite
 reorder. However, these retained inputs expose **zero verified Type-3 edges**
 under the current identity reservations and default granularity. They establish
 regression compatibility only; they cannot validate Type-3 classification or a
-future production gate. The next bounded historical sample must be chosen and
-reviewed independently for genuine edited moves, edits in place, and missed
-matches. Context repair and competing-edge acceptance remain open in the
+future production gate. The independently frozen follow-up sample and context
+repair are evaluated below; competing-edge acceptance remains open in the
 [roadmap](../doc/plans/correspondence.md#phase-42-migrate-verified-type-3-correspondences).
 
 Ignored evidence lives in `build/type3-observation/`: baseline/current build
@@ -534,6 +532,94 @@ parent workspace, reproduce with:
 The comparison requires retained generated source/policy inputs and historical
 srcDiff files. It does not relabel source expectations from detector output.
 VERSION remains unchanged.
+
+## Type-3 context repair and independent history
+
+The strict-ancestor snapshot repair described in the
+[architecture](../doc/architecture.md) resolves both structural wrap/unwrap gaps
+without changing the prefix classifier. The original `restructured` expectations
+in `type3_contracts.json` are unchanged; the known-gap overrides are removed.
+All fifteen Type-3 scenarios now satisfy their independent location oracle.
+[`test_structural_context.py`](tests/test_structural_context.py) adds 21 checks:
+Type-1/Type-2/Type-3 crossed with same location, wrap, unwrap, incompatible
+`while`/`for` ancestry, crossing a stable declaration while wrapping, transfer
+between mapped functions, and cross-file transfer. They assert exact enclosing
+chains and production disposition. Type-3 negative location outcomes still emit
+moves under its unchanged production policy. The baseline fails this matrix;
+the repaired implementation passes. Existing macro, missing-context, parent
+carrying, reservation, and hierarchy contracts also pass.
+
+Against the preserved `55185b6` executable, all **191** comparison inputs preserve
+ordinary JSON and annotated XML: the original 187 plus four independently frozen
+history comparisons. Correspondence endpoint keys and all non-correspondence
+diagnostics are unchanged. Eighteen records have changed enclosing chains
+(six Type-1, five Type-2, seven Type-3); only the two structural Type-3 wrap/unwrap
+records change classification, from ambiguous to restructured. Every Type-1 and
+Type-2 classification and production decision is preserved. There are no changed
+production results to accept. The full Docker correctness suite passes all
+13 steps, including 19 move-selection unit tests and 21 selection contracts.
+
+### Frozen source review
+
+[`type3_history_sample.json`](type3_history_sample.json) retains full commit and
+parent IDs, selected paths, source SHA-256 values, and eight source-reviewed
+expectations. Selection used only commit subjects and source-file statistics;
+the four cases and the source review were fixed before srcDiff/srcMove execution.
+All changed C/C++ source/header files are retained. This is a bounded convenience
+sample, not a random sample, held-out validation set, or population recall estimate.
+No zero-result case was replaced after inspecting output.
+
+| Revision | Independent source finding | Observed limiting stage |
+| --- | --- | --- |
+| zlib `40d0519` | Noise-seeding expression extracted from `set_start` to new `set_uniq`, with parameter adaptation | Both expression-statement endpoints exist; their kind is excluded from normalized/Type-3 matching. Edited transfer missed before location classification. |
+| zlib `e3dc0a8` | NULL guard added to the first `gz_vacate` conditional in place | Whole conditional remains shared/mixed in srcDiff; no complete delete/insert candidate pair. No move reported. |
+| zlib `a456d89` | `copy_block` is inlined into `_tr_stored_block`; reviewed alignment, two header writes, and edited debug byte accounting | Alignment is selected as an exact cross-container move. The three edited/renamed expression statements have both endpoints but are excluded from normalized/Type-3 matching. |
+| OpenCV `51f7547bf1` | Engine default and outer argument-handling conditional edited in place | Both constructs remain shared/mixed; no complete endpoint pairs. No move reported. |
+
+Among the eight prespecified targets, five are source-reviewed relocations: one
+exact move is selected and four edited transfers have no matching edge. The
+three edits in place have no complete deleted/inserted pair, rather than a
+successful stationary classifier decision. Revision-filtered reconstruction
+checks each of those three shared srcDiff constructs against both source texts,
+including nested revision-state overrides. The zlib inlining comparison also
+selects exact `s->bits_sent += 2*16;`, a genuine transferred debug statement
+outside the eight prespecified targets; it is reported separately and does not
+inflate the reviewed-target denominator. No new historical output is a false
+move in this bounded source review, but this is not a Type-3 precision result.
+
+All four new comparisons have **zero verified Type-3 edges**, as do the earlier
+fourteen retained historical inputs. The four missed edited transfers are
+matching-eligibility limitations, not location/selection regressions or
+below-threshold rejections. No thresholds, candidate eligibility, or goldens were
+changed to make them pass. Historical validation of verified Type-3 edges,
+competing identity, and any production acceptance policy remains blocked by
+missing evidence. The [proposed acceptance policy](../doc/plans/correspondence.md#proposed-type-3-acceptance-policy)
+keeps those review requirements explicit; no gate is implemented.
+
+### Reproduction and evidence
+
+Ignored `build/type3-context-repair/` contains the preserved executable and
+receipt, full test log, 191-input comparison, per-case outputs, diagnostic audit,
+source snapshot, hashes, and failing-baseline contract log.
+`benchmark-results/type3-independent-history/` contains the frozen selection and
+source review, revision snapshots, full source diffs, srcDiff XML, baseline/current
+outputs, target audit, and `replay.json` with commands and executable hashes.
+The checked-in replay script verifies every source snapshot against the frozen
+hashes before evaluation. From the parent workspace:
+
+```bash
+./bin/srcml-dev-shell make --no-print-directory -C srcMove test
+./bin/srcml-dev-shell python3 srcMove/moveSelectionBench/replay_type3_history.py \
+  --srcdiff /workspace/srcDiff/build/bin/srcdiff \
+  --baseline /workspace/srcMove/build/type3-context-repair/baseline-srcMove \
+  --candidate /workspace/srcMove/build/srcMove \
+  --output /workspace/srcMove/benchmark-results/type3-independent-history
+./bin/srcml-dev-shell python3 srcMove/build/type3-context-repair/compare.py
+```
+
+Replay requires the named local Git objects; it never fetches or changes source
+checkouts. The 191-input comparison also requires the retained generated source,
+policy, and earlier history inputs. VERSION, staging, and commits are unchanged.
 
 ## Retained Notepad++ evaluation
 

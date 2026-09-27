@@ -58,7 +58,12 @@ unnamed containers are not paired by name or XPath; the candidate falls back
 to a mapped enclosing container or remains unmapped. Anchor and ancestor
 fields stay explicitly unreliable until the streaming parser has positive
 structural evidence. For a mapped endpoint, the parser records its
-revision-filtered meaningful ancestor chain as a deterministic integer ID.
+revision-filtered meaningful **strict ancestor** chain as a deterministic integer
+ID. A structural candidate's own start frame is excluded from both container
+lookup and ancestry; diff wrappers are absent from the source-element stack, so
+their context retains the whole enclosing stack. Thus an `if_stmt` wrapped in a
+`while` changes `[block]` to `[block, while, block]`, preserving the classifier's
+existing prefix interpretation without deleting real enclosing ancestors.
 The parser emits a document-local intern table; the candidate registry rebases
 incoming IDs into registry-owned storage so they remain resolvable throughout
 grouping and classification, including incremental multi-file use. Common

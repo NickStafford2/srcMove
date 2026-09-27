@@ -83,12 +83,9 @@ class Type3ContractTests(unittest.TestCase):
                                    and normalize(candidates[r['insert_candidate_id']]['raw_text']) == edge['after_text']]
                         self.assertEqual(len(matched), 1)
                         record = matched[0]
-                        expected = case.get('known_observation_gap', edge)
+                        expected = edge
                         self.assertEqual(record['shadow_change'], expected['change'])
                         self.assertEqual(record['classification_reason'], expected['reason'])
-                        if 'known_observation_gap' in case:
-                            self.assertEqual(edge['change'], 'restructured')
-                            self.assertNotEqual(record['shadow_change'], edge['change'])
                         self.assertEqual(record['delete_verified_partner_count'], edge['delete_partners'])
                         self.assertEqual(record['insert_verified_partner_count'], edge['insert_partners'])
                         competing = max(edge['delete_partners'], edge['insert_partners']) > 1

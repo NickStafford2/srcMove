@@ -396,8 +396,9 @@ struct common_anchor {
 };
 
 std::optional<std::size_t> nearest_common_container_index(
-    const std::vector<source_element_frame> &source_elements) {
-  for (std::size_t index = source_elements.size(); index-- > 0;) {
+    const std::vector<source_element_frame> &source_elements,
+    std::size_t ancestor_count) {
+  for (std::size_t index = ancestor_count; index-- > 0;) {
     const source_element_frame &frame = source_elements[index];
     if (frame.semantic_container &&
         frame.membership == revision_membership::both &&
@@ -411,14 +412,19 @@ std::optional<std::size_t> nearest_common_container_index(
 endpoint_location_context snapshot_location_context(
     move_candidate::Kind kind, std::string_view filename,
     const std::vector<source_element_frame> &source_elements,
-    ancestor_summary_interner &ancestor_summaries) {
+    ancestor_summary_interner &ancestor_summaries,
+    bool structural_candidate = false) {
   endpoint_location_context context;
   auto revision_files = split_revision_filename(filename);
   context.revision_file = kind == move_candidate::Kind::del
                               ? std::move(revision_files.first)
                               : std::move(revision_files.second);
+  // Structural starts have already been pushed. Context describes strict
+  // ancestors, not the candidate itself. Diff wrappers are not on this stack.
+  const std::size_t ancestor_count =
+      source_elements.size() - (structural_candidate ? 1 : 0);
   const std::optional<std::size_t> mapped_container_index =
-      nearest_common_container_index(source_elements);
+      nearest_common_container_index(source_elements, ancestor_count);
   if (mapped_container_index) {
     const source_element_frame &frame =
         source_elements[*mapped_container_index];
@@ -432,7 +438,7 @@ endpoint_location_context snapshot_location_context(
     std::vector<std::string> chain;
     context.ancestor_summary_interpretable = true;
     for (std::size_t index = *mapped_container_index + 1;
-         index < source_elements.size(); ++index) {
+         index < ancestor_count; ++index) {
       const source_element_frame &frame = source_elements[index];
       if (frame.membership != revision_membership::both &&
           frame.membership != side) {
@@ -645,7 +651,7 @@ void consume_streamed_children(
     child.depth          = 1;
     child.type2_eligible = is_type2_eligible_name(node.name);
     child.location = snapshot_location_context(
-        region.kind, region.filename, source_elements, ancestor_summaries);
+        region.kind, region.filename, source_elements, ancestor_summaries, true);
     child.forms.consume(node);
     region.children.push_back(std::move(child));
     if (stats != nullptr) {
@@ -824,7 +830,7 @@ collect_candidates_streaming(srcml_reader                &reader,
           (!pending_anchor || slot == 1) &&
           effective == revision_membership::both) {
         const std::optional<std::size_t> container_index =
-            nearest_common_container_index(source_elements);
+            nearest_common_container_index(source_elements, source_elements.size());
         if (container_index) {
           pending_anchor.emplace();
           pending_anchor->container_id =
