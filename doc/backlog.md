@@ -21,10 +21,8 @@ settled.
 - Add Type-2 failure categorization using metadata and/or canonical srcML forms.
 - Evaluate BigCloneEval clone matcher logic for ideas srcMove could use when
   deciding which code segment is the intended move.
-- Add BigCloneBench coverage reporting that summarizes row counts, distinct raw
-  text-pair counts, and functionality coverage across a run.
-- Decide whether BigCloneBench pair rows and distinct fragment-text cases should
-  be reported as separate metrics.
+- Add aggregate functionality coverage to BigMoveBench summaries. Selection
+  manifests already report source-row and distinct fragment-content-case counts.
 - If performance becomes a constraint again, profile current binaries and fixed
   workloads before reopening runner parallelism or archive-level concurrency.
 - Flesh out `expected_srcdiff_format.xml` so it demonstrates normal srcDiff
