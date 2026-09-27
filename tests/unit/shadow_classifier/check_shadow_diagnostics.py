@@ -52,7 +52,7 @@ def main() -> int:
     assert correspondence_ids == sorted(correspondence_ids)
     assert has_record(
         records,
-        current_result="move",
+        current_result="not_move",
         shadow_change="restructured",
         classification_reason="ancestor_wrapped",
     )
@@ -64,6 +64,7 @@ def main() -> int:
     )
     assert has_record(
         records,
+        current_result="move",
         shadow_change="relocated",
         classification_reason="crossed_stable_sibling",
     )

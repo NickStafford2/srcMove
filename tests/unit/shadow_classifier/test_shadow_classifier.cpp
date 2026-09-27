@@ -148,6 +148,22 @@ int main() {
     require(to_string(anchor_interval_observation::different) == "different",
             "incomparable interval strings must remain stable");
 
+    for (shadow_change_kind kind : {shadow_change_kind::stationary,
+                                    shadow_change_kind::restructured,
+                                    shadow_change_kind::ambiguous}) {
+      shadow_classification classification;
+      classification.change_kind = kind;
+      require(!type1_move_eligible(classification),
+              "only positive relocation evidence may emit a Type-1 move");
+    }
+    shadow_classification relocated;
+    relocated.change_kind = shadow_change_kind::relocated;
+    require(type1_move_eligible(relocated),
+            "an independent relocation must remain output-eligible");
+    relocated.carried_by_parent = true;
+    require(!type1_move_eligible(relocated),
+            "a parent-carried child must not emit an independent move");
+
     std::cout << "PASS shadow classifier tests\n";
     return 0;
   } catch (const std::exception &error) {

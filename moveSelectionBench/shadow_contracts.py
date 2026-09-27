@@ -1,4 +1,4 @@
-"""Reviewed oracle for the observation-only correspondence classifier."""
+"""Reviewed oracle for the production Type-1 correspondence classifier."""
 
 from __future__ import annotations
 

@@ -23,18 +23,7 @@ from moveSelectionBench.shadow_contracts import (
 
 
 CATALOG = REPO_ROOT / "moveSelectionBench" / "shadow_contracts.json"
-PRE_ADOPTION_OUTPUT_DISAGREEMENTS = {
-    case_id: ("not_move", "move")
-    for case_id in (
-        "stationary_line_shift",
-        "nodiscard_signature_and_unwrap",
-        "nodiscard_signature_only",
-        "wrapper_added",
-        "wrapper_removed",
-        "incompatible_paths_without_reliable_wrapper_interpretation",
-        "missing_anchor_ambiguity",
-    )
-}
+ADOPTED_OUTPUT_DISAGREEMENTS: dict[str, tuple[str, str]] = {}
 
 
 class ShadowContractTests(unittest.TestCase):
@@ -185,7 +174,7 @@ class ShadowContractTests(unittest.TestCase):
                         )
 
         self.assertEqual(observed_gaps, known_gaps)
-        self.assertEqual(output_disagreements, PRE_ADOPTION_OUTPUT_DISAGREEMENTS)
+        self.assertEqual(output_disagreements, ADOPTED_OUTPUT_DISAGREEMENTS)
 
 
 if __name__ == "__main__":

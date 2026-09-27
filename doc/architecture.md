@@ -70,8 +70,8 @@ with unique canonical identity in a mapped container become stable anchors.
 Mixed or repeated declarations are excluded. Each mapped candidate receives
 its nearest unique anchors, falling back to explicit container-begin and
 container-end sentinels, so crossings are observable without tree rematching.
-Unmapped candidates retain unreliable anchor intervals. Current selection does
-not consume any location context.
+Unmapped candidates retain unreliable anchor intervals. Production selection
+consumes this context only for unique one-to-one Type-1 correspondences.
 
 This distinction permits a deletion in one archive unit to match an insertion
 in another without mistaking a combined srcDiff filename for one revision's
@@ -83,10 +83,12 @@ files, different mapped containers, and crossed reliable anchor intervals are
 relocation evidence. Within one reliable interval, equal meaningful ancestry
 is stationary, prefix additions or removals are restructuring, and
 incompatible ancestry is ambiguous. Missing evidence is also ambiguous. The
-refined group builder harvests unique exact Type-1 pairs before local-
-replacement rejection and hierarchy selection, classifies them, and records
-both the shadow interpretation and eventual current-selection result in the
-opt-in diagnostics. This does not alter production move selection.
+refined group builder harvests unique exact Type-1 pairs before hierarchy
+selection and classifies them once. Only positively classified independent
+relocations become Type-1 proposals; stationary, restructured, ambiguous, and
+parent-carried correspondences remain diagnostic-only. The same compact
+decision records materialize the opt-in diagnostics, so production eligibility
+and diagnostic interpretation cannot diverge.
 The Phase 0 contract adapter resolves endpoints by the reviewed construct and
 exact text rather than using current classifications as its oracle. With
 fragment granularity, all twelve contracts match, including
@@ -165,20 +167,22 @@ bundle policy, including its declared constants, lives in
 [`src/move_registry/selection_policy.cpp`](../src/move_registry/selection_policy.cpp):
 
 1. forms exact canonical-text groups
-2. groups eligible constructs by exact Type-2 representation
-3. generates Type-3 edges for structurally compatible candidates
-4. turns unique exact and Type-2 correspondences plus verified Type-3 edges
+2. classifies unique one-to-one exact correspondences and admits only supported
+   relocations to production proposal selection; non-1x1 exact groups retain
+   existing group policy
+3. groups eligible constructs by exact Type-2 representation
+4. generates Type-3 edges for structurally compatible candidates
+5. turns eligible exact and Type-2 correspondences plus verified Type-3 edges
    into one proposal set
-5. rejects unique Type-1 and Type-2 local replacements whose endpoints occupy
-   adjacent delete/insert regions below the file root in one file; compatible
-   inner paths are not required because local restructuring can expose
-   unchanged content through different srcDiff paths
-6. ranks proposals by size-aware utility plus an internal structural-coverage
+6. rejects unique Type-2 local replacements whose endpoints occupy adjacent
+   delete/insert regions below the file root in one file; Type-1 now uses the
+   structural classifier instead of this event-adjacency heuristic
+7. ranks proposals by size-aware utility plus an internal structural-coverage
    term, then confidence, evidence class, source-construct preference, and
    deterministic candidate identifiers
-7. greedily selects proposals subject to one-use and source/destination span
+8. greedily selects proposals subject to one-use and source/destination span
    overlap constraints
-8. emits remaining delete-only and insert-only groups for reporting
+9. emits remaining delete-only and insert-only groups for reporting
 
 Repeated exact equivalence classes are retained as multi-endpoint move/copy
 groups with ambiguity-aware confidence; they do not claim an individual
@@ -205,8 +209,9 @@ The comparison first rejects impossible size ratios, then runs a two-row LCS
 that exits when the remaining rows cannot reach the required common length.
 Candidates are restricted to the same eligible srcML element kind and the 0.90
 size window, rather than forming an unrestricted delete-by-insert product.
-Type-1, Type-2, and Type-3 proposals compete in the same utility ordering. A
-large verified near-match can therefore suppress a small exact descendant.
+Eligible Type-1, Type-2, and Type-3 proposals compete in the same utility
+ordering. A large verified near-match can therefore suppress a small exact
+descendant.
 Correlated evidence is represented by its strongest applicable match class
 rather than summed. Deterministic IDs break otherwise equal proposal ranks.
 
@@ -319,10 +324,11 @@ performance result for arbitrary projects.
 - srcMove depends on the regions exposed by srcDiff; it is not a general diff
   engine and does not recover changes that srcDiff does not represent as usable
   candidates.
-- Local-replacement rejection is intentionally limited to unique Type-1 and
-  Type-2 correspondences in adjacent nested diff regions in one file. It does
-  not attempt to reconstruct general developer intent, classify non-local
-  correspondences, or resolve repeated NxM groups.
+- Local-replacement rejection remains a temporary Type-2-only policy for
+  adjacent nested diff regions in one file. Unique Type-1 output instead
+  requires positive relocation evidence from revision files, mapped semantic
+  containers, or crossed stable anchors. Neither path attempts to reconstruct
+  developer intent or resolve repeated NxM groups.
 
 Richer structural similarity, contextual scoring, and ambiguous-group
 disambiguation are research directions rather than implemented features.

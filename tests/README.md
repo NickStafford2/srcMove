@@ -42,9 +42,9 @@ python3 tests/regression/policy/list.py --catalog contextual
   including stationary exact correspondences exposed as adjacent delete/insert
   regions. It also executes the separate shadow-classifier oracle against
   opt-in diagnostics, including every fixture's srcDiff membership, endpoint
-  cardinality, context observations, classification, and stable reason. Shadow
-  expectations do not change or serve as an oracle for the production `moves`
-  array. Hypotheses remain observational benchmark cases. Run with `make
+  cardinality, context observations, classification, stable reason, and Type-1
+  production disposition. Unique Type-1 output uses this oracle: only supported
+  relocations are moves. Hypotheses remain observational benchmark cases. Run with `make
   test-move-selection`; it is also included by `make test-unit`.
 - `srcmove-history`: focused unit tests under
   `tests/unit/srcmove_history/`; run explicitly with

@@ -61,6 +61,8 @@ shadow_classification classify_type1_shadow(
     const endpoint_location_context &after,
     const std::vector<std::string> &after_ancestors);
 
+bool type1_move_eligible(const shadow_classification &classification) noexcept;
+
 std::string_view to_string(shadow_change_kind value) noexcept;
 std::string_view to_string(shadow_classification_reason value) noexcept;
 std::string_view to_string(file_observation value) noexcept;

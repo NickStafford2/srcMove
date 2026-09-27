@@ -18,9 +18,10 @@ merely because it reports every exact delete/insert pair as a move.
 
 ## Starting point
 
-Start from commit `3db5da8` (`Correspondence phase 2.6 independent review`) or
-a descendant containing it. That release is srcMove `0.4.0`, passes all 13
-`make test` steps in Docker, and has a clean `git diff --check`.
+Start from the commit containing the completed Phase 3.1 working tree described
+below. Its parent is `6a93580` (`Correspondence phase 3.0 production oracle`).
+Phase 3.1 advances srcMove to `0.5.0`, passes all 13 `make test` steps in
+Docker, and has a clean `git diff --check`.
 
 The completed milestone already provides:
 
@@ -36,9 +37,11 @@ The completed milestone already provides:
 - retained Notepad++ evaluation documented in
   `moveSelectionBench/README.md`.
 
-All twelve reviewed contracts currently match their expected context,
-classification, and reason. Production output deliberately has not adopted
-those classifications yet.
+All twelve reviewed contracts match their expected context, classification,
+reason, and adopted production disposition. The remaining Phase 3.2 work is
+to remove synthetic cross-file evidence from the source regression harness and
+then close any resulting expectation gaps with reviewed structural evidence or
+conservative non-move results.
 
 ## Required reading
 
@@ -118,6 +121,17 @@ weakening the classifier.
 
 ### Phase 3.1: one shared classification decision
 
+Status: complete in the working tree. Unique Type-1 decisions are now built
+unconditionally in a compact internal record, parent carrying mutates that same
+record, production admits only `relocated`, and diagnostics materialize from
+the shared decision after selection. The legacy adjacent-local-replacement
+filter is Type-2-only. All 12 adoption contracts agree with production. Twelve
+previous XML move goldens were manually confirmed as
+`ambiguous/insufficient_context` and changed to zero moves; the move-selection
+mechanics fixtures now declare explicit cross-file context where relocation is
+required. The full 13-step Docker suite passes. Source-fixture filename
+normalization and retained real-history evaluation remain for later slices.
+
 Build unique Type-1 classification records unconditionally, not only when
 `--diagnostics` is requested. Keep the compact decision data local to grouping;
 diagnostics should materialize it only on request.
@@ -147,6 +161,22 @@ Type-3 matches. The current builders already exclude exact groups with both
 sides from those fallback pools; preserve and test that property.
 
 ### Phase 3.2: end-to-end adoption contracts
+
+Status: next. First normalize single-file source regression generation. The
+runner currently compares fixture files named `original.cpp` and
+`modified.cpp`, causing srcDiff to emit `original.cpp|modified.cpp` and making
+the classifier see a rename that never occurred. Generate each side from a
+separate directory root containing the same logical relative filename instead.
+Add a focused runner test that locks this invariant before changing goldens.
+
+Re-run the source suite with diagnostics after normalization and manually audit
+the nine affected unique correspondences in `blocks_swapped`,
+`function_call_reorder`, `function_content`, `lines_swapped`,
+`lines_swapped_many`, `simple_cross_block`, and `standalone_function`. Preserve
+a move only when the normalized input provides positive semantic-container or
+stable-sibling relocation evidence; otherwise change it to no move. Do not
+restore the synthetic filename difference or weaken the classifier. Record the
+reviewed outcome and updated inventory in `moveSelectionBench/README.md`.
 
 For every unique reviewed contract, assert both the classification and normal
 output:

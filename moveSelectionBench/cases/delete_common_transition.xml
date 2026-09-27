@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="delete_common.cpp">
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="source.cpp|destination.cpp">
   <diff:delete><if_stmt><if>if <condition>(<expr><name>old_scope</name></expr>)</condition> <block>{<block_content>
     <diff:common><expr_stmt><expr><name>unchanged</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt></diff:common>
     <decl_stmt><decl><type><name>int</name></type> <name>after_common</name> <init>= <expr><literal type="number">41</literal></expr></init></decl>;</decl_stmt>

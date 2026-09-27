@@ -136,6 +136,12 @@ shadow_classification classify_type1_shadow(
                     observations);
 }
 
+bool type1_move_eligible(
+    const shadow_classification &classification) noexcept {
+  return classification.change_kind == shadow_change_kind::relocated &&
+         !classification.carried_by_parent;
+}
+
 #define SRCMOVE_ENUM_STRING_CASE(value, text)                                   \
   case value:                                                                  \
     return text
