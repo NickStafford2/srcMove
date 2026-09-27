@@ -371,6 +371,25 @@
           "reason": "The complete function is below the conservative Type-3 threshold."
         }
       ]
+    },
+    {
+      "id": "type2_reorder_across_common_conditionals",
+      "status": "contract",
+      "input": "cases/type2_reorder_across_common_conditionals.xml",
+      "input_shape": "archive",
+      "verify_results_only_equivalence": true,
+      "category": "same_parent_reorder",
+      "rationale": "A normalized if block crosses two unchanged conditional siblings in the same function. This reduced source-generated case reproduces the independently reviewed SQLite c799c15 floating-point option block reorder. Absence of common declaration anchors must not erase this genuine Type-2 move. Current shadow classification is a known stationary false negative; expected output comes from source order, not that classification.",
+      "required": [
+        {
+          "from": "if (all || p->realFmt != 0) { const char *format = p->realFmt; append(out, \" --realfmt %s\", format ? format : \"default\"); }",
+          "to": "if (all || p->fpFmt != 0) { const char *format = p->fpFmt; append(out, \" --fpfmt %s\", format ? format : \"empty\"); }",
+          "match_kinds": [
+            "type2"
+          ]
+        }
+      ],
+      "forbidden": []
     }
   ]
 }

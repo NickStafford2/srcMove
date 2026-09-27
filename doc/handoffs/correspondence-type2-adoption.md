@@ -27,9 +27,18 @@ diagnostics (schema 3), and adds an independent Type-2 contract catalog. Normal
 production behavior remains unchanged. The fixture baseline is audited; the
 historical follow-up now exposes eight pre-reviewed moved functions across two
 file transfers and two retrospectively source-reviewed stationary declarations.
-Same-file edited-move coverage and a demonstrated historical precision gain
-remain missing; changed-access declaration semantics remain unresolved. Finish
-that tradeoff evaluation before Phase 4.1 adoption.
+An isolated Phase 4.1 gate trial based on `9efc4eb` now demonstrates a real
+same-file recall regression: SQLite's edited floating-point rendering block
+crosses common conditional siblings but is classified stationary. Production
+reports it; the trial suppresses it. **Do not adopt the gate until that context
+error is fixed and reevaluated.** No production algorithm has changed.
+
+The accepted `type2_reorder_across_common_conditionals` output contract protects
+this move. The [gate-trial evidence](../../moveSelectionBench/README.md#type-2-gate-trial-same-file-recall-regression)
+records the source oracle, actual output transitions, successful same-file
+OpenCV controls, and the isolated experiment's unique-Type-2 endpoint reservation.
+The next step is a focused common-sibling context repair, preserving declaration
+anchors and ambiguity safeguards; not another unbounded history search.
 
 Current evidence and reproduction details belong in
 [`moveSelectionBench/README.md`](../../moveSelectionBench/README.md#type-2-observation-baseline).
@@ -115,8 +124,9 @@ do not weaken the classifier to preserve them.
 ## Required Phase 4.0: shared decisions, oracle, and observation-only diagnostics
 
 Implementation and fixture-contract work below is committed;
-the historical acceptance requirement (item 6) remains open. The baseline audit
-does not establish that suppressing all ambiguous Type-2 pairs improves accuracy.
+historical evaluation (item 6) has found a concrete adoption blocker. Resolve
+the common-conditional reorder regression before enabling Phase 4.1. The baseline
+audit does not establish that suppressing ambiguous pairs improves accuracy.
 
 Before changing normal output:
 

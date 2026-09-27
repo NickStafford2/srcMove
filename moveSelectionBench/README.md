@@ -259,9 +259,10 @@ output of an unimplemented selection policy or population recall. Two reviewed
 stationary declarations already remain unselected under the baseline, so these
 results do not demonstrate a new precision gain.
 
-**Acceptance remains limited:** no reviewed same-file edited move exercises the
-proposed gate, no reviewed historical false move is demonstrated to be removed,
-and the changed-access declaration remains unresolved. Do not interpret the
+**At this follow-up stage, acceptance remained limited:** no reviewed same-file
+edited move exercised the proposed gate, no reviewed historical false move was
+demonstrated to be removed, and the changed-access declaration was unresolved.
+The gate trial below supplies same-file evidence and finds a real recall loss. Do not interpret the
 absence of observed regressions in these easy cross-file positives as proof of
 improved historical analysis. Keep production behavior unchanged until a bounded
 comparison addresses those tradeoffs; retain the reviewed cases for that trial.
@@ -281,6 +282,95 @@ From the parent workspace, the retained scripts reproduce the runs:
 ./bin/srcml-dev-shell python3 /workspace/srcMove/benchmark-results/correspondence-phase4-history-next/notepadpp/compare_baseline.py
 ./bin/srcml-dev-shell python3 /workspace/srcMove/benchmark-results/correspondence-phase4-history-next/opencv/evaluate.py
 ```
+
+### Type-2 gate trial: same-file recall regression
+
+The next comparison enabled the proposed gate only in a detached, ignored
+worktree at `build/type2-gate-trial/source`, based on `9efc4eb`. Production source
+and its executable remain unchanged. The trial classifies unique Type-2 pairs
+before selection, uses the shared eligibility gate, and removes the adjacent
+replacement heuristic. It also reserves both IDs of every unique Type-2 pair
+from alternate Type-3 matches. This identity reservation is independent of
+location, applies to IDs rather than spans, and intentionally strengthens
+correspondence precedence; it is an experimental policy change, not an adopted
+feature. Repeated normalized groups retain their existing policy.
+
+**Do not adopt this trial: it loses a source-reviewed real Type-2 move.** SQLite
+`c799c15dbef70dd8ee63be2c4b77ebeacce1df00` moves the floating-point formatting
+block in `src/shell.c.in` from after unchanged line-limit/quote handling to
+before it. The block's field and string literals change from `zRealFmt` /
+`--realfmt` to `zFpFmt` / `--fpfmt`. A separate source-only review confirms the
+reorder; line displacement alone is not the evidence. The comparison registers
+`.in=C` through srcDiff's existing `--register-ext` option, preserving the actual
+source bytes and shared logical filename. srcMove uses default granularity.
+
+Production selects the block as one Type-2 move. The shared classifier calls
+both it and its nested declaration `stationary/same_anchor_interval`; the trial
+therefore emits zero moves. `region_filter.cpp` currently collects common
+`decl_stmt` anchors only. The crossed common conditionals do not divide the
+interval, and equal ancestry plus this coarse interval is mistaken for proof
+of stationarity. This is a context/classification error, not poor normalized
+matching or a threshold problem.
+
+The new accepted output contract
+[`type2_reorder_across_common_conditionals`](cases/type2_reorder_across_common_conditionals.xml)
+is a small source-generated reduction of that scenario, with a common function,
+two common conditional siblings, and one reordered/renamed conditional. It
+requires the whole Type-2 move and normal/results-only equivalence. Its oracle
+comes from source order; it deliberately does not canonize the current incorrect
+stationary diagnostic. Production passes it; the trial fails it.
+
+A comparison of the pre-existing 157 fixtures plus 14 historical inputs changed
+12 cases: nine XML cases lose ten contextless Type-2 pairs, two selection
+mechanics cases lose their Type-2 parent (one exposes a repeated Type-1 group
+instead), and the SQLite historical reorder is lost. The previously reviewed
+cross-file positives are preserved. This demonstrates why counting fewer moves
+is not an acceptance criterion. The subsequent 21-contract benchmark reports
+production 21 passes and trial 18 passes / three semantic misses (the two
+mechanics cases and the new real-reorder reduction). No golden was weakened to
+accept those misses.
+
+A separate source-selected same-file probe adds useful positive evidence:
+OpenCV `9ba4bb7355` moves/refactors calibration code, and all five currently
+selected Type-2 pairs remain selected in the trial, including a normalized
+declaration crossing a stable sibling. Of three prespecified edited declaration
+targets, `_dpdk` is detected while `_dpdr` and `_dpdt` remain unresolved normalized
+groups. Those two are pre-existing matching limitations, not gate regressions.
+Three additional OpenCV/SQLite probes preserve their outputs, including an
+existing zero-result SQLite helper extraction. Two Notepad++ probes expose only
+Type-1 evidence; one preference-dialog extraction remains an existing miss.
+These convenience probes are not a population recall estimate.
+
+The identity-reservation change also has a concrete benefit in a synthetic
+counterexample: a stationary unique Type-2 pair can currently lose to a spurious
+Type-3 alternate partner after the adjacency filter rejects it. Four isolated
+trial checks cover both endpoint directions and controls without the Type-2
+counterpart. Reservation prevents the false alternate while each control still
+selects its legitimate Type-3 match. This does not justify accepting the separate
+SQLite recall regression or establish a historical precision gain.
+
+The next focused work is to capture positive order evidence from substantial
+common non-declaration siblings before making Type-2 output depend on the
+classifier. Reuse the streaming context representation and classifier; test
+unique/repeated/mixed conditionals and preserve existing declaration anchors.
+Do not turn all context-free pairs back into moves, introduce line-distance
+rules, or treat the known reorder as an acceptable non-move.
+
+Retained evidence:
+
+- `build/type2-gate-trial/`: detached worktree, `trial.patch`, build receipt,
+  executable/patch hashes, `compare.py`, per-case outputs and `comparison.json`.
+- `benchmark-results/correspondence-type2-gate-trial/`: SQLite source-reviewed
+  reorder, reduced source pair, bounded same-file probes, source reviews,
+  manifests, commands, and baseline/trial outputs. The SQLite source-only
+  independent review is retained under `opencv-sqlite/`.
+- `benchmark-results/move-selection/type2-gate-recall-review/`: comparison of
+  production and trial on the 21 output contracts.
+
+`make test-move-selection` passes for production (15 unit tests, 21 contracts).
+The four reservation/control checks pass only in the isolated trial; its checker
+is at `build/type2-gate-trial/source/moveSelectionBench/type2_reservation_trial/`.
+No production algorithm, VERSION, or expected output was changed in this slice.
 
 ## Retained Notepad++ evaluation
 
