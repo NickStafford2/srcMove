@@ -10,7 +10,7 @@ tests in [`tests/`](../tests/README.md).
 - [Move selection](../moveSelectionBench/README.md) characterizes competing
   parent/child explanations, nesting, common ownership, and ambiguity.
 - [History scaling](../srcmove_history/benchmarks/README.md) measures production
-  `srcmove_history` throughput.
+  srcMove History throughput.
 
 Each suite owns its methodology, commands, and output schema. Results from the
 four suites answer different questions and must not be combined into one score.

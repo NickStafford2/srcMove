@@ -1,9 +1,8 @@
 """Human-readable presentation for repository analysis command results.
 
-The renderers deliberately accept mappings rather than database objects.  This
-keeps terminal wording at the command boundary and lets the current flat query
-record migrate to the planned nested result model without duplicating output
-logic.
+The renderers deliberately accept mappings rather than database objects. This
+keeps terminal wording at the command boundary and lets the flat query record
+and versioned nested CLI result coexist without duplicating output logic.
 """
 
 from __future__ import annotations

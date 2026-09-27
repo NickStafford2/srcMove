@@ -2,7 +2,7 @@
 
 - Status: accepted
 - Date: 2026-08-20
-- Last reviewed: 2026-09-15
+- Last reviewed: 2026-09-26
 
 ## Context
 
@@ -14,13 +14,13 @@ migrated to the production service.
 
 ## Decision
 
-`srcmove_history` is the history-analysis component of the srcMove product. It
-remains in the srcMove repository while retaining a distinct internal boundary.
-Its SQLite database is the sole authoritative state. Benchmark tools may
-configure or measure it, but must not own a competing execution pipeline or
-state format.
+srcMove History is the history-analysis component of the srcMove product. Its
+implementation package is `srcmove_history`. It remains in the srcMove
+repository while retaining a distinct internal boundary. Its SQLite database is
+the sole authoritative state. Benchmark tools may configure or measure it, but
+must not own a competing execution pipeline or state format.
 
-The target runtime is:
+The implemented runtime is:
 
 ```text
 CLI or benchmark adapter
@@ -60,7 +60,9 @@ Program responsibilities are separated as follows:
 - The application service owns create, resume, extension, and batch planning.
 - The execution pipeline owns one frozen adjacent-commit pair and returns a
   normalized outcome without publishing shared state.
-- The persistence layer owns schema migrations, transactions, and integrity.
+- The persistence layer owns schema creation, version checks, transactions, and
+  integrity. Schema version 6 rejects older analysis roots rather than migrating
+  them in place.
 - Query and reporting services do not schedule pair execution or modify
   analysis coverage. They read SQLite and may resolve retained analysis
   artifacts or frozen Git context needed for inspection.

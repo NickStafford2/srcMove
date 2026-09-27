@@ -2,19 +2,18 @@
 
 ## Status
 
-This document defines the conceptual target model for the srcmove-history
-refactor. It is not a table-by-table description of the current SQLite schema.
-The schema and migrations remain authoritative for physical storage details.
+This document describes the conceptual model implemented by srcMove History.
+It is not a table-by-table description of SQLite schema version 6; the schema in
+`srcmove_history/database.py` remains authoritative for physical storage.
 
 ## Relationships
 
 ```text
 Analysis
- ├─ Invocation
- ├─ Commit
- └─ Batch
-     └─ Pair
-         └─ Move Evidence
+ ├─ Invocations
+ └─ Batches
+     └─ Pairs
+         └─ Move evidence
 ```
 
 ## Entities and ownership
@@ -34,14 +33,6 @@ Every invocation is recorded, including a verified no-op against an already
 satisfied target. The operation lock determines whether a writer is currently
 active; invocation records describe activity but do not prove liveness.
 
-### Commit
-
-A commit is identified by its complete native Git object ID. Metadata needed
-for later analysis or display is frozen when history is planned rather than
-queried from mutable repository state later. This includes parent IDs,
-timestamp, subject, and merge status when those fields are admitted to the
-schema.
-
 ### Batch
 
 A batch is bounded, frozen work created at one analysis frontier. It owns a
@@ -58,10 +49,14 @@ process observations, timings, errors, and retained artifacts, and identifies
 the invocation that published it. Once published, it is immutable within the
 analysis and makes the pair covered.
 
+The pair stores complete old and new Git object IDs. There is no separate
+commit table and no frozen commit-subject, timestamp, parent-list, or merge
+metadata. The `report` command resolves the limited date and history information
+it needs from the configured repository and the analysis's retained Git ref.
+
 Pair publication is transactional. A crash before publication creates no
 durable outcome, leaving the pair pending for a later invocation to process.
-There is no attempt record or accepted-outcome selection step in the current
-target model.
+There is no attempt record or accepted-outcome selection step.
 
 ### Move evidence
 
@@ -86,12 +81,11 @@ inferred from overwritten pair state.
   outcome totals, move totals, and last durable update.
 - `list` queries stable pair identities and canonical outcomes with indexed
   ordering, filtering, and bounded pagination.
-- `show` loads one pair and its canonical evidence lazily. Stored evidence does
-  not require the original repository; optional Git reconstruction reports its
-  own availability.
+- `show` loads one pair and its canonical evidence lazily. It reads SQLite only
+  and does not require the original repository.
 - Query results are immutable presentation values. They do not expose writable
   database, coordinator, or worker objects.
 
-These contracts are implemented independently of the future CLI renderer so
+These contracts are implemented independently of the CLI renderers so
 presentation requirements do not become ad hoc SQL or orchestration
 dependencies.

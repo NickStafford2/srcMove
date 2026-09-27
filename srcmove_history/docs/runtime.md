@@ -6,36 +6,37 @@ by the CLI and benchmark adapters.
 
 ## Purpose
 
-`srcmove_history` runs srcDiff and srcMove across adjacent first-parent Git
-commits. It is production analysis infrastructure; benchmarks may invoke it but
-do not own its state format or execution semantics.
+srcMove History runs srcDiff and srcMove across adjacent first-parent Git
+commits. Its executable is `srcmove-history`; `srcmove_history` is the internal
+Python package name. It is production analysis infrastructure; benchmarks may
+invoke it but do not own its state format or execution semantics.
 
-Each commit pair is materialized as two directory trees. srcDiff is therefore always
-invoked with `--archive`, and its XML output is always validated as an archive.
+Each commit pair is materialized as two directory trees. srcDiff is therefore
+always invoked with `--archive`, and its XML output is always validated as an
+archive.
 
-The public lifecycle is target-driven:
+The public lifecycle is target-driven. From the srcMove checkout, use the
+repository-owned wrapper and select the Git repository to analyze with `-C`:
 
 ```bash
-cd REPOSITORY
-
-bin/srcmove-history init
+bin/srcmove-history -C REPOSITORY init
 # Edit .srcmove/config.toml before the first run.
 
-bin/srcmove-history run \
+bin/srcmove-history -C REPOSITORY run \
   --pairs 100 \
   --srcdiff PATH \
   --srcmove PATH
 
-bin/srcmove-history run --pairs 500
-bin/srcmove-history run --more 100
+bin/srcmove-history -C REPOSITORY run --pairs 500
+bin/srcmove-history -C REPOSITORY run --more 100
 
-bin/srcmove-history status
-bin/srcmove-history report
-bin/srcmove-history list --failed
-bin/srcmove-history show 1
-bin/srcmove-history compare COMMIT --save all
-bin/srcmove-history compare OLD NEW --save all
-bin/srcmove-history compare --pair PAIR --save all
+bin/srcmove-history -C REPOSITORY status
+bin/srcmove-history -C REPOSITORY report
+bin/srcmove-history -C REPOSITORY list --failed
+bin/srcmove-history -C REPOSITORY show 1
+bin/srcmove-history -C REPOSITORY compare COMMIT --save all
+bin/srcmove-history -C REPOSITORY compare OLD NEW --save all
+bin/srcmove-history -C REPOSITORY compare --pair PAIR --save all
 ```
 
 `run` creates, resumes, or extends the same analysis. There are no public
@@ -75,6 +76,19 @@ toward the requested extension rather than causing already-checkpointed work to
 be skipped or duplicated. On a new analysis, `--more N` is equivalent to
 `--pairs N`.
 
+The documentation uses these result terms consistently:
+
+- a **durable** or **covered** pair has a terminal outcome, whether its batch is
+  committed or its outcome is checkpointed in the current pending batch;
+- a **compared** pair has the stored status `completed`, meaning both srcDiff
+  and srcMove succeeded;
+- a pair **without analyzable change** has the stored status
+  `no_analyzable_change` and did not run the tools;
+- a **failed** pair has one of the four stage-specific `*_failed` statuses.
+
+The stored names `completed_pair_count` and batch status `completed` refer to
+committed coverage, not only to successfully compared pairs.
+
 The CLI discovers the enclosing Git worktree from the current directory and
 uses `<repository>/.srcmove/` as its one active analysis. `-C PATH` changes the
 working directory before discovery. `--state-dir NAME` explicitly selects a
@@ -109,9 +123,10 @@ old analysis; initialize a new `.srcmove` before running a different analysis.
 Creation-only options are rejected when an analysis already exists rather than
 being interpreted as an in-place update.
 
-Human-readable output is the default. `run --format json` and
-`status --format json` emit status document schema version 2. Its names make
-commit pair counts explicit and report moves as `detections`,
+Human-readable output is the default. `run`, `status`, `list`, `show`, and
+`compare` accept `--format human|json`. The `run` and `status` JSON forms emit
+status document schema version 2. Its names make commit pair counts explicit
+and report moves as `detections`,
 `source_destination_pairings`, `annotated_regions`, and `by_match_type`.
 Status derives live writer state by probing the operation lock; `activity.json`
 alone is never treated as proof that a run is active.
@@ -125,11 +140,18 @@ covered commit explicitly. Internal move-group shape, annotated-region counts,
 state paths, and invocation details remain available through JSON and the
 `list` and `show` commands rather than the default summary.
 
+`list` returns at most 50 newest-first pairs by default. It supports the
+mutually exclusive `--failed`, `--moves`, and `--status STATUS` filters,
+`--limit N` (1 through 1000), `--after PAIR`, and `--oldest-first`. CLI status
+values are hyphenated, such as `srcdiff-failed`; stored and JSON status values
+use underscores, such as `srcdiff_failed`. Displayed pair numbers are stable,
+one-based values derived from `distance_from_newest`.
+
 `report` produces a detailed, deterministic plain-text research summary from
 committed results. It has no `--format` option; redirect stdout to save it:
 
 ```bash
-bin/srcmove-history report > history-report.txt
+bin/srcmove-history -C REPOSITORY report > history-report.txt
 ```
 
 The report states first-parent history coverage against the total frozen
@@ -274,8 +296,9 @@ moved source bodies:
 - SHA-256 and UTF-8 byte length for each moved raw-text region;
 - results-file SHA-256 and byte length as an observation.
 
-`show` loads one committed pair and its moves on demand. It does not scan or
-materialize the full analysis.
+`show` loads one durable pair and its moves on demand, including a terminal pair
+checkpointed in a pending batch. It does not scan or materialize the full
+analysis.
 
 Failures retain termination/resource observations and a bounded stdout/stderr
 sample with complete-stream byte counts and hashes. Durable log data is capped
@@ -317,14 +340,16 @@ Terminal statuses are:
 - `srcmove_failed`;
 - `orchestration_failed`.
 
-Tool and validation failures count as covered terminal pairs. The CLI exits one
-when committed coverage contains failures, but retrying the same target does not
-rerun them. An unexpected coordinator or database error exits two and leaves
-pending work recoverable.
+Tool and validation failures count as covered terminal pairs. `run` exits one
+when durable coverage contains failures, but retrying the same target does not
+rerun them. `compare` also exits one when the comparison has a terminal failure.
+An unexpected coordinator or database error exits two and leaves pending work
+recoverable.
 
 ## Verification
 
-Run focused tests in the intended Docker environment:
+From the parent `srcMLBuildTemplate` workspace root, run focused tests in the
+intended Docker environment:
 
 ```bash
 ./bin/srcml-dev-shell make --no-print-directory \

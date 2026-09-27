@@ -25,6 +25,13 @@ settled.
   manifests already report source-row and distinct fragment-content-case counts.
 - If performance becomes a constraint again, profile current binaries and fixed
   workloads before reopening runner parallelism or archive-level concurrency.
+- srcMove History: add a read-only preflight or `run --dry-run` that displays
+  the definition a new analysis would freeze.
+- srcMove History: add versioned CSV/JSONL exports for pair and move evidence.
+- srcMove History: consider `status --watch` for passive observation of an
+  analysis running in another shell.
+- srcMove History: consider optional Git-diff and verbose evidence views for
+  `show`; keep stored evidence usable without the source repository.
 - Flesh out `expected_srcdiff_format.xml` so it demonstrates normal srcDiff
   output, or replace it with a clearer non-XML explanation.
 
