@@ -164,7 +164,10 @@ inline void write_selection_diagnostics(std::ostream &out,
       write_string(out, context.next_common_anchor_id); out << ",\n";
       out << field_pad << "\"meaningful_ancestors\": ";
       write_string_array(out, context.meaningful_ancestors, indent + 2);
-      out << "\n" << pad << "}";
+      out << ",\n";
+      out << field_pad << "\"ancestor_summary_interpretable\": "
+          << (context.ancestor_summary_interpretable ? "true" : "false")
+          << "\n" << pad << "}";
     };
     out << "      {\n";
     out << "        \"delete_candidate_id\": " << item.delete_candidate_id

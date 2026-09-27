@@ -37,6 +37,7 @@ struct endpoint_context_diagnostic {
   std::string previous_common_anchor_id;
   std::string next_common_anchor_id;
   std::vector<std::string> meaningful_ancestors;
+  bool ancestor_summary_interpretable = false;
 };
 
 struct correspondence_diagnostic {

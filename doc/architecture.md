@@ -87,9 +87,11 @@ both the shadow interpretation and eventual current-selection result in the
 opt-in diagnostics. This does not alter production move selection.
 The Phase 0 contract adapter resolves endpoints by the reviewed construct and
 exact text rather than using current classifications as its oracle. With
-fragment granularity, ten of twelve contracts currently match, including the
-source-generated `[[nodiscard]]` unwrap. Parent-carried relationships and
-unrecognized exclusive wrappers remain unsupported.
+fragment granularity, eleven of twelve contracts currently match, including
+the source-generated `[[nodiscard]]` unwrap. Macro ancestry is explicitly
+marked non-interpretable and therefore yields ambiguous incompatible context
+rather than a stationary inference. Parent-carried relationships remain the
+only unsupported contract.
 
 For performance reasons, candidate construction and canonicalization are part
 of this same pass.

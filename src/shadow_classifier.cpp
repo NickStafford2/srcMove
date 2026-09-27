@@ -42,7 +42,10 @@ shadow_observations observe(
 
   if (before.ancestor_summary_reliable &&
       after.ancestor_summary_reliable) {
-    if (before_ancestors == after_ancestors) {
+    if (!before.ancestor_summary_interpretable ||
+        !after.ancestor_summary_interpretable) {
+      result.ancestor = ancestor_observation::incompatible;
+    } else if (before_ancestors == after_ancestors) {
       result.ancestor = ancestor_observation::same;
     } else if (is_prefix(before_ancestors, after_ancestors)) {
       result.ancestor = ancestor_observation::wrapped;

@@ -25,6 +25,7 @@ endpoint_location_context mapped(std::string file, std::string container,
   result.next_common_anchor_id = std::move(next);
   result.anchor_interval_reliable = true;
   result.ancestor_summary_reliable = true;
+  result.ancestor_summary_interpretable = true;
   return result;
 }
 
@@ -70,6 +71,9 @@ int main() {
     endpoint_location_context unknown_ancestor = baseline;
     unknown_ancestor.ancestor_summary_reliable = false;
 
+    endpoint_location_context uninterpretable_ancestor = baseline;
+    uninterpretable_ancestor.ancestor_summary_interpretable = false;
+
     const std::vector<classifier_case> cases{
         {"same stable interval", baseline, {"block"}, baseline, {"block"},
          shadow_change_kind::stationary,
@@ -106,6 +110,9 @@ int main() {
         {"unknown ancestor evidence", baseline, {"block"}, unknown_ancestor,
          {}, shadow_change_kind::ambiguous,
          shadow_classification_reason::insufficient_context},
+        {"uninterpretable ancestor", uninterpretable_ancestor, {"block"},
+         baseline, {"block"}, shadow_change_kind::ambiguous,
+         shadow_classification_reason::incompatible_context},
     };
 
     for (const classifier_case &test : cases) {

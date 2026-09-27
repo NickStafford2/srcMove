@@ -430,12 +430,18 @@ endpoint_location_context snapshot_location_context(
   if (mapped_container_index) {
     const revision_membership side = membership_for(kind);
     std::vector<std::string> chain;
+    context.ancestor_summary_interpretable = true;
     for (std::size_t index = *mapped_container_index + 1;
          index < source_elements.size(); ++index) {
       const source_element_frame &frame = source_elements[index];
-      if ((frame.membership == revision_membership::both ||
-           frame.membership == side) &&
-          is_meaningful_ancestor_name(frame.name)) {
+      if (frame.membership != revision_membership::both &&
+          frame.membership != side) {
+        continue;
+      }
+      if (frame.name == "macro") {
+        context.ancestor_summary_interpretable = false;
+      }
+      if (is_meaningful_ancestor_name(frame.name)) {
         chain.push_back(frame.name);
       }
     }

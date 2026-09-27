@@ -81,24 +81,27 @@ resolves endpoints by each reviewed contract's construct and exact before/after
 text, asserts candidate cardinality, refuses to manufacture pairs for the 2x2
 case, and compares the resulting stable reason to the independent expectation.
 It uses fragment granularity so the deliberately small expression-statement
-contracts remain observable without changing production defaults. Ten of the
-twelve contracts pass, including the source-generated `[[nodiscard]]` unwrap,
+contracts remain observable without changing production defaults. Eleven of
+the twelve contracts pass, including the source-generated `[[nodiscard]]` unwrap,
 which is classified `restructured/ancestor_unwrapped`. The test explicitly
-locks the two remaining gaps rather than weakening their oracle:
+locks the remaining gap rather than weakening its oracle:
 
-- `incompatible_paths_without_reliable_wrapper_interpretation` currently
-  reports `stationary/same_anchor_interval` because `macro` ancestry is not
-  represented;
 - `relocated_parent_carries_child` currently reports
   `relocated/different_semantic_container` with `carried_by_parent=false`.
 
+Phase 2.3 closes the incompatible-wrapper gap without using raw XPath. Endpoint
+context now distinguishes a reliable summary from an interpretable one. A
+side-visible `macro` ancestor makes the summary non-interpretable; the
+classifier records incompatible ancestry and emits
+`ambiguous/incompatible_context`. This state is included in endpoint
+diagnostics and covered by both the pure classifier test and the executable
+contract.
+
 The next implementation session should continue in this order:
 
-1. represent unrecognized exclusive structural ancestry conservatively and
-   close the incompatible-wrapper contract without using raw XPath;
-2. implement or conservatively defer `carried_by_parent`, preserving the
+1. implement or conservatively defer `carried_by_parent`, preserving the
    parent's unique Type-1 relationship rather than pairing by document order;
-3. run the retained
+2. run the retained
    Notepad++ evaluation, then perform the independent review in Step 7.
 
 Do not derive containers or anchors from raw XPath, names alone, the candidate

@@ -105,11 +105,6 @@ class ShadowContractTests(unittest.TestCase):
                 "different_semantic_container",
                 False,
             ),
-            "incompatible_paths_without_reliable_wrapper_interpretation": (
-                "stationary",
-                "same_anchor_interval",
-                False,
-            ),
         }
         observed_gaps: dict[str, tuple[object, object, object]] = {}
 

@@ -235,6 +235,7 @@ endpoint_context_diagnostic endpoint_diagnostic(
       context.previous_common_anchor_id,
       context.next_common_anchor_id,
       ancestor_summary(registry, candidate),
+      context.ancestor_summary_interpretable,
   };
 }
 

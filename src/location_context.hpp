@@ -21,6 +21,7 @@ struct endpoint_location_context {
   std::size_t ancestor_summary_id = 0;
   bool semantic_container_mapped = false;
   bool ancestor_summary_reliable = false;
+  bool ancestor_summary_interpretable = false;
   bool anchor_interval_reliable = false;
 };
 
