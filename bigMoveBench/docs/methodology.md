@@ -77,10 +77,13 @@ source; questionable labels,
 unsupported variations, extraction problems, or conversion artifacts discovered
 in the failure set should be analyzed and reported rather than silently removed.
 
-This converts clone similarity into move similarity. Exact and Type-2 clone pairs
-are the best first target for srcMove because they align with the current exact and
-Type-2 match categories. Type-3 and Type-4 pairs are useful later as expected misses
-or as recall targets for future similarity scoring.
+This converts clone similarity into move similarity. Type-1 and Type-2 clone
+pairs align with srcMove's strict Type-1 and Type-2 match categories. Type-3
+matching is also implemented, but srcMove accepts only high-similarity candidates:
+either the normalized statement/block sequence or normalized token sequence must
+satisfy its symmetric `0.90` bounded-LCS rule. BigMoveBench evaluates Type-3 as
+an observational recall stratum, so below-threshold pairs remain informative
+misses rather than suite failures. Type-4 is not supported.
 
 ## Type-3 Similarity Reference
 
@@ -170,8 +173,8 @@ separate in reports so one easy category does not hide failures in another.
 ```text
 syntactic_type = 1             exact / Type-1 move baseline
 syntactic_type = 2             renamed / Type-2 move baseline
-syntactic_type = 3, sim >= .90 near-miss or future Type-3 recall
-syntactic_type = 3, sim < .70  expected miss / stress cases
+syntactic_type = 3, sim >= .90 strong external Type-3 reference cases
+syntactic_type = 3, sim < .70  weak external Type-3 stress cases
 internal = FALSE/TRUE          default BigCloneEval rows vs internal rows
 f1.project = f2.project        intra-project rows
 f1.project != f2.project       inter-project rows

@@ -151,8 +151,11 @@ For srcMove reporting:
 
 ### `syntactic_type`
 
-The BigCloneBench clone category. Local srcMove tests currently use Type-1 and
-Type-2 only.
+The BigCloneBench clone category. BigMoveBench currently evaluates Type-1,
+Type-2, and Type-3 positive pairs. Type-1 and Type-2 are strict pass/fail pair
+sets. Type-3 is observational: BigMoveBench records misses without failing the
+suite, while a detected whole-fragment move must still be classified as
+`type3` to satisfy the strict oracle. Type-4 is not supported.
 
 ### `similarity_line` / `similarity_token`
 
@@ -182,9 +185,10 @@ BigCloneEval can evaluate by:
 
 These are benchmark clone-strength scores: they describe how strongly the two
 BigCloneBench fragments resemble each other after BigCloneBench's normalization.
-They are useful for srcMove sampling and future similarity experiments, but they
-are not byte-for-byte raw source comparisons. Do not use them directly as the
-srcMove `type1` vs `type2` oracle.
+BigMoveBench uses them to stratify Type-3 samples and report results by strength
+band, but they are not byte-for-byte raw source comparisons and do not decide
+whether srcMove accepts a pair. Do not use them directly as a srcMove
+classification oracle.
 
 ### Size Metadata And Judgment Filters
 
@@ -241,8 +245,12 @@ This distinction matters for srcMove because case materialization writes the
 extracted raw source text into synthetic source and destination files.
 srcMove then sees the raw source, not BigCloneBench's normalized
 comparison form. A BigCloneBench similarity score can tell us which benchmark
-bucket a pair belongs to, but srcMove still needs its own exact, Type-2, or
-future similarity matching logic to detect the synthetic move.
+bucket a pair belongs to, but srcMove applies its own Type-1, Type-2, and Type-3
+matching rules to the synthetic move. In particular, srcMove accepts a Type-3
+candidate only when either its normalized statement/block sequence or normalized
+token sequence satisfies the symmetric `0.90` bounded-LCS rule. That threshold
+is intentionally independent of BigCloneBench's line and token similarity
+values.
 
 Type-1 deserves special care for srcMove. BigCloneEval describes Type-1
 similarity as allowing formatting/comment differences, so a srcMove test
