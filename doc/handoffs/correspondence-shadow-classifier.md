@@ -76,14 +76,29 @@ and that enabling diagnostics leaves all ordinary result fields unchanged.
 `shadow_classifier_test` covers every rule branch and conservative
 counterexamples.
 
+Phase 2.2 connects the Phase 0 catalog to executable diagnostics. The adapter
+resolves endpoints by each reviewed contract's construct and exact before/after
+text, asserts candidate cardinality, refuses to manufacture pairs for the 2x2
+case, and compares the resulting stable reason to the independent expectation.
+It uses fragment granularity so the deliberately small expression-statement
+contracts remain observable without changing production defaults. Ten of the
+twelve contracts pass, including the source-generated `[[nodiscard]]` unwrap,
+which is classified `restructured/ancestor_unwrapped`. The test explicitly
+locks the two remaining gaps rather than weakening their oracle:
+
+- `incompatible_paths_without_reliable_wrapper_interpretation` currently
+  reports `stationary/same_anchor_interval` because `macro` ancestry is not
+  represented;
+- `relocated_parent_carries_child` currently reports
+  `relocated/different_semantic_container` with `carried_by_parent=false`.
+
 The next implementation session should continue in this order:
 
-1. execute the Phase 0 shadow contracts against generated diagnostics, adding
-   an integration adapter that asserts each fixture's intended record rather
-   than treating current output as the oracle;
-2. close context gaps exposed by those contracts, especially unrecognized
-   wrapper incompatibility and the `[[nodiscard]]`/unwrap miniature; and
-3. implement or conservatively defer `carried_by_parent`, run the retained
+1. represent unrecognized exclusive structural ancestry conservatively and
+   close the incompatible-wrapper contract without using raw XPath;
+2. implement or conservatively defer `carried_by_parent`, preserving the
+   parent's unique Type-1 relationship rather than pairing by document order;
+3. run the retained
    Notepad++ evaluation, then perform the independent review in Step 7.
 
 Do not derive containers or anchors from raw XPath, names alone, the candidate

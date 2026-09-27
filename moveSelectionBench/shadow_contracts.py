@@ -400,3 +400,86 @@ def validate_srcdiff_precondition(case: dict[str, Any], srcdiff_path: Path) -> d
             resolved.append(matches[0])
 
     return {"before_count": counts["original_only"], "after_count": counts["modified_only"]}
+
+
+def evaluate_shadow_diagnostics(
+    case: dict[str, Any], results: dict[str, Any]
+) -> dict[str, Any]:
+    """Resolve one contract's endpoints in schema-v2 diagnostics.
+
+    This adapter uses the reviewed element and exact endpoint text from the
+    contract. It never derives expected classifications from current output.
+    """
+
+    diagnostics = results.get("diagnostics")
+    if not isinstance(diagnostics, dict) or diagnostics.get("schema_version") != 2:
+        raise ShadowContractError(f"{case['id']}: expected diagnostics schema 2")
+    candidates = diagnostics.get("candidates")
+    correspondences = diagnostics.get("correspondences")
+    if not isinstance(candidates, list) or not isinstance(correspondences, list):
+        raise ShadowContractError(f"{case['id']}: incomplete shadow diagnostics")
+
+    precondition = case["srcdiff_precondition"]
+    wanted = {
+        "delete": normalize_text(precondition["before_text"]),
+        "insert": normalize_text(precondition["after_text"]),
+    }
+    endpoint_ids: dict[str, list[int]] = {"delete": [], "insert": []}
+    for candidate in candidates:
+        if not isinstance(candidate, dict):
+            continue
+        side = candidate.get("side")
+        if (
+            side in endpoint_ids
+            and candidate.get("construct") == precondition["element"]
+            and normalize_text(str(candidate.get("raw_text", ""))) == wanted[side]
+            and isinstance(candidate.get("candidate_id"), int)
+        ):
+            endpoint_ids[side].append(candidate["candidate_id"])
+
+    expected_counts = {
+        "delete": precondition["before_count"],
+        "insert": precondition["after_count"],
+    }
+    actual_counts = {side: len(ids) for side, ids in endpoint_ids.items()}
+    if actual_counts != expected_counts:
+        raise ShadowContractError(
+            f"{case['id']}: diagnostic endpoints {actual_counts}, expected {expected_counts}"
+        )
+
+    matching = [
+        item
+        for item in correspondences
+        if isinstance(item, dict)
+        and item.get("delete_candidate_id") in endpoint_ids["delete"]
+        and item.get("insert_candidate_id") in endpoint_ids["insert"]
+    ]
+    if precondition["cardinality"] == "many_to_many":
+        if matching:
+            raise ShadowContractError(
+                f"{case['id']}: non-unique endpoints were manufactured into pairs"
+            )
+        return {
+            "change_kind": "ambiguous",
+            "classification_reason": "non_unique_correspondence",
+            "carried_by_parent": False,
+        }
+    if len(matching) != 1:
+        raise ShadowContractError(
+            f"{case['id']}: resolved {len(matching)} unique diagnostic records"
+        )
+    record = matching[0]
+    return {
+        "change_kind": record.get("shadow_change"),
+        "classification_reason": record.get("classification_reason"),
+        "carried_by_parent": record.get("carried_by_parent", False),
+    }
+
+
+def assert_shadow_expectation(case: dict[str, Any], actual: dict[str, Any]) -> None:
+    expected = dict(case["expected_shadow"])
+    expected.setdefault("carried_by_parent", False)
+    if actual != expected:
+        raise ShadowContractError(
+            f"{case['id']}: shadow result {actual}, expected {expected}"
+        )

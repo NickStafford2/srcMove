@@ -85,7 +85,11 @@ refined group builder harvests unique exact Type-1 pairs before local-
 replacement rejection and hierarchy selection, classifies them, and records
 both the shadow interpretation and eventual current-selection result in the
 opt-in diagnostics. This does not alter production move selection.
-Parent-carried relationships remain unsupported.
+The Phase 0 contract adapter resolves endpoints by the reviewed construct and
+exact text rather than using current classifications as its oracle. With
+fragment granularity, ten of twelve contracts currently match, including the
+source-generated `[[nodiscard]]` unwrap. Parent-carried relationships and
+unrecognized exclusive wrappers remain unsupported.
 
 For performance reasons, candidate construction and canonicalization are part
 of this same pass.
