@@ -44,7 +44,6 @@ struct grouping_profile_stats {
   std::uint64_t type3_edges_selected        = 0;
   std::uint64_t type3_edges_used_rejected   = 0;
   std::uint64_t type3_edges_overlap_rejected = 0;
-  std::uint64_t local_replacement_rejected    = 0;
 };
 
 group_kind classify_counts(std::size_t del_count, std::size_t ins_count) {
@@ -665,12 +664,13 @@ const correspondence_decision *find_correspondence_decision(
   return &*found;
 }
 
-void apply_type1_output_policy(
+void apply_correspondence_output_policy(
     std::vector<match_proposal> &proposals,
     const std::vector<correspondence_decision> &decisions,
     grouping_profile_stats *stats) {
   for (match_proposal &proposal : proposals) {
-    if (proposal.group.match != match_kind::type1 ||
+    if ((proposal.group.match != match_kind::type1 &&
+         proposal.group.match != match_kind::type2) ||
         proposal.group.del_ids.size() != 1 ||
         proposal.group.ins_ids.size() != 1) {
       continue;
@@ -682,49 +682,11 @@ void apply_type1_output_policy(
     if (decision != nullptr &&
         !move_eligible(decision->classification)) {
       proposal.disabled = true;
-      if (stats != nullptr) {
+      if (stats != nullptr && proposal.group.match == match_kind::type1) {
         ++stats->type1_policy_rejected;
       }
     }
   }
-}
-
-void reject_local_replacement_proposals(
-    std::vector<match_proposal> &proposals,
-    const candidate_registry &registry,
-    grouping_profile_stats *stats) {
-  proposals.erase(
-      std::remove_if(
-          proposals.begin(), proposals.end(),
-          [&](const match_proposal &proposal) {
-            if (proposal.group.match != match_kind::type2 ||
-                proposal.group.del_ids.size() != 1 ||
-                proposal.group.ins_ids.size() != 1) {
-              return false;
-            }
-            const move_candidate &deleted =
-                registry.candidate(proposal.group.del_ids.front());
-            const move_candidate &inserted =
-                registry.candidate(proposal.group.ins_ids.front());
-            const bool local_replacement = local_replacement_pair(
-                local_replacement_context{
-                    deleted.filename,
-                    deleted.structural_parent_depth,
-                    deleted.diff_region_start_idx,
-                    deleted.diff_region_end_idx,
-                },
-                local_replacement_context{
-                    inserted.filename,
-                    inserted.structural_parent_depth,
-                    inserted.diff_region_start_idx,
-                    inserted.diff_region_end_idx,
-                });
-            if (local_replacement && stats != nullptr) {
-              ++stats->local_replacement_rejected;
-            }
-            return local_replacement;
-          }),
-      proposals.end());
 }
 
 bool candidate_strictly_contains(const move_candidate &outer,
@@ -941,7 +903,8 @@ std::vector<candidate_id>
 collect_type3_ids(const candidate_registry         &registry,
                   const std::vector<pending_group> &exact_groups,
                   const std::vector<std::size_t>   &order,
-                  move_candidate::Kind              kind) {
+                  move_candidate::Kind              kind,
+                  const std::vector<bool>           &type2_reserved) {
   std::vector<candidate_id> ids;
   for (std::size_t group_index : order) {
     const pending_group &group = exact_groups[group_index];
@@ -951,6 +914,9 @@ collect_type3_ids(const candidate_registry         &registry,
     const std::vector<candidate_id> &side =
         kind == move_candidate::Kind::del ? group.del_ids : group.ins_ids;
     for (candidate_id id : side) {
+      if (type2_reserved[id]) {
+        continue;
+      }
       const move_candidate &candidate = registry.candidate(id);
       if (!candidate.type2_eligible ||
           candidate.role != move_candidate::Role::structural_child ||
@@ -969,11 +935,12 @@ build_type3_edges(const candidate_registry         &registry,
                   const std::vector<pending_group> &exact_groups,
                   const std::vector<std::size_t>   &order,
                   grouping_profile_stats           *stats,
-                  selection_diagnostics             *diagnostics) {
+                  selection_diagnostics             *diagnostics,
+                  const std::vector<bool>           &type2_reserved) {
   const std::vector<candidate_id> del_ids = collect_type3_ids(
-      registry, exact_groups, order, move_candidate::Kind::del);
+      registry, exact_groups, order, move_candidate::Kind::del, type2_reserved);
   const std::vector<candidate_id> ins_ids = collect_type3_ids(
-      registry, exact_groups, order, move_candidate::Kind::insert);
+      registry, exact_groups, order, move_candidate::Kind::insert, type2_reserved);
   if (stats != nullptr) {
     stats->type3_delete_candidates = del_ids.size();
     stats->type3_insert_candidates = ins_ids.size();
@@ -1183,7 +1150,6 @@ content_groups build_content_groups(const candidate_registry &registry,
     decisions =
         classify_unique_correspondences(registry, exact_groups);
     classify_parent_carried_correspondences(registry, decisions);
-    order_correspondence_decisions(decisions);
   }
 
   std::vector<std::size_t> exact_group_order;
@@ -1195,6 +1161,7 @@ content_groups build_content_groups(const candidate_registry &registry,
   group_selection selection(registry.active_candidate_count());
 
   std::vector<pending_group> type2_groups;
+  std::vector<bool> type2_reserved(registry.total_record_count(), false);
   {
     scoped_profile_timer timer(profile, "content_groups.type2_build");
     type2_groups =
@@ -1202,22 +1169,33 @@ content_groups build_content_groups(const candidate_registry &registry,
     if (stats != nullptr) {
       stats->type2_groups_built = type2_groups.size();
     }
+
+    auto type2_decisions = classify_unique_correspondences(registry, type2_groups);
+    // A unique normalized correspondence establishes identity independently of
+    // output eligibility. Do not reopen either endpoint for weaker partners.
+    // Reserve IDs only: distinct enclosing/descendant proposals still compete.
+    for (const correspondence_decision &decision : type2_decisions) {
+      type2_reserved[decision.delete_candidate_id] = true;
+      type2_reserved[decision.insert_candidate_id] = true;
+    }
+    decisions.insert(decisions.end(), type2_decisions.begin(), type2_decisions.end());
   }
+
+  order_correspondence_decisions(decisions);
 
   std::vector<type3_edge> type3_edges;
   {
     scoped_profile_timer timer(profile, "content_groups.type3_build");
     type3_edges =
         build_type3_edges(registry, exact_groups, exact_group_order, stats,
-                          diagnostics);
+                          diagnostics, type2_reserved);
   }
 
   {
     scoped_profile_timer timer(profile, "content_groups.unified_select");
     std::vector<match_proposal> proposals = build_match_proposals(
         registry, exact_groups, type2_groups, type3_edges);
-    apply_type1_output_policy(proposals, decisions, stats);
-    reject_local_replacement_proposals(proposals, registry, stats);
+    apply_correspondence_output_policy(proposals, decisions, stats);
     prefer_stronger_descendant_bundles(proposals, registry);
     for (const match_proposal &proposal : proposals) {
       if (proposal.disabled) {
@@ -1252,12 +1230,6 @@ content_groups build_content_groups(const candidate_registry &registry,
   }
 
   if (diagnostics != nullptr) {
-    // Type-2 classification is observation-only until its adoption has been
-    // evaluated. Do not extend exact-parent carrying to edited parents.
-    auto type2_decisions = classify_unique_correspondences(registry, type2_groups);
-    decisions.insert(decisions.end(), type2_decisions.begin(),
-                     type2_decisions.end());
-    order_correspondence_decisions(decisions);
     materialize_correspondence_diagnostics(registry, decisions, *diagnostics);
     update_correspondence_selection_results(out, *diagnostics);
     for (type3_pair_diagnostic &pair : diagnostics->type3_pairs) {
@@ -1322,8 +1294,6 @@ content_groups build_content_groups(const candidate_registry &registry,
                          profile_stats.type3_edges_used_rejected);
     profile->add_counter("content_groups.type3_edges_overlap_rejected",
                          profile_stats.type3_edges_overlap_rejected);
-    profile->add_counter("content_groups.local_replacement_rejected",
-                         profile_stats.local_replacement_rejected);
   }
 
   return out;

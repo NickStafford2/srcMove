@@ -4,7 +4,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <string_view>
 
 namespace srcmove {
 
@@ -37,20 +36,6 @@ struct descendant_bundle_metrics {
 };
 
 bool descendant_bundle_preferred(const descendant_bundle_metrics &metrics);
-
-struct local_replacement_context {
-  std::string_view filename;
-  std::size_t      structural_parent_depth = 0;
-  std::size_t      diff_region_start_idx   = 0;
-  std::size_t      diff_region_end_idx     = 0;
-};
-
-// True for a high-confidence local replacement: two endpoints in immediately
-// adjacent diff regions in the same file, both below the file root. The inner
-// paths may differ because wrapping and other in-place restructuring can expose
-// unchanged content through incompatible srcDiff paths.
-bool local_replacement_pair(const local_replacement_context &deleted,
-                            const local_replacement_context &inserted);
 
 } // namespace srcmove
 

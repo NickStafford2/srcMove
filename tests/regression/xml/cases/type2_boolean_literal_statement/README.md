@@ -1,10 +1,9 @@
-# Boolean Literal Type-2 Case
+# Type-2 normalization contract
 
-This fixture currently follows the classic syntactic Type-2 definition:
-replacing one Boolean literal with another Boolean literal is classified as a
-Type-2 move in delete/insert context.
+Replacing `false` with `true` retains a Boolean-literal Type-2 correspondence.
+Neither fixture provides reliable mapped location context, so the correspondence
+is `ambiguous/insufficient_context` and produces no move annotation. This is not
+a claim of stationarity or semantic equivalence.
 
-Changing `false` to `true` can change program behavior, so this fixture is also
-a useful future policy boundary. A stricter move definition could require
-semantic or historical continuity evidence beyond normalized syntax. That
-policy is not part of the current Type-2 classifier.
+The [normalization diagnostic contracts](../../../../../moveSelectionBench/type2_normalization_contracts.json)
+preserve the endpoint paths and text independently of move output.

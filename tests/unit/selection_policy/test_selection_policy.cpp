@@ -58,35 +58,6 @@ int main() {
     require(!descendant_bundle_preferred(fragmented),
             "fragmentation cost should grow with the number of children");
 
-    const local_replacement_context local_delete{"same.cpp", 3, 10, 20};
-    const local_replacement_context local_insert{"same.cpp", 3, 21, 30};
-    require(local_replacement_pair(local_delete, local_insert),
-            "adjacent regions in one nested file context are a local replacement");
-
-    local_replacement_context moved_file = local_insert;
-    moved_file.filename = "other.cpp";
-    require(!local_replacement_pair(local_delete, moved_file),
-            "a changed file is move evidence");
-
-    local_replacement_context reordered = local_insert;
-    reordered.diff_region_start_idx = 40;
-    reordered.diff_region_end_idx   = 50;
-    require(!local_replacement_pair(local_delete, reordered),
-            "separated regions may represent a same-parent reorder");
-
-    local_replacement_context file_root_delete = local_delete;
-    local_replacement_context file_root_insert = local_insert;
-    file_root_delete.structural_parent_depth = 1;
-    file_root_insert.structural_parent_depth = 1;
-    require(!local_replacement_pair(file_root_delete, file_root_insert),
-            "a file root alone is insufficient stationary context");
-
-    local_replacement_context insert_then_delete = local_delete;
-    insert_then_delete.diff_region_start_idx = 31;
-    insert_then_delete.diff_region_end_idx   = 40;
-    require(local_replacement_pair(insert_then_delete, local_insert),
-            "local replacement recognition is independent of region polarity");
-
     std::cout << "PASS selection policy tests\n";
     return 0;
   } catch (const std::exception &error) {

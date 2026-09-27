@@ -142,7 +142,8 @@ repeated normalized groups, and movement inside edited parents. A selected
 parent can explain a relocated child without selecting that child separately.
 The tests check actual selection against output, deterministic diagnostic order,
 and normal/results-only equivalence. Future production expectations are not
-inferred from current results. Type-2 classification remains observation-only.
+inferred from current results. Type-2 classification now also controls production
+eligibility; see [production adoption](#type-2-production-adoption).
 
 The preserved baseline executable is the clean Phase 3 build from `1cb7b81`,
 SHA-256 `c0f92dc3d31be954f98418d5914970af1190d44fa691661319bdf47c0c78e491`.
@@ -174,7 +175,7 @@ pairs, six have positive relocation evidence and twelve are ambiguous:
 | Four policy transfers | 4 | Cross-file relocations remain supported |
 | Source `reorder_function_specifiers` | 1 | Same-file crossed-sibling relocation remains supported |
 | `coherent_type3_parent_over_partition` | 1 | Explicit cross-file relocation remains supported |
-| XML positives listed in the Type-2 handoff | 10 | Insufficient location context; normalization/mechanics examples, not independently established historical moves or false moves |
+| XML positives retained in `type2_normalization_contracts.json` | 10 | Insufficient location context; normalization/mechanics examples, not independently established historical moves or false moves |
 | `unique_parent_over_repeated_children`, `coherent_type2_parent_over_partition` | 2 | Hierarchy mechanics without positive location context |
 
 The twelve ambiguous selections would become ineligible under the proposed
@@ -423,6 +424,53 @@ Retained evidence:
 The four reservation/control checks pass only in the isolated trial; its checker
 is at `build/type2-gate-trial/source/moveSelectionBench/type2_reservation_trial/`.
 No production algorithm, VERSION, or expected output was changed in this slice.
+
+## Type-2 production adoption
+
+Phase 4.1 is complete. The [architecture](../doc/architecture.md) describes the
+shared eligibility/diagnostic decisions and endpoint reservation. Phase 4.2 and
+repeated-group policy remain deferred.
+
+Validation against clean baseline `64be665` used all 172 retained inputs: 41 XML,
+21 source, 75 policy, 21 selection, and 14 history cases. Only the nine reviewed
+normalization XML cases change output, removing ten context-free Type-2 moves.
+Their endpoint paths and raw texts remain explicitly tested in
+[`type2_normalization_contracts.json`](type2_normalization_contracts.json) as
+`ambiguous/insufficient_context`, not stationary. Without a selected enclosing
+function, the local- and parameter-rename fixtures also expose unmatched child
+declarations; their result counts include those children.
+
+All 14 retained historical ordinary JSON results and annotated XML outputs are
+unchanged, including the reviewed SQLite conditional reorder and the existing
+cross-file and same-file controls. Type-1 correspondence diagnostics are equal
+across all 172 comparisons. No reviewed real move was lost in this retained
+sample. This establishes compatibility on the reviewed history, not a measured
+historical precision/recall improvement.
+
+The full Docker correctness run passes all 13 steps: 41 XML, 21 source, 75 policy,
+and 21 selection cases, with 17 move-selection unit tests including all 18 Type-2
+oracle cases. The four previously experimental reservation controls now run in
+[`tests/test_type2_adoption.py`](tests/test_type2_adoption.py): both endpoint
+directions retain their unique stationary Type-2 correspondence without an
+alternate Type-3 move, while removing that identity permits the Type-3 control.
+The suite also checks ordinary/diagnostic/results-only equivalence and retained
+hierarchy selection. The removed adjacency helper's negative contract is covered
+by the shared classifier.
+
+Ignored verification artifacts live in `build/type2-adoption/`: the preserved
+baseline executable, comparison script and report, per-case XML/JSON, final build
+receipt, source-change snapshot, provenance, and full test log. Reproduce from the
+parent workspace with:
+
+```bash
+./bin/srcml-dev-shell make --no-print-directory -C srcMove test
+./bin/srcml-dev-shell python3 srcMove/build/type2-adoption/compare.py
+```
+
+The comparison script uses retained generated source/policy inputs and historical
+srcDiff artifacts; it does not regenerate or relabel the source-reviewed oracle.
+`git diff --check` also passes. VERSION remains unchanged; no staging or commit
+is part of this adoption.
 
 ## Retained Notepad++ evaluation
 

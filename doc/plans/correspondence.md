@@ -5,14 +5,10 @@ is complete in srcMove 0.4.0, and Phase 3 unique Type-1 production adoption is
 complete in srcMove 0.5.0, including source-input normalization (3.2) and
 retained real-history evaluation (3.3). Phase 4 unifies Type-1/2/3 movement
 classification; Phase 5 addresses repeated groups; Phase 6 evaluates and
-consolidates the system. Phase 4.0 has shared-classifier code, Type-2 observation
-contracts, fixture baseline evidence, and exposed historical Type-2 examples;
-a Phase 4.1 isolated gate trial exposed a real same-file recall regression.
-Common conditional anchors now address that context gap; production adoption
-now has passing selection contracts and reviewed remaining normalization-fixture
-differences. The next step is the production Type-2 decision path with matching
-coverage retained separately from move output. Historical improvement is not yet
-established. Production adoption and Phases 5/6 are not implemented. This
+consolidates the system. Phase 4.1 production Type-2 adoption is complete after
+repairing common conditional anchors and reviewing normalization fixtures.
+Matching coverage remains separate from move output. Historical improvement is
+not yet established. Phases 4.2, 5, and 6 are not implemented. This
 document records rationale, semantics, decision points, and future
 implementation phases rather than the full current behavior. The verified
 implementation remains documented in
@@ -328,14 +324,10 @@ Matching ambiguity and parent carrying remain explicit checks outside these
 pair-only location rules. Copy detection needs additional evidence and remains
 outside the active phases.
 
-The current implementation retains a deliberately narrow Type-2 safeguard:
-a unique pair in adjacent nested delete/insert regions in one file is
-rejected as a local replacement. It does not require identical inner paths,
-because srcDiff can expose stationary or restructured content under
-incompatible paths. This is useful negative relocation evidence but is not a
-complete classifier. Phase 4.1 replaces it with the shared classifier after
-its negative contracts are covered. Unique Type-1 already uses that classifier;
-the architecture document describes its verified behavior.
+Unique Type-1 and Type-2 production output now uses the shared classifier.
+The adjacent-region Type-2 heuristic was removed in Phase 4.1; adjacency alone
+is not evidence of stationarity. See the [architecture](../architecture.md)
+for the verified decision and endpoint-reservation pipeline.
 
 ## Proposed pipeline
 
@@ -496,14 +488,9 @@ The existing `moves` output remains authoritative. Use the shadow results to
 measure disagreement on small fixtures and real history pairs before changing
 behavior.
 
-The current local-replacement filter should become the first explicit rule in
-this classifier rather than remain a silent rejection. Conceptually, its
-record would state:
-
-- correspondence evidence: `exact` or `Type 2`;
-- change classification: `stationary`, `restructured`, or unresolved by the
-  current filter; and
-- reason: `adjacent_nested_local_replacement`.
+The original adjacency-filter migration sketch is superseded: location evidence,
+not event adjacency, determines stationary, restructured, or ambiguous outcomes.
+The legacy Type-2 helper was removed in Phase 4.1.
 
 ### Phase 3: adopt classification for Type-1 only
 
@@ -533,16 +520,11 @@ understood and stable.
 
 ### Phase 4: unify movement classification across Type-1/2/3
 
-Status: observation-only implementation and baseline review exist. An isolated
-Phase 4.1 trial exposed a reviewed SQLite reorder across common conditionals.
-The context repair now captures those siblings, and repaired selection contracts
-pass the isolated gate. Production adoption still needs the shared Type-2 path,
-endpoint-reservation controls, and revised normalization-only output contracts. See the
-[trial evidence](../../moveSelectionBench/README.md#type-2-gate-trial-same-file-recall-regression). Use one
-location classifier and one eligibility/selection path.
-Keep the existing matching representations and Type-3 verification rule.
-The active [Type-2 adoption handoff](../handoffs/correspondence-type2-adoption.md)
-covers the immediate Phase 4.0/4.1 work only.
+Status: Phases 4.0 and 4.1 complete; Phase 4.2 has not started. The reviewed
+SQLite reorder survives production adoption after common-conditional context
+repair. See the [adoption evidence](../../moveSelectionBench/README.md#type-2-production-adoption).
+Keep the existing matching representations, hierarchy selection, repeated-group
+policy, and Type-3 verification rule.
 
 #### Phase 4.0: consolidate the decision path and establish contracts
 
@@ -561,12 +543,20 @@ the selected explanation must account for the child's movement.
 
 #### Phase 4.1: migrate Type-2
 
+Status: complete. Verification and retained comparison results are recorded in
+the [adoption evidence](../../moveSelectionBench/README.md#type-2-production-adoption).
+
 Classify unique complete constructs with equal Type-2 identity using the shared
 classifier. Audit existing expectations and historical gains/losses before
 adopting the production gate. Remove the adjacent-local-replacement heuristic
 once its contracts are covered. Preserve unresolved normalized groups and
 prevent rejected correspondences from being relabeled as weaker Type-3 matches.
 Do not invent a confidence threshold from the fixed Type-2 ranking weight.
+Reserve unique Type-2 endpoint IDs before alternate Type-3 retrieval, regardless
+of eligibility; do not reserve enclosing or descendant spans. Preserve missing
+context as ambiguous and retain normalized correspondence assertions when
+revising move-output expectations. Stop and investigate any lost reviewed real
+move rather than relabeling it as a negative.
 
 #### Phase 4.2: migrate verified Type-3 correspondences
 

@@ -43,7 +43,7 @@ class Type2ContractTests(unittest.TestCase):
             with self.subTest(case=case['id']):
                 validate_srcdiff_precondition(case, case['fixture']['srcdiff'])
 
-    def test_observation_matches_independent_oracle_without_changing_output(self) -> None:
+    def test_shared_decisions_match_oracle_and_output_modes(self) -> None:
         srcmove = find_srcmove(REPO_ROOT, None)
         self.assertIsNotNone(srcmove)
         with tempfile.TemporaryDirectory() as directory:
@@ -95,9 +95,8 @@ class Type2ContractTests(unittest.TestCase):
                                 )
                                 self.assertEqual(actual['current_result'],
                                                  'move' if selected else 'not_move')
-                                if 'expected_current_result' in case:
-                                    self.assertEqual(actual['current_result'],
-                                                     case['expected_current_result'])
+                                self.assertEqual(actual['current_result'],
+                                                 case['expected_type2_output'])
                                 if case.get('expected_selection') == 'covered_by_selected_parent':
                                     self.assertTrue(any(
                                         move.get('match_kind') == 'type2'

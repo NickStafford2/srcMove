@@ -1,0 +1,160 @@
+{
+  "type2_boolean_literal_statement": [
+    {
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[1]/src:decl_stmt[1]"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[1]/src:decl_stmt[1]"
+      ],
+      "from_raw_texts": [
+        "bool enabled = false;"
+      ],
+      "to_raw_texts": [
+        "bool enabled = true;"
+      ]
+    }
+  ],
+  "type2_consistent_type_name": [
+    {
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[1]/src:decl_stmt[1]"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[1]/src:decl_stmt[1]"
+      ],
+      "from_raw_texts": [
+        "Foo value = Foo();"
+      ],
+      "to_raw_texts": [
+        "Bar value = Bar();"
+      ]
+    }
+  ],
+  "type2_function_name_and_literal": [
+    {
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[1]/src:function[src:name='get_port']"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[1]/src:function[src:name='get_timeout']"
+      ],
+      "from_raw_texts": [
+        "int get_port() {\n    return 8080;\n  }"
+      ],
+      "to_raw_texts": [
+        "int get_timeout() {\n    return 30;\n  }"
+      ]
+    }
+  ],
+  "type2_nested_if_statement": [
+    {
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[1]/src:if_stmt[1]"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[1]/src:if_stmt[1]"
+      ],
+      "from_raw_texts": [
+        "if (oldFlag) {\n    run_old();\n  }"
+      ],
+      "to_raw_texts": [
+        "if (newFlag) {\n    run_new();\n  }"
+      ]
+    }
+  ],
+  "type2_renamed_function": [
+    {
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[1]/src:function[src:name='sum']"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[1]/src:function[src:name='add']"
+      ],
+      "from_raw_texts": [
+        "int sum(int a, int b) {\n    return a + b;\n  }"
+      ],
+      "to_raw_texts": [
+        "int add(int a, int b) {\n    return a + b;\n  }"
+      ]
+    }
+  ],
+  "type2_renamed_local": [
+    {
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[1]/src:function[src:name='compute_total']"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[1]/src:function[src:name='compute_total']"
+      ],
+      "from_raw_texts": [
+        "int compute_total() {\n    int result = 1;\n    return result;\n  }"
+      ],
+      "to_raw_texts": [
+        "int compute_total() {\n    int value = 1;\n    return value;\n  }"
+      ]
+    }
+  ],
+  "type2_renamed_parameter": [
+    {
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[1]/src:function[src:name='increment']"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[1]/src:function[src:name='increment']"
+      ],
+      "from_raw_texts": [
+        "int increment(int count) {\n    return count + 1;\n  }"
+      ],
+      "to_raw_texts": [
+        "int increment(int n) {\n    return n + 1;\n  }"
+      ]
+    }
+  ],
+  "type2_statement_child_preferred": [
+    {
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[1]/src:decl_stmt[1]"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[1]/src:decl_stmt[1]"
+      ],
+      "from_raw_texts": [
+        "int oldValue = 1;"
+      ],
+      "to_raw_texts": [
+        "int newValue = 1;"
+      ]
+    }
+  ],
+  "type2_two_independent_statements": [
+    {
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[2]/src:if_stmt[1]"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[2]/src:if_stmt[1]"
+      ],
+      "from_raw_texts": [
+        "if (oldFlag) {\n    run_old();\n  }"
+      ],
+      "to_raw_texts": [
+        "if (newFlag) {\n    run_new();\n  }"
+      ]
+    },
+    {
+      "from_xpaths": [
+        "/src:unit[1]/diff:delete[1]/src:decl_stmt[1]"
+      ],
+      "to_xpaths": [
+        "/src:unit[1]/diff:insert[1]/src:decl_stmt[1]"
+      ],
+      "from_raw_texts": [
+        "int a = 1;"
+      ],
+      "to_raw_texts": [
+        "int x = 9;"
+      ]
+    }
+  ]
+}

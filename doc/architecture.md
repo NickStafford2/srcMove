@@ -78,7 +78,7 @@ This exposes crossings of unchanged conditionals without tree rematching.
 Enclosing conditionals are not also retained as anchors; repeated innermost
 conditionals can therefore still leave order unresolved.
 Unmapped candidates retain unreliable anchor intervals. Production selection
-consumes this context only for unique one-to-one Type-1 correspondences.
+consumes this context for unique one-to-one Type-1 and Type-2 correspondences.
 
 This distinction permits a deletion in one archive unit to match an insertion
 in another without mistaking a combined srcDiff filename for one revision's
@@ -97,9 +97,12 @@ relocations become Type-1 proposals; stationary, restructured, ambiguous, and
 parent-carried correspondences remain diagnostic-only. The same compact
 decision records materialize the opt-in diagnostics, so production eligibility
 and diagnostic interpretation cannot diverge.
-Unique Type-2 groups use the same compact decision type and location classifier
-only when diagnostics are requested. Their observations do not control output:
-the existing Type-2 local-replacement and selection policy remains active.
+Unique Type-2 groups are classified once after exact grouping has removed Type-1
+correspondences. The same decisions control eligibility and diagnostics: only
+`relocated` pairs enter selection. Each unique Type-2 pair reserves its endpoint
+IDs before Type-3 retrieval, regardless of location outcome or final selection.
+Reservation prevents weaker alternate partners without reserving spans, so
+distinct enclosing and descendant proposals still compete normally.
 Type-2 decisions do not participate in exact-parent carrying, since containment
 inside an edited parent does not establish stable relative position.
 The Phase 0 contract adapter resolves endpoints by the reviewed construct and
@@ -183,13 +186,13 @@ bundle policy, including its declared constants, lives in
 2. classifies unique one-to-one exact correspondences and admits only supported
    relocations to production proposal selection; non-1x1 exact groups retain
    existing group policy
-3. groups eligible constructs by exact Type-2 representation
-4. generates Type-3 edges for structurally compatible candidates
+3. groups eligible constructs by exact Type-2 representation, classifies unique
+   pairs, and reserves their endpoint identities
+4. generates Type-3 edges for remaining structurally compatible candidates
 5. turns eligible exact and Type-2 correspondences plus verified Type-3 edges
    into one proposal set
-6. rejects unique Type-2 local replacements whose endpoints occupy adjacent
-   delete/insert regions below the file root in one file; Type-1 now uses the
-   structural classifier instead of this event-adjacency heuristic
+6. disables unique Type-1 and Type-2 proposals without positive relocation
+   decisions before hierarchy selection
 7. ranks proposals by size-aware utility plus an internal structural-coverage
    term, then confidence, evidence class, source-construct preference, and
    deterministic candidate identifiers
@@ -338,11 +341,12 @@ performance result for arbitrary projects.
 - srcMove depends on the regions exposed by srcDiff; it is not a general diff
   engine and does not recover changes that srcDiff does not represent as usable
   candidates.
-- Local-replacement rejection remains a temporary Type-2-only policy for
-  adjacent nested diff regions in one file. Unique Type-1 output instead
-  requires positive relocation evidence from revision files, mapped semantic
-  containers, or crossed stable anchors. Neither path attempts to reconstruct
-  developer intent or resolve repeated NxM groups.
+- Unique Type-1 and Type-2 output requires positive relocation evidence from
+  revision files, mapped semantic containers, or crossed stable anchors. Missing
+  context remains ambiguous, not proven stationary. This policy does not
+  reconstruct developer intent or resolve repeated NxM groups. Type-3 movement
+  classification is deferred; its existing similarity and selection policy
+  remains active for endpoints without stronger correspondence identity.
 
 Richer structural similarity, contextual scoring, and ambiguous-group
 disambiguation are research directions rather than implemented features.
