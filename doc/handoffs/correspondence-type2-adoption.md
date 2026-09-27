@@ -39,12 +39,19 @@ The accepted `type2_reorder_across_common_conditionals` output contract protects
 this move. The [gate-trial evidence](../../moveSelectionBench/README.md#type-2-gate-trial-same-file-recall-regression)
 records the source oracle, actual output transitions, successful same-file
 OpenCV controls, and the isolated experiment's unique-Type-2 endpoint reservation.
-The next step is to resolve the remaining gate differences against independent
-source/output contracts, particularly the two context-free parent-selection
-fixtures. Preserve genuine moves when making those contracts structurally
-meaningful; do not simply change expected output to match the gate. Keep the
-unique-Type-2 endpoint reservation and its alternate-Type-3 controls explicit
-in the adoption review.
+The two parent-selection fixtures now provide explicit cross-file context and
+pass the isolated gate; their original inputs remain ambiguity contracts.
+The next step is production Phase 4.1 adoption: share the Type-2 decisions with
+eligibility, remove the adjacent-replacement heuristic, and reserve unique
+Type-2 endpoint IDs before alternate Type-3 matching. Bring the four reservation
+controls into the normal suite. The remaining nine XML normalization fixtures
+need reviewed non-move output expectations plus diagnostics assertions preserving
+their ten normalized correspondences. Do not relabel missing context as proven
+stationarity or add invented relocation context to those normalization tests.
+Re-run the full correctness suite and retained historical comparisons after the
+production change. The [contract-review evidence](../../moveSelectionBench/README.md#type-2-gate-trial-same-file-recall-regression)
+records the current 21/21 isolated-gate selection result and unchanged historical
+outputs.
 
 Current evidence and reproduction details belong in
 [`moveSelectionBench/README.md`](../../moveSelectionBench/README.md#type-2-observation-baseline).
@@ -122,17 +129,17 @@ Do not interpret the 18 positive expectations as 18 reviewed relocations:
   similar cases may represent modification in place rather than relocation.
 
 The two hierarchy contracts `unique_parent_over_repeated_children` and
-`coherent_type2_parent_over_partition` also lack positive location context in
-their current filenames. If they are intended to remain move-selection
-mechanics contracts, add explicit faithful relocation context as Phase 3 did;
-do not weaken the classifier to preserve them.
+`coherent_type2_parent_over_partition` now use explicit cross-file context to
+exercise move-selection mechanics. Their original same-file forms are retained
+as missing-context Type-2 oracle cases. No classifier rule was relaxed.
 
 ## Required Phase 4.0: shared decisions, oracle, and observation-only diagnostics
 
 Implementation and fixture-contract work below is committed;
-historical evaluation (item 6) has found a concrete adoption blocker. Resolve
-the common-conditional reorder regression before enabling Phase 4.1. The baseline
-audit does not establish that suppressing ambiguous pairs improves accuracy.
+historical evaluation (item 6) exposed a common-conditional reorder regression
+that is now repaired. The isolated gate preserves the reviewed history and
+passes the selection contracts. The baseline audit still does not establish
+that suppressing ambiguous pairs improves historical accuracy.
 
 Before changing normal output:
 

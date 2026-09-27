@@ -444,6 +444,122 @@
         "classification_reason": "crossed_stable_sibling"
       },
       "expected_type2_output": "move"
+    },
+    {
+      "id": "unique_parent_over_repeated_children_relocated",
+      "fixture": {
+        "srcdiff": "cases/unique_parent_over_repeated_children.xml"
+      },
+      "rationale": "A cross-file transfer with consistent renaming has one identifiable Type-2 parent; repeated small statements must not replace that coherent move.",
+      "srcdiff_precondition": {
+        "element": "if_stmt",
+        "before_text": "if (left) { int marker = 0; transferLeft(); int marker = 0; }",
+        "after_text": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
+        "before_count": 1,
+        "after_count": 1,
+        "correspondence_kind": "type2",
+        "cardinality": "one_to_one"
+      },
+      "structural_precondition": {},
+      "observed_context": {
+        "file": "different",
+        "semantic_container": "unknown",
+        "anchor_interval": "unknown",
+        "ancestor_change": "unknown",
+        "relative_order": "unknown"
+      },
+      "expected_shadow": {
+        "change_kind": "relocated",
+        "classification_reason": "different_file"
+      },
+      "expected_type2_output": "move"
+    },
+    {
+      "id": "unique_parent_over_repeated_children_unlocated",
+      "fixture": {
+        "srcdiff": "type2_cases/unique_parent_over_repeated_children_unlocated.xml"
+      },
+      "rationale": "Original mechanics input establishes unique normalized correspondence but has no mapped container or displacement evidence; preserve that ambiguity.",
+      "srcdiff_precondition": {
+        "element": "if_stmt",
+        "before_text": "if (left) { int marker = 0; transferLeft(); int marker = 0; }",
+        "after_text": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
+        "before_count": 1,
+        "after_count": 1,
+        "correspondence_kind": "type2",
+        "cardinality": "one_to_one"
+      },
+      "structural_precondition": {},
+      "observed_context": {
+        "file": "same",
+        "semantic_container": "unknown",
+        "anchor_interval": "unknown",
+        "ancestor_change": "unknown",
+        "relative_order": "unknown"
+      },
+      "expected_shadow": {
+        "change_kind": "ambiguous",
+        "classification_reason": "insufficient_context"
+      },
+      "expected_type2_output": "not_move"
+    },
+    {
+      "id": "coherent_type2_parent_over_partition_relocated",
+      "fixture": {
+        "srcdiff": "cases/coherent_type2_parent_over_partition.xml"
+      },
+      "rationale": "A consistently renamed function transferred to another file is one Type-2 move; its unchanged statements support the whole move rather than replacing it.",
+      "srcdiff_precondition": {
+        "element": "function",
+        "before_text": "void gotoURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+        "after_text": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+        "before_count": 1,
+        "after_count": 1,
+        "correspondence_kind": "type2",
+        "cardinality": "one_to_one"
+      },
+      "structural_precondition": {},
+      "observed_context": {
+        "file": "different",
+        "semantic_container": "unknown",
+        "anchor_interval": "unknown",
+        "ancestor_change": "unknown",
+        "relative_order": "unknown"
+      },
+      "expected_shadow": {
+        "change_kind": "relocated",
+        "classification_reason": "different_file"
+      },
+      "expected_type2_output": "move"
+    },
+    {
+      "id": "coherent_type2_parent_over_partition_unlocated",
+      "fixture": {
+        "srcdiff": "type2_cases/coherent_type2_parent_over_partition_unlocated.xml"
+      },
+      "rationale": "Original mechanics input establishes unique normalized correspondence but has no mapped container or displacement evidence; preserve that ambiguity.",
+      "srcdiff_precondition": {
+        "element": "function",
+        "before_text": "void gotoURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+        "after_text": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+        "before_count": 1,
+        "after_count": 1,
+        "correspondence_kind": "type2",
+        "cardinality": "one_to_one"
+      },
+      "structural_precondition": {},
+      "observed_context": {
+        "file": "same",
+        "semantic_container": "unknown",
+        "anchor_interval": "unknown",
+        "ancestor_change": "unknown",
+        "relative_order": "unknown"
+      },
+      "expected_shadow": {
+        "change_kind": "ambiguous",
+        "classification_reason": "insufficient_context"
+      },
+      "expected_type2_output": "not_move"
     }
   ]
 }

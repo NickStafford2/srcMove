@@ -136,7 +136,7 @@ under test unchanged. It applies to `nested_exact_parent_over_child`,
 ## Type-2 observation baseline
 
 Phase 4.0 uses `type2_contracts.json` and `type2_cases/` as an independent
-location oracle. The fourteen contracts cover cross-file/container movement,
+location oracle. The eighteen contracts cover cross-file/container movement,
 reordering, identifier/literal edits in place, wrapping, missing context,
 repeated normalized groups, and movement inside edited parents. A selected
 parent can explain a relocated child without selecting that child separately.
@@ -379,8 +379,34 @@ gate passes 19 of 21 accepted selection contracts; only the two previously
 identified context-free parent-selection contracts still fail. All four
 Type-2 identity-reservation/Type-3 alternate controls pass.
 
+
+The subsequent contract review resolves both parent-selection conflicts.
+`unique_parent_over_repeated_children` and
+`coherent_type2_parent_over_partition` now explicitly model a transfer from
+`source` to `destination` with the same language extension. Their source text,
+parent/child structure, and required whole-parent selection remain intact; the
+repeated-child case now specifically requires Type-2 rather than accepting a
+Type-3 substitute. These are synthetic selection-mechanics scenarios, not new
+historical evidence. The original same-file inputs remain checked in under
+`type2_cases/*_unlocated.xml`. Four additional oracle entries require the
+transfers to classify relocated and the originals to remain ambiguous, so the
+context change cannot silently turn correspondence alone into movement.
+
+Both production and the isolated gate pass all 21 accepted selection contracts
+and all 18 Type-2 oracle cases. The updated 172-case comparison differs only in
+nine XML normalization fixtures (ten selected Type-2 pairs). Their single-file
+inputs contain delete/insert constructs at the file root with no shared mapped
+container or common sibling evidence. The proposed disposition is
+`ambiguous/insufficient_context`, not proven stationary. On adoption, replace
+those move-output expectations while retaining explicit diagnostics assertions
+for normalized correspondence; do not manufacture cross-file context for these
+normalization cases. All 14 historical outputs remain unchanged. This resolves
+the selection-test blocker without claiming measured historical improvement.
+
 Retained evidence:
 
+- `build/type2-contract-review/`: updated comparison, per-case outputs, and
+  production/trial provenance for this contract review.
 - `build/common-anchor-baseline/`: pre-repair executable and receipt, old/fixed/gate
   fixture and historical comparisons, hashes, and the failed outermost-only
   experiment retained separately as `outermost-if-*`.

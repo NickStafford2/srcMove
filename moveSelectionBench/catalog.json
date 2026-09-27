@@ -131,12 +131,12 @@
       "status": "contract",
       "input": "cases/unique_parent_over_repeated_children.xml",
       "category": "ambiguity_and_granularity",
-      "rationale": "Repeated small statements are ambiguous while their enclosing regions can identify one coherent move.",
+      "rationale": "A cross-file transfer with consistent renaming has one identifiable Type-2 parent; repeated small statements must not replace that coherent move.",
       "required": [
         {
           "from": "if (left) { int marker = 0; transferLeft(); int marker = 0; }",
           "to": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
-          "match_kinds": ["type2", "type3"]
+          "match_kinds": ["type2"]
         }
       ],
       "forbidden": [
@@ -320,7 +320,7 @@
       "status": "contract",
       "input": "cases/coherent_type2_parent_over_partition.xml",
       "category": "hierarchical_coherence",
-      "rationale": "A consistently renamed function is one Type-2 move; its unchanged statements are supporting evidence, not separate moves.",
+      "rationale": "A consistently renamed function transferred to another file is one Type-2 move; its unchanged statements support the whole move rather than replacing it.",
       "required": [
         {
           "from": "void gotoURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",

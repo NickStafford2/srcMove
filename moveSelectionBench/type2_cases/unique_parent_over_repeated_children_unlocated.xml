@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="source.cpp|destination.cpp">
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="repeated.cpp">
   <diff:delete><if_stmt><if>if <condition>(<expr><name>left</name></expr>)</condition> <block>{<block_content>
     <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>marker</name> <init>= <expr><literal type="number">0</literal></expr></init></decl>;</decl_stmt></diff:delete>
     <expr_stmt><expr><name>transferLeft</name><call><argument_list>()</argument_list></call></expr>;</expr_stmt>
