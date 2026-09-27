@@ -14,6 +14,8 @@
 #include <unordered_map>
 #include <vector>
 
+#include "location_context.hpp"
+
 namespace srcmove {
 
 enum srcml_node_type : unsigned int { OTHER = 0, START = 1, END = 2, TEXT = 3 };
@@ -53,6 +55,7 @@ public:
   std::size_t diff_region_end_idx;
   std::string structural_parent_key;
   std::size_t structural_parent_depth = 0;
+  endpoint_location_context location;
   std::string raw_text;             // exact region inner text, for debug
   std::string canonical_text;       // normalized subtree identity, for matching
   std::string type2_canonical_text; // compact, consistently normalized identity

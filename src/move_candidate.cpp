@@ -35,13 +35,19 @@ move_candidate::move_candidate(Kind        k,
       sibling_index(0), start_index(0), start_idx(start), end_idx(0),
       diff_region_start_idx(start), diff_region_end_idx(0),
       structural_parent_key(), structural_parent_depth(0),
+      location(),
       raw_text(std::move(raw)), canonical_text(std::move(canonical)),
       type2_canonical_text(std::move(type2_canonical)),
       type2_normalized_lines(std::move(type2_lines)),
       type3_normalized_tokens(std::move(type3_tokens)),
       type2_eligible(type2_ok),
       hash(move_candidate::fast_hash_raw(canonical_text)),
-      type2_hash(move_candidate::fast_hash_raw(type2_canonical_text)) {}
+      type2_hash(move_candidate::fast_hash_raw(type2_canonical_text)) {
+  auto revision_files = split_revision_filename(filename);
+  location.revision_file =
+      kind == Kind::del ? std::move(revision_files.first)
+                        : std::move(revision_files.second);
+}
 
 bool move_candidate::operator==(const move_candidate &other) const {
   // return type == other.type && name == node.name && content == node.content;

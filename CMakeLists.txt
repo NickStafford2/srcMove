@@ -105,6 +105,15 @@ target_include_directories(sequence_similarity_test PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src"
 )
 
+add_executable(location_context_test
+  tests/unit/location_context/test_location_context.cpp
+  src/location_context.cpp
+  src/move_candidate.cpp
+)
+target_include_directories(location_context_test PRIVATE
+  "${CMAKE_CURRENT_SOURCE_DIR}/src"
+)
+
 set(SRCMOVE_RECEIPT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/emit_build_receipt.py")
 set(SRCMOVE_SOURCE_LOCK "${WORKSPACE_ROOT}/workspace.lock.json")
 set(SRCMOVE_BUILD_ENTRY_POINT "cmake --build ${CMAKE_BINARY_DIR} --target srcMove")

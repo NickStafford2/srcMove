@@ -48,8 +48,16 @@ over the input. It:
 - builds move candidates as the reader encounters element starts, element ends,
   and text in document order
 
-Each candidate retains its owning file, which permits a deletion in one archive
-unit to match an insertion in another.
+Each candidate retains both the srcDiff unit filename used by existing
+selection and an owned endpoint-location context. The context resolves
+`old|new`, `old|`, `|new`, and shared archive filenames to the path belonging
+to that candidate's revision. The remaining semantic-container, anchor, and
+ancestor fields stay explicitly unreliable until the streaming parser has
+positive structural evidence; current selection does not consume them.
+
+This distinction permits a deletion in one archive unit to match an insertion
+in another without mistaking a combined srcDiff filename for one revision's
+file identity.
 
 For performance reasons, candidate construction and canonicalization are part
 of this same pass.

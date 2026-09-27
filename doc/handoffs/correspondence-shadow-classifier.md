@@ -28,6 +28,38 @@ Normal annotated XML and the existing `moves` JSON array must remain
 authoritative and behaviorally unchanged. The milestone exists to measure the
 new classifier before it controls production output.
 
+## Implementation progress (2026-09-27)
+
+Phase 0 is implemented in `moveSelectionBench/shadow_contracts.json`. Its 12
+reviewed contracts separately declare srcDiff membership/cardinality,
+structural preconditions, context observations, expected shadow labels, and
+stable reasons. `moveSelectionBench/shadow_contracts.py` validates file and
+mapped-container relationships, common declaration anchors, crossed siblings,
+wrapper ancestry (including required absence), and carried-parent structure.
+The source-generated `[[nodiscard]]`/unwrap miniature preserves its srcDiff
+delete/insert precondition. Production `moves` remain unchanged.
+
+Phase 1 has started. `src/location_context.hpp` defines an owned endpoint
+context, and every candidate now receives the correct revision-side file from
+`old|new`, `old|`, `|new`, or a shared archive filename. The other fields are
+deliberately empty/unreliable. `location_context_test` covers filename parsing,
+candidate initialization, and conservative defaults.
+
+The next implementation session should continue Phase 1 in this order:
+
+1. maintain a source-element stack in `collect_candidates_streaming()` that
+   excludes diff wrappers from source ancestry;
+2. map only physical named semantic containers belonging to both revisions;
+3. capture side-filtered meaningful wrapper summaries by stable integer ID;
+4. collect complete substantial common declarations within mapped containers,
+   reject mixed or repeated anchors, and resolve nearest anchors after EOF; and
+5. expose focused context-extraction tests before adding the shadow classifier.
+
+Do not derive containers or anchors from raw XPath, names alone, the candidate
+being classified, or a second tree-matching pass. Shadow correspondences must
+later be harvested from unique exact groups before local-replacement and
+hierarchy filtering, because final selected groups omit stationary evidence.
+
 ## Why this is urgent
 
 Current srcMove can correctly identify exact correspondence while incorrectly
