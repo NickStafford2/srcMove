@@ -4,7 +4,11 @@ This directory contains task briefs for concrete unfinished work that a future
 session is expected to resume. It is not an archive or a second documentation
 system.
 
-There are currently no active handoffs.
+Active handoff:
+
+- [Correspondence context and shadow classifier](correspondence-shadow-classifier.md):
+  orchestrate the first major implementation milestone from the correspondence
+  design without changing production move output.
 
 When adding one, give it a specific objective and link it from the issue,
 backlog item, or user request that makes it relevant. Include current evidence,

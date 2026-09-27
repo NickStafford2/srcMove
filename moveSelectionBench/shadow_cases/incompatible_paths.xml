@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="paths.cpp">
+  <function><type><name>void</name></type> <name>update</name><parameter_list>()</parameter_list> <block>{<block_content>
+    <decl_stmt><decl><type><name>int</name></type> <name>lower_anchor</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt>
+    <diff:delete><macro><name>PARSER_ARTIFACT</name><argument_list>(<argument><return>return <expr><name>stable_value</name></expr>;</return></argument>)</argument_list></macro></diff:delete>
+    <diff:insert><return>return <expr><name>stable_value</name></expr>;</return></diff:insert>
+    <decl_stmt><decl><type><name>int</name></type> <name>upper_anchor</name> <init>= <expr><literal type="number">2</literal></expr></init></decl>;</decl_stmt>
+  </block_content>}</block></function>
+</unit>

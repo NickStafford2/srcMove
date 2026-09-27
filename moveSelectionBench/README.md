@@ -21,6 +21,24 @@ available for future questions that have not yet earned regression status.
 This benchmark's status is independent of BigMoveBench's observational Type-3
 population recall.
 
+The separate `shadow_contracts.json` catalog is the reviewer-owned oracle for
+the correspondence-classifier milestone. It does not describe current
+production output and is not evaluated against the current `moves` array.
+Instead, each entry records four independent parts:
+
+- the required srcDiff delete/insert precondition and Type-1 cardinality;
+- the structural context observations the future extractor must produce;
+- the expected observation-only classification; and
+- its stable machine-readable reason.
+
+The move-selection unit suite validates the catalog schema and verifies the
+declared srcDiff endpoint counts. Most inputs are small checked-in srcDiff XML
+fixtures. The `nodiscard_signature_and_unwrap` case is regenerated from its
+checked-in source pair so an upstream srcDiff alignment change cannot let the
+contract pass without exposing the exact return as both deleted and inserted.
+Raw path incompatibility without a reliable wrapper interpretation remains
+`ambiguous`; paths alone never establish relocation or restructuring.
+
 Run the current build:
 
 ```bash
@@ -60,3 +78,11 @@ Cases with no required moves are useful negative controls. Keep uncertain
 examples as `hypothesis` cases. Change the status to `contract` only after the
 expected behavior has been reviewed and accepted; contracts run under
 `make test`.
+
+Shadow-classifier contracts belong in `shadow_contracts.json` rather than the
+production move catalog until observation-only diagnostics exist. Add a
+single-purpose input under `shadow_cases/`, declare the exact srcDiff
+precondition, fill every context dimension, and select a classification reason
+from the stable vocabulary enforced by `shadow_contracts.py`. A source-level
+alignment regression should use an `original`/`modified` pair and be generated
+by the test instead of checking in a large real-world srcDiff artifact.

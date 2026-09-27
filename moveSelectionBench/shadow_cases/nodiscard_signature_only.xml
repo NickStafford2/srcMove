@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="signature.cpp">
+  <class>class <name>Range</name> <block>{<public>public:
+    <diff:delete><function><type><name>bool</name></type> <name>Contains</name><parameter_list>(<parameter><decl><type><name>int</name></type> <name>value</name></decl></parameter>)</parameter_list> <specifier>const</specifier> <block>{<block_content><return>return <expr><name>value</name></expr>;</return></block_content>}</block></function></diff:delete>
+    <diff:insert><function><attribute>[[<expr><name>nodiscard</name></expr>]]</attribute> <type><name>bool</name></type> <name>Contains</name><parameter_list>(<parameter><decl><type><name>int</name></type> <name>value</name></decl></parameter>)</parameter_list> <specifier>const</specifier> <block>{<block_content><return>return <expr><name>value</name></expr>;</return></block_content>}</block></function></diff:insert>
+  </public>}</block>;</class>
+</unit>

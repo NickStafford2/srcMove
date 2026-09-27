@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "id": "stationary_line_shift",
+      "fixture": {"srcdiff": "shadow_cases/stationary_line_shift.xml"},
+      "rationale": "Changed line coordinates do not relocate a unique exact statement that remains in one mapped container and anchor interval.",
+      "srcdiff_precondition": {"element": "expr_stmt", "before_text": "stable_work();", "after_text": "stable_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {"anchors": {"before": "int lower_anchor = 1;", "after": "int upper_anchor = 2;"}},
+      "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "none", "relative_order": "unchanged"},
+      "expected_shadow": {"change_kind": "stationary", "classification_reason": "same_anchor_interval"}
+    },
+    {
+      "id": "nodiscard_signature_and_unwrap",
+      "fixture": {"source_pair": {"original": "shadow_cases/nodiscard_signature/original/Range.cpp", "modified": "shadow_cases/nodiscard_signature/modified/Range.cpp"}},
+      "rationale": "The minimal Notepad++ mechanism exposes an exact return while adding [[nodiscard]] and removing an else wrapper; it is local restructuring, not relocation.",
+      "srcdiff_precondition": {"element": "return", "before_text": "return pos <= start && pos >= end;", "after_text": "return pos <= start && pos >= end;", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {"container_bounds": true, "exclusive_ancestors": {"before": ["else"], "after": []}},
+      "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "unwrapped", "relative_order": "unchanged"},
+      "expected_shadow": {"change_kind": "restructured", "classification_reason": "ancestor_unwrapped"}
+    },
+    {
+      "id": "nodiscard_signature_only",
+      "fixture": {"srcdiff": "shadow_cases/nodiscard_signature_only.xml"},
+      "rationale": "Adding [[nodiscard]] to the same method signature does not relocate its unique exact body statement.",
+      "srcdiff_precondition": {"element": "return", "before_text": "return value;", "after_text": "return value;", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {"container_bounds": true},
+      "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "none", "relative_order": "unchanged"},
+      "expected_shadow": {"change_kind": "stationary", "classification_reason": "same_anchor_interval"}
+    },
+    {
+      "id": "cross_file_relocation",
+      "fixture": {"srcdiff": "cases/cross_file_nonlocal_move.xml"},
+      "rationale": "Distinct revision files are sufficient positive relocation evidence for a unique exact correspondence.",
+      "srcdiff_precondition": {"element": "function", "before_text": "int relocated() {return 81;}", "after_text": "int relocated() {return 81;}", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {},
+      "observed_context": {"file": "different", "semantic_container": "unknown", "anchor_interval": "unknown", "ancestor_change": "unknown", "relative_order": "unknown"},
+      "expected_shadow": {"change_kind": "relocated", "classification_reason": "different_file"}
+    },
+    {
+      "id": "cross_function_relocation",
+      "fixture": {"srcdiff": "shadow_cases/cross_function.xml"},
+      "rationale": "Two distinct reliably mapped functions are positive relocation evidence within one file.",
+      "srcdiff_precondition": {"element": "expr_stmt", "before_text": "relocated_work();", "after_text": "relocated_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {},
+      "observed_context": {"file": "same", "semantic_container": "different_mapped", "anchor_interval": "different", "ancestor_change": "none", "relative_order": "unknown"},
+      "expected_shadow": {"change_kind": "relocated", "classification_reason": "different_semantic_container"}
+    },
+    {
+      "id": "same_parent_reorder",
+      "fixture": {"srcdiff": "shadow_cases/reorder_past_sibling.xml"},
+      "rationale": "Reversing order across a unique common sibling is positive relocation evidence inside one mapped container.",
+      "srcdiff_precondition": {"element": "expr_stmt", "before_text": "moved_work();", "after_text": "moved_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {"crossed_common": "int stable_sibling = 7;"},
+      "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "crossed", "ancestor_change": "none", "relative_order": "crossed_stable_sibling"},
+      "expected_shadow": {"change_kind": "relocated", "classification_reason": "crossed_stable_sibling"}
+    },
+    {
+      "id": "wrapper_added",
+      "fixture": {"srcdiff": "shadow_cases/wrapper_change.xml"},
+      "rationale": "Adding a meaningful wrapper without displacement inside one stable interval is restructuring.",
+      "srcdiff_precondition": {"element": "expr_stmt", "before_text": "guarded_work();", "after_text": "guarded_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {"anchors": {"before": "int lower_anchor = 1;", "after": "int upper_anchor = 2;"}, "exclusive_ancestors": {"before": [], "after": ["if_stmt"]}},
+      "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "wrapped", "relative_order": "unchanged"},
+      "expected_shadow": {"change_kind": "restructured", "classification_reason": "ancestor_wrapped"}
+    },
+    {
+      "id": "wrapper_removed",
+      "fixture": {"srcdiff": "shadow_cases/unwrap_change.xml"},
+      "rationale": "Removing a meaningful wrapper without displacement inside one stable interval is restructuring.",
+      "srcdiff_precondition": {"element": "expr_stmt", "before_text": "guarded_work();", "after_text": "guarded_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {"anchors": {"before": "int lower_anchor = 1;", "after": "int upper_anchor = 2;"}, "exclusive_ancestors": {"before": ["if_stmt"], "after": []}},
+      "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "unwrapped", "relative_order": "unchanged"},
+      "expected_shadow": {"change_kind": "restructured", "classification_reason": "ancestor_unwrapped"}
+    },
+    {
+      "id": "relocated_parent_carries_child",
+      "fixture": {"srcdiff": "shadow_cases/carried_child.xml"},
+      "rationale": "A child stable relative to a relocated parent is not an independent relocation.",
+      "srcdiff_precondition": {"element": "expr_stmt", "before_text": "carried_work();", "after_text": "carried_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {"corresponding_parent": {"element": "if_stmt", "text": "if (ready) {carried_work();}"}},
+      "observed_context": {"file": "same", "semantic_container": "different_mapped", "anchor_interval": "same_within_parent", "ancestor_change": "none", "relative_order": "unchanged"},
+      "expected_shadow": {"change_kind": "stationary", "classification_reason": "stable_relative_to_relocated_parent", "carried_by_parent": true}
+    },
+    {
+      "id": "repeated_exact_ambiguity",
+      "fixture": {"srcdiff": "shadow_cases/repeated_ambiguity.xml"},
+      "rationale": "Repeated exact content without distinguishing context remains a group; document order must not manufacture pairs.",
+      "srcdiff_precondition": {"element": "expr_stmt", "before_text": "repeat_work();", "after_text": "repeat_work();", "before_count": 2, "after_count": 2, "correspondence_kind": "type1", "cardinality": "many_to_many"},
+      "structural_precondition": {},
+      "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "unknown", "ancestor_change": "none", "relative_order": "symmetric"},
+      "expected_shadow": {"change_kind": "ambiguous", "classification_reason": "non_unique_correspondence"}
+    },
+    {
+      "id": "incompatible_paths_without_reliable_wrapper_interpretation",
+      "fixture": {"srcdiff": "shadow_cases/incompatible_paths.xml"},
+      "rationale": "Different raw paths cannot decide between serialization noise and restructuring when wrapper meaning is not reliable.",
+      "srcdiff_precondition": {"element": "return", "before_text": "return stable_value;", "after_text": "return stable_value;", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {"anchors": {"before": "int lower_anchor = 1;", "after": "int upper_anchor = 2;"}, "exclusive_ancestors": {"before": ["macro"], "after": []}},
+      "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "incompatible", "relative_order": "unchanged"},
+      "expected_shadow": {"change_kind": "ambiguous", "classification_reason": "incompatible_context"}
+    },
+    {
+      "id": "missing_anchor_ambiguity",
+      "fixture": {"srcdiff": "shadow_cases/missing_anchor.xml"},
+      "rationale": "A unique exact pair with no mapped container or reliable anchors has insufficient location evidence.",
+      "srcdiff_precondition": {"element": "expr_stmt", "before_text": "unanchored_work();", "after_text": "unanchored_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
+      "structural_precondition": {},
+      "observed_context": {"file": "same", "semantic_container": "unknown", "anchor_interval": "unknown", "ancestor_change": "unknown", "relative_order": "unknown"},
+      "expected_shadow": {"change_kind": "ambiguous", "classification_reason": "insufficient_context"}
+    }
+  ]
+}

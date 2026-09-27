@@ -599,29 +599,57 @@ than being the only oracle.
 - Policy thresholds and classification reasons must be declared and tested,
   not tuned silently against one repository.
 
-## Decisions that require human review
+## Decisions for the first implementation milestone
 
-Before production behavior changes, answer these questions explicitly:
+The initial context-capture and shadow-classifier milestone uses the following
+reviewed policy. These decisions constrain observation-only results; they do
+not yet change normal move annotations.
 
-1. Does wrapping otherwise stationary code in `if`, `try`, or a new block count
-   as restructuring in all cases, or can some wrapper changes constitute a
-   relocation?
-2. Should normal srcMove output include copies, or should copies exist only in
+1. Reliable anchors begin with uniquely mapped named semantic containers and
+   complete constructs that belong to both revisions, preferably through
+   explicit `diff:common` membership. Unique common declarations and
+   substantial structural siblings may serve as local anchors inside a mapped
+   container. Punctuation, braces, short low-information statements, line
+   numbers, raw XPath equality, and document order alone are not anchors.
+2. A literal name or raw-path change in a semantic container is not sufficient
+   relocation evidence. Different files are strong relocation evidence. Two
+   genuinely distinct, reliably mapped semantic containers are relocation
+   evidence. When container correspondence is unavailable, the result remains
+   ambiguous.
+3. A relocated parent carries descendants whose location relative to that
+   parent remains stable. Normal output should report the coherent parent, not
+   duplicate moves for every child. A child may be independently relocated only
+   when it has positive displacement evidence relative to the mapped parent.
+   Shadow diagnostics may record a stable child as `carried_by_parent`.
+4. Pure wrapping or unwrapping inside the same mapped container and stable
+   anchor interval is `restructured`, unless independent displacement evidence
+   exists. `restructured` remains diagnostic-only for the thesis milestone;
+   only accepted `relocated` results are candidates for normal move output.
+5. The anchor layer interprets srcDiff revision membership and common context;
+   it does not independently rediff or rematch the complete program. Missing or
+   contradictory context produces `ambiguous` rather than an inferred move.
+6. Deckard-style vectors are deferred. They may later be evaluated as Type-3
+   correspondence retrieval evidence, but they do not provide location
+   classification or anchor evidence.
+
+## Decisions deferred beyond the first milestone
+
+Before production behavior changes beyond unique Type-1 correspondence,
+review these questions explicitly:
+
+1. Should normal srcMove output include copies, or should copies exist only in
    JSON diagnostics and srcDiffVisual?
-3. Should ambiguous correspondences be visible by default, available only on
+2. Should ambiguous correspondences be visible by default, available only on
    request, or omitted from normal output?
-4. Is a changed semantic container always sufficient relocation evidence when
-   the surrounding source order is stable?
-5. Which constructs are reliable common anchors: statements, declarations,
-   functions, or only named semantic containers?
-6. How should a moved parent affect the classification of its children?
-7. Should `restructured` be one result or should wrapping, unwrapping,
-   extraction, and inlining be separate classifications?
-8. When Type-2 evidence is stationary, should the display call it “stationary
+3. Should `restructured` remain one result or should wrapping, unwrapping,
+   extraction, and inlining become separate classifications?
+4. When Type-2 evidence is stationary, should the display call it “stationary
    Type 2,” “modified in place,” or expose both labels?
+5. Which additional common constructs are reliable enough to become anchors
+   after the conservative first implementation is evaluated?
 
-Record answers here before coding them so future agents do not infer policy
-from incidental regression output.
+Record later answers here before coding them so future agents do not infer
+policy from incidental regression output.
 
 ## Effort and risk
 
