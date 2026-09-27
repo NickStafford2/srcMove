@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="same.cpp">
+  <function><type><name>void</name></type> <name>source</name><parameter_list>()</parameter_list> <block>{<block_content>
+    <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>relocated_value</name> <init>= <expr><name>source_value</name> <operator>+</operator> <literal type="number">17</literal></expr></init></decl>;</decl_stmt></diff:delete>
+  </block_content>}</block></function>
+  <function><type><name>void</name></type> <name>destination</name><parameter_list>()</parameter_list> <block>{<block_content>
+    <diff:insert><decl_stmt><decl><type><name>int</name></type> <name>relocated_value</name> <init>= <expr><name>source_value</name> <operator>+</operator> <literal type="number">17</literal></expr></init></decl>;</decl_stmt></diff:insert>
+  </block_content>}</block></function>
+  <class>class <name>Owner</name> <block>{<public>public:
+    <diff:delete><function><type><name>int</name></type> <name>member</name><parameter_list>()</parameter_list> <block>{<block_content><return>return <expr><literal type="number">23</literal></expr>;</return></block_content>}</block></function></diff:delete>
+    <diff:insert><function><type><name>int</name></type> <name>member</name><parameter_list>()</parameter_list> <block>{<block_content><return>return <expr><literal type="number">23</literal></expr>;</return></block_content>}</block></function></diff:insert>
+  </public>}</block>;</class>
+  <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>unmapped_value</name> <init>= <expr><literal type="number">31</literal></expr></init></decl>;</decl_stmt></diff:delete>
+  <diff:insert><decl_stmt><decl><type><name>int</name></type> <name>unmapped_value</name> <init>= <expr><literal type="number">31</literal></expr></init></decl>;</decl_stmt></diff:insert>
+</unit>

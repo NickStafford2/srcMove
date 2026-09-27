@@ -303,6 +303,7 @@ struct streamed_child {
   std::size_t substantive_same_side = 0;
   std::size_t substantive_common = 0;
   std::size_t substantive_opposite = 0;
+  endpoint_location_context location;
 };
 
 struct streamed_region {
@@ -321,7 +322,47 @@ struct streamed_region {
   std::size_t substantive_opposite      = 0;
   bool        has_diff_child           = false;
   bool        pre_marked               = false;
+  endpoint_location_context location;
 };
+
+struct source_element_frame {
+  std::string name;
+  revision_membership membership = revision_membership::both;
+  bool semantic_container = false;
+  std::string container_id;
+  std::string container_label;
+  std::optional<std::size_t> label_target;
+};
+
+bool is_semantic_container_name(std::string_view name) {
+  return name == "function" || name == "function_decl" ||
+         name == "constructor" || name == "destructor" || name == "class" ||
+         name == "struct" || name == "interface" || name == "namespace";
+}
+
+endpoint_location_context snapshot_location_context(
+    move_candidate::Kind kind, std::string_view filename,
+    const std::vector<source_element_frame> &source_elements) {
+  endpoint_location_context context;
+  auto revision_files = split_revision_filename(filename);
+  context.revision_file = kind == move_candidate::Kind::del
+                              ? std::move(revision_files.first)
+                              : std::move(revision_files.second);
+  for (auto frame = source_elements.rbegin(); frame != source_elements.rend();
+       ++frame) {
+    if (!frame->semantic_container ||
+        frame->membership != revision_membership::both ||
+        frame->container_label.empty()) {
+      continue;
+    }
+    context.semantic_container_id = frame->container_id;
+    context.semantic_container_label =
+        frame->name + ":" + trim_ws(frame->container_label);
+    context.semantic_container_mapped = true;
+    break;
+  }
+  return context;
+}
 
 struct streaming_profile_stats {
   std::uint64_t reader_events          = 0;
@@ -420,6 +461,7 @@ void finish_streamed_child(streamed_region             &region,
   candidate.full_name = std::move(child.full_name);
   candidate.end_idx   = end_idx;
   candidate.role      = move_candidate::Role::structural_child;
+  candidate.location  = std::move(child.location);
   region.preferred_candidates.push_back(std::move(candidate));
 }
 
@@ -427,7 +469,8 @@ void consume_streamed_children(
     streamed_region &region, const srcml_node &node, srcml_reader &reader,
     std::size_t node_index, revision_membership effective,
     bool substantive, const region_filter_options &opt,
-    streaming_profile_stats *stats) {
+    streaming_profile_stats *stats,
+    const std::vector<source_element_frame> &source_elements) {
   if (!opt.expand_structural_children) {
     return;
   }
@@ -463,6 +506,8 @@ void consume_streamed_children(
     child.start_idx      = node_index;
     child.depth          = 1;
     child.type2_eligible = is_type2_eligible_name(node.name);
+    child.location =
+        snapshot_location_context(region.kind, region.filename, source_elements);
     child.forms.consume(node);
     region.children.push_back(std::move(child));
     if (stats != nullptr) {
@@ -516,6 +561,7 @@ void finish_streamed_region(
         forms.normalized_tokens, false);
     candidate.xpath   = region.start_xpath;
     candidate.end_idx = end_idx;
+    candidate.location = region.location;
     set_structural_context(candidate, region.start_xpath, region.start_idx,
                            end_idx);
     if (region.complete_construct_count == 1) {
@@ -546,11 +592,13 @@ collect_candidates_streaming(srcml_reader                &reader,
   std::vector<streamed_region> regions;
   std::vector<std::size_t> open_regions;
   std::vector<revision_membership> revision_states;
+  std::vector<source_element_frame> source_elements;
   std::size_t ignored_evidence_depth = 0;
   std::vector<std::vector<move_candidate>> candidate_sets;
   regions.reserve(256);
   open_regions.reserve(32);
   revision_states.reserve(32);
+  source_elements.reserve(64);
   candidate_sets.reserve(256);
 
   auto open_region = [&](move_candidate::Kind kind, const srcml_node &node,
@@ -584,6 +632,7 @@ collect_candidates_streaming(srcml_reader                &reader,
     region.start_idx   = node_index;
     region.parent_id   = parent_id;
     region.start_xpath = streaming_xpath(reader, stats);
+    region.location = snapshot_location_context(kind, filename, source_elements);
     region.forms.emplace();
     region.pre_marked  = node.get_attribute_value("move") != nullptr;
 
@@ -618,6 +667,33 @@ collect_candidates_streaming(srcml_reader                &reader,
     }
     if (node.is_start() && state) {
       revision_states.push_back(*state);
+    }
+
+    const bool source_element = full_name.rfind("diff:", 0) != 0;
+    if (node.is_start() && source_element) {
+      source_element_frame frame;
+      frame.name = node.name;
+      frame.membership = revision_states.empty() ? revision_membership::both
+                                                  : revision_states.back();
+      frame.semantic_container = is_semantic_container_name(node.name);
+      if (frame.semantic_container) {
+        frame.container_id = filename + ":" + std::to_string(node_index) +
+                             ":" + node.name;
+      }
+      if (!source_elements.empty()) {
+        if (node.name == "name" &&
+            source_elements.back().semantic_container) {
+          frame.label_target = source_elements.size() - 1;
+        } else if (source_elements.back().label_target) {
+          frame.label_target = source_elements.back().label_target;
+        }
+      }
+      source_elements.push_back(std::move(frame));
+    }
+    if (node.is_text() && node.content && !source_elements.empty() &&
+        source_elements.back().label_target) {
+      source_elements[*source_elements.back().label_target].container_label +=
+          *node.content;
     }
 
     std::size_t closing_id = kNoParent;
@@ -668,7 +744,7 @@ collect_candidates_streaming(srcml_reader                &reader,
           revision_states.empty() ? revision_membership::both
                                   : revision_states.back();
       consume_streamed_children(region, node, reader, node_index, effective,
-                                substantive, opt, stats);
+                                substantive, opt, stats, source_elements);
     }
 
     if (closing_id != kNoParent) {
@@ -682,6 +758,12 @@ collect_candidates_streaming(srcml_reader                &reader,
       region.filename.clear();
       region.preferred_candidates.clear();
       open_regions.pop_back();
+    }
+    if (node.is_end() && source_element) {
+      if (source_elements.empty() || source_elements.back().name != node.name) {
+        throw std::runtime_error("mismatched source element nesting");
+      }
+      source_elements.pop_back();
     }
     if (node.is_end() && state) {
       revision_states.pop_back();
@@ -763,6 +845,11 @@ collect_candidates_streaming(srcml_reader                &reader,
             "file unit ended before all srcDiff states were closed: " +
             filename);
       }
+      if (!source_elements.empty()) {
+        throw std::runtime_error(
+            "file unit ended before all source elements were closed: " +
+            filename);
+      }
       in_file = false;
       filename.clear();
       if (!archive) {
@@ -783,6 +870,9 @@ collect_candidates_streaming(srcml_reader                &reader,
   }
   if (!revision_states.empty()) {
     throw std::runtime_error("unexpected EOF while reading srcDiff state");
+  }
+  if (!source_elements.empty()) {
+    throw std::runtime_error("unexpected EOF inside source element");
   }
   if (!document_done) {
     throw std::runtime_error("unexpected EOF while reading srcDiff document");

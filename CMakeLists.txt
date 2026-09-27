@@ -109,10 +109,11 @@ add_executable(location_context_test
   tests/unit/location_context/test_location_context.cpp
   src/location_context.cpp
   src/move_candidate.cpp
+  src/region_filter.cpp
+  src/parse/canonical_subtree.cpp
+  src/parse/diff_region.cpp
 )
-target_include_directories(location_context_test PRIVATE
-  "${CMAKE_CURRENT_SOURCE_DIR}/src"
-)
+configure_srcmove_target(location_context_test)
 
 set(SRCMOVE_RECEIPT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/emit_build_receipt.py")
 set(SRCMOVE_SOURCE_LOCK "${WORKSPACE_ROOT}/workspace.lock.json")

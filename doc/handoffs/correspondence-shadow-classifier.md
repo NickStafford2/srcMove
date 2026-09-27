@@ -41,19 +41,21 @@ delete/insert precondition. Production `moves` remain unchanged.
 
 Phase 1 has started. `src/location_context.hpp` defines an owned endpoint
 context, and every candidate now receives the correct revision-side file from
-`old|new`, `old|`, `|new`, or a shared archive filename. The other fields are
+`old|new`, `old|`, `|new`, or a shared archive filename. The streaming parser
+also maintains a bounded source-element stack and records the nearest named
+semantic container only when it is one physical construct with common revision
+membership. Exclusive functions can inherit a physical common enclosing type;
+file-root candidates remain unmapped. Anchor and wrapper fields are still
 deliberately empty/unreliable. `location_context_test` covers filename parsing,
-candidate initialization, and conservative defaults.
+candidate initialization, common cross-function containers, exclusive
+container fallback, and conservative file-root defaults.
 
 The next implementation session should continue Phase 1 in this order:
 
-1. maintain a source-element stack in `collect_candidates_streaming()` that
-   excludes diff wrappers from source ancestry;
-2. map only physical named semantic containers belonging to both revisions;
-3. capture side-filtered meaningful wrapper summaries by stable integer ID;
-4. collect complete substantial common declarations within mapped containers,
+1. capture side-filtered meaningful wrapper summaries by stable integer ID;
+2. collect complete substantial common declarations within mapped containers,
    reject mixed or repeated anchors, and resolve nearest anchors after EOF; and
-5. expose focused context-extraction tests before adding the shadow classifier.
+3. expose focused anchor/wrapper tests before adding the shadow classifier.
 
 Do not derive containers or anchors from raw XPath, names alone, the candidate
 being classified, or a second tree-matching pass. Shadow correspondences must

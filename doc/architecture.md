@@ -51,9 +51,13 @@ over the input. It:
 Each candidate retains both the srcDiff unit filename used by existing
 selection and an owned endpoint-location context. The context resolves
 `old|new`, `old|`, `|new`, and shared archive filenames to the path belonging
-to that candidate's revision. The remaining semantic-container, anchor, and
-ancestor fields stay explicitly unreliable until the streaming parser has
-positive structural evidence; current selection does not consume them.
+to that candidate's revision. It also records the nearest named semantic
+container only when srcDiff represents that function, constructor, type, or
+namespace as one physical construct belonging to both revisions. Exclusive or
+unnamed containers are not paired by name or XPath; the candidate falls back
+to a mapped enclosing container or remains unmapped. Anchor and ancestor
+fields stay explicitly unreliable until the streaming parser has positive
+structural evidence. Current selection does not consume any location context.
 
 This distinction permits a deletion in one archive unit to match an insertion
 in another without mistaking a combined srcDiff filename for one revision's
