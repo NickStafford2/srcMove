@@ -103,11 +103,22 @@ Diff-wrapper candidates are excluded, and no document-order or name-based
 pairing is used. In the contract, the `if_stmt` remains relocated while its
 contained `expr_stmt` is marked carried and stationary.
 
+The retained Notepad++ evaluation is complete and documented canonically in
+[`moveSelectionBench/README.md`](../../moveSelectionBench/README.md). Snapshot
+hashes match the stated parent and child Git objects. A directory-root srcDiff
+regeneration was required to preserve the shared logical filename; the older
+direct-file artifact embeds different temporary roots and is not valid for
+file-relation evaluation. At srcMove commit `5c634c88691ecb9d6c846d02c83f189a0ba9a4d9`,
+current selection reports 12 Type-1 move groups. Shadow diagnostics contain 17
+unique Type-1 correspondences, all `ambiguous/insufficient_context`: 12 are
+current moves and therefore current-versus-shadow disagreements, while five
+are unselected. This is conservative rather than proof that the 12 are
+stationary or restructured; their real srcDiff representation supplies no
+mapped common semantic container.
+
 The next implementation session should continue in this order:
 
-1. run the retained Notepad++ evaluation and report current-versus-shadow
-   disagreement counts and reasons;
-2. perform the independent review in Step 7, resolve substantive findings, and
+1. perform the independent review in Step 7, resolve substantive findings, and
    produce the final milestone report required below.
 
 Do not derive containers or anchors from raw XPath, names alone, the candidate
