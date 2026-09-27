@@ -39,6 +39,58 @@ contract pass without exposing the exact return as both deleted and inserted.
 Raw path incompatibility without a reliable wrapper interpretation remains
 `ambiguous`; paths alone never establish relocation or restructuring.
 
+### Type-1 adoption baseline
+
+The Phase 3 production oracle records `move` only for a unique Type-1
+correspondence classified as `relocated`; all other unique classifications are
+`not_move`. Non-1x1 exact groups explicitly retain existing group policy. At
+the srcMove 0.4.0 pre-adoption baseline, seven of the eleven unique contracts
+disagree with that policy because current selection emits them as moves:
+
+- `stationary_line_shift`;
+- `nodiscard_signature_and_unwrap`;
+- `nodiscard_signature_only`;
+- `wrapper_added`;
+- `wrapper_removed`;
+- `incompatible_paths_without_reliable_wrapper_interpretation`; and
+- `missing_anchor_ambiguity`.
+
+Every disagreement is expected to change from `move` to `not_move`. The three
+positive relocation contracts and the parent-carried child already agree with
+the adoption policy. The repeated 2x2 contract remains outside the unique-pair
+gate. The focused test seals this pre-adoption disagreement set so Phase 3.1
+cannot redefine its oracle from the implementation's output.
+
+The checked-in XML and source-regression inventory was also rerun with
+diagnostics, using each suite's production granularity. It contains 37 selected
+unique Type-1 correspondences and seven non-1x1 Type-1 groups:
+
+| Category | Count | Cases |
+| --- | ---: | --- |
+| Supported relocation | 14 unique | XML: `archive_cross_file_same_text`, `archive_whole_file_split_structural`, `position`; source: `complex`, `file_split`, `from_deleted_file`, `renamed_file`, `renamed_file_2`, `to_new_file`, `to_new_file_comment_change`, `to_new_file_ws_change` |
+| Insufficient context | 14 unique | `1x1_basic`, `archive_2_files`, `child_construct_is_fallback_when_diff_wrapper_text_does_not_match`, `diff_ws_equivalent`, `do_not_annotate_diff_wrapper_when_child_construct_moves`, `large_text_same`, `nested_diff`, `pre_marked_move`, `pre_marked_move_small`, `single_structural_child_in_wrapper`, `spacing_variation`, `two_independent_groups` |
+| Fixture filename artifact | 9 unique | `blocks_swapped`, `function_call_reorder`, `function_content`, `lines_swapped`, `lines_swapped_many`, `simple_cross_block`, `standalone_function` |
+| Existing non-1x1 policy | 7 groups | XML: `1x2_basic`, `2x1_basic`, `2x2_same`, `2x3_same`; source: `complex`, `standalone_blocks`, `standalone_blocks_function` |
+
+The filename-artifact cases are single-file source fixtures whose two sides are
+stored as `original.cpp` and `modified.cpp`. Their generated srcDiff filename
+is therefore `original.cpp|modified.cpp`, which the classifier correctly reads
+literally as different revision files even though those names encode fixture
+sides rather than a real rename. Phase 3 must regenerate these comparisons from
+directory roots containing one shared logical filename, as the retained
+Notepad++ evaluation already does. After normalization, each case needs
+positive container or stable-sibling evidence or must conservatively become
+non-move; the fixture naming convention is not relocation evidence.
+
+The insufficient-context XML cases primarily protect matching, wrapper, and
+serialization mechanics. Their existing move goldens are not positive
+relocation evidence. Phase 3.2 must review them individually before removing
+or strengthening their move expectations. The inventory counts selected
+correspondences, so `archive_2_files` and `two_independent_groups` each
+contribute two; `archive_whole_file_split_structural` contributes two supported
+cross-file relocations; `complex` contributes three unique relocations plus one
+unchanged non-1x1 group.
+
 ## Retained Notepad++ shadow evaluation
 
 The retained evaluation uses Notepad++ commit

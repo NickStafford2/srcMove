@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "cases": [
     {
       "id": "stationary_line_shift",
@@ -8,7 +8,8 @@
       "srcdiff_precondition": {"element": "expr_stmt", "before_text": "stable_work();", "after_text": "stable_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {"anchors": {"before": "int lower_anchor = 1;", "after": "int upper_anchor = 2;"}},
       "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "none", "relative_order": "unchanged"},
-      "expected_shadow": {"change_kind": "stationary", "classification_reason": "same_anchor_interval"}
+      "expected_shadow": {"change_kind": "stationary", "classification_reason": "same_anchor_interval"},
+      "expected_type1_output": "not_move"
     },
     {
       "id": "nodiscard_signature_and_unwrap",
@@ -17,7 +18,8 @@
       "srcdiff_precondition": {"element": "return", "before_text": "return pos <= start && pos >= end;", "after_text": "return pos <= start && pos >= end;", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {"container_bounds": true, "exclusive_ancestors": {"before": ["else"], "after": []}},
       "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "unwrapped", "relative_order": "unchanged"},
-      "expected_shadow": {"change_kind": "restructured", "classification_reason": "ancestor_unwrapped"}
+      "expected_shadow": {"change_kind": "restructured", "classification_reason": "ancestor_unwrapped"},
+      "expected_type1_output": "not_move"
     },
     {
       "id": "nodiscard_signature_only",
@@ -26,7 +28,8 @@
       "srcdiff_precondition": {"element": "return", "before_text": "return value;", "after_text": "return value;", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {"container_bounds": true},
       "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "none", "relative_order": "unchanged"},
-      "expected_shadow": {"change_kind": "stationary", "classification_reason": "same_anchor_interval"}
+      "expected_shadow": {"change_kind": "stationary", "classification_reason": "same_anchor_interval"},
+      "expected_type1_output": "not_move"
     },
     {
       "id": "cross_file_relocation",
@@ -35,7 +38,8 @@
       "srcdiff_precondition": {"element": "function", "before_text": "int relocated() {return 81;}", "after_text": "int relocated() {return 81;}", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {},
       "observed_context": {"file": "different", "semantic_container": "unknown", "anchor_interval": "unknown", "ancestor_change": "unknown", "relative_order": "unknown"},
-      "expected_shadow": {"change_kind": "relocated", "classification_reason": "different_file"}
+      "expected_shadow": {"change_kind": "relocated", "classification_reason": "different_file"},
+      "expected_type1_output": "move"
     },
     {
       "id": "cross_function_relocation",
@@ -44,7 +48,8 @@
       "srcdiff_precondition": {"element": "expr_stmt", "before_text": "relocated_work();", "after_text": "relocated_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {},
       "observed_context": {"file": "same", "semantic_container": "different_mapped", "anchor_interval": "different", "ancestor_change": "none", "relative_order": "unknown"},
-      "expected_shadow": {"change_kind": "relocated", "classification_reason": "different_semantic_container"}
+      "expected_shadow": {"change_kind": "relocated", "classification_reason": "different_semantic_container"},
+      "expected_type1_output": "move"
     },
     {
       "id": "same_parent_reorder",
@@ -53,7 +58,8 @@
       "srcdiff_precondition": {"element": "expr_stmt", "before_text": "moved_work();", "after_text": "moved_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {"crossed_common": "int stable_sibling = 7;"},
       "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "crossed", "ancestor_change": "none", "relative_order": "crossed_stable_sibling"},
-      "expected_shadow": {"change_kind": "relocated", "classification_reason": "crossed_stable_sibling"}
+      "expected_shadow": {"change_kind": "relocated", "classification_reason": "crossed_stable_sibling"},
+      "expected_type1_output": "move"
     },
     {
       "id": "wrapper_added",
@@ -62,7 +68,8 @@
       "srcdiff_precondition": {"element": "expr_stmt", "before_text": "guarded_work();", "after_text": "guarded_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {"anchors": {"before": "int lower_anchor = 1;", "after": "int upper_anchor = 2;"}, "exclusive_ancestors": {"before": [], "after": ["if_stmt"]}},
       "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "wrapped", "relative_order": "unchanged"},
-      "expected_shadow": {"change_kind": "restructured", "classification_reason": "ancestor_wrapped"}
+      "expected_shadow": {"change_kind": "restructured", "classification_reason": "ancestor_wrapped"},
+      "expected_type1_output": "not_move"
     },
     {
       "id": "wrapper_removed",
@@ -71,7 +78,8 @@
       "srcdiff_precondition": {"element": "expr_stmt", "before_text": "guarded_work();", "after_text": "guarded_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {"anchors": {"before": "int lower_anchor = 1;", "after": "int upper_anchor = 2;"}, "exclusive_ancestors": {"before": ["if_stmt"], "after": []}},
       "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "unwrapped", "relative_order": "unchanged"},
-      "expected_shadow": {"change_kind": "restructured", "classification_reason": "ancestor_unwrapped"}
+      "expected_shadow": {"change_kind": "restructured", "classification_reason": "ancestor_unwrapped"},
+      "expected_type1_output": "not_move"
     },
     {
       "id": "relocated_parent_carries_child",
@@ -80,7 +88,8 @@
       "srcdiff_precondition": {"element": "expr_stmt", "before_text": "carried_work();", "after_text": "carried_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {"corresponding_parent": {"element": "if_stmt", "text": "if (ready) {carried_work();}"}},
       "observed_context": {"file": "same", "semantic_container": "different_mapped", "anchor_interval": "same_within_parent", "ancestor_change": "none", "relative_order": "unchanged"},
-      "expected_shadow": {"change_kind": "stationary", "classification_reason": "stable_relative_to_relocated_parent", "carried_by_parent": true}
+      "expected_shadow": {"change_kind": "stationary", "classification_reason": "stable_relative_to_relocated_parent", "carried_by_parent": true},
+      "expected_type1_output": "not_move"
     },
     {
       "id": "repeated_exact_ambiguity",
@@ -89,7 +98,8 @@
       "srcdiff_precondition": {"element": "expr_stmt", "before_text": "repeat_work();", "after_text": "repeat_work();", "before_count": 2, "after_count": 2, "correspondence_kind": "type1", "cardinality": "many_to_many"},
       "structural_precondition": {},
       "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "unknown", "ancestor_change": "none", "relative_order": "symmetric"},
-      "expected_shadow": {"change_kind": "ambiguous", "classification_reason": "non_unique_correspondence"}
+      "expected_shadow": {"change_kind": "ambiguous", "classification_reason": "non_unique_correspondence"},
+      "expected_type1_output": "unchanged_group_policy"
     },
     {
       "id": "incompatible_paths_without_reliable_wrapper_interpretation",
@@ -98,7 +108,8 @@
       "srcdiff_precondition": {"element": "return", "before_text": "return stable_value;", "after_text": "return stable_value;", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {"anchors": {"before": "int lower_anchor = 1;", "after": "int upper_anchor = 2;"}, "exclusive_ancestors": {"before": ["macro"], "after": []}},
       "observed_context": {"file": "same", "semantic_container": "same_mapped", "anchor_interval": "same", "ancestor_change": "incompatible", "relative_order": "unchanged"},
-      "expected_shadow": {"change_kind": "ambiguous", "classification_reason": "incompatible_context"}
+      "expected_shadow": {"change_kind": "ambiguous", "classification_reason": "incompatible_context"},
+      "expected_type1_output": "not_move"
     },
     {
       "id": "missing_anchor_ambiguity",
@@ -107,7 +118,8 @@
       "srcdiff_precondition": {"element": "expr_stmt", "before_text": "unanchored_work();", "after_text": "unanchored_work();", "before_count": 1, "after_count": 1, "correspondence_kind": "type1", "cardinality": "one_to_one"},
       "structural_precondition": {},
       "observed_context": {"file": "same", "semantic_container": "unknown", "anchor_interval": "unknown", "ancestor_change": "unknown", "relative_order": "unknown"},
-      "expected_shadow": {"change_kind": "ambiguous", "classification_reason": "insufficient_context"}
+      "expected_shadow": {"change_kind": "ambiguous", "classification_reason": "insufficient_context"},
+      "expected_type1_output": "not_move"
     }
   ]
 }

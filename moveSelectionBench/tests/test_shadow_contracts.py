@@ -23,6 +23,18 @@ from moveSelectionBench.shadow_contracts import (
 
 
 CATALOG = REPO_ROOT / "moveSelectionBench" / "shadow_contracts.json"
+PRE_ADOPTION_OUTPUT_DISAGREEMENTS = {
+    case_id: ("not_move", "move")
+    for case_id in (
+        "stationary_line_shift",
+        "nodiscard_signature_and_unwrap",
+        "nodiscard_signature_only",
+        "wrapper_added",
+        "wrapper_removed",
+        "incompatible_paths_without_reliable_wrapper_interpretation",
+        "missing_anchor_ambiguity",
+    )
+}
 
 
 class ShadowContractTests(unittest.TestCase):
@@ -40,6 +52,10 @@ class ShadowContractTests(unittest.TestCase):
         self.assertEqual(
             {case["srcdiff_precondition"]["correspondence_kind"] for case in self.cases},
             {"type1"},
+        )
+        self.assertEqual(
+            {case["expected_type1_output"] for case in self.cases},
+            {"move", "not_move", "unchanged_group_policy"},
         )
         self.assertTrue(
             indexed["relocated_parent_carries_child"]["expected_shadow"]["carried_by_parent"]
@@ -101,6 +117,7 @@ class ShadowContractTests(unittest.TestCase):
         self.assertIsNotNone(srcdiff, "srcdiff is required for source-generated contracts")
         known_gaps: dict[str, tuple[object, object, object]] = {}
         observed_gaps: dict[str, tuple[object, object, object]] = {}
+        output_disagreements: dict[str, tuple[str, object]] = {}
 
         with tempfile.TemporaryDirectory() as temporary_directory:
             temporary = Path(temporary_directory)
@@ -157,7 +174,18 @@ class ShadowContractTests(unittest.TestCase):
                     else:
                         assert_shadow_expectation(case, actual)
 
+                    expected_output = case["expected_type1_output"]
+                    if (
+                        expected_output != "unchanged_group_policy"
+                        and actual["current_result"] != expected_output
+                    ):
+                        output_disagreements[case["id"]] = (
+                            expected_output,
+                            actual["current_result"],
+                        )
+
         self.assertEqual(observed_gaps, known_gaps)
+        self.assertEqual(output_disagreements, PRE_ADOPTION_OUTPUT_DISAGREEMENTS)
 
 
 if __name__ == "__main__":

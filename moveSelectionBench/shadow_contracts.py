@@ -85,8 +85,8 @@ def load_shadow_contracts(path: Path) -> list[dict[str, Any]]:
         document = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise ShadowContractError(f"cannot read {path}: {error}") from error
-    if not isinstance(document, dict) or document.get("schema_version") != 1:
-        raise ShadowContractError("shadow contract schema_version must be 1")
+    if not isinstance(document, dict) or document.get("schema_version") != 2:
+        raise ShadowContractError("shadow contract schema_version must be 2")
     raw_cases = document.get("cases")
     if not isinstance(raw_cases, list) or not raw_cases:
         raise ShadowContractError("shadow contract cases must be a non-empty array")
@@ -191,6 +191,22 @@ def load_shadow_contracts(path: Path) -> list[dict[str, Any]]:
         carried = expected.get("carried_by_parent", False)
         if not isinstance(carried, bool):
             raise ShadowContractError(f"{case_id}: carried_by_parent must be boolean")
+
+        expected_output = raw_case.get("expected_type1_output")
+        if cardinality == "many_to_many":
+            if expected_output != "unchanged_group_policy":
+                raise ShadowContractError(
+                    f"{case_id}: non-1x1 correspondence must retain group policy"
+                )
+        else:
+            policy_output = (
+                "move" if change_kind == "relocated" and not carried else "not_move"
+            )
+            if expected_output != policy_output:
+                raise ShadowContractError(
+                    f"{case_id}: Type-1 output {expected_output!r}, "
+                    f"expected {policy_output!r} from the adopted policy"
+                )
 
         rationale = raw_case.get("rationale")
         if not isinstance(rationale, str) or not rationale:
@@ -463,6 +479,7 @@ def evaluate_shadow_diagnostics(
             "change_kind": "ambiguous",
             "classification_reason": "non_unique_correspondence",
             "carried_by_parent": False,
+            "current_result": "not_individually_observed",
         }
     if len(matching) != 1:
         raise ShadowContractError(
@@ -481,6 +498,7 @@ def evaluate_shadow_diagnostics(
         "change_kind": record.get("shadow_change"),
         "classification_reason": record.get("classification_reason"),
         "carried_by_parent": record.get("carried_by_parent", False),
+        "current_result": record.get("current_result"),
         "observed_context": {
             "file": record.get("file_observation"),
             "semantic_container": record.get("semantic_container_observation"),

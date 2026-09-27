@@ -82,6 +82,17 @@ silently rejected by that older heuristic.
 
 ### Phase 3.0: production oracle and baseline
 
+Status: complete. The contract catalog now declares the adopted production
+disposition independently of current selection. The sealed srcMove 0.4.0
+baseline has seven unique disagreements, all current `move` versus expected
+`not_move`; their IDs are documented in `moveSelectionBench/README.md` and
+asserted by the focused test. The checked-in inventory found 14 supported
+unique relocations, 14 unique XML correspondences with insufficient context,
+nine source-fixture filename artifacts, and seven non-1x1 groups. The source
+fixture artifact and complete case lists are documented canonically in the
+benchmark README. Phase 3.1 may now build the shared decision path, but Phase
+3.2 must normalize those source inputs and manually audit every changed golden.
+
 Extend the reviewed contract catalog with an explicit expected production
 disposition for every unique one-to-one case: `move` only for `relocated`, and
 `not_move` for every other classification. Record that the repeated 2x2 case
