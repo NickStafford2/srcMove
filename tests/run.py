@@ -173,6 +173,12 @@ def test_steps(
         )
         steps.append(
             TestStep(
+                "shadow classifier component",
+                [str(REPO_ROOT / "build" / "shadow_classifier_test")],
+            )
+        )
+        steps.append(
+            TestStep(
                 "location context component",
                 [
                     str(REPO_ROOT / "build" / "location_context_test"),

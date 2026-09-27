@@ -60,15 +60,22 @@ container fallback, conservative file-root defaults, wrapper differences,
 registry ownership and rebasing, same intervals, crossed stable siblings, and
 mixed/repeated anchor rejection.
 
-The next implementation session should start the shadow-classifier phase in
-this order:
+The shadow-classifier phase has started. `src/shadow_classifier.hpp` and
+`src/shadow_classifier.cpp` define a pure classifier for one unique Type-1
+pair, stable diagnostic strings, and explicit observed dimensions. Its ordered
+rules classify different files, different mapped containers, and crossed
+stable anchors as relocated; equal ancestry in one stable interval as
+stationary; meaningful prefix wrapper additions/removals as restructured; and
+missing or incompatible evidence as ambiguous. Parent-carried relationships
+remain deliberately unsupported, and the module is not yet connected to
+grouping, diagnostics, or production output. `shadow_classifier_test` covers
+every branch and conservative counterexamples.
 
-1. add dedicated classifier result types and ordered conservative rules for
-   different files, different mapped containers, crossed stable anchors, same
-   intervals, meaningful wrapper changes, and insufficient evidence;
-2. harvest unique Type-1 correspondence pairs before local-replacement and
+The next implementation session should continue in this order:
+
+1. harvest unique Type-1 correspondence pairs before local-replacement and
    hierarchy filtering so stationary evidence is still visible; and
-3. expose shadow diagnostics without changing production `moves` or ordinary
+2. expose shadow diagnostics without changing production `moves` or ordinary
    XML/JSON output.
 
 Do not derive containers or anchors from raw XPath, names alone, the candidate

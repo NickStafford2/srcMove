@@ -75,6 +75,15 @@ This distinction permits a deletion in one archive unit to match an insertion
 in another without mistaking a combined srcDiff filename for one revision's
 file identity.
 
+[`src/shadow_classifier.cpp`](../src/shadow_classifier.cpp) contains a pure,
+ordered classifier for one unique Type-1 correspondence. Different revision
+files, different mapped containers, and crossed reliable anchor intervals are
+relocation evidence. Within one reliable interval, equal meaningful ancestry
+is stationary, prefix additions or removals are restructuring, and
+incompatible ancestry is ambiguous. Missing evidence is also ambiguous. The
+classifier is not yet connected to grouping, diagnostics, or production move
+selection; parent-carried relationships remain unsupported.
+
 For performance reasons, candidate construction and canonicalization are part
 of this same pass.
 
