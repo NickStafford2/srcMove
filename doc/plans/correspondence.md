@@ -1,9 +1,10 @@
 # Correspondence before change classification
 
-Status: proposed design direction. This document records the rationale,
-semantics, decision points, and implementation path for a possible future
-srcMove classifier. It does not describe the full current behavior. The
-verified implementation remains documented in
+Status: active roadmap. Delivery milestone 1 (context and shadow diagnostics)
+is complete in srcMove 0.4.0; Phase 3, unique Type-1 production adoption, is
+next. This document records rationale, semantics, decision points, and future
+implementation phases rather than the full current behavior. The verified
+implementation remains documented in
 [`doc/architecture.md`](../architecture.md), and the existing candidate and
 selection redesign remains documented in
 [`doc/plans/move_detection_redesign.md`](move_detection_redesign.md).
