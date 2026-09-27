@@ -1,0 +1,848 @@
+{
+  "status": "exploratory; production observation-only; neither restriction accepted",
+  "base_commit": "d56342e2c94ac7fa66c91af221e82c741f0a1037",
+  "sample": "197 retained, previously inspected inputs; reductions are not independent historical observations",
+  "policies": {
+    "baseline": "unchanged production",
+    "location": "relocated Type-3 edges only",
+    "uncontested": "relocated and both original verified degrees equal one; sensitivity bound, not identity proof"
+  },
+  "provenance": {
+    "source_archive_sha256": "2fe67b9507cedd82dd47ddd02aa3caf1031172a0b6c976692d33a36e7810a6e6",
+    "patched_file_sha256": "66aa045a40330b409991922602866834ac3a17045fe83e80de962a9953f6f8c8",
+    "patch_sha256": "c87eb7a7076e40f4d5e5ec48deb931457ada05234ef2d33917c17e05fbdc67e2",
+    "baseline_sha256": "359baf50869312f88f8737becfb76fc47915cc9ad63c1b5a49fe3a81de03ebaa"
+  },
+  "binary_sha256": {
+    "baseline": "359baf50869312f88f8737becfb76fc47915cc9ad63c1b5a49fe3a81de03ebaa",
+    "location": "b8c173d85b2981d446ce90dd054f79eb70c26f5d9aec12b7b76b802f417fc8a1",
+    "uncontested": "bdc5172bc7ac8bb423b2acb0de4a2357b6ac1f8663fa916d8efa792d42934a7a"
+  },
+  "evidence_sha256": {
+    "plan.json": "d28d35afefea6020c46ffd606d20d9c81edd0908c1ab325ba44eaf7eb399fc10",
+    "comparison.json": "789f89a8d13d4d50cac0eb71cfdbdeac4977b8e6f5491321a67cb5deabfb3182",
+    "controls.json": "0cf9a0d6a32e7a2f551f79477e4ed92ebd045467c63cbdf501a268a85ddc8096",
+    "production-test.log": "6b736132b6a6321a5b1364e3369c733824745bf8ffeb68c2b1b3356787f64dd2"
+  },
+  "recipe_sha256": "ad19e28170b685c1cfaa9847ec376b2dbfce1d0f021ce00bab1d7c2b56fb1aab",
+  "case_counts": {
+    "xml": 41,
+    "source": 21,
+    "policy": 75,
+    "selection": 21,
+    "type3-oracle": 15,
+    "history": 14,
+    "independent-history": 4,
+    "eligible-history": 4,
+    "historical-contract": 2
+  },
+  "validation": {
+    "production_correctness_steps": 13,
+    "production_failures": 0,
+    "selection_contracts_per_variant": 21,
+    "degree_controls_per_variant": 2,
+    "modes_equivalent": true,
+    "nonselection_diagnostics_unchanged": true
+  },
+  "changes": [
+    {
+      "suite": "type3-oracle",
+      "name": "stationary_edit",
+      "input_sha256": "92853051dd28088b5a444032f5f9eca25e9e2d02cd7a50d3e2e7ba8b2916034d",
+      "review": "Rejected parent exposes repeated increments without independent movement evidence. Missing-context classification remains ambiguous.",
+      "variants": {
+        "location": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 20,
+              "insert_count": 19,
+              "text_excerpt": "value += 1;"
+            }
+          ]
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 20,
+              "insert_count": 19,
+              "text_excerpt": "value += 1;"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "suite": "type3-oracle",
+      "name": "missing_context_edit",
+      "input_sha256": "e4e578f0191923eb6cb1964b168b7cbaa700bd3205c64b25249e33d833b31cdb",
+      "review": "Rejected parent exposes repeated increments without independent movement evidence. Missing-context classification remains ambiguous.",
+      "variants": {
+        "location": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 20,
+              "insert_count": 19,
+              "text_excerpt": "value += 1;"
+            }
+          ]
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 20,
+              "insert_count": 19,
+              "text_excerpt": "value += 1;"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "suite": "type3-oracle",
+      "name": "wrapper_added_edit",
+      "input_sha256": "7caa5a85941085a176cd209c540b110690916366fdba119daef041f930cac289",
+      "review": "Rejected parent exposes repeated increments without independent movement evidence. Missing-context classification remains ambiguous.",
+      "variants": {
+        "location": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 20,
+              "insert_count": 19,
+              "text_excerpt": "value += 1;"
+            }
+          ]
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 20,
+              "insert_count": 19,
+              "text_excerpt": "value += 1;"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "suite": "type3-oracle",
+      "name": "wrapper_removed_edit",
+      "input_sha256": "96db076e176762f4d9c9a718f764b6634c2ac89ad7be1e48f5679b9f7fe3aeea",
+      "review": "Rejected parent exposes repeated increments without independent movement evidence. Missing-context classification remains ambiguous.",
+      "variants": {
+        "location": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 20,
+              "insert_count": 19,
+              "text_excerpt": "value += 1;"
+            }
+          ]
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 20,
+              "insert_count": 19,
+              "text_excerpt": "value += 1;"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "suite": "type3-oracle",
+      "name": "competing_insertions",
+      "input_sha256": "18a1abc4ce6be6dc31befe3ab84865d55c2fbdc3f742b66514c066744b08399f",
+      "review": "Strict bound withholds competing hypotheses and exposes repeated exact statement groups; individual identity remains unresolved.",
+      "variants": {
+        "location": {
+          "removed": [],
+          "added": []
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 20,
+              "insert_count": 37,
+              "text_excerpt": "value += 1;"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "suite": "type3-oracle",
+      "name": "competing_deletions",
+      "input_sha256": "371d4cfdfcb542cc30fc83ca7830e09f4ad0b268821671be04d92a8d98680dc2",
+      "review": "Strict bound withholds competing hypotheses and exposes repeated exact statement groups; individual identity remains unresolved.",
+      "variants": {
+        "location": {
+          "removed": [],
+          "added": []
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 37,
+              "insert_count": 20,
+              "text_excerpt": "value += 1;"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "suite": "type3-oracle",
+      "name": "nontransitive_chain",
+      "input_sha256": "a099b496a1bb86be8a7171d02bece16dbfb814194f07bf966cbab765ed4dc790",
+      "review": "Strict bound withholds competing hypotheses and exposes repeated exact statement groups; individual identity remains unresolved.",
+      "variants": {
+        "location": {
+          "removed": [],
+          "added": []
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            },
+            {
+              "match_kind": "type3",
+              "move_id": "c89025cc1",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ready) { value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1;"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 28,
+              "insert_count": 16,
+              "text_excerpt": "value += 1;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "c89025cc1",
+              "delete_count": 12,
+              "insert_count": 24,
+              "text_excerpt": "value -= 1;"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "suite": "type3-oracle",
+      "name": "statement_wrapper_added",
+      "input_sha256": "885a207085370619ab748b4eac2a66a52bae3f3cf8d2a1c033354cd701fb2888",
+      "review": "Source restructuring oracle preserved; rejected edited parent has no selected fallback.",
+      "variants": {
+        "location": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "int result= value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value;"
+            }
+          ],
+          "added": []
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "int result= value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value;"
+            }
+          ],
+          "added": []
+        }
+      }
+    },
+    {
+      "suite": "type3-oracle",
+      "name": "statement_wrapper_removed",
+      "input_sha256": "107ecb688d5dcf5f8fc6cb7f0d55f7b1dd137a18aff91651144579397c2daff3",
+      "review": "Source restructuring oracle preserved; rejected edited parent has no selected fallback.",
+      "variants": {
+        "location": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "int result= value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value;"
+            }
+          ],
+          "added": []
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "int result= value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value;"
+            }
+          ],
+          "added": []
+        }
+      }
+    },
+    {
+      "suite": "eligible-history",
+      "name": "opencv-9e515caeac",
+      "input_sha256": "50ffacc61a201c4b5cae4bf78a2f24229f230273b1bd996bca64c60700e7aeae",
+      "review": "Two source-reviewed in-place parents withheld; repeated stationary/mixed Type-1 groups exposed. Do not infer pair identity from group cardinality.",
+      "variants": {
+        "location": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "c89025cc1",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "class ipp_warpAffineParallel: public cv::ParallelLoopBody { public: ipp_warpAffineParallel(::ipp::IwiImage &src, ::ipp::IwiImage &dst, IppiInterpolationType _inter, double (&_coeffs)[2][3], ::ipp::IwiBorderType _borderType, IwTransDirection"
+            },
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "try { ::ipp::IwiImage iwSrc; iwSrc.Init({src_width, src_height}, ippiGetDataType(src_type), CV_MAT_CN(src_type), NULL, src_data, IwSize(src_step)); ::ipp::IwiImage iwDst({dst_width, dst_height}, ippiGetDataType(src_type), CV_MAT_CN(src_type"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "c89025cc1",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "double coeffs[2][3];"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "ca389c35a",
+              "delete_count": 1,
+              "insert_count": 2,
+              "text_excerpt": "bool ok = true;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "e1c9756ce",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "if(!ok) return CV_HAL_ERROR_NOT_IMPLEMENTED;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "4db018fed",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "CV_IMPL_ADD(CV_IMPL_IPP | CV_IMPL_MT);"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "2e2338aca",
+              "delete_count": 2,
+              "insert_count": 3,
+              "text_excerpt": "*ok = false;"
+            }
+          ]
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "c89025cc1",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "class ipp_warpAffineParallel: public cv::ParallelLoopBody { public: ipp_warpAffineParallel(::ipp::IwiImage &src, ::ipp::IwiImage &dst, IppiInterpolationType _inter, double (&_coeffs)[2][3], ::ipp::IwiBorderType _borderType, IwTransDirection"
+            },
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "try { ::ipp::IwiImage iwSrc; iwSrc.Init({src_width, src_height}, ippiGetDataType(src_type), CV_MAT_CN(src_type), NULL, src_data, IwSize(src_step)); ::ipp::IwiImage iwDst({dst_width, dst_height}, ippiGetDataType(src_type), CV_MAT_CN(src_type"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "c89025cc1",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "double coeffs[2][3];"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "ca389c35a",
+              "delete_count": 1,
+              "insert_count": 2,
+              "text_excerpt": "bool ok = true;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "e1c9756ce",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "if(!ok) return CV_HAL_ERROR_NOT_IMPLEMENTED;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "4db018fed",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "CV_IMPL_ADD(CV_IMPL_IPP | CV_IMPL_MT);"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "2e2338aca",
+              "delete_count": 2,
+              "insert_count": 3,
+              "text_excerpt": "*ok = false;"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "suite": "eligible-history",
+      "name": "opencv-b864ee7335",
+      "input_sha256": "defa85ce5a1814e060837ff548a3b0331c68e9a9cf2cae9b6421ad0d2bb6124d",
+      "review": "Strict bound withholds two genuine competing functor parents. Unique continuing descendants and repeated declarations/allocation emerge; whole-parent recall is lost.",
+      "variants": {
+        "location": {
+          "removed": [],
+          "added": []
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "ca389c35a",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "struct IPPReorderGeneralFunctor { IPPReorderGeneralFunctor(ippiReorderFunc _func1, ippiGeneralFunc _func2, int _order0, int _order1, int _order2, int _depth) : ippiColorConvertReorder(_func1), ippiColorConvertGeneral(_func2), depth(_depth) "
+            },
+            {
+              "match_kind": "type3",
+              "move_id": "9adefe000",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "struct IPPGeneralReorderFunctor { IPPGeneralReorderFunctor(ippiGeneralFunc _func1, ippiReorderFunc _func2, int _order0, int _order1, int _order2, int _depth) : ippiColorConvertGeneral(_func1), ippiColorConvertReorder(_func2), depth(_depth) "
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "00955f032",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "IPPReorderGeneralFunctor(ippiReorderFunc _func1, ippiGeneralFunc _func2, int _order0, int _order1, int _order2, int _depth) : ippiColorConvertReorder(_func1), ippiColorConvertGeneral(_func2), depth(_depth) { order[0] = _order0; order[1] = _"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "f16b47eb0",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "temp.create(rows, cols, CV_MAKETYPE(depth, 3));"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "6e3ccdeec",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ippiColorConvertReorder == 0 || ippiColorConvertGeneral == 0) return false;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "af2720dce",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if(CV_INSTRUMENT_FUN_IPP(ippiColorConvertReorder, src, srcStep, temp.ptr(), (int)temp.step[0], ippiSize(cols, rows), order) < 0) return false;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "dbe2218a8",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "return CV_INSTRUMENT_FUN_IPP(ippiColorConvertGeneral, temp.ptr(), (int)temp.step[0], dst, dstStep, ippiSize(cols, rows)) >= 0;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "2ef431a44",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "IPPGeneralReorderFunctor(ippiGeneralFunc _func1, ippiReorderFunc _func2, int _order0, int _order1, int _order2, int _depth) : ippiColorConvertGeneral(_func1), ippiColorConvertReorder(_func2), depth(_depth) { order[0] = _order0; order[1] = _"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "b0ca19112",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ippiColorConvertGeneral == 0 || ippiColorConvertReorder == 0) return false;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "7879feaea",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if(CV_INSTRUMENT_FUN_IPP(ippiColorConvertGeneral, src, srcStep, temp.ptr(), (int)temp.step[0], ippiSize(cols, rows)) < 0) return false;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "7b54e2401",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "return CV_INSTRUMENT_FUN_IPP(ippiColorConvertReorder, temp.ptr(), (int)temp.step[0], dst, dstStep, ippiSize(cols, rows), order) >= 0;"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "suite": "historical-contract",
+      "name": "functor_competition",
+      "input_sha256": "260fd489ad232206b2504aa170fae8d39f0fb83fa04734b7ea4903f79d510165",
+      "review": "Strict bound withholds two genuine competing functor parents. Unique continuing descendants and repeated declarations/allocation emerge; whole-parent recall is lost.",
+      "variants": {
+        "location": {
+          "removed": [],
+          "added": []
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "struct IPPReorderGeneralFunctor { IPPReorderGeneralFunctor(ippiReorderFunc _func1, ippiGeneralFunc _func2, int _order0, int _order1, int _order2, int _depth) : ippiColorConvertReorder(_func1), ippiColorConvertGeneral(_func2), depth(_depth) "
+            },
+            {
+              "match_kind": "type3",
+              "move_id": "c89025cc1",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "struct IPPGeneralReorderFunctor { IPPGeneralReorderFunctor(ippiGeneralFunc _func1, ippiReorderFunc _func2, int _order0, int _order1, int _order2, int _depth) : ippiColorConvertGeneral(_func1), ippiColorConvertReorder(_func2), depth(_depth) "
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "ebe706064",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "int order[4];"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "IPPReorderGeneralFunctor(ippiReorderFunc _func1, ippiGeneralFunc _func2, int _order0, int _order1, int _order2, int _depth) : ippiColorConvertReorder(_func1), ippiColorConvertGeneral(_func2), depth(_depth) { order[0] = _order0; order[1] = _"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "9adefe000",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "temp.create(rows, cols, CV_MAKETYPE(depth, 3));"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "459320dd7",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ippiColorConvertReorder == 0 || ippiColorConvertGeneral == 0) return false;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "e1c9756ce",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if(CV_INSTRUMENT_FUN_IPP(ippiColorConvertReorder, src, srcStep, temp.ptr(), (int)temp.step[0], ippiSize(cols, rows), order) < 0) return false;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "ca389c35a",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "return CV_INSTRUMENT_FUN_IPP(ippiColorConvertGeneral, temp.ptr(), (int)temp.step[0], dst, dstStep, ippiSize(cols, rows)) >= 0;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "c89025cc1",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "IPPGeneralReorderFunctor(ippiGeneralFunc _func1, ippiReorderFunc _func2, int _order0, int _order1, int _order2, int _depth) : ippiColorConvertGeneral(_func1), ippiColorConvertReorder(_func2), depth(_depth) { order[0] = _order0; order[1] = _"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "0ef953636",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if (ippiColorConvertGeneral == 0 || ippiColorConvertReorder == 0) return false;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "4db018fed",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "if(CV_INSTRUMENT_FUN_IPP(ippiColorConvertGeneral, src, srcStep, temp.ptr(), (int)temp.step[0], ippiSize(cols, rows)) < 0) return false;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "2e2338aca",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "return CV_INSTRUMENT_FUN_IPP(ippiColorConvertReorder, temp.ptr(), (int)temp.step[0], dst, dstStep, ippiSize(cols, rows), order) >= 0;"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "suite": "historical-contract",
+      "name": "warp_in_place",
+      "input_sha256": "6daea4ae7e01a3a71d30fcb0f7690a4542b49956983b4888d429b62ade738e12",
+      "review": "Two source-reviewed in-place parents withheld; repeated stationary/mixed Type-1 groups exposed. Do not infer pair identity from group cardinality.",
+      "variants": {
+        "location": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "c89025cc1",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "class ipp_warpAffineParallel: public cv::ParallelLoopBody { public: ipp_warpAffineParallel(::ipp::IwiImage &src, ::ipp::IwiImage &dst, IppiInterpolationType _inter, double (&_coeffs)[2][3], ::ipp::IwiBorderType _borderType, IwTransDirection"
+            },
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "try { ::ipp::IwiImage iwSrc; iwSrc.Init({src_width, src_height}, ippiGetDataType(src_type), CV_MAT_CN(src_type), NULL, src_data, IwSize(src_step)); ::ipp::IwiImage iwDst({dst_width, dst_height}, ippiGetDataType(src_type), CV_MAT_CN(src_type"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "c89025cc1",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "double coeffs[2][3];"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "ca389c35a",
+              "delete_count": 1,
+              "insert_count": 2,
+              "text_excerpt": "bool ok = true;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "e1c9756ce",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "if(!ok) return CV_HAL_ERROR_NOT_IMPLEMENTED;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "4db018fed",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "CV_IMPL_ADD(CV_IMPL_IPP | CV_IMPL_MT);"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "2e2338aca",
+              "delete_count": 2,
+              "insert_count": 3,
+              "text_excerpt": "*ok = false;"
+            }
+          ]
+        },
+        "uncontested": {
+          "removed": [
+            {
+              "match_kind": "type3",
+              "move_id": "c89025cc1",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "class ipp_warpAffineParallel: public cv::ParallelLoopBody { public: ipp_warpAffineParallel(::ipp::IwiImage &src, ::ipp::IwiImage &dst, IppiInterpolationType _inter, double (&_coeffs)[2][3], ::ipp::IwiBorderType _borderType, IwTransDirection"
+            },
+            {
+              "match_kind": "type3",
+              "move_id": "97b1dcdaf",
+              "delete_count": 1,
+              "insert_count": 1,
+              "text_excerpt": "try { ::ipp::IwiImage iwSrc; iwSrc.Init({src_width, src_height}, ippiGetDataType(src_type), CV_MAT_CN(src_type), NULL, src_data, IwSize(src_step)); ::ipp::IwiImage iwDst({dst_width, dst_height}, ippiGetDataType(src_type), CV_MAT_CN(src_type"
+            }
+          ],
+          "added": [
+            {
+              "match_kind": "type1",
+              "move_id": "c89025cc1",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "double coeffs[2][3];"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "ca389c35a",
+              "delete_count": 1,
+              "insert_count": 2,
+              "text_excerpt": "bool ok = true;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "e1c9756ce",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "if(!ok) return CV_HAL_ERROR_NOT_IMPLEMENTED;"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "4db018fed",
+              "delete_count": 2,
+              "insert_count": 2,
+              "text_excerpt": "CV_IMPL_ADD(CV_IMPL_IPP | CV_IMPL_MT);"
+            },
+            {
+              "match_kind": "type1",
+              "move_id": "2e2338aca",
+              "delete_count": 2,
+              "insert_count": 3,
+              "text_excerpt": "*ok = false;"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}

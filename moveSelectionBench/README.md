@@ -774,10 +774,104 @@ under `build/type3-historical-contracts/`. Reproduce from the parent workspace:
 ```
 
 The comparison needs the retained inputs; the correctness contracts generate
-their own XML from checked-in source pairs. Before any eligibility trial, review
-the [proposed identity policy](../doc/plans/correspondence.md#proposed-type-3-acceptance-policy)
-against these valid and invalid alternatives, including the genuine transfers
-lost by excluding every competing edge. Keep Type-3 observation-only meanwhile.
+their own XML from checked-in source pairs. The isolated trial below evaluates
+two restrictions against these alternatives; the
+[proposed identity policy](../doc/plans/correspondence.md#proposed-type-3-acceptance-policy)
+remains unadopted.
+
+## Isolated Type-3 eligibility trial
+
+**Exploratory; neither restriction is adopted.** Based on `d56342e`,
+[`trials/type3_eligibility.py`](trials/type3_eligibility.py) exports committed
+source into an ignored directory and disables Type-3 proposals immediately
+before the existing hierarchy pass. `location` requires `relocated`;
+`uncontested` additionally requires both endpoint degrees to be one in the
+original verified graph. The latter is a sensitivity bound, not proof of
+identity. Matching thresholds, Type-2 reservation, repeated-group policy,
+hierarchy selection, and parent carrying are unchanged. Production source and
+its executable remain unchanged.
+
+The 197 retained inputs were hashed before running the variants. They are
+previously inspected evidence, not a new held-out sample. All three binaries
+agree between ordinary, diagnostic, and results-only modes; diagnostic XML
+matches ordinary XML. Candidate, verified-edge, degree, and location evidence
+is unchanged across binaries; only selection dispositions change. The original
+14 historical regressions and all existing 21 selection contracts are preserved.
+The production Docker correctness suite passes all 13 steps. All three binaries
+pass the 21 selection contracts, which do not by themselves cover the newly
+exposed annotations.
+
+| Variant | Changed inputs | Removed groups | Added groups |
+| --- | ---: | ---: | ---: |
+| `location` | 8 | 10 | 14 |
+| `uncontested` | 13 | 18 | 37 |
+
+Every added group is Type-1. These totals include historical reductions alongside
+their originals and must not be treated as independent historical observations.
+The [review manifest](type3_eligibility_trial_review.json) inventories every
+changed input and added/removed group, with provenance hashes. The effects are:
+
+- Stationary, missing-context, and two wrapper-edit fixtures each lose one
+  Type-3 parent but expose a repeated `value += 1;` group (20 delete occurrences,
+  19 insert occurrences). Missing context remains ambiguous; it is not relabeled
+  stationary. The two statement-wrapper fixtures become quiet as intended.
+- Under `uncontested`, competing-insertion/deletion fixtures expose repeated
+  20×37 and 37×20 groups. The nontransitive fixture exposes two repeated groups,
+  28×16 and 12×24. These groups do not establish individual continuing identities.
+- OpenCV warp `9e515caeac` loses both reviewed in-place Type-3 annotations under
+  either restriction, but exposes five repeated Type-1 groups: `double coeffs[2][3];`
+  (2×2), `bool ok = true;` (1×2), the `if(!ok)` failure guard (2×2),
+  `CV_IMPL_ADD(CV_IMPL_IPP | CV_IMPL_MT);` (2×2), and `*ok = false;` (2×3).
+  Source review finds coefficients and affine guards continuing in place,
+  initialization shared with a rewritten remap branch, and instrumentation/error
+  handling shared across rewritten workers. These stationary or mixed groups
+  cannot be counted as five independently established moves. The reduced warp
+  fixture has the same change. Thus removing the two false parents does not
+  establish a clean precision improvement for normal output.
+- OpenCV color `b864ee7335` is unchanged under `location`. `uncontested` loses
+  both genuine functor parent transfers and adds nine Type-1 descendant groups:
+  eight unique constructors/guards/conversion operations in the continuing
+  functors and one repeated allocation group. The reduced fixture adds ten,
+  including the repeated `int order[4];` declaration. Descendant transfers do
+  not recover whole-target recall. The frozen seven edited whole-transfer
+  targets fall from two selected to one; five prior matching/verification misses
+  remain unchanged. No new matching success is produced by either restriction.
+
+Two extra synthetic controls place one competing partner in missing same-file
+context and another across files, in both endpoint directions. Rejecting the
+first by location does not reduce the original degree or validate the second:
+`location` selects one Type-3 edge, `uncontested` selects none. Both controls pass
+for all three binaries. This protects the evaluation from manufactured uniqueness.
+
+Ignored evidence is in `build/type3-eligibility-trial/`: frozen `plan.json`,
+exported source, `trial.patch`, binaries/build logs, `comparison.json`, per-mode
+JSON/XML, `controls.json`, and `production-test.log`. Selection-contract results
+are in `benchmark-results/move-selection/type3-eligibility-trial/`. The source
+archive, patch, patched-file and executable hashes identify the experiment;
+exported-tree build receipts alone are not sufficient provenance. Recorded
+execution seconds are operational timings, not a performance benchmark.
+
+Reproduce from the parent workspace with the retained inventory and inputs
+available. `prepare` requires a fresh output directory and exports the current
+committed HEAD; use the reviewed base revision when reproducing this result.
+The baseline executable must be built from that same revision before preparation.
+
+```bash
+./bin/srcml-dev-shell python3 srcMove/moveSelectionBench/trials/type3_eligibility.py prepare
+./bin/srcml-dev-shell cmake -S srcMove/build/type3-eligibility-trial/source -B srcMove/build/type3-eligibility-trial/location -G Ninja -DWORKSPACE_ROOT=/workspace -DCMAKE_BUILD_TYPE=Release
+./bin/srcml-dev-shell cmake --build srcMove/build/type3-eligibility-trial/location --target srcMove -j4
+./bin/srcml-dev-shell cmake -S srcMove/build/type3-eligibility-trial/source -B srcMove/build/type3-eligibility-trial/uncontested -G Ninja -DWORKSPACE_ROOT=/workspace -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS=-DSRCMOVE_TRIAL_REJECT_COMPETING
+./bin/srcml-dev-shell cmake --build srcMove/build/type3-eligibility-trial/uncontested --target srcMove -j4
+./bin/srcml-dev-shell python3 srcMove/moveSelectionBench/trials/type3_eligibility.py compare
+./bin/srcml-dev-shell python3 srcMove/moveSelectionBench/trials/type3_eligibility.py controls
+./bin/srcml-dev-shell make --no-print-directory -C srcMove test
+```
+
+The next decision is the cross-type acceptance boundary: can Phase 4.2 safely
+adopt independently, or must adoption wait for a separately reviewed repeated-group
+policy? Do not change repeated matching or parent carrying to hide this result.
+A curated move repository would help controlled coverage later; the immediate
+blocker is policy, not a shortage of inputs. Keep Phase 5 deferred.
 
 ## Retained Notepad++ evaluation
 

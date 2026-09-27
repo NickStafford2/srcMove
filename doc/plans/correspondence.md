@@ -579,14 +579,20 @@ convenience evidence, not held-out validation or grounds for immediate adoption.
 
 The [source-generated historical contracts](../../moveSelectionBench/README.md#historical-type-3-observation-contracts)
 now preserve the full 2×2 functor component and both in-place warp observations,
-with source oracles separate from diagnostic/selection baselines. Next, review
-correspondence acceptance and the lost-transfer tradeoff before any isolated
-eligibility trial. A trial
-must rerun hierarchy selection and audit exposed alternatives, not just filter
-existing selected edges. Keep production Type-3 observation-only; do not treat a
-winning rank, small similarity margin, or degree one as independent identity
-proof. Further validation should include independently frozen same-file edited
-moves and competing false partners, not only these cross-file transfers.
+with source oracles separate from diagnostic/selection baselines. The
+[isolated eligibility trial](../../moveSelectionBench/README.md#isolated-type-3-eligibility-trial)
+now reruns hierarchy selection under two provisional restrictions. Neither is
+ready for adoption: excluding competition loses genuine whole-parent transfers,
+and rejecting Type-3 parents exposes repeated Type-1 annotations, including
+stationary content. Filtering existing selected edges understated these effects.
+
+Next, review the acceptance boundary across match kinds and record whether
+Phase 4.2 adoption must wait for a separately approved repeated-group policy.
+Do not silently suppress descendants, extend carrying by containment, or start
+Phase 5 to make this trial pass. Keep production Type-3 observation-only. An
+independent identity discriminator and independently frozen same-file edited
+moves with false competitors remain validation needs. A constructed repository
+can supply controlled positives/negatives, but cannot replace historical evidence.
 
 
 Begin with independent contracts and observation-only classification of verified
