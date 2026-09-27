@@ -256,10 +256,9 @@ whitespace/comment fixtures for targeted Type-1 whitespace behavior.
 Known false positives are selected from `false_positives` and joined to
 `functions` for source locations, token counts, and the external/internal flag.
 The table has no `min_tokens` or `internal` columns of its own. Selection keeps
-only pairs whose two functions are external, then applies the configured minimum
-judge and confidence thresholds. Token size is retained as reporting metadata
-but does not determine eligibility. The ordered table direction is preserved as
-fragment one deleted and fragment two inserted.
+only pairs whose two functions are external. Token size is retained as reporting
+metadata but does not determine eligibility. The ordered table direction is
+preserved as fragment one deleted and fragment two inserted.
 
 Generation reuses the positive cases' extraction and two-file archive so the
 srcDiff semantic oracle can first establish that both complete payloads were
