@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "method": "Production inventory_changed_paths --no-renames, all admitted C/C++ paths, compared against frozen changed_source_paths. Post-execution audit.",
+  "cases": [
+    {
+      "repository": "sqlite",
+      "case": "sqlite-target-03",
+      "cohort": "targets",
+      "missing_from_review_path_inventory": [
+        "ext/wasm/version-info.c"
+      ],
+      "interpretation": "Path-inventory discrepancy requires source-review correction; not automatically proof labels incorrect. Frozen review unchanged."
+    },
+    {
+      "repository": "opencv",
+      "case": "opencv-ordinary-05",
+      "cohort": "ordinary",
+      "missing_from_review_path_inventory": [
+        "modules/core/src/lapack.cpp"
+      ],
+      "interpretation": "Path-inventory discrepancy requires source-review correction; not automatically proof labels incorrect. Frozen review unchanged."
+    }
+  ]
+}

@@ -1,0 +1,1763 @@
+{
+  "schema_version": 1,
+  "repository": "sqlite",
+  "reviewer": "Codex /root/sqlite_review, single post-output AI adjudicator",
+  "detector_blind": false,
+  "reviewed_on": "2026-09-27",
+  "inputs": {
+    "source_review_sha256": "f9703a2ae764d3773abf4175f9e2c967b5588d3d8bf8450ed562989930ca3e8b",
+    "second_review_sha256": "f9dd1bc131891a18cc7c2d326d6cad195375da2d3a895665d180b305bc0b5384",
+    "seal_sha256": "a01a2abb5dabc6f7a6d75c5991f3090cc4c229bfa9f468a2742f41b56003f43c",
+    "run_provenance_sha256": "c16515e10e887659f223ca0812cb047a078a68e944e6886bace2f4baf4a286f4",
+    "attribution_module_sha256": "543065ea9a4fd9ae78be30f063048e844eb69a89eb4c35405377d6ade84452b3"
+  },
+  "method": "All 36 case execution records inspected; all emitted Type1/Type2 groups resolved from results.json XPaths through revision-filtered XML, compared with frozen source identities and Git source diffs/context. All 11 confirmed targets reviewed including larger selected ancestors. Actual outputs outrank diagnostic decision labels.",
+  "limitations": [
+    "Single post-output AI review, not human adjudication.",
+    "Ordinary and purposive targeted cohorts must remain separate. No population accuracy claim.",
+    "Strict source-defined target granularity is unchanged after outputs: four targets are correctly ancestor-covered but not individually selected.",
+    "Type3 behavior remained enabled; three observed outputs retained separately.",
+    "No confirmed Type2 positives in this sample; the false Type2 result does not establish Type2 recall."
+  ],
+  "summary": {
+    "ordinary": {
+      "type1_groups": 0,
+      "type2_groups": 1,
+      "false_correspondence_groups": 1
+    },
+    "targeted": {
+      "type1_groups": 7,
+      "valid_independent_groups": 7,
+      "strict_target_detected": 5,
+      "strict_target_total": 11,
+      "strict_whole_construct_detected": 4,
+      "strict_whole_construct_total": 6,
+      "strict_independent_descendant_detected": 1,
+      "strict_independent_descendant_total": 5,
+      "additional_ancestor_covered_targets": 4,
+      "uncovered_targets": 2,
+      "uncovered_limiting_stage": "whole_endpoint_not_exposed"
+    },
+    "no_analyzable_change_cases": 6,
+    "type3_observations": 3
+  },
+  "cases": [
+    {
+      "id": "sqlite-ordinary-01",
+      "cohort": "ordinary",
+      "parent": "7fa8cff00cfc82c65fc9c3b9028ad0c9d5cc07ea",
+      "commit": "9e5727e51dfc007636ad2be2c16b2dcf5576ddf4",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [
+        {
+          "index": 0,
+          "type": "type3",
+          "from_xpaths": [
+            "/src:unit[@filename='src/insert.c']/diff:delete[1]/src:function[src:name='exprListIsConstant']/src:block[1]/src:block_content[1]/src:for[1]"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='src/expr.c']/diff:insert[1]/src:function[src:name='sqlite3ExprListIsConstant']/src:block[1]/src:block_content[1]/src:for[1]"
+          ],
+          "old": [
+            [
+              "src/insert.c",
+              "for(ii=0; ii<pRow->nExpr; ii++){\n    if( 0==sqlite3ExprIsConstant(pParse, pRow->a[ii].pExpr) ) return 0;\n  }"
+            ]
+          ],
+          "new": [
+            [
+              "src/expr.c",
+              "for(ii=0; ii<pList->nExpr; ii++){\n    if( 0==exprIsConst(pParse, pList->a[ii].pExpr, iInit) ) return 0;\n  }"
+            ]
+          ],
+          "verdict": "source_supported_observation",
+          "scope": "carried_descendant",
+          "rationale": "The loop moves with the edited exprListIsConstant extraction. The argument list changes and parent signature/body extend, so this remains an edited extraction observation, not an independent Type1/2 target."
+        }
+      ],
+      "artifact_sha256": {
+        "results.json": "9cf2639a0aeca49a8b203a819069863b4d01ca386f2030af47b293e0c7afb30f",
+        "diagnostics.json": "bf4e9797088da14a48a6c4bdf33090e2f29848bdbee967e197a9db789ba1ee75",
+        "srcmove.xml": "7a19044d4aa25fbea4d326bbd72f228460f815c99cd03a62c0692af3ebe66292",
+        "execution.json": "0cdebf9b4ed3504841b5a3e9be3e6b0ad5c04b8f0baf64097e57163fb58ce128",
+        "srcdiff.xml": "929d9e2ad12327d0ec8ee534581f1ce14f34fb50ca8f5ba16bc686ce87454077"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-02",
+      "cohort": "ordinary",
+      "parent": "048112def64ee49e28f0e81607323d63fdea7e5c",
+      "commit": "7fa8cff00cfc82c65fc9c3b9028ad0c9d5cc07ea",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "88680c2d0c83bc5fd7466f5d931f37cac7fe7c11fdd853534b08e6b982bf4d5f",
+        "diagnostics.json": "4130eca111fac7a8de757b760d0acd62050b391939d0a025d85bf38d79391681",
+        "srcmove.xml": "ac30997a94143bde465771fc730a215ce1949a8f3049a1a780a6574efefe4d7b",
+        "execution.json": "006598f833a677a8d3f988c5ce68caa01a87f6552996ef080b8f60f46f4789d0",
+        "srcdiff.xml": "51b558864882fba3a98e8475cab33b248e5647c86251770475543f2fcdabcf6a"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-03",
+      "cohort": "ordinary",
+      "parent": "f919d9924621293cb71696ab9b98300b37c679ab",
+      "commit": "048112def64ee49e28f0e81607323d63fdea7e5c",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "332a7dcbadab39a4e12fc396ef361ad5757eb85bc0e9e174993668adebb18de9",
+        "diagnostics.json": "5d7a89315fefaa658571bba96b18a01db1f0eff1b8848b3e0c2329b9c3249262",
+        "srcmove.xml": "7e895646e8fca5d097ddde2166e565fe4edbd144efd19505ca9c9646a261d072",
+        "execution.json": "d4a2aeee024f042c7ef66143e9e9937834a7c088c57a49141eea42c03e872492",
+        "srcdiff.xml": "71516a74a1659c5632ba0c8a0d8f678d240e6c2f4d176c88908e0ea787a02695"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-04",
+      "cohort": "ordinary",
+      "parent": "fe8153124afa11584ff84ebc9f7272f4ac0d41f9",
+      "commit": "f919d9924621293cb71696ab9b98300b37c679ab",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "46f83ecfb4dacca17a3eb75c3203779fe4f1058cee558e8524897f969944f574",
+        "diagnostics.json": "c2a47411942b4b1bb7a023af649aa4e2044aaa18a56b4efac7299f1d961bbd8b",
+        "srcmove.xml": "5e8cad1872f779bcb4907a3694f3a81debc738e0ad43f39e1cf6b055ae7ce7ff",
+        "execution.json": "b1148cbcb5a6fd0d9a6aaac13681f11f5b932794d81de209c9c183cb38320490",
+        "srcdiff.xml": "3f9961cb911ea4dff73aaa2b6f32da72335931dc7b5a2c43ed10c24ae04aeb39"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-05",
+      "cohort": "ordinary",
+      "parent": "9ac0c79e1129219cbbdd9db08d0990fac89b06d5",
+      "commit": "fe8153124afa11584ff84ebc9f7272f4ac0d41f9",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "476e0eb1b0b0221fc72e459631f1e47db57461df1447a323344964346b5d1756",
+        "diagnostics.json": "453bb080514248740b5de513708c25847ef9292de2b59a514cad65b8deb78a40",
+        "srcmove.xml": "0f17b39ac180142e97f7a077a8c43dba482d2f56fc02e8f2523e3e5a81ebbe19",
+        "execution.json": "c0b7ae2c08318f55bfe258f92a901206fda9ab7ef81bceb0a65fddca3cc8f4d4",
+        "srcdiff.xml": "48568418a62f788cd621d76cf1786f314a6af60643c4c16b45def6cd64520fb2"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-06",
+      "cohort": "ordinary",
+      "parent": "714ab82489995fc4803a6d3e1c9544b9f7ec6a7c",
+      "commit": "9ac0c79e1129219cbbdd9db08d0990fac89b06d5",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "d48033b78aaaf52b759b9b0e684e07ba2f6fda189dfe07c1aa6b651a0d4e1cd8",
+        "diagnostics.json": "035c26fe5dbe20f25b148439f7139d10efe1fe4263a2252f99150fa637d77765",
+        "srcmove.xml": "f1eb122e5a1c34710fc67059f1c4162e05bbb4f85c13d8497f469462fa0a31ef",
+        "execution.json": "5f90845c5aaa1578f4a8348cee8ca649b48a202be19f7686b69defd3de116679",
+        "srcdiff.xml": "80cd212e44c299088f2d216a1c2637177bc59857d1c770af3a8f34ef114fe291"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-07",
+      "cohort": "ordinary",
+      "parent": "9fd4cbde74cbec8b08e4474a8f2939b14fb66556",
+      "commit": "714ab82489995fc4803a6d3e1c9544b9f7ec6a7c",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "9fd711c43cfad680e03921529214aa104d7b5102a3d0d1a88d084fdd9746be51",
+        "diagnostics.json": "04aa2629af752e2fe21b835f987e55e16487893eb8cccb7ec8442d783b3cbe11",
+        "srcmove.xml": "7eed4fbeb0af637723c4634ce7186c05c054d8601a7195b09def9309744b547c",
+        "execution.json": "1015b082358bbf3c42ae2c0622b497520b573746317a9ae95596f3dcc2eaeeac",
+        "srcdiff.xml": "19057402746922fa405f26b951fd176157e1c3714bdce5a3b70bfbf55d1d403b"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-08",
+      "cohort": "ordinary",
+      "parent": "0489a60a425bc3858dd90ce4e64c089476fe2177",
+      "commit": "9fd4cbde74cbec8b08e4474a8f2939b14fb66556",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "033bfccf12d82149bfc0e79e4162086cf6950a21740e19e3f76643a006be2fda",
+        "diagnostics.json": "c39d82f9a7fd561eb4c7b72084bb4cd4a7005ea56edbc4a106aa9d3efa8832d7",
+        "srcmove.xml": "f3d3391df0dd9ab44fe1da2da8771c6479c2eb96a7ac417996fa2e6fb3c92f92",
+        "execution.json": "4bda5991d1b19ed9bb29baac64afaba5482536c30f7a383a90f2d98c909d3f83",
+        "srcdiff.xml": "c3aede7ffc1df7dfc73f71e6e54121102054242fb5bf9a96f438501965851d31"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-09",
+      "cohort": "ordinary",
+      "parent": "d51b8992634271eea313f3695ea7a04d50a5c5b7",
+      "commit": "0489a60a425bc3858dd90ce4e64c089476fe2177",
+      "execution_status": "no_analyzable_change",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "execution.json": "948224a7f684402977c571c5dba6bce467988e4b4b473e02f7c4796eadfc6ba0"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-10",
+      "cohort": "ordinary",
+      "parent": "5271f86cfaf639170cccf5f279bd47ad890da65e",
+      "commit": "d51b8992634271eea313f3695ea7a04d50a5c5b7",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "332a7dcbadab39a4e12fc396ef361ad5757eb85bc0e9e174993668adebb18de9",
+        "diagnostics.json": "5d7a89315fefaa658571bba96b18a01db1f0eff1b8848b3e0c2329b9c3249262",
+        "srcmove.xml": "c26cc464e47f87bd0061100158f2693b27d4f440692a0d9cc29fd284101c6502",
+        "execution.json": "d82f18bf75cc841b041b62d08c153626402dca20731b90f2ae308c4764e8827e",
+        "srcdiff.xml": "08247bfe633351ce033202f5c3edd3c046b2e4524d193461a57fcfc555779e16"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-11",
+      "cohort": "ordinary",
+      "parent": "13bcd6f6b26a9eb3656ba8f51cad7ee29e260475",
+      "commit": "5271f86cfaf639170cccf5f279bd47ad890da65e",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "81007166ac8eb1d98e0534404e3a79aab5bb558822bab78e9a745c147001bbcc",
+        "diagnostics.json": "392974d641d87a18788832e43ee3066bb65a960fcbfba2144c06f25432e4f530",
+        "srcmove.xml": "b71c2415029e21bf45ca34ca0d9b28812a17f9cabce37d40ac2913a08f6dc3c8",
+        "execution.json": "615af4387efb9d1923cbdd20801b660d88043d6819ebef22088322c8e28b5c84",
+        "srcdiff.xml": "ee50fe7692b648d6a4344ca197e881f135296ff43e6d2886d0f99890dfa6a6ee"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-12",
+      "cohort": "ordinary",
+      "parent": "a87bd2471a9c0606e78d3c3678bcd9cecaa0e731",
+      "commit": "13bcd6f6b26a9eb3656ba8f51cad7ee29e260475",
+      "execution_status": "no_analyzable_change",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "execution.json": "119ce73dee72dcfc3410ad94cfb20080899497511276b05fbd41b856ad681bcd"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-13",
+      "cohort": "ordinary",
+      "parent": "0085ea144363b4df8c9a37afbc67a82071b40f0b",
+      "commit": "a87bd2471a9c0606e78d3c3678bcd9cecaa0e731",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "0ae74122381aa26e41b5bc11ce419ca20a157f1a549bfae3ea956b299cb478c8",
+        "diagnostics.json": "7fd656e562f39e2d8ddc3753f4206b1ef24159ef7c126c2901920e064a4d2c7d",
+        "srcmove.xml": "a21bcc379ae8e1fc2f66df51e5ccbb5102cd15ec2102b002247277f2110be7d7",
+        "execution.json": "114e726704fac98423946786b83336330eff17988585f6ab266954cc7c5b7e44",
+        "srcdiff.xml": "6df4b45adcc70d66fb855b5fa04aa24caff695d821a5ae0284deb35dc84c48ca"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-14",
+      "cohort": "ordinary",
+      "parent": "64459c87cc702d600704fb77ee40ca1782398a52",
+      "commit": "0085ea144363b4df8c9a37afbc67a82071b40f0b",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "8ecb40a0795865caa9396321ba1b2fc06f7f0a4e54145fbe2ba40ba7172cda7f",
+        "diagnostics.json": "b06d59230ad3511906b7f9a3ae16707ebc7d729c51e63af37cc42c5303e39ac1",
+        "srcmove.xml": "e795c2da1ee40037c6826e229e76451056f3354f9070c237908f302b7741b01b",
+        "execution.json": "087ba73d37f02aead29fb9711ddd920525bdb06b4812b3da99f9b3ee91b648ce",
+        "srcdiff.xml": "8c1e3edab20eb436db0319a936886a2e5df4259ea0dacc96f217ad615ed9fb7a"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-15",
+      "cohort": "ordinary",
+      "parent": "58332de7a68934dd592cab1995fb6d3c75541300",
+      "commit": "64459c87cc702d600704fb77ee40ca1782398a52",
+      "execution_status": "completed",
+      "outputs": [
+        {
+          "index": 0,
+          "type": "type2",
+          "from_xpaths": [
+            "/src:unit[@filename='ext/session/sqlite3session.c']/src:function[src:name='sessionChangesetApply']/src:block[1]/src:block_content[1]/diff:delete[1]/src:decl_stmt[1]"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='ext/session/sqlite3session.c']/src:function[src:name='sessionChangesetApply']/src:block[1]/src:block_content[1]/diff:insert[1]/src:decl_stmt[1]"
+          ],
+          "old": [
+            [
+              "ext/session/sqlite3session.c",
+              "int nTab = 0;"
+            ]
+          ],
+          "new": [
+            [
+              "ext/session/sqlite3session.c",
+              "int bNew = 0;"
+            ]
+          ],
+          "verdict": "false_correspondence",
+          "scope": "independent_descendant",
+          "rationale": "nTab stores the length of zTab (comment and removed strlen/sqlite3Strlen30 assignments), used in sqlite3_strnicmp length. bNew is a boolean output flag from sessionChangesetNext, consumed by if(bNew) and reset to zero. These are distinct continuing roles in a replacement algorithm, not the same variable moved and renamed. Identical normalized declaration syntax and crossed declarations do not establish source identity."
+        }
+      ],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "24a0e976e4250c6a0b413ef516c56efa80c47ea4ecf4d0518dafdc77c48095a1",
+        "diagnostics.json": "e644ebb1d49f1664f95c3d70452eb8f9aee0478b032cb8ca4a69901f825f3a2e",
+        "srcmove.xml": "a061967c75ce2f35470f5ba6f5d8bbb182f235c27aace6ba55c4cba9d164b75f",
+        "execution.json": "2c8e5142fc99a90977be3f2199c7958ca5f3016b3773c73d00135780b3595418",
+        "srcdiff.xml": "2f9c266afcbba17dfe1388a2d7e700e3c325a10f510feb4160450fd1a20c4460"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-16",
+      "cohort": "ordinary",
+      "parent": "e5bf119821f25be1d7f10ef0a2edbe175289166e",
+      "commit": "58332de7a68934dd592cab1995fb6d3c75541300",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "005a25d292ce49613474070fb0680b3cf004f7f7ad1c9cbb0fbd30b3341fe504",
+        "diagnostics.json": "046157a7baaf712094ddf4362ef6ff73cbaadeb8e45282bd41bfe876ae5d4b84",
+        "srcmove.xml": "ed90e2b7e7d67387df1a75f9f97b83267838217a88701973197d7ec5b9fa5943",
+        "execution.json": "80f6733416a8d8a87f7620a24223743836dc5ed7dbd993fb36b42714f79cae1f",
+        "srcdiff.xml": "202c9965e56de53967d75917013b5ae6384020e559caf53d15053dd4c677b7d7"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-17",
+      "cohort": "ordinary",
+      "parent": "67c202ab67398f6a27eaa6316e31254c065928cd",
+      "commit": "e5bf119821f25be1d7f10ef0a2edbe175289166e",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "0dcf7c4b08d940142e51e4f62688fa626f4fba722e61820079ec87c773c325db",
+        "diagnostics.json": "b9880feef6dd88c0d68f5237a6f9c5ec86f31217871d5b3adbd4e4f0c7f0dcf5",
+        "srcmove.xml": "ac491490681cff191169847e0eefe0fd43a574bddb5d22acea1c3c6cecb6e8bf",
+        "execution.json": "ec1d77bcf9af3682a3adca898a9eda9ba73fe359e91b7db4a8465b8b9a19e8a8",
+        "srcdiff.xml": "99c80236659e03f5ad12ea182e1cb6172a87da1a1ce8df9b94bc1910f18eb82e"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-18",
+      "cohort": "ordinary",
+      "parent": "f17a2ee06b2ba5e65528aa3e0e3f2508c75987fb",
+      "commit": "67c202ab67398f6a27eaa6316e31254c065928cd",
+      "execution_status": "no_analyzable_change",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "execution.json": "f9ce1b49dd198d54afb6c77f6ae57f6d16b918f938231c2a6c8f7a1ecdc8c7b0"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-19",
+      "cohort": "ordinary",
+      "parent": "c578ca72709ef221f97e11dd2958fee89f8ab330",
+      "commit": "f17a2ee06b2ba5e65528aa3e0e3f2508c75987fb",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "6c2091d91dae823e1db9a5f608df21272d6f6a47609aed78f3d615745ad9068a",
+        "diagnostics.json": "8fd06185a1655c6315ab09ef95b988bcb58ac4546dfa4b8b96013dabcc9e9116",
+        "srcmove.xml": "fd64659b39a72eadb96d20b8e6a97f37ce227cf64a4d14e38e5feece3d292595",
+        "execution.json": "1750456b09739a33d434288481bbb222190321e6d85285323c302ab5f1e2d83a",
+        "srcdiff.xml": "199f3816a4036c8817a8ed720a51c7eb4c5be830350b12ce2747224c8d639ee5"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-20",
+      "cohort": "ordinary",
+      "parent": "3d18207a6f17e1ffc0c81c3812c93de7885f157f",
+      "commit": "c578ca72709ef221f97e11dd2958fee89f8ab330",
+      "execution_status": "no_analyzable_change",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "execution.json": "269a18fda906cb3a49e13efce2c5872f4e03a762c8987a5474bd5b21bd880d2f"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-21",
+      "cohort": "ordinary",
+      "parent": "c799c15dbef70dd8ee63be2c4b77ebeacce1df00",
+      "commit": "3d18207a6f17e1ffc0c81c3812c93de7885f157f",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "c9f08e73ccbb11a9ade1a78e87d0ba83106b4dafc67832473491ca0252acd8fb",
+        "diagnostics.json": "87d17ccd08908436afd173ce32d75a03af3cd3fa0263192097e265931794e450",
+        "srcmove.xml": "ad00141003532e1e0c6f46aacbf9f9195e567ef1271d2a6be7d47e4185090af9",
+        "execution.json": "8096d3a500d0d028ac0241cc2a7704b8aed76d4c0d1fec82d80baa8f29e3f023",
+        "srcdiff.xml": "c24159517e37d18cf5fd1ef74004e6f0f361bedabc6b8df333f1c07ba0e9941c"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-22",
+      "cohort": "ordinary",
+      "parent": "753df3d91adc227b9ae503458212efea12c44af7",
+      "commit": "c799c15dbef70dd8ee63be2c4b77ebeacce1df00",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "d61b7903c8ca0dd49c32417a8df0cfb834f07aaea76375849b4bcc17e361310e",
+        "diagnostics.json": "c75c8764f748ddc39007c694e95e18c8635fe6c68c596ede89f046a84ec4f495",
+        "srcmove.xml": "572b4afb6b363a6a344be38018f563849dd5ff81f5bd3695e68469cf56deec65",
+        "execution.json": "ac9e451638693febd73877583f98426be3677c228f9f97ce85423000c1f47be0",
+        "srcdiff.xml": "0c547bada976356b2d2edd2602ca585204c2e35747eaf39ae63103471232ed94"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-23",
+      "cohort": "ordinary",
+      "parent": "92a1fc50b9bce500c2fecf2d2d37667e67cc242e",
+      "commit": "753df3d91adc227b9ae503458212efea12c44af7",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "d48033b78aaaf52b759b9b0e684e07ba2f6fda189dfe07c1aa6b651a0d4e1cd8",
+        "diagnostics.json": "035c26fe5dbe20f25b148439f7139d10efe1fe4263a2252f99150fa637d77765",
+        "srcmove.xml": "3aa5913373567551600f27bc88e047e988eedf680cd3d4137004ba06da822a58",
+        "execution.json": "46a4ddc5d9f4ee6c4844790fbd4f75a7be9d6d1b1de085a63cf84185ece7e0e9",
+        "srcdiff.xml": "c49f23abbdb3a2a081a3db0f3415ea020ddc5a2bb50e798732af5f166adf391f"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-24",
+      "cohort": "ordinary",
+      "parent": "14385e5a25cbb3537e465d1812b03afef5935267",
+      "commit": "92a1fc50b9bce500c2fecf2d2d37667e67cc242e",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "1cb1fc28249d88d870e165ae015f9ffacd7c88a22bcf8d7ba0fd96fa8e20dd45",
+        "diagnostics.json": "1029c7c4c1dd8f47c0fc9da196def85157890fa8a999b2db1b2bac4547e31d2f",
+        "srcmove.xml": "457d62417632cafb9ad06598c0ae31450e3104aea6e56d31a957cafae8d625aa",
+        "execution.json": "49bdde249823686a1acafb36211fe83181021d92a801443cd7c538a8300e743b",
+        "srcdiff.xml": "b9ea1ef7512fc4b4f7fd822027cdab2089fc8128f3a9553bd1b408274c4f15bc"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-25",
+      "cohort": "ordinary",
+      "parent": "bb7e3ddc610163fd224d8468453fdca79f8bbd76",
+      "commit": "14385e5a25cbb3537e465d1812b03afef5935267",
+      "execution_status": "no_analyzable_change",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "execution.json": "be4092f9f4dd0e93a21481e1ea5eafda5fd208ffd63a185de1a43723490cfa60"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-26",
+      "cohort": "ordinary",
+      "parent": "b1c41f40b0bfe305a592e8f1ca9bb3b12f1b579d",
+      "commit": "bb7e3ddc610163fd224d8468453fdca79f8bbd76",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "d82163b1a313bfc0de26dc1d41fc32e150c547bd32bef905338c9817d0ab8ab5",
+        "diagnostics.json": "65fe51fc6ef027b973d4ffd46fe280be306c922ed1391dd69de6ff7c0b43ac92",
+        "srcmove.xml": "8dd0f84e92a7e57c46cd5a783afb9865f4d3d3f6a1eae37461b2d0f0fa3a4c93",
+        "execution.json": "d3762d22fe6713264fff1bb3a06dbf7be0644842fbf4f57654e1a93d2adc11ee",
+        "srcdiff.xml": "ea7b5611350054d6024cf8a3312759a96351cd5b31537bbcc2171d39579d9b20"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-27",
+      "cohort": "ordinary",
+      "parent": "9e3e03dfcf4f387a6df3e4012ce604da21383666",
+      "commit": "b1c41f40b0bfe305a592e8f1ca9bb3b12f1b579d",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "46f83ecfb4dacca17a3eb75c3203779fe4f1058cee558e8524897f969944f574",
+        "diagnostics.json": "c2a47411942b4b1bb7a023af649aa4e2044aaa18a56b4efac7299f1d961bbd8b",
+        "srcmove.xml": "120d7ec701a2ab68613acde5f3d959ce5e435d12d9c6722a685531eea829f382",
+        "execution.json": "82e07a3aca06a9cf3a21620fcbcb59140e2ce4b1115507810ec0991e65022267",
+        "srcdiff.xml": "3575f2725bf8c412d81227411ba6bf03ddb913b6c62a4a22d84b03bd82bd5078"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-28",
+      "cohort": "ordinary",
+      "parent": "1238b6d4f7b2b19012c1715d0393a1f06c9a8dfa",
+      "commit": "9e3e03dfcf4f387a6df3e4012ce604da21383666",
+      "execution_status": "no_analyzable_change",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "execution.json": "882c5ea183454a1cd14b37ad5664457c3a4b652093810ae5491284521c07263e"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-29",
+      "cohort": "ordinary",
+      "parent": "2665df90e7bbdcffa59102204090f7c9ede04cc4",
+      "commit": "1238b6d4f7b2b19012c1715d0393a1f06c9a8dfa",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "a78d21f60fba3df01e699e19863192bdd5b62a680da5442e5637a6df8ff26946",
+        "diagnostics.json": "573a63a47330516d6f08cfca65ef6ed6cd1dd501ad107495876b223f9fbc6bdb",
+        "srcmove.xml": "91c10e1c4b0ab50abd9c4f428dd8896acaa2f76cef9c736e79d2592cf511700a",
+        "execution.json": "a0df433ef28566b44c6b54f769f7ab751c283b3d11cdd24bc655a8ad38eae9c8",
+        "srcdiff.xml": "0848f986fc00943c159c1d1ffd302168de3ce9ae67da8ef0f51011b20f70880b"
+      }
+    },
+    {
+      "id": "sqlite-ordinary-30",
+      "cohort": "ordinary",
+      "parent": "7b83f65a33534fcaa98ebdcdf0292235d395c920",
+      "commit": "2665df90e7bbdcffa59102204090f7c9ede04cc4",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "c9f08e73ccbb11a9ade1a78e87d0ba83106b4dafc67832473491ca0252acd8fb",
+        "diagnostics.json": "87d17ccd08908436afd173ce32d75a03af3cd3fa0263192097e265931794e450",
+        "srcmove.xml": "c5c86ec8e5d72f066584830513201cea6d0e7c5cf972bd7a7a3d3371f4aa609e",
+        "execution.json": "006c5113c5e6a3afd126a78b2403ed75e59d974fbad8bc15e8749566cdefa6da",
+        "srcdiff.xml": "14fa20d353e509f4db56a719a2fe62417fa02ce07a07b661eb7c3732e6acc517"
+      }
+    },
+    {
+      "id": "sqlite-target-01",
+      "cohort": "targets",
+      "parent": "d9e70f2b906ebf180231f617e7b33b73bb41aeca",
+      "commit": "3c1f727603ee27cc631048f48985f9adc4fb784c",
+      "execution_status": "completed",
+      "outputs": [
+        {
+          "index": 0,
+          "type": "type1",
+          "from_xpaths": [
+            "/src:unit[@filename='ext/qrf/qrf.h']/src:extern[1]/src:block[1]/src:block_content[1]/src:struct[1]/src:block[1]/diff:delete[1]/diff:delete[1]/src:decl_stmt[1]"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='ext/qrf/qrf.h']/src:extern[1]/src:block[1]/src:block_content[1]/src:struct[1]/src:block[1]/diff:insert[1]/diff:insert[1]/src:decl_stmt[1]"
+          ],
+          "old": [
+            [
+              "ext/qrf/qrf.h",
+              "unsigned int nMultiInsert;"
+            ]
+          ],
+          "new": [
+            [
+              "ext/qrf/qrf.h",
+              "unsigned int nMultiInsert;"
+            ]
+          ],
+          "verdict": "valid_independent",
+          "scope": "independent_descendant",
+          "rationale": "The complete nMultiInsert field is deleted from the extension tail and inserted before nCharLimit across continuing fields. Trailing source comment is outside the selected declaration; source-position attribution verifies the frozen range."
+        }
+      ],
+      "events": [
+        {
+          "id": "sqlite-target-01-nMultiInsert",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "outcome": "detected",
+          "limiting_stage": "selected",
+          "selected_indices": [
+            0
+          ],
+          "ancestor_coverage": false,
+          "coverage_output_indices": [],
+          "rationale": "Actual selected one-to-one output resolves to both frozen whole endpoints using source position and role.",
+          "attribution": {
+            "old": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                4,
+                5
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "new": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                0,
+                1,
+                2
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "limiting_stage": "selected",
+            "selected": true,
+            "correspondences": [
+              {
+                "delete_candidate_id": 4,
+                "insert_candidate_id": 1,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "move",
+                "shadow_change": "relocated",
+                "classification_reason": "crossed_stable_sibling",
+                "file_observation": "same",
+                "semantic_container_observation": "same_mapped",
+                "anchor_interval_observation": "crossed",
+                "relative_order_observation": "crossed_stable_sibling",
+                "ancestor_observation": "same",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "ext/qrf/qrf.h",
+                  "semantic_container_id": "ext/qrf/qrf.h:100698:struct",
+                  "semantic_container_label": "struct:sqlite3_qrf_spec",
+                  "previous_common_anchor_id": "ext/qrf/qrf.h:100698:struct:anchor:102175",
+                  "next_common_anchor_id": "ext/qrf/qrf.h:100698:struct:end",
+                  "meaningful_ancestors": [
+                    "block"
+                  ],
+                  "ancestor_summary_interpretable": true
+                },
+                "after_context": {
+                  "revision_file": "ext/qrf/qrf.h",
+                  "semantic_container_id": "ext/qrf/qrf.h:100698:struct",
+                  "semantic_container_label": "struct:sqlite3_qrf_spec",
+                  "previous_common_anchor_id": "ext/qrf/qrf.h:100698:struct:anchor:101400",
+                  "next_common_anchor_id": "ext/qrf/qrf.h:100698:struct:anchor:101524",
+                  "meaningful_ancestors": [
+                    "block"
+                  ],
+                  "ancestor_summary_interpretable": true
+                }
+              }
+            ]
+          },
+          "strict_detected": true
+        }
+      ],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "824142797ff9f0ee15f04c73db52f689286c78c8b0781a21c4e633ba3a515646",
+        "diagnostics.json": "ba5cc55a520a208dbed5624263394378b3a9cdc960f5a9efdce535cab86daaec",
+        "srcmove.xml": "560d3bcf947b0859986438081d4fe39136b78511be4b8958d6de732246e148f0",
+        "execution.json": "4744f8e3c72cefd80a05c151f0accb70262c3767d6e4417ff1d8aadc31ff7dd3",
+        "srcdiff.xml": "010b703cfea4786d81ca946ef417907a21002c0fa1ce6415048038489ce7b155"
+      }
+    },
+    {
+      "id": "sqlite-target-02",
+      "cohort": "targets",
+      "parent": "98772d6e75f4033373c806e4e44f675971e55e38",
+      "commit": "deb5ad6297490ddb910a1fcec61875b109d0a34e",
+      "execution_status": "completed",
+      "outputs": [
+        {
+          "index": 0,
+          "type": "type1",
+          "from_xpaths": [
+            "/src:unit[@filename='src/pager.c']/src:function[src:name='sqlite3PagerDirectReadOk']/src:block[1]/src:block_content[1]/diff:delete[1]"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='src/pager.c']/src:function[src:name='sqlite3PagerDirectReadOk']/src:block[1]/src:block_content[1]/diff:insert[1]"
+          ],
+          "old": [
+            [
+              "src/pager.c",
+              "assert( pPager->fd->pMethods->xDeviceCharacteristics!=0 );\n  if( (pPager->fd->pMethods->xDeviceCharacteristics(pPager->fd)\n        & SQLITE_IOCAP_SUBPAGE_READ)==0 ){\n    return 0; /* Case (2) */\n  }"
+            ]
+          ],
+          "new": [
+            [
+              "src/pager.c",
+              "assert( pPager->fd->pMethods->xDeviceCharacteristics!=0 );\n  if( (pPager->fd->pMethods->xDeviceCharacteristics(pPager->fd)\n        & SQLITE_IOCAP_SUBPAGE_READ)==0 ){\n    return 0; /* Case (2) */\n  }"
+            ]
+          ],
+          "verdict": "valid_independent",
+          "scope": "statement_sequence",
+          "rationale": "One selected contiguous sequence contains both the assertion and entire device-characteristics conditional, transferred together across the dirty-cache and WAL guards. Valid independent sequence movement; neither individual frozen target is selected as its own pair."
+        }
+      ],
+      "events": [
+        {
+          "id": "sqlite-target-02-device-assert",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "outcome": "ancestor_covered",
+          "limiting_stage": "selection",
+          "selected_indices": [],
+          "ancestor_coverage": true,
+          "coverage_output_indices": [
+            0
+          ],
+          "rationale": "Both whole target endpoints are exposed and available as candidates; relocated correspondences remain unselected while a containing two-statement sequence is selected. Preserve strict individual-target miss and separately report correct ancestor coverage.",
+          "attribution": {
+            "old": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                1,
+                3
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "new": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                6,
+                8
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "limiting_stage": "selection",
+            "selected": false,
+            "correspondences": [
+              {
+                "delete_candidate_id": 1,
+                "insert_candidate_id": 6,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "not_move",
+                "shadow_change": "relocated",
+                "classification_reason": "crossed_stable_sibling",
+                "file_observation": "same",
+                "semantic_container_observation": "same_mapped",
+                "anchor_interval_observation": "crossed",
+                "relative_order_observation": "crossed_stable_sibling",
+                "ancestor_observation": "same",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "src/pager.c",
+                  "semantic_container_id": "src/pager.c:16830:function",
+                  "semantic_container_label": "function:sqlite3PagerDirectReadOk",
+                  "previous_common_anchor_id": "src/pager.c:16830:function:anchor:16953",
+                  "next_common_anchor_id": "src/pager.c:16830:function:anchor:17230",
+                  "meaningful_ancestors": [
+                    "block"
+                  ],
+                  "ancestor_summary_interpretable": true
+                },
+                "after_context": {
+                  "revision_file": "src/pager.c",
+                  "semantic_container_id": "src/pager.c:16830:function",
+                  "semantic_container_label": "function:sqlite3PagerDirectReadOk",
+                  "previous_common_anchor_id": "src/pager.c:16830:function:anchor:17306",
+                  "next_common_anchor_id": "src/pager.c:16830:function:end",
+                  "meaningful_ancestors": [
+                    "block"
+                  ],
+                  "ancestor_summary_interpretable": true
+                }
+              },
+              {
+                "delete_candidate_id": 3,
+                "insert_candidate_id": 8,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "not_move",
+                "shadow_change": "relocated",
+                "classification_reason": "crossed_stable_sibling",
+                "file_observation": "same",
+                "semantic_container_observation": "same_mapped",
+                "anchor_interval_observation": "crossed",
+                "relative_order_observation": "crossed_stable_sibling",
+                "ancestor_observation": "same",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "src/pager.c",
+                  "semantic_container_id": "src/pager.c:16830:function",
+                  "semantic_container_label": "function:sqlite3PagerDirectReadOk",
+                  "previous_common_anchor_id": "src/pager.c:16830:function:anchor:16953",
+                  "next_common_anchor_id": "src/pager.c:16830:function:anchor:17230",
+                  "meaningful_ancestors": [
+                    "block"
+                  ],
+                  "ancestor_summary_interpretable": true
+                },
+                "after_context": {
+                  "revision_file": "src/pager.c",
+                  "semantic_container_id": "src/pager.c:16830:function",
+                  "semantic_container_label": "function:sqlite3PagerDirectReadOk",
+                  "previous_common_anchor_id": "src/pager.c:16830:function:anchor:17306",
+                  "next_common_anchor_id": "src/pager.c:16830:function:end",
+                  "meaningful_ancestors": [
+                    "block"
+                  ],
+                  "ancestor_summary_interpretable": true
+                }
+              }
+            ]
+          },
+          "strict_detected": false
+        },
+        {
+          "id": "sqlite-target-02-device-if",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "outcome": "ancestor_covered",
+          "limiting_stage": "selection",
+          "selected_indices": [],
+          "ancestor_coverage": true,
+          "coverage_output_indices": [
+            0
+          ],
+          "rationale": "Both whole target endpoints are exposed and available as candidates; relocated correspondences remain unselected while a containing two-statement sequence is selected. Preserve strict individual-target miss and separately report correct ancestor coverage.",
+          "attribution": {
+            "old": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                2,
+                4
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "new": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                7,
+                9
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "limiting_stage": "selection",
+            "selected": false,
+            "correspondences": [
+              {
+                "delete_candidate_id": 2,
+                "insert_candidate_id": 7,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "not_move",
+                "shadow_change": "relocated",
+                "classification_reason": "crossed_stable_sibling",
+                "file_observation": "same",
+                "semantic_container_observation": "same_mapped",
+                "anchor_interval_observation": "crossed",
+                "relative_order_observation": "crossed_stable_sibling",
+                "ancestor_observation": "same",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "src/pager.c",
+                  "semantic_container_id": "src/pager.c:16830:function",
+                  "semantic_container_label": "function:sqlite3PagerDirectReadOk",
+                  "previous_common_anchor_id": "src/pager.c:16830:function:anchor:16953",
+                  "next_common_anchor_id": "src/pager.c:16830:function:anchor:17230",
+                  "meaningful_ancestors": [
+                    "block"
+                  ],
+                  "ancestor_summary_interpretable": true
+                },
+                "after_context": {
+                  "revision_file": "src/pager.c",
+                  "semantic_container_id": "src/pager.c:16830:function",
+                  "semantic_container_label": "function:sqlite3PagerDirectReadOk",
+                  "previous_common_anchor_id": "src/pager.c:16830:function:anchor:17306",
+                  "next_common_anchor_id": "src/pager.c:16830:function:end",
+                  "meaningful_ancestors": [
+                    "block"
+                  ],
+                  "ancestor_summary_interpretable": true
+                }
+              },
+              {
+                "delete_candidate_id": 4,
+                "insert_candidate_id": 9,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "not_move",
+                "shadow_change": "relocated",
+                "classification_reason": "crossed_stable_sibling",
+                "file_observation": "same",
+                "semantic_container_observation": "same_mapped",
+                "anchor_interval_observation": "crossed",
+                "relative_order_observation": "crossed_stable_sibling",
+                "ancestor_observation": "same",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "src/pager.c",
+                  "semantic_container_id": "src/pager.c:16830:function",
+                  "semantic_container_label": "function:sqlite3PagerDirectReadOk",
+                  "previous_common_anchor_id": "src/pager.c:16830:function:anchor:16953",
+                  "next_common_anchor_id": "src/pager.c:16830:function:anchor:17230",
+                  "meaningful_ancestors": [
+                    "block"
+                  ],
+                  "ancestor_summary_interpretable": true
+                },
+                "after_context": {
+                  "revision_file": "src/pager.c",
+                  "semantic_container_id": "src/pager.c:16830:function",
+                  "semantic_container_label": "function:sqlite3PagerDirectReadOk",
+                  "previous_common_anchor_id": "src/pager.c:16830:function:anchor:17306",
+                  "next_common_anchor_id": "src/pager.c:16830:function:end",
+                  "meaningful_ancestors": [
+                    "block"
+                  ],
+                  "ancestor_summary_interpretable": true
+                }
+              }
+            ]
+          },
+          "strict_detected": false
+        }
+      ],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "11ea827b7971c8dae0581c8820757a626e9b822abf341be6deafe415cf03c8aa",
+        "diagnostics.json": "94a09a1803edc0578f2718e51053861f48c9a51657e38acd5aeef116b49b54a0",
+        "srcmove.xml": "61ee0a52955e7e05f4df5fe6136c3499004abff317fb5d7d7ca44f1c307d207d",
+        "execution.json": "6e7525453dbaffa2deef6e6af97fa2e5e453785c13508fafb60e154f061adf25",
+        "srcdiff.xml": "ca555068b04137a403bbde7f69addacf4513b6afd053f211de99d8d4a3652be1"
+      }
+    },
+    {
+      "id": "sqlite-target-03",
+      "cohort": "targets",
+      "parent": "80c438613a687d41ce820f113a2b20e1aade93a6",
+      "commit": "bb51af68f404b0be76acd3173f6933520f75c71e",
+      "execution_status": "completed",
+      "outputs": [
+        {
+          "index": 0,
+          "type": "type1",
+          "from_xpaths": [
+            "/src:unit[@filename='ext/wasm/version-info.c|']/diff:delete[1]"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='|tool/version-info.c']/diff:insert[1]"
+          ],
+          "old": [
+            [
+              "ext/wasm/version-info.c",
+              "/*\n** 2022-10-16\n**\n** The author disclaims copyright to this source code.  In place of a\n** legal notice, here is a blessing:\n**\n** *   May you do good and not evil.\n** *   May you find forgiveness for yourself and forgive others.\n** *   May you share freely, never taking more than you give.\n**\n*************************************************************************\n** This file simply outputs sqlite3 version information in JSON form,\n** intended for embedding in the sqlite3 JS API build.\n*/\n#ifdef TEST_VERSION\n/*3029003 3039012*/\n#define SQLITE_VERSION \"X.Y.Z\"\n#define SQLITE_VERSION_NUMBER TEST_VERSION\n#define SQLITE_SOURCE_ID \"dummy\"\n#else\n#include \"sqlite3.h\"\n#endif\n#include <stdio.h>\n#include <string.h>\nstatic void usage(const char *zAppName){\n  puts(\"Emits version info about the sqlite3 it is built against.\");\n  printf(\"Usage: %s [--quote] --INFO-FLAG:\\n\\n\", zAppName);\n  puts(\"  --version          Emit SQLITE_VERSION (3.X.Y)\");\n  puts(\"  --version-number   Emit SQLITE_VERSION_NUMBER (30XXYYZZ)\");\n  puts(\"  --download-version Emit /download.html version number (3XXYYZZ)\");\n  puts(\"  --source-id        Emit SQLITE_SOURCE_ID\");\n  puts(\"  --json             Emit all info in JSON form\");\n  puts(\"\\nThe non-JSON formats may be modified by:\\n\");\n  puts(\"  --quote            Add double quotes around output.\");\n}\n\nint main(int argc, char const * const * argv){\n  int fJson = 0;\n  int fVersion = 0;\n  int fVersionNumber = 0;\n  int fDlVersion = 0;\n  int dlVersion = 0;\n  int fSourceInfo = 0;\n  int fQuote = 0;\n  int nFlags = 0;\n  int i;\n\n  for( i = 1; i < argc; ++i ){\n    const char * zArg = argv[i];\n    while('-'==*zArg) ++zArg;\n    if( 0==strcmp(\"version\", zArg) ){\n      fVersion = 1;\n    }else if( 0==strcmp(\"version-number\", zArg) ){\n      fVersionNumber = 1;\n    }else if( 0==strcmp(\"download-version\", zArg) ){\n      fDlVersion = 1;\n    }else if( 0==strcmp(\"source-id\", zArg) ){\n      fSourceInfo = 1;\n    }else if( 0==strcmp(\"json\", zArg) ){\n      fJson = 1;\n    }else if( 0==strcmp(\"quote\", zArg) ){\n      fQuote = 1;\n      --nFlags;\n    }else{\n      printf(\"Unhandled flag: %s\\n\", argv[i]);\n      usage(argv[0]);\n      return 1;\n    }\n    ++nFlags;\n  }\n\n  if( 0==nFlags ) fJson = 1;\n\n  {\n    const int v = SQLITE_VERSION_NUMBER;\n    int ver[4] = {0,0,0,0};\n    ver[0] = (v / 1000000) * 1000000;\n    ver[1] = v % 1000000 / 100 * 1000;\n    ver[2] = v % 100 * 100;\n    dlVersion = ver[0] + ver[1] + ver[2] + ver[3];\n  }\n  if( fJson ){\n    printf(\"{\\\"libVersion\\\": \\\"%s\\\", \"\n           \"\\\"libVersionNumber\\\": %d, \"\n           \"\\\"sourceId\\\": \\\"%s\\\",\"\n           \"\\\"downloadVersion\\\": %d}\"/*missing newline is intentional*/,\n           SQLITE_VERSION,\n           SQLITE_VERSION_NUMBER,\n           SQLITE_SOURCE_ID,\n           dlVersion);\n  }else{\n    if(fQuote) printf(\"%c\", '\"');\n    if( fVersion ){\n      printf(\"%s\", SQLITE_VERSION);\n    }else if( fVersionNumber ){\n      printf(\"%d\", SQLITE_VERSION_NUMBER);\n    }else if( fSourceInfo ){\n      printf(\"%s\", SQLITE_SOURCE_ID);\n    }else if( fDlVersion ){\n      printf(\"%d\", dlVersion);\n    }\n    if(fQuote) printf(\"%c\", '\"');\n    puts(\"\");\n  }\n  return 0;\n}"
+            ]
+          ],
+          "new": [
+            [
+              "tool/version-info.c",
+              "/*\n** 2022-10-16\n**\n** The author disclaims copyright to this source code.  In place of a\n** legal notice, here is a blessing:\n**\n** *   May you do good and not evil.\n** *   May you find forgiveness for yourself and forgive others.\n** *   May you share freely, never taking more than you give.\n**\n*************************************************************************\n** This file simply outputs sqlite3 version information in JSON form,\n** intended for embedding in the sqlite3 JS API build.\n*/\n#ifdef TEST_VERSION\n/*3029003 3039012*/\n#define SQLITE_VERSION \"X.Y.Z\"\n#define SQLITE_VERSION_NUMBER TEST_VERSION\n#define SQLITE_SOURCE_ID \"dummy\"\n#else\n#include \"sqlite3.h\"\n#endif\n#include <stdio.h>\n#include <string.h>\nstatic void usage(const char *zAppName){\n  puts(\"Emits version info about the sqlite3 it is built against.\");\n  printf(\"Usage: %s [--quote] --INFO-FLAG:\\n\\n\", zAppName);\n  puts(\"  --version          Emit SQLITE_VERSION (3.X.Y)\");\n  puts(\"  --version-number   Emit SQLITE_VERSION_NUMBER (30XXYYZZ)\");\n  puts(\"  --download-version Emit /download.html version number (3XXYYZZ)\");\n  puts(\"  --source-id        Emit SQLITE_SOURCE_ID\");\n  puts(\"  --json             Emit all info in JSON form\");\n  puts(\"\\nThe non-JSON formats may be modified by:\\n\");\n  puts(\"  --quote            Add double quotes around output.\");\n}\n\nint main(int argc, char const * const * argv){\n  int fJson = 0;\n  int fVersion = 0;\n  int fVersionNumber = 0;\n  int fDlVersion = 0;\n  int dlVersion = 0;\n  int fSourceInfo = 0;\n  int fQuote = 0;\n  int nFlags = 0;\n  int i;\n\n  for( i = 1; i < argc; ++i ){\n    const char * zArg = argv[i];\n    while('-'==*zArg) ++zArg;\n    if( 0==strcmp(\"version\", zArg) ){\n      fVersion = 1;\n    }else if( 0==strcmp(\"version-number\", zArg) ){\n      fVersionNumber = 1;\n    }else if( 0==strcmp(\"download-version\", zArg) ){\n      fDlVersion = 1;\n    }else if( 0==strcmp(\"source-id\", zArg) ){\n      fSourceInfo = 1;\n    }else if( 0==strcmp(\"json\", zArg) ){\n      fJson = 1;\n    }else if( 0==strcmp(\"quote\", zArg) ){\n      fQuote = 1;\n      --nFlags;\n    }else{\n      printf(\"Unhandled flag: %s\\n\", argv[i]);\n      usage(argv[0]);\n      return 1;\n    }\n    ++nFlags;\n  }\n\n  if( 0==nFlags ) fJson = 1;\n\n  {\n    const int v = SQLITE_VERSION_NUMBER;\n    int ver[4] = {0,0,0,0};\n    ver[0] = (v / 1000000) * 1000000;\n    ver[1] = v % 1000000 / 100 * 1000;\n    ver[2] = v % 100 * 100;\n    dlVersion = ver[0] + ver[1] + ver[2] + ver[3];\n  }\n  if( fJson ){\n    printf(\"{\\\"libVersion\\\": \\\"%s\\\", \"\n           \"\\\"libVersionNumber\\\": %d, \"\n           \"\\\"sourceId\\\": \\\"%s\\\",\"\n           \"\\\"downloadVersion\\\": %d}\"/*missing newline is intentional*/,\n           SQLITE_VERSION,\n           SQLITE_VERSION_NUMBER,\n           SQLITE_SOURCE_ID,\n           dlVersion);\n  }else{\n    if(fQuote) printf(\"%c\", '\"');\n    if( fVersion ){\n      printf(\"%s\", SQLITE_VERSION);\n    }else if( fVersionNumber ){\n      printf(\"%d\", SQLITE_VERSION_NUMBER);\n    }else if( fSourceInfo ){\n      printf(\"%s\", SQLITE_SOURCE_ID);\n    }else if( fDlVersion ){\n      printf(\"%d\", dlVersion);\n    }\n    if(fQuote) printf(\"%c\", '\"');\n    puts(\"\");\n  }\n  return 0;\n}"
+            ]
+          ],
+          "verdict": "valid_independent",
+          "scope": "file_unit",
+          "rationale": "The entire version-info.c file is transported byte-for-byte from ext/wasm to tool. This selected file unit is a valid file-level move. Its usage and main functions are covered by the selected ancestor, not separately selected whole-function targets."
+        }
+      ],
+      "events": [
+        {
+          "id": "sqlite-target-03-usage",
+          "type": "type1",
+          "scope": "whole_construct",
+          "outcome": "ancestor_covered",
+          "limiting_stage": "selection",
+          "selected_indices": [],
+          "ancestor_coverage": true,
+          "coverage_output_indices": [
+            0
+          ],
+          "rationale": "Both whole functions are exposed and available as candidates; relocated correspondences remain unselected while the entire unchanged file is selected. Preserve strict function-target miss and separately report correct file-level ancestor coverage.",
+          "attribution": {
+            "old": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                10
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "new": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                62
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "limiting_stage": "selection",
+            "selected": false,
+            "correspondences": [
+              {
+                "delete_candidate_id": 10,
+                "insert_candidate_id": 62,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "not_move",
+                "shadow_change": "relocated",
+                "classification_reason": "different_file",
+                "file_observation": "different",
+                "semantic_container_observation": "unknown",
+                "anchor_interval_observation": "unknown",
+                "relative_order_observation": "unknown",
+                "ancestor_observation": "unknown",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "ext/wasm/version-info.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                },
+                "after_context": {
+                  "revision_file": "tool/version-info.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                }
+              }
+            ]
+          },
+          "strict_detected": false
+        },
+        {
+          "id": "sqlite-target-03-main",
+          "type": "type1",
+          "scope": "whole_construct",
+          "outcome": "ancestor_covered",
+          "limiting_stage": "selection",
+          "selected_indices": [],
+          "ancestor_coverage": true,
+          "coverage_output_indices": [
+            0
+          ],
+          "rationale": "Both whole functions are exposed and available as candidates; relocated correspondences remain unselected while the entire unchanged file is selected. Preserve strict function-target miss and separately report correct file-level ancestor coverage.",
+          "attribution": {
+            "old": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                51
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "new": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                103
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "limiting_stage": "selection",
+            "selected": false,
+            "correspondences": [
+              {
+                "delete_candidate_id": 51,
+                "insert_candidate_id": 103,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "not_move",
+                "shadow_change": "relocated",
+                "classification_reason": "different_file",
+                "file_observation": "different",
+                "semantic_container_observation": "unknown",
+                "anchor_interval_observation": "unknown",
+                "relative_order_observation": "unknown",
+                "ancestor_observation": "unknown",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "ext/wasm/version-info.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                },
+                "after_context": {
+                  "revision_file": "tool/version-info.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                }
+              }
+            ]
+          },
+          "strict_detected": false
+        }
+      ],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "789c3d0e4ff7a4d99e4885adffac4fb755c56a363c7d9d0c70e1eb767a1a6610",
+        "diagnostics.json": "f8b5542eba875bc149314ced3d79cf3c6b1ab471162e4bab46a59bf38b0e87ad",
+        "srcmove.xml": "7f1729cb73fcc3eeedb082137ad762bb987fd7a031a029a33a3076f14243d8fa",
+        "execution.json": "48e78def7c02a54e3b5e3dc1cf6f573f932b7e574153922929243def70df5526",
+        "srcdiff.xml": "68ec160df913b4f9f363b77e67ad724f7d8157325f9ccab09b64b35faa1a2a09"
+      }
+    },
+    {
+      "id": "sqlite-target-04",
+      "cohort": "targets",
+      "parent": "73cdbeb632fe2fcb81d8f1b73ce24146569a2897",
+      "commit": "80c438613a687d41ce820f113a2b20e1aade93a6",
+      "execution_status": "completed",
+      "outputs": [],
+      "events": [
+        {
+          "id": "sqlite-target-04-nProgressSteps",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "outcome": "missed",
+          "limiting_stage": "whole_endpoint_not_exposed",
+          "selected_indices": [],
+          "ancestor_coverage": false,
+          "coverage_output_indices": [],
+          "rationale": "srcDiff contains nProgressSteps as unstructured text inside a larger preprocessor insertion and mixed replacement; no exclusive complete declaration pair is exposed. Full source reconstruction verifies the frozen field text remains present. No move result covers it.",
+          "attribution": {
+            "old": {
+              "status": "absent",
+              "whole_exposed": false,
+              "candidate_ids": [],
+              "candidate_available": null,
+              "ambiguous_occurrence": false,
+              "reason": "no_whole_xml_construct"
+            },
+            "new": {
+              "status": "absent",
+              "whole_exposed": false,
+              "candidate_ids": [],
+              "candidate_available": null,
+              "ambiguous_occurrence": false,
+              "reason": "no_whole_xml_construct"
+            },
+            "limiting_stage": "whole_endpoint_not_exposed",
+            "selected": null,
+            "correspondences": []
+          },
+          "strict_detected": false
+        },
+        {
+          "id": "sqlite-target-04-nQueryLoop",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "outcome": "missed",
+          "limiting_stage": "whole_endpoint_not_exposed",
+          "selected_indices": [],
+          "ancestor_coverage": false,
+          "coverage_output_indices": [],
+          "rationale": "The old nQueryLoop deletion is exclusive text but supplies no candidate; the new declaration is split into inserted identifier/type text with common semicolon and mixed comment, not exposed as a complete insertion. Upstream whole-endpoint exposure is already limiting; no output covers the field.",
+          "attribution": {
+            "old": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [],
+              "candidate_available": false,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "new": {
+              "status": "absent",
+              "whole_exposed": false,
+              "candidate_ids": [],
+              "candidate_available": null,
+              "ambiguous_occurrence": false,
+              "reason": "no_whole_xml_construct"
+            },
+            "limiting_stage": "whole_endpoint_not_exposed",
+            "selected": null,
+            "correspondences": []
+          },
+          "strict_detected": false
+        }
+      ],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "13df29f78ab9a1f2842a764a2f449dbf9f44c20b5b46b4b938c4cc210549d0a7",
+        "diagnostics.json": "e153eae61c09af08222beb631e19f7f111bb365c577422146ffd32578150bdef",
+        "srcmove.xml": "8ab96b8ed5ca9c25f8b49f5ad096e9af71459e7553b98a10ff3a0c899789e8dc",
+        "execution.json": "9146119d3afa024ce6447dd630cb7d0f34b616ba8d7a76892971e0bca7486336",
+        "srcdiff.xml": "3797aca970802899572ebbfa83817c84a4d4f18b4012eee644e5b415445916af"
+      }
+    },
+    {
+      "id": "sqlite-target-05",
+      "cohort": "targets",
+      "parent": "ca74fbf6f164ad6fa9c6bd79050dc57cdcd69388",
+      "commit": "e40cc16b472071f553700c7208394e6cf73d5688",
+      "execution_status": "completed",
+      "outputs": [
+        {
+          "index": 0,
+          "type": "type1",
+          "from_xpaths": [
+            "/src:unit[@filename='src/select.c']/diff:delete[1]/src:function[src:name='sqlite3SelectWalkNoop']"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='src/walker.c']/diff:insert[1]/src:function[src:name='sqlite3SelectWalkNoop']"
+          ],
+          "old": [
+            [
+              "src/select.c",
+              "int sqlite3SelectWalkNoop(Walker *NotUsed, Select *NotUsed2){\n  UNUSED_PARAMETER2(NotUsed, NotUsed2);\n  return WRC_Continue;\n}"
+            ]
+          ],
+          "new": [
+            [
+              "src/walker.c",
+              "int sqlite3SelectWalkNoop(Walker *NotUsed, Select *NotUsed2){\n  UNUSED_PARAMETER2(NotUsed, NotUsed2);\n  return WRC_Continue;\n}"
+            ]
+          ],
+          "verdict": "valid_independent",
+          "scope": "whole_construct",
+          "rationale": "The named complete no-op callback is removed from select.c and appears unchanged in walker.c, preserving the exact function identity. Adjacent edited callbacks are separate Type3 observations."
+        },
+        {
+          "index": 1,
+          "type": "type1",
+          "from_xpaths": [
+            "/src:unit[@filename='src/select.c']/diff:delete[1]/src:function[src:name='sqlite3ExprWalkNoop']"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='src/walker.c']/diff:insert[1]/src:function[src:name='sqlite3ExprWalkNoop']"
+          ],
+          "old": [
+            [
+              "src/select.c",
+              "int sqlite3ExprWalkNoop(Walker *NotUsed, Expr *NotUsed2){\n  UNUSED_PARAMETER2(NotUsed, NotUsed2);\n  return WRC_Continue;\n}"
+            ]
+          ],
+          "new": [
+            [
+              "src/walker.c",
+              "int sqlite3ExprWalkNoop(Walker *NotUsed, Expr *NotUsed2){\n  UNUSED_PARAMETER2(NotUsed, NotUsed2);\n  return WRC_Continue;\n}"
+            ]
+          ],
+          "verdict": "valid_independent",
+          "scope": "whole_construct",
+          "rationale": "The named complete no-op callback is removed from select.c and appears unchanged in walker.c, preserving the exact function identity. Adjacent edited callbacks are separate Type3 observations."
+        }
+      ],
+      "events": [
+        {
+          "id": "sqlite-target-05-sqlite3ExprWalkNoop",
+          "type": "type1",
+          "scope": "whole_construct",
+          "outcome": "detected",
+          "limiting_stage": "selected",
+          "selected_indices": [
+            1
+          ],
+          "ancestor_coverage": false,
+          "coverage_output_indices": [],
+          "rationale": "Actual selected one-to-one output resolves to both frozen whole endpoints using source position and role.",
+          "attribution": {
+            "old": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                9
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "new": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                20
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "limiting_stage": "selected",
+            "selected": true,
+            "correspondences": [
+              {
+                "delete_candidate_id": 9,
+                "insert_candidate_id": 20,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "move",
+                "shadow_change": "relocated",
+                "classification_reason": "different_file",
+                "file_observation": "different",
+                "semantic_container_observation": "unknown",
+                "anchor_interval_observation": "unknown",
+                "relative_order_observation": "unknown",
+                "ancestor_observation": "unknown",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "src/select.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                },
+                "after_context": {
+                  "revision_file": "src/walker.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                }
+              }
+            ]
+          },
+          "strict_detected": true
+        },
+        {
+          "id": "sqlite-target-05-sqlite3SelectWalkNoop",
+          "type": "type1",
+          "scope": "whole_construct",
+          "outcome": "detected",
+          "limiting_stage": "selected",
+          "selected_indices": [
+            0
+          ],
+          "ancestor_coverage": false,
+          "coverage_output_indices": [],
+          "rationale": "Actual selected one-to-one output resolves to both frozen whole endpoints using source position and role.",
+          "attribution": {
+            "old": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                11
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "new": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                22
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "limiting_stage": "selected",
+            "selected": true,
+            "correspondences": [
+              {
+                "delete_candidate_id": 11,
+                "insert_candidate_id": 22,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "move",
+                "shadow_change": "relocated",
+                "classification_reason": "different_file",
+                "file_observation": "different",
+                "semantic_container_observation": "unknown",
+                "anchor_interval_observation": "unknown",
+                "relative_order_observation": "unknown",
+                "ancestor_observation": "unknown",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "src/select.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                },
+                "after_context": {
+                  "revision_file": "src/walker.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                }
+              }
+            ]
+          },
+          "strict_detected": true
+        }
+      ],
+      "type3_observations": [
+        {
+          "index": 2,
+          "type": "type3",
+          "from_xpaths": [
+            "/src:unit[@filename='src/expr.c']/diff:delete[1]/src:function[src:name='analyzeAggregatesInSelectEnd']"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='src/walker.c']/diff:insert[1]/src:function[src:name='sqlite3WalkerDepthDecrease']"
+          ],
+          "old": [
+            [
+              "src/expr.c",
+              "static void analyzeAggregatesInSelectEnd(Walker *pWalker, Select *pSelect){\n  UNUSED_PARAMETER(pSelect);\n  pWalker->walkerDepth--;\n}"
+            ]
+          ],
+          "new": [
+            [
+              "src/walker.c",
+              "void sqlite3WalkerDepthDecrease(Walker *pWalker, Select *pSelect){\n  UNUSED_PARAMETER(pSelect);\n  pWalker->walkerDepth--;\n}"
+            ]
+          ],
+          "verdict": "source_supported_observation",
+          "scope": "whole_construct",
+          "rationale": "The Walker callback transfers and renames, also dropping static. Actual Type3 result identifies the continuing callback; not pure Type2 and not added to Type1/2 precision or recall."
+        },
+        {
+          "index": 3,
+          "type": "type3",
+          "from_xpaths": [
+            "/src:unit[@filename='src/expr.c']/diff:delete[1]/src:function[src:name='analyzeAggregatesInSelect']"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='src/walker.c']/diff:insert[1]/src:function[src:name='sqlite3WalkerDepthIncrease']"
+          ],
+          "old": [
+            [
+              "src/expr.c",
+              "static int analyzeAggregatesInSelect(Walker *pWalker, Select *pSelect){\n  UNUSED_PARAMETER(pSelect);\n  pWalker->walkerDepth++;\n  return WRC_Continue;\n}"
+            ]
+          ],
+          "new": [
+            [
+              "src/walker.c",
+              "int sqlite3WalkerDepthIncrease(Walker *pWalker, Select *pSelect){\n  UNUSED_PARAMETER(pSelect);\n  pWalker->walkerDepth++;\n  return WRC_Continue;\n}"
+            ]
+          ],
+          "verdict": "source_supported_observation",
+          "scope": "whole_construct",
+          "rationale": "The Walker callback transfers and renames, also dropping static. Actual Type3 result identifies the continuing callback; not pure Type2 and not added to Type1/2 precision or recall."
+        }
+      ],
+      "artifact_sha256": {
+        "results.json": "9d4ebe667cba019670faa27d548ff2a410151cc2116338273f5c81261b137a0a",
+        "diagnostics.json": "5288bb454f980bd766a829171a4ab5d4ed5bf6cf985c8274427ac598369a94b8",
+        "srcmove.xml": "57f2798574e0e9aaba88230659031f34e83ebfc54f7ec72e32a99980bccc6671",
+        "execution.json": "8b6a52763e5ba49f294e7b6a742f757ca0a117e12375816d0cd62d458f471ce8",
+        "srcdiff.xml": "a41e36a8e500003539db0d1dff8ee73c2ee4fcd7d7207424199a1a2982dcc4fb"
+      }
+    },
+    {
+      "id": "sqlite-target-06",
+      "cohort": "targets",
+      "parent": "898c527eafd8bf263a3c3626ff421804558132f9",
+      "commit": "a5d0911546c0d41f142a33fc3622df7ef7d8a81d",
+      "execution_status": "completed",
+      "outputs": [
+        {
+          "index": 0,
+          "type": "type1",
+          "from_xpaths": [
+            "/src:unit[@filename='src/callback.c']/diff:delete[2]/diff:delete[1]"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='src/callback.c']/diff:insert[2]/diff:insert[1]"
+          ],
+          "old": [
+            [
+              "src/callback.c",
+              "CollSeq *sqlite3GetCollSeq(\n  Parse *pParse,        /* Parsing context */\n  u8 enc,               /* The desired encoding for the collating sequence */\n  CollSeq *pColl,       /* Collating sequence with native encoding, or NULL */\n  const char *zName     /* Collating sequence name */\n){\n  CollSeq *p;\n  sqlite3 *db = pParse->db;\n\n  p = pColl;\n  if( !p ){\n    p = sqlite3FindCollSeq(db, enc, zName, 0);\n  }\n  if( !p || !p->xCmp ){\n    /* No collation sequence of this type for this encoding is registered.\n    ** Call the collation factory to see if it can supply us with one.\n    */\n    callCollNeeded(db, enc, zName);\n    p = sqlite3FindCollSeq(db, enc, zName, 0);\n  }\n  if( p && !p->xCmp && synthCollSeq(db, p) ){\n    p = 0;\n  }\n  assert( !p || p->xCmp );\n  if( p==0 ){\n    sqlite3ErrorMsg(pParse, \"no such collation sequence: %s\", zName);\n    pParse->rc = SQLITE_ERROR_MISSING_COLLSEQ;\n  }\n  return p;\n}"
+            ]
+          ],
+          "new": [
+            [
+              "src/callback.c",
+              "CollSeq *sqlite3GetCollSeq(\n  Parse *pParse,        /* Parsing context */\n  u8 enc,               /* The desired encoding for the collating sequence */\n  CollSeq *pColl,       /* Collating sequence with native encoding, or NULL */\n  const char *zName     /* Collating sequence name */\n){\n  CollSeq *p;\n  sqlite3 *db = pParse->db;\n\n  p = pColl;\n  if( !p ){\n    p = sqlite3FindCollSeq(db, enc, zName, 0);\n  }\n  if( !p || !p->xCmp ){\n    /* No collation sequence of this type for this encoding is registered.\n    ** Call the collation factory to see if it can supply us with one.\n    */\n    callCollNeeded(db, enc, zName);\n    p = sqlite3FindCollSeq(db, enc, zName, 0);\n  }\n  if( p && !p->xCmp && synthCollSeq(db, p) ){\n    p = 0;\n  }\n  assert( !p || p->xCmp );\n  if( p==0 ){\n    sqlite3ErrorMsg(pParse, \"no such collation sequence: %s\", zName);\n    pParse->rc = SQLITE_ERROR_MISSING_COLLSEQ;\n  }\n  return p;\n}"
+            ]
+          ],
+          "verdict": "valid_independent",
+          "scope": "whole_construct",
+          "rationale": "The complete sqlite3GetCollSeq function changes order across continuing callback.c functions, while sqlite3LocateCollSeq transfers unchanged from build.c to callback.c. Each actual selected output resolves to the correct source function."
+        },
+        {
+          "index": 1,
+          "type": "type1",
+          "from_xpaths": [
+            "/src:unit[@filename='src/build.c']/diff:delete[1]/src:function[src:name='sqlite3LocateCollSeq']"
+          ],
+          "to_xpaths": [
+            "/src:unit[@filename='src/callback.c']/diff:insert[2]/src:function[src:name='sqlite3LocateCollSeq']"
+          ],
+          "old": [
+            [
+              "src/build.c",
+              "CollSeq *sqlite3LocateCollSeq(Parse *pParse, const char *zName){\n  sqlite3 *db = pParse->db;\n  u8 enc = ENC(db);\n  u8 initbusy = db->init.busy;\n  CollSeq *pColl;\n\n  pColl = sqlite3FindCollSeq(db, enc, zName, initbusy);\n  if( !initbusy && (!pColl || !pColl->xCmp) ){\n    pColl = sqlite3GetCollSeq(pParse, enc, pColl, zName);\n  }\n\n  return pColl;\n}"
+            ]
+          ],
+          "new": [
+            [
+              "src/callback.c",
+              "CollSeq *sqlite3LocateCollSeq(Parse *pParse, const char *zName){\n  sqlite3 *db = pParse->db;\n  u8 enc = ENC(db);\n  u8 initbusy = db->init.busy;\n  CollSeq *pColl;\n\n  pColl = sqlite3FindCollSeq(db, enc, zName, initbusy);\n  if( !initbusy && (!pColl || !pColl->xCmp) ){\n    pColl = sqlite3GetCollSeq(pParse, enc, pColl, zName);\n  }\n\n  return pColl;\n}"
+            ]
+          ],
+          "verdict": "valid_independent",
+          "scope": "whole_construct",
+          "rationale": "The complete sqlite3GetCollSeq function changes order across continuing callback.c functions, while sqlite3LocateCollSeq transfers unchanged from build.c to callback.c. Each actual selected output resolves to the correct source function."
+        }
+      ],
+      "events": [
+        {
+          "id": "sqlite-target-06-sqlite3GetCollSeq",
+          "type": "type1",
+          "scope": "whole_construct",
+          "outcome": "detected",
+          "limiting_stage": "selected",
+          "selected_indices": [
+            0
+          ],
+          "ancestor_coverage": false,
+          "coverage_output_indices": [],
+          "rationale": "Actual selected one-to-one output resolves to both frozen whole endpoints using source position and role. The correspondence diagnostics say not_move/insufficient_context for one record, but the actual results.json output selects this exact function; actual output controls detection scoring.",
+          "attribution": {
+            "old": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                24,
+                25
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "new": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                41,
+                50
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "limiting_stage": "location_or_parent_carrying",
+            "selected": false,
+            "correspondences": [
+              {
+                "delete_candidate_id": 24,
+                "insert_candidate_id": 41,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "not_move",
+                "shadow_change": "ambiguous",
+                "classification_reason": "insufficient_context",
+                "file_observation": "same",
+                "semantic_container_observation": "unknown",
+                "anchor_interval_observation": "unknown",
+                "relative_order_observation": "unknown",
+                "ancestor_observation": "unknown",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "src/callback.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                },
+                "after_context": {
+                  "revision_file": "src/callback.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                }
+              }
+            ]
+          },
+          "strict_detected": true
+        },
+        {
+          "id": "sqlite-target-06-sqlite3LocateCollSeq",
+          "type": "type1",
+          "scope": "whole_construct",
+          "outcome": "detected",
+          "limiting_stage": "selected",
+          "selected_indices": [
+            1
+          ],
+          "ancestor_coverage": false,
+          "coverage_output_indices": [],
+          "rationale": "Actual selected one-to-one output resolves to both frozen whole endpoints using source position and role.",
+          "attribution": {
+            "old": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                8
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "new": {
+              "status": "resolved",
+              "whole_exposed": true,
+              "candidate_ids": [
+                49
+              ],
+              "candidate_available": true,
+              "ambiguous_occurrence": false,
+              "reason": "full_source_reconstruction"
+            },
+            "limiting_stage": "selected",
+            "selected": true,
+            "correspondences": [
+              {
+                "delete_candidate_id": 8,
+                "insert_candidate_id": 49,
+                "correspondence_kind": "type1",
+                "cardinality": "one_to_one",
+                "current_result": "move",
+                "shadow_change": "relocated",
+                "classification_reason": "different_file",
+                "file_observation": "different",
+                "semantic_container_observation": "unknown",
+                "anchor_interval_observation": "unknown",
+                "relative_order_observation": "unknown",
+                "ancestor_observation": "unknown",
+                "carried_by_parent": false,
+                "parent_delete_candidate_id": null,
+                "parent_insert_candidate_id": null,
+                "before_context": {
+                  "revision_file": "src/build.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                },
+                "after_context": {
+                  "revision_file": "src/callback.c",
+                  "semantic_container_id": "",
+                  "semantic_container_label": "",
+                  "previous_common_anchor_id": "",
+                  "next_common_anchor_id": "",
+                  "meaningful_ancestors": [],
+                  "ancestor_summary_interpretable": false
+                }
+              }
+            ]
+          },
+          "strict_detected": true
+        }
+      ],
+      "type3_observations": [],
+      "artifact_sha256": {
+        "results.json": "d8789c90933fa419b6195f756c5afeb7df6bda3a853550e70081255b9215f83b",
+        "diagnostics.json": "e430df65608981dccfb21f8b1254a5f3085f310c6f25fe0f88a68b28fa9497ae",
+        "srcmove.xml": "f435d424c5a13d99e34619fbf45ec13fdc3121941ce72f81a616e6e75133dca2",
+        "execution.json": "9bbabd82206d4be1f9a41f7bc7f487791d00882f0b4befae4b9f662c562471c4",
+        "srcdiff.xml": "21a2d86458b93c368a5ebf4adbe25bc6ec06aa9272ee8f5b25b07fb58ae78b6e"
+      }
+    }
+  ]
+}

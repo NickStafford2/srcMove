@@ -11,6 +11,7 @@ from attribution import attribute_event
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     p.add_argument('--output',type=Path,default=ROOT/'benchmark-results/historical-type12-20260927')
+    p.add_argument('--report-name',default='explained-report.json')
     args=p.parse_args();output=args.output.resolve();verify_seal()
     report=read(output/'endpoint-report.json')
     provenance=digest(output/'provenance.json')
@@ -19,7 +20,7 @@ def main():
     reviews={name:read(HERE/'reviews'/f'{name}.json')
              for name in read(HERE/'selection.json')['repositories']}
     for row in report['cases']:
-        if row['status']!='scored': continue
+        if row['status']!='scored' or not row['events']: continue
         name=row['repository'];review=reviews[name]
         case=next(c for c in review['ordinary']+review['targets'] if c['id']==row['id'])
         dest=output/name/row['id']
@@ -46,8 +47,10 @@ def main():
                     if event['id'] not in m['matching_frozen_events']:m['matching_frozen_events'].append(event['id'])
             elif evidence['limiting_stage']!='unresolved':
                 event['outcome']='missed'
-    write(output/'explained-report.json',report)
-    print(output/'explained-report.json')
+    if Path(args.report_name).name != args.report_name:
+        raise ValueError('report name must be a filename')
+    write(output/args.report_name,report)
+    print(output/args.report_name)
 
 
 if __name__=='__main__': main()

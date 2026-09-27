@@ -1,5 +1,10 @@
 # Bounded Type-1/Type-2 historical study
 
+**Completed:** [results and limitations](RESULTS.md), machine-readable
+[historical counts](results.json), and [supplemental evidence](supplemental_results.json).
+Start there before proposing more detector work. Frozen source reviews and
+artifact-bound adjudications should be reused, not rediscovered or overwritten.
+
 This is the execution home for the [evidence protocol](../type12_evaluation.md).
 The frozen `selection.json` supersedes that proposal's numerical caps: 30
 consecutive first-parent comparisons in each of SQLite, Notepad++, and OpenCV,
@@ -49,6 +54,8 @@ From the parent workspace, after restoring the exact reference Git objects:
   --srcmove /workspace/srcMove/build/srcMove \
   --srcdiff /workspace/srcDiff/build/bin/srcdiff
 ./bin/srcml-dev-shell python3 srcMove/moveSelectionBench/historical_study/study.py score
+./bin/srcml-dev-shell python3 srcMove/moveSelectionBench/historical_study/explain.py
+./bin/srcml-dev-shell python3 srcMove/moveSelectionBench/historical_study/summarize.py
 ./bin/srcml-dev-shell make --no-print-directory -C srcMove test-move-selection
 ```
 
@@ -68,6 +75,36 @@ Every unpaired output needs source adjudication before precision is reported.
 Whole constructs, independent descendants, repeated groups, partial coverage,
 and Type-3 observations stay separate. Ordinary and targeted cohorts also stay
 separate; this convenience study does not estimate population accuracy.
+
+`summarize.py` validates every case, output index, confirmed target, source-review
+association and artifact hash before publishing counts. The checked-in
+adjudications are post-output source judgments, not detector-generated labels.
+`explain.py` supplies additional position-based attribution and does not replace
+those judgments. Its XPath resolver handles the production predicate subset
+without repeatedly indexing the entire XML tree; unsupported paths stay unresolved.
+
+Separate supplemental runs:
+
+```bash
+./bin/srcml-dev-shell python3 srcMove/moveSelectionBench/historical_study/controls.py \
+  --srcmove /workspace/srcMove/build/srcMove \
+  --srcdiff /workspace/srcDiff/build/bin/srcdiff --output /workspace/srcMove/benchmark-results/historical-type12-controls-replay
+./bin/srcml-dev-shell python3 srcMove/moveSelectionBench/historical_study/retained_type2.py \
+  --srcmove /workspace/srcMove/build/srcMove \
+  --output /workspace/srcMove/benchmark-results/historical-type12-retained-replay
+```
+
+The retained replay requires the original ignored XML identified in
+`retained_type2.json`; it verifies that XML reconstructs the exact Git sources.
+It fails rather than silently generating a different input. Fresh source-to-XML
+regeneration is a separate experiment. Original raw artifacts live under ignored
+`benchmark-results/historical-type12-20260927/`, `historical-type12-controls/`,
+and `historical-type12-retained/`. Reference-clone history states are also ignored.
+
+Completed milestones were committed as `20f22b6` (source labels and seal),
+`ab5bce3` (execution/scoring), and `04fd56d` (controls and attribution).
+The final result commit adds adjudication and evaluation-tool refinements.
+The initial full test run and all historical runs used unchanged production code.
 
 ## Scope and authorization
 

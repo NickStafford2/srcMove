@@ -81,28 +81,92 @@ def revision_text(node, side, membership='common'):
 
 
 def _xpath_nodes(root, xpath):
-    """Resolve the ElementTree XPath subset emitted in diagnostic paths.
+    """Resolve production paths with direct child traversal, without parent maps.
 
-    Both archive-relative and root-inclusive paths occur in replay adapters.
-    A temporary wrapper permits root-inclusive evaluation without rewriting
-    filename/name predicates (whose values may themselves contain slashes).
-    Unsupported XPath syntax remains unresolved; there is no text fallback.
+    Accept only qualified tags with one optional positive position, filename
+    attribute equality, or src:name child-text equality predicate. Both archive
+    relative and root inclusive paths are supported; literal values are exact.
+    Unsupported syntax remains unresolved, with no approximate text fallback.
     """
     if not isinstance(xpath, str) or not xpath.startswith('/'):
         return []
-    wrapper = ET.Element('_attribution_root')
-    wrapper.append(root)
-    try:
-        nodes = root.findall('.' + xpath, NS)
-        nodes += wrapper.findall('.' + xpath, NS)
-    except (SyntaxError, KeyError, TypeError, ValueError):
+
+    # A filename or name literal can contain slashes and bracket characters.
+    segments = []
+    start = 1
+    bracket = False
+    quote = None
+    for offset, char in enumerate(xpath[1:], 1):
+        if quote:
+            if char == quote:
+                quote = None
+        elif char in "\"'":
+            if not bracket:
+                return []
+            quote = char
+        elif char == '[':
+            if bracket:
+                return []
+            bracket = True
+        elif char == ']':
+            if not bracket:
+                return []
+            bracket = False
+        elif char == '/' and not bracket:
+            segments.append(xpath[start:offset])
+            start = offset + 1
+    if quote or bracket:
         return []
+    segments.append(xpath[start:])
+    steps = []
+    for segment in segments:
+        match = re.fullmatch(r'([A-Za-z_][\w.-]*):([A-Za-z_][\w.-]*)(?:\[(.*)\])?', segment)
+        if not match or match[1] not in NS:
+            return []
+        tag = '{' + NS[match[1]] + '}' + match[2]
+        predicate = match[3]
+        if predicate is None:
+            steps.append((tag, None, None))
+        elif re.fullmatch(r'[1-9][0-9]*', predicate):
+            steps.append((tag, 'index', int(predicate)))
+        else:
+            equality = re.fullmatch(r'''(@filename|src:name)=('([^']*)'|"([^"]*)")''', predicate)
+            if not equality:
+                return []
+            literal = equality[3] if equality[3] is not None else equality[4]
+            steps.append((tag, equality[1], literal))
+
+    def select(children, step):
+        tag, kind, value = step
+        matches = [node for node in children if node.tag == tag]
+        if kind == 'index':
+            return matches[value-1:value]
+        if kind == '@filename':
+            return [node for node in matches if node.get('filename') == value]
+        if kind == 'src:name':
+            return [node for node in matches if any(
+                child.tag == '{' + SRC + '}name' and ''.join(child.itertext()) == value
+                for child in node)]
+        return matches
+
+    def traverse(nodes, remaining):
+        for step in remaining:
+            nodes = [child for node in nodes for child in select(node, step)]
+            if not nodes:
+                break
+        return nodes
+
+    nodes = traverse([root], steps)
+    nodes += traverse(select([root], steps[0]), steps[1:])
     return list({id(node): node for node in nodes}.values())
 
 
-def _position_span(node, side, source):
+def _position_span(node, side, source, starts=None):
     values = []
-    starts = [0] + [m.end() for m in re.finditer('\n', source)]
+    if any(node.get('{' + POS + '}' + name) is None for name in ('start', 'end')):
+        return None
+    if starts is None:
+        starts = [0] + [m.end() for m in re.finditer('\n', source)]
     for name in ('start', 'end'):
         value = node.get('{' + POS + '}' + name)
         if value is None:
@@ -156,6 +220,7 @@ def resolve_endpoint(endpoint, source_text, tree, diagnostics, side):
     unit = units[0]
     projected, spans = _projection(unit, side)
     reconstructed = projected == source
+    line_starts = None if reconstructed else [0] + [m.end() for m in re.finditer('\n', source)]
     exact_nodes, exposed_nodes = set(), set()
     positions = set()
     for node in unit.iter():
@@ -165,7 +230,7 @@ def resolve_endpoint(endpoint, source_text, tree, diagnostics, side):
         if reconstructed:
             text = projected[a:b]
         else:
-            pos = _position_span(node, side, source)
+            pos = _position_span(node, side, source, line_starts)
             if pos is None:
                 continue
             text = projected[a:b]

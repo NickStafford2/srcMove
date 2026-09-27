@@ -10,7 +10,7 @@ from moveSelectionBench.historical_study.study import (
     match_event, xpath_endpoint, source_endpoint, source_text, endpoint_is_unique,
     verify_execution,
 )
-from moveSelectionBench.historical_study.attribution import resolve_endpoint, attribute_event
+from moveSelectionBench.historical_study.attribution import resolve_endpoint, attribute_event, _xpath_nodes
 
 
 class HistoricalStudyTests(unittest.TestCase):
@@ -94,6 +94,19 @@ class HistoricalStudyTests(unittest.TestCase):
         parent=endpoint | {'text_sha256':hashlib.sha256(parent_text.encode()).hexdigest()}
         unresolved=resolve_endpoint(parent,parent_text,tree,diag,'delete')
         self.assertFalse(unresolved['candidate_ids'])
+
+    def test_production_xpath_predicates_with_slashes_and_named_functions(self):
+        root=ET.fromstring('''<unit xmlns="http://www.srcML.org/srcML/src"><unit filename="src/a.cpp|dest/b.cpp"><function><name>first</name></function><function><name>second</name><block/></function></unit></unit>''')
+        path="/src:unit[@filename='src/a.cpp|dest/b.cpp']/src:function[src:name='second']/src:block[1]"
+        expected=root.find('.//'+SRC_TAG('block'))
+        self.assertEqual(_xpath_nodes(root,path),[expected])
+        self.assertEqual(_xpath_nodes(root,'/src:unit[1]'+path),[expected])
+        self.assertEqual(_xpath_nodes(root,path.replace("'second'","'first'")),[])
+        self.assertEqual(_xpath_nodes(root,"/src:unit[contains(@filename,'src')]"),[])
+
+
+def SRC_TAG(name):
+    return '{http://www.srcML.org/srcML/src}'+name
 
 
 if __name__ == '__main__': unittest.main()

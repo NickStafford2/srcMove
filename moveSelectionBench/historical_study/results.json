@@ -1,0 +1,1216 @@
+{
+  "schema_version": 1,
+  "study_id": "type12-20260927",
+  "provenance": {
+    "seal_sha256": "a01a2abb5dabc6f7a6d75c5991f3090cc4c229bfa9f468a2742f41b56003f43c",
+    "srcmove_sha256": "359baf50869312f88f8737becfb76fc47915cc9ad63c1b5a49fe3a81de03ebaa",
+    "srcdiff_sha256": "36e0b7e021e997cd0aadbe899ad56c90c97c250d4c9be0159243229e44b0e7df",
+    "source_revision": "ab5bce38fbcbe84764eab3ae53453fe453ce5d15",
+    "source_patch_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "runner_sha256": "da5d05c30567df8d9655e2f9cdb36981535b360bf855937c06e43cd85e5a59ad",
+    "python": "3.12.3 (main, Jun 19 2026, 12:46:00) [GCC 13.3.0]",
+    "history_implementation_hashes": {
+      "srcmove_history/__init__.py": "eb59e02436a3a74df1c8833e5a4867b1eb35f41d46a14a5f7c91043d532a044b",
+      "srcmove_history/__main__.py": "e3c2075306460d5b040eceb9c9b4ff862f02594be7e31b51a5a810d1ef0e9a6e",
+      "srcmove_history/analysis.py": "7bcde4d1d2e338a0475713450124ffade7f1bd85f50d0a28bcae259f8aa87ad4",
+      "srcmove_history/cli.py": "e3f0b7cdd211e72ab6d2e55e3e712904a505a28783aee8052639b9de35feb18f",
+      "srcmove_history/compact.py": "bb885037d7ff3181a279aa3bd2ac41778d33a56524c75e42d5ae6a421a0dc862",
+      "srcmove_history/comparison.py": "b5f679f872e7778974006219ebecbbe8eb5d530f75e57a57799af58a67a50dcc",
+      "srcmove_history/configuration.py": "882210f8fcb8c361ef805784145cf00524dd2f5d69a9d8204ebbf985fe0afa9d",
+      "srcmove_history/contracts.py": "2a4cb0733e5ad0dffbfafa7e0a5747dddaa8de09fb27b025e9b3fe48a4e65982",
+      "srcmove_history/coordinator.py": "3ea0f767df646f26355d4dcde64c736d78321fcac9eb82e5a47754bf6c2b9ac5",
+      "srcmove_history/database.py": "9fc32ede05323383c0019db516373182f4392f7408347906bf67dabdeb532109",
+      "srcmove_history/git.py": "8533aa862440ff4f1efd3f0c30e4e2c714525eca9f1cac1730f27178e22684d9",
+      "srcmove_history/inputs.py": "35cd95060d55258d16c38d8e54934e183fa185d87d54e94bdb0d92491565bbb4",
+      "srcmove_history/locking.py": "b0a7f948455a11b659f2fc061eaf9e9338864650dbd8beb3e11a3afa33a1c0cd",
+      "srcmove_history/presentation.py": "ef169014281edfc2fad0fd2c49ff3ce50f181876f405fb9804cbe4dc6ff48e56",
+      "srcmove_history/process.py": "96572adc85b4b7f3c68ca05105fce0d5ba7eedeebe3f1dc95aca0f219b33a918",
+      "srcmove_history/progress.py": "4e1681ef48c15d23a69f447771c83c1b0b3f7ff629cf18ccba4bcbec43e53f72",
+      "srcmove_history/queries.py": "e4e4c5e2686a4db1c2dee38dd5b79e8875344fedb634404aef2d7f4005002a15",
+      "srcmove_history/report.py": "348f028aee654ba61592499382113063199abc34a147601bc7ca463dcb1df4b0",
+      "srcmove_history/results.py": "956d80ea7eb0718747d69ea45a705f607f0828a1e08b2e8a4f135e313a289b13",
+      "srcmove_history/retention.py": "4fdd9bce57394cd654a53e839af3f999066771673d3ec410b4f9db5efc076c69",
+      "srcmove_history/tools.py": "f5f19e3755df87fc52bee7127dda7aac74fcea7e80b881089e6462e479cd734d",
+      "srcmove_history/worker.py": "132308cb4f09a20c0623e42ec6c0a9699ebd6884337ac89c89edf2acf86dc42a",
+      "moveSelectionBench/replay_type3_history.py": "71ae1882e6ab9a47c57ce720e8179a98aea959962916c06032582d98dada2446"
+    },
+    "configuration": {
+      "schema_version": 2,
+      "selected_directory": null,
+      "excluded_suffixes": [
+        ".aj",
+        ".cs",
+        ".java",
+        ".py",
+        ".pyi",
+        ".pyw",
+        ".pyz"
+      ],
+      "use_position": true,
+      "source_encoding": "UTF-8",
+      "srcdiff_timeout_seconds": 180.0,
+      "srcmove_timeout_seconds": 120.0
+    }
+  },
+  "provenance_sha256": "c16515e10e887659f223ca0812cb047a078a68e944e6886bace2f4baf4a286f4",
+  "summarizer_sha256": "6c3e4cff4c7ef57421d4b63fc2aaecbfce1c4995c1f24b2549a73e9d69e004d9",
+  "limitations": [
+    "AI source review and second AI corroboration, not independent human annotation.",
+    "Purposive targeted cases; ordinary windows contain prior-exposed cases and incomplete source reviews.",
+    "Recall counts only confirmed frozen targets; no claim of exhaustive historical recall.",
+    "Whole constructs and smaller independent moves, and ordinary/targeted cohorts, are separate.",
+    "Repeated groups are not expanded into pair precision."
+  ],
+  "artifact_index": [
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-01",
+      "execution_sha256": "0cdebf9b4ed3504841b5a3e9be3e6b0ad5c04b8f0baf64097e57163fb58ce128",
+      "status": "completed",
+      "results_sha256": "9cf2639a0aeca49a8b203a819069863b4d01ca386f2030af47b293e0c7afb30f"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-02",
+      "execution_sha256": "006598f833a677a8d3f988c5ce68caa01a87f6552996ef080b8f60f46f4789d0",
+      "status": "completed",
+      "results_sha256": "88680c2d0c83bc5fd7466f5d931f37cac7fe7c11fdd853534b08e6b982bf4d5f"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-03",
+      "execution_sha256": "d4a2aeee024f042c7ef66143e9e9937834a7c088c57a49141eea42c03e872492",
+      "status": "completed",
+      "results_sha256": "332a7dcbadab39a4e12fc396ef361ad5757eb85bc0e9e174993668adebb18de9"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-04",
+      "execution_sha256": "b1148cbcb5a6fd0d9a6aaac13681f11f5b932794d81de209c9c183cb38320490",
+      "status": "completed",
+      "results_sha256": "46f83ecfb4dacca17a3eb75c3203779fe4f1058cee558e8524897f969944f574"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-05",
+      "execution_sha256": "c0b7ae2c08318f55bfe258f92a901206fda9ab7ef81bceb0a65fddca3cc8f4d4",
+      "status": "completed",
+      "results_sha256": "476e0eb1b0b0221fc72e459631f1e47db57461df1447a323344964346b5d1756"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-06",
+      "execution_sha256": "5f90845c5aaa1578f4a8348cee8ca649b48a202be19f7686b69defd3de116679",
+      "status": "completed",
+      "results_sha256": "d48033b78aaaf52b759b9b0e684e07ba2f6fda189dfe07c1aa6b651a0d4e1cd8"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-07",
+      "execution_sha256": "1015b082358bbf3c42ae2c0622b497520b573746317a9ae95596f3dcc2eaeeac",
+      "status": "completed",
+      "results_sha256": "9fd711c43cfad680e03921529214aa104d7b5102a3d0d1a88d084fdd9746be51"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-08",
+      "execution_sha256": "4bda5991d1b19ed9bb29baac64afaba5482536c30f7a383a90f2d98c909d3f83",
+      "status": "completed",
+      "results_sha256": "033bfccf12d82149bfc0e79e4162086cf6950a21740e19e3f76643a006be2fda"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-09",
+      "execution_sha256": "948224a7f684402977c571c5dba6bce467988e4b4b473e02f7c4796eadfc6ba0",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-10",
+      "execution_sha256": "d82f18bf75cc841b041b62d08c153626402dca20731b90f2ae308c4764e8827e",
+      "status": "completed",
+      "results_sha256": "332a7dcbadab39a4e12fc396ef361ad5757eb85bc0e9e174993668adebb18de9"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-11",
+      "execution_sha256": "615af4387efb9d1923cbdd20801b660d88043d6819ebef22088322c8e28b5c84",
+      "status": "completed",
+      "results_sha256": "81007166ac8eb1d98e0534404e3a79aab5bb558822bab78e9a745c147001bbcc"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-12",
+      "execution_sha256": "119ce73dee72dcfc3410ad94cfb20080899497511276b05fbd41b856ad681bcd",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-13",
+      "execution_sha256": "114e726704fac98423946786b83336330eff17988585f6ab266954cc7c5b7e44",
+      "status": "completed",
+      "results_sha256": "0ae74122381aa26e41b5bc11ce419ca20a157f1a549bfae3ea956b299cb478c8"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-14",
+      "execution_sha256": "087ba73d37f02aead29fb9711ddd920525bdb06b4812b3da99f9b3ee91b648ce",
+      "status": "completed",
+      "results_sha256": "8ecb40a0795865caa9396321ba1b2fc06f7f0a4e54145fbe2ba40ba7172cda7f"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-15",
+      "execution_sha256": "2c8e5142fc99a90977be3f2199c7958ca5f3016b3773c73d00135780b3595418",
+      "status": "completed",
+      "results_sha256": "24a0e976e4250c6a0b413ef516c56efa80c47ea4ecf4d0518dafdc77c48095a1"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-16",
+      "execution_sha256": "80f6733416a8d8a87f7620a24223743836dc5ed7dbd993fb36b42714f79cae1f",
+      "status": "completed",
+      "results_sha256": "005a25d292ce49613474070fb0680b3cf004f7f7ad1c9cbb0fbd30b3341fe504"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-17",
+      "execution_sha256": "ec1d77bcf9af3682a3adca898a9eda9ba73fe359e91b7db4a8465b8b9a19e8a8",
+      "status": "completed",
+      "results_sha256": "0dcf7c4b08d940142e51e4f62688fa626f4fba722e61820079ec87c773c325db"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-18",
+      "execution_sha256": "f9ce1b49dd198d54afb6c77f6ae57f6d16b918f938231c2a6c8f7a1ecdc8c7b0",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-19",
+      "execution_sha256": "1750456b09739a33d434288481bbb222190321e6d85285323c302ab5f1e2d83a",
+      "status": "completed",
+      "results_sha256": "6c2091d91dae823e1db9a5f608df21272d6f6a47609aed78f3d615745ad9068a"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-20",
+      "execution_sha256": "269a18fda906cb3a49e13efce2c5872f4e03a762c8987a5474bd5b21bd880d2f",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-21",
+      "execution_sha256": "8096d3a500d0d028ac0241cc2a7704b8aed76d4c0d1fec82d80baa8f29e3f023",
+      "status": "completed",
+      "results_sha256": "c9f08e73ccbb11a9ade1a78e87d0ba83106b4dafc67832473491ca0252acd8fb"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-22",
+      "execution_sha256": "ac9e451638693febd73877583f98426be3677c228f9f97ce85423000c1f47be0",
+      "status": "completed",
+      "results_sha256": "d61b7903c8ca0dd49c32417a8df0cfb834f07aaea76375849b4bcc17e361310e"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-23",
+      "execution_sha256": "46a4ddc5d9f4ee6c4844790fbd4f75a7be9d6d1b1de085a63cf84185ece7e0e9",
+      "status": "completed",
+      "results_sha256": "d48033b78aaaf52b759b9b0e684e07ba2f6fda189dfe07c1aa6b651a0d4e1cd8"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-24",
+      "execution_sha256": "49bdde249823686a1acafb36211fe83181021d92a801443cd7c538a8300e743b",
+      "status": "completed",
+      "results_sha256": "1cb1fc28249d88d870e165ae015f9ffacd7c88a22bcf8d7ba0fd96fa8e20dd45"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-25",
+      "execution_sha256": "be4092f9f4dd0e93a21481e1ea5eafda5fd208ffd63a185de1a43723490cfa60",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-26",
+      "execution_sha256": "d3762d22fe6713264fff1bb3a06dbf7be0644842fbf4f57654e1a93d2adc11ee",
+      "status": "completed",
+      "results_sha256": "d82163b1a313bfc0de26dc1d41fc32e150c547bd32bef905338c9817d0ab8ab5"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-27",
+      "execution_sha256": "82e07a3aca06a9cf3a21620fcbcb59140e2ce4b1115507810ec0991e65022267",
+      "status": "completed",
+      "results_sha256": "46f83ecfb4dacca17a3eb75c3203779fe4f1058cee558e8524897f969944f574"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-28",
+      "execution_sha256": "882c5ea183454a1cd14b37ad5664457c3a4b652093810ae5491284521c07263e",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-29",
+      "execution_sha256": "a0df433ef28566b44c6b54f769f7ab751c283b3d11cdd24bc655a8ad38eae9c8",
+      "status": "completed",
+      "results_sha256": "a78d21f60fba3df01e699e19863192bdd5b62a680da5442e5637a6df8ff26946"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-ordinary-30",
+      "execution_sha256": "006c5113c5e6a3afd126a78b2403ed75e59d974fbad8bc15e8749566cdefa6da",
+      "status": "completed",
+      "results_sha256": "c9f08e73ccbb11a9ade1a78e87d0ba83106b4dafc67832473491ca0252acd8fb"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-target-01",
+      "execution_sha256": "4744f8e3c72cefd80a05c151f0accb70262c3767d6e4417ff1d8aadc31ff7dd3",
+      "status": "completed",
+      "results_sha256": "824142797ff9f0ee15f04c73db52f689286c78c8b0781a21c4e633ba3a515646"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-target-02",
+      "execution_sha256": "6e7525453dbaffa2deef6e6af97fa2e5e453785c13508fafb60e154f061adf25",
+      "status": "completed",
+      "results_sha256": "11ea827b7971c8dae0581c8820757a626e9b822abf341be6deafe415cf03c8aa"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-target-03",
+      "execution_sha256": "48e78def7c02a54e3b5e3dc1cf6f573f932b7e574153922929243def70df5526",
+      "status": "completed",
+      "results_sha256": "789c3d0e4ff7a4d99e4885adffac4fb755c56a363c7d9d0c70e1eb767a1a6610"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-target-04",
+      "execution_sha256": "9146119d3afa024ce6447dd630cb7d0f34b616ba8d7a76892971e0bca7486336",
+      "status": "completed",
+      "results_sha256": "13df29f78ab9a1f2842a764a2f449dbf9f44c20b5b46b4b938c4cc210549d0a7"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-target-05",
+      "execution_sha256": "8b6a52763e5ba49f294e7b6a742f757ca0a117e12375816d0cd62d458f471ce8",
+      "status": "completed",
+      "results_sha256": "9d4ebe667cba019670faa27d548ff2a410151cc2116338273f5c81261b137a0a"
+    },
+    {
+      "repository": "sqlite",
+      "id": "sqlite-target-06",
+      "execution_sha256": "9bbabd82206d4be1f9a41f7bc7f487791d00882f0b4befae4b9f662c562471c4",
+      "status": "completed",
+      "results_sha256": "d8789c90933fa419b6195f756c5afeb7df6bda3a853550e70081255b9215f83b"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-01",
+      "execution_sha256": "6b977386fae475b798bcf15763187707317067c73b793cfbfb0c10864d4e1d20",
+      "status": "completed",
+      "results_sha256": "4f312345398578e45685c6fe0b3413dd7b0a75233d7bb53591bb889df525d028"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-02",
+      "execution_sha256": "a2dd004718827665e194ef3f2f686fd33ad73c2e493a7543044099ed95b050b6",
+      "status": "completed",
+      "results_sha256": "b0ac431a23c07d4dcb06ca91246ab04592f3d4b0e7a073657cc1d36184ba6bfa"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-03",
+      "execution_sha256": "2de4ccfe9f7448b3e7f3734f0d4b629b4ba3c078ab2b2845b81849a01fb8c09a",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-04",
+      "execution_sha256": "6788fb59bae31ce9f53daf2435226ec9c2b5c52c03f073ac11540c630ce5f1d8",
+      "status": "completed",
+      "results_sha256": "fe57c2435b30d90f95588873eafa22efe33172cc4938b459310c3ddb4f40e17a"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-05",
+      "execution_sha256": "e46195b74506e7de344729d081a2a5e02b57fb0e1648c89d9009d75fe2c2d8fd",
+      "status": "completed",
+      "results_sha256": "f7395935a753294efe00d63c2f3f1547bfcb4c95442c159c1d7360a81ccc811d"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-06",
+      "execution_sha256": "84c4bd1216521ff8003535a1cab38a6ff3e42b231b785d8458225b97135a74ac",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-07",
+      "execution_sha256": "23e76679540218577e66c064a555feec2e71d570453b7fdcf699adaef8ed1686",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-08",
+      "execution_sha256": "046096b451df7ffaef4c3a7ebe3c0b6e70ca4a3fb56a129e53a8ee83a5980460",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-09",
+      "execution_sha256": "2416561ffdaf25cf187fe7b470afc3c22eff82433c3b5aa04794c09ec7134e8b",
+      "status": "completed",
+      "results_sha256": "e78680daa8b0a8d23c56fdab0650e0d5043fce4465d3d3809cc742ee9da29099"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-10",
+      "execution_sha256": "98060f307cb5d189af683c3f6f07395354dc6fe68ca4127ee0a7e9b97d3eb6b9",
+      "status": "completed",
+      "results_sha256": "dffd41190de917b7f1d95517b57159edd483f0a972dbc8ba66bb9ae5de043199"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-11",
+      "execution_sha256": "defd1c0f057c4f134b4da5dc5dc82462fc03546a55162c3bcadff0619879ed66",
+      "status": "completed",
+      "results_sha256": "b6a02bb84075b54787f62da4ccdb4495c531516c48adc32b43f1e73a7fa8fe11"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-12",
+      "execution_sha256": "2cd74b959cc8e270388c67b18db61e219cb08e6d78e8211c73b557d7e79ccdfe",
+      "status": "completed",
+      "results_sha256": "279a81985f0b3919523b8c440e2ede5ad9326e415f85323136174a86b600309c"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-13",
+      "execution_sha256": "ee69e9a83dd455899b19de2d406e0023a22fbc07b31ba562c94e857b88cae664",
+      "status": "completed",
+      "results_sha256": "a0c0b469a9a4100a9657c2f6cac9b747d02e45aab3c00e15ad287ace9f6243ab"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-14",
+      "execution_sha256": "d2b9f76c83e5e87dcbd79dc22953362681e3e79ea14e49cf87b206cd0506074f",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-15",
+      "execution_sha256": "7f0609a2c5346e6f3f047972b5f07d5eea39b9bcdbb5ec659568e9b7f5a39903",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-16",
+      "execution_sha256": "17e50e03a6dae6e34bd386bc34567ebcaf4544c2067b95cda185f06e93d00342",
+      "status": "completed",
+      "results_sha256": "9809c5157b766839d12458d79d66be8a3b95a62814fd6b66c20538bb548c78fe"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-17",
+      "execution_sha256": "367723385daeb95b5e886c8d31445de60e0ad2d727dd902fd664ce726b26ee25",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-18",
+      "execution_sha256": "92c90c41aa6e34fb844c16daddc2c11b991f52b618730862efee54acb5cd697f",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-19",
+      "execution_sha256": "c0bd765e89860dc0b63750a8b8c421914e872d9aa3daf458725e6fa851051739",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-20",
+      "execution_sha256": "eed7aaf65fcfb7a52f2141881a2267bce42b09d2f8435981044d9c3d1d28bd82",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-21",
+      "execution_sha256": "631f0c6f2903208895b84f486f7c5056291d42b5c2ce8c4102da9c6f9d3aa9f2",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-22",
+      "execution_sha256": "731dcaab68c74ff55846381727514a6e5ee6cb423e285141bbf3c98bff03d870",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-23",
+      "execution_sha256": "5dd50471e49b4be3df9b0a37424bee9f570840d979ed969169fbf36455ded1b7",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-24",
+      "execution_sha256": "18e22e15e3d43d78a35ed22c8c1ffc22a7acea80312aecf554f780181524ad0b",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-25",
+      "execution_sha256": "c60e3fee5496f3824bff5bfc9aff6a3e198ff4d6a7a361bf23e556cc88f24577",
+      "status": "completed",
+      "results_sha256": "4b843f4362fc2c0db1d562fefbe18e568c18e1a161a37a6f3c32f84e5eba244e"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-26",
+      "execution_sha256": "41415177a748b674012596db711898c46fda3c155cc0168f17d1f754ccdd2a2e",
+      "status": "completed",
+      "results_sha256": "332a7dcbadab39a4e12fc396ef361ad5757eb85bc0e9e174993668adebb18de9"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-27",
+      "execution_sha256": "1afd1258610cc2a6cac0110c4de70b89209096b409ace5669ea025917b01e836",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-28",
+      "execution_sha256": "502f84486423a1f3da57db995955f14e32e43e43101dfd408381f8bdd39cafcb",
+      "status": "completed",
+      "results_sha256": "b6716922acb8834a38dc77b8dbfcbb5e80f66fa95a411bf27426bf13a3119c4b"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-29",
+      "execution_sha256": "3ba03d449b5f7773693d300a792ceddab7c24fecfb9d8c22b2f4b259ba0e98ce",
+      "status": "completed",
+      "results_sha256": "cb503159bd4f6dcb977dbfde6cecf77c245ea7a6c716fc415b3b802b6b7a831b"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-ordinary-30",
+      "execution_sha256": "0222baddfe1ee153ecf26af852247bc4ef1858910798e2dec1b000988e6db1c2",
+      "status": "completed",
+      "results_sha256": "994ee955d464b792de0dacc46faaadb69bef1512261135edeafeb1222e69d583"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-target-03",
+      "execution_sha256": "a2a7612ae37dbcbf0ebb6e64f587841477b651d0c0610c287b79da55b466028a",
+      "status": "completed",
+      "results_sha256": "3de1160058391ce285f8ead7f90beb18e75b6250d7db392e520ed20750a7fc2e"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-target-13",
+      "execution_sha256": "4827556c82d76dea7c4b57a387640ab95d9e21b7d82c34af6edebed98e360f00",
+      "status": "completed",
+      "results_sha256": "88b29f7c2757ce0a297e22276ceb1d42b4a6facd3f7c980163a38b2a54f9f7a1"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-target-14",
+      "execution_sha256": "f489251cbbb45a39358cf00115dd712f527e30d7c58905b5066114e79c084b4c",
+      "status": "completed",
+      "results_sha256": "7ea6e2cf7bdfe9721ce428927e008ae5e3c546b5fcade6d5e7c2547384e133e0"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-target-16",
+      "execution_sha256": "c733bf5e83d10e160bb7e148d58c7d62d7c97babde308ceb2864610ff796f3d0",
+      "status": "completed",
+      "results_sha256": "67f79be50dc5f0ba69719d26c9de763e77778a14dc461aba70bc370ae5fcdea6"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-target-17",
+      "execution_sha256": "5fc0b0078fffa157baec3cae7f24e950650a89fab685044f83922f9d4f4605b2",
+      "status": "completed",
+      "results_sha256": "bd67535c17dfc275514490ec5f827e6bad0abf901f618aec8dc90bbbf9d4e88b"
+    },
+    {
+      "repository": "notepadpp",
+      "id": "notepadpp-target-18",
+      "execution_sha256": "dce3563aff5def060c5a572ee83fc4cc5e26bf35242d82fd41a0db9278e0eb0b",
+      "status": "completed",
+      "results_sha256": "103670b21a899528854ada0c5c786a5cf6aa4a9c407110627326628a8d02a290"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-01",
+      "execution_sha256": "29e7339264aabe4b2eaf2f34a6cf31fed803def7877850a6cdf97ab6a319c29a",
+      "status": "completed",
+      "results_sha256": "baee776743ec91b56cd1b92103d9c5794f0a0019c6ef817fa491e7c2d8c45416"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-02",
+      "execution_sha256": "1cfeb3acc188f7fee92b891bccdf5e311664ab33460c3ef0be78764fe1343d2d",
+      "status": "completed",
+      "results_sha256": "47f3d1fac63d41f92765985dd16b58c48c55e506202f042bf807fece3c922d8f"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-03",
+      "execution_sha256": "29ee243ebe05891006d648ee1d3f8ab62ead51f062b0f8ca27700ab7992c10a5",
+      "status": "completed",
+      "results_sha256": "47f3d1fac63d41f92765985dd16b58c48c55e506202f042bf807fece3c922d8f"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-04",
+      "execution_sha256": "f69a01a4f6e826a711623466770de09095665a94a1283308603a56472350d4f9",
+      "status": "completed",
+      "results_sha256": "96e7a95bfe35ec5c53a18b5b96bc7b920d13e801f6753a89b3a2b3afc842e455"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-05",
+      "execution_sha256": "e27ac858751ef735eac32dfffdfb57b6cc2afcb4cf78c66712ec8951042554a8",
+      "status": "completed",
+      "results_sha256": "5af75d0142b01fedb1bede9e753ca84ccf703c39b81e1f97893e285f038fd186"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-06",
+      "execution_sha256": "572e429703c51f1f13aba12e26f4b38aba69f3747d09eff74f1d0a3d59a4a3dc",
+      "status": "completed",
+      "results_sha256": "4cc09296429c5320b40be30985e1bff20a4178a02939169b09916e8901cd8f1a"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-07",
+      "execution_sha256": "af7fe3890692edf5f709f8b45ac25f5303185a46a20c64bce8f7f2619fca61a6",
+      "status": "completed",
+      "results_sha256": "46f83ecfb4dacca17a3eb75c3203779fe4f1058cee558e8524897f969944f574"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-08",
+      "execution_sha256": "623447ad60b4b37a6a893e5055ca3e0a0b60a599ae34e3b7073e3ab6bb47bf88",
+      "status": "completed",
+      "results_sha256": "d48033b78aaaf52b759b9b0e684e07ba2f6fda189dfe07c1aa6b651a0d4e1cd8"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-09",
+      "execution_sha256": "6b24828b5ee3dd0da5e45326f24cf7e2364fdd1d0924ccb979f9b77ab4a95fa7",
+      "status": "completed",
+      "results_sha256": "c0314fb7f329ec3fa573ff6e2d1b8625984c9cfb0ddcffb7028e474b6248edca"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-10",
+      "execution_sha256": "1c9d33aec609dedcd4c9aba0ff5aef9574d30331bac87ed92e0c2ee9dcdba8f8",
+      "status": "completed",
+      "results_sha256": "4c06d624023f5f8bfdb46874df94d4fcdfc48311585cfcd60f95fe27d5ec719b"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-11",
+      "execution_sha256": "257c9d532578bf6c7d37a598cbaddd162a75824eb78c8298cf17fd38da5a610e",
+      "status": "completed",
+      "results_sha256": "9ba0b72d86be5c6ef84187e89bb1781b19f141829a3904ee49037517db556e68"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-12",
+      "execution_sha256": "13065d5ed2967bee0bec19e15b539e45a79346c24b8d88cafee54f34e3c1caf6",
+      "status": "completed",
+      "results_sha256": "aa316a7f2b63ef11b5a51ed87d594175cac153930ee3500af9fbfaac0a7ca1cc"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-13",
+      "execution_sha256": "71d8d0cb6b9a2054b3cb7597e314f103ca296c45f14dc28bae76bca76ef8b91e",
+      "status": "completed",
+      "results_sha256": "d67ea0d3596e2d0c809edcbef5c8d2f370a650c02e0f5e3f870ea0ebb6a55030"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-14",
+      "execution_sha256": "7b3a07bf8ddad6ed6d1e4a062a8a97a03af1ed980f32b3777527c6dc19b6f806",
+      "status": "completed",
+      "results_sha256": "cb470b18dbc24ab02e377dee78ecdad3dcee829c9378ff3f79ebd4cf847df7e7"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-15",
+      "execution_sha256": "d948921d22af5ccffc0e41a9a5d1773de6aaa159ac010279bda2fd884ae6ac80",
+      "status": "completed",
+      "results_sha256": "dca888aa5f22523ca0a8f93ae38a1b631a2554eaf1a728a64137d88147e5d988"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-16",
+      "execution_sha256": "e0a7cfbe647b2c9b855fbfc3f9c9442ee1d28ed1eae527766b130ec81befecca",
+      "status": "completed",
+      "results_sha256": "e21b652676e1b46010dcd5038d0b5844412425dcd02d5e025b15b28bb4b27cef"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-17",
+      "execution_sha256": "43c3b255ab3e791a7e74a4fbbf4f6bebdf97c730d1edced1792c8c23d2a6c126",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-18",
+      "execution_sha256": "f0e0f761b3761822d7767ede06c021eb108766dfca6a94a41c9ecc1492d9061c",
+      "status": "completed",
+      "results_sha256": "87d9b5a8704e11f9126598e99ba5aee75bfe03cceca5286c06c0e99470113566"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-19",
+      "execution_sha256": "c5b84a98d25644df2d55f285d83e5043cd9168e79db6ad2699231344defd4db9",
+      "status": "completed",
+      "results_sha256": "332a7dcbadab39a4e12fc396ef361ad5757eb85bc0e9e174993668adebb18de9"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-20",
+      "execution_sha256": "50db95ff187354de92c25bee5d30eac61eac516bc853709220f3bfbec2c35af8",
+      "status": "completed",
+      "results_sha256": "a78d21f60fba3df01e699e19863192bdd5b62a680da5442e5637a6df8ff26946"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-21",
+      "execution_sha256": "7edff25e349b838373f614cf6ab3c9c6c05ca00e28e2e997143315b0ed24b1b2",
+      "status": "completed",
+      "results_sha256": "9ba0b72d86be5c6ef84187e89bb1781b19f141829a3904ee49037517db556e68"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-22",
+      "execution_sha256": "acd968a55db3c241bb1b3feb9de47a0a7ece5e343cb603fa16a87e83485c1eea",
+      "status": "completed",
+      "results_sha256": "d48033b78aaaf52b759b9b0e684e07ba2f6fda189dfe07c1aa6b651a0d4e1cd8"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-23",
+      "execution_sha256": "e2b986fafb4991ca96e08b10eaab7a5bc648c8f0d1f0937befda713327c1d1cd",
+      "status": "completed",
+      "results_sha256": "c333ccaf243ff8faf1c4630fb87f6139b8fda924b88452f66d6b9c8b6bc17e92"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-24",
+      "execution_sha256": "ce8243d4d1ad6d411a2ed2f2032fc2a5bbc4c5bd2280072d12242f5cc7d3a734",
+      "status": "completed",
+      "results_sha256": "149ce53cba51516f5d6792c48d8bcb145272f849dd5bc8477f2eaad44ab744b2"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-25",
+      "execution_sha256": "bd6d0359e0a77f5b2e0018924c933b04ded0b0295590acdd418e29e5a5618d79",
+      "status": "completed",
+      "results_sha256": "bad72fed8fb6c75dfea8c5773a7419fdf4ff2a9ca09a2f76a62dfb96a562fc8e"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-26",
+      "execution_sha256": "eccf4dd4aeb5b6b7f3c2c0bbc56170094fe9d7929077062abe5c78eb73b1934d",
+      "status": "completed",
+      "results_sha256": "733434667d3d2d71d6176d62561645b079e77b7a00e8474f4bb9a1c2714e0835"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-27",
+      "execution_sha256": "f1c4ee729ab0428fd1396661a448e35acc5262dd1ed9fc85eff2804c596db0cd",
+      "status": "no_analyzable_change",
+      "results_sha256": null
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-28",
+      "execution_sha256": "7cfeb31c284ff307995122d3e2d100d2db09af489f16a186d7c37a7905621d0d",
+      "status": "completed",
+      "results_sha256": "29a730f2d5fe619c201d0bf65a1a4727fa934d9b8f97301a6475adcb0a4b0e6e"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-29",
+      "execution_sha256": "145110fe6b88414a29c87b087bd6cd775a3ae587ae28c1d81d212c4697fedffa",
+      "status": "completed",
+      "results_sha256": "f21b4a1a76e20854e5fa26f2151c8c88547a6802409a871e5f8203ce9cae3d2d"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-ordinary-30",
+      "execution_sha256": "7a3c3b3bfce3712bf91a6bb212d569829bc7ec59ec3097fb7b3bcb93bab0bb81",
+      "status": "completed",
+      "results_sha256": "332a7dcbadab39a4e12fc396ef361ad5757eb85bc0e9e174993668adebb18de9"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-targeted-02",
+      "execution_sha256": "30c2a240c6435f6965760ad62c0ae189d1014b1140f0f8ea3772d7bacdef05f8",
+      "status": "completed",
+      "results_sha256": "2d6345b553c25ec809bebf30b7b28e0a235a3718bb625e6fa60130b90c7f1537"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-targeted-05",
+      "execution_sha256": "2e557e64920da20375b8f2d5518515466d73c472fbe23c0085d86672a3515ad5",
+      "status": "completed",
+      "results_sha256": "256f984ad65405297f6a4d6953cc26af0167c89dff251e04864e86530bf13e3c"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-targeted-10",
+      "execution_sha256": "1ea278bed212a42f51fd4a1a6fd10ba68e65c64b1918f6b2b50708191e9a93fa",
+      "status": "completed",
+      "results_sha256": "3bba7ce98c5255ebba38ed056385aac66bff809678622d0b956e15f2f6ab8119"
+    },
+    {
+      "repository": "opencv",
+      "id": "opencv-targeted-18",
+      "execution_sha256": "573c8764b3da828d5afab8850b5f5fe7ecb707a1cdbbb458a84c6112dd0ad8d1",
+      "status": "completed",
+      "results_sha256": "49283c7d2f9daae2d4e6964371e14121f2a6f64b2c3bfd6105679d62797562bc"
+    }
+  ],
+  "adjudication_sha256": {
+    "sqlite": "c59de4ed8ec2c508699ec543f20e7cff3da7cf70ecb598078fbdb7b1285ee85a",
+    "notepadpp": "43179b4956623b27920604bc70a9cc3b72fb1e5294fa32019854de71f7290319",
+    "opencv": "4832949663407ffc495bb4400ab681f48165bdbba1835b493775b177e0deb9bf"
+  },
+  "source_label_counts": {
+    "confirmed": 30,
+    "unresolved": 8
+  },
+  "source_inventory_audit": {
+    "path": "source_inventory_audit.json",
+    "sha256": "653904eea6a0c6f644087bac6bf5c4d1454d4c910516815024491e414e64876e",
+    "note": "Separate source-inventory completeness audit; not a recall denominator."
+  },
+  "execution": [
+    {
+      "repository": "sqlite",
+      "cohort": "ordinary",
+      "counts": {
+        "completed": 24,
+        "no_analyzable_change": 6
+      }
+    },
+    {
+      "repository": "sqlite",
+      "cohort": "targets",
+      "counts": {
+        "completed": 6
+      }
+    },
+    {
+      "repository": "notepadpp",
+      "cohort": "ordinary",
+      "counts": {
+        "completed": 15,
+        "no_analyzable_change": 15
+      }
+    },
+    {
+      "repository": "notepadpp",
+      "cohort": "targets",
+      "counts": {
+        "completed": 6
+      }
+    },
+    {
+      "repository": "opencv",
+      "cohort": "ordinary",
+      "counts": {
+        "completed": 28,
+        "no_analyzable_change": 2
+      }
+    },
+    {
+      "repository": "opencv",
+      "cohort": "targets",
+      "counts": {
+        "completed": 4
+      }
+    }
+  ],
+  "recall": [
+    {
+      "cohort": "targets",
+      "type": "type1",
+      "scope": "independent_descendant",
+      "counts": {
+        "detected": 4,
+        "strict_correct_type": 4,
+        "ancestor_covered": 2,
+        "missed": 2
+      },
+      "targets": 8
+    },
+    {
+      "cohort": "targets",
+      "type": "type1",
+      "scope": "whole_construct",
+      "counts": {
+        "ancestor_covered": 2,
+        "detected": 11,
+        "strict_correct_type": 11,
+        "descendant_only": 5
+      },
+      "targets": 18
+    },
+    {
+      "cohort": "ordinary",
+      "type": "type1",
+      "scope": "independent_descendant",
+      "counts": {
+        "detected": 3,
+        "strict_correct_type": 3
+      },
+      "targets": 3
+    },
+    {
+      "cohort": "targets",
+      "type": "type2",
+      "scope": "independent_descendant",
+      "counts": {
+        "missed": 1
+      },
+      "targets": 1
+    }
+  ],
+  "output_validity": [
+    {
+      "cohort": "ordinary",
+      "type": "type2",
+      "unit": "one_to_one",
+      "scope": "independent_descendant",
+      "counts": {
+        "false_correspondence": 1
+      },
+      "tp": 0,
+      "fp": 1,
+      "unresolved": 0,
+      "adjudicated_precision": 0.0,
+      "precision_bounds": [
+        0.0,
+        0.0
+      ]
+    },
+    {
+      "cohort": "targets",
+      "type": "type1",
+      "unit": "one_to_one",
+      "scope": "independent_descendant",
+      "counts": {
+        "valid_independent": 4
+      },
+      "tp": 4,
+      "fp": 0,
+      "unresolved": 0,
+      "adjudicated_precision": 1.0,
+      "precision_bounds": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "targets",
+      "type": "type1",
+      "unit": "one_to_one",
+      "scope": "statement_sequence",
+      "counts": {
+        "valid_independent": 1
+      },
+      "tp": 1,
+      "fp": 0,
+      "unresolved": 0,
+      "adjudicated_precision": 1.0,
+      "precision_bounds": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "targets",
+      "type": "type1",
+      "unit": "one_to_one",
+      "scope": "file_unit",
+      "counts": {
+        "valid_independent": 1
+      },
+      "tp": 1,
+      "fp": 0,
+      "unresolved": 0,
+      "adjudicated_precision": 1.0,
+      "precision_bounds": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "targets",
+      "type": "type1",
+      "unit": "one_to_one",
+      "scope": "whole_construct",
+      "counts": {
+        "valid_independent": 20
+      },
+      "tp": 20,
+      "fp": 0,
+      "unresolved": 0,
+      "adjudicated_precision": 1.0,
+      "precision_bounds": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "ordinary",
+      "type": "type1",
+      "unit": "one_to_one",
+      "scope": "independent_descendant",
+      "counts": {
+        "valid_independent": 3
+      },
+      "tp": 3,
+      "fp": 0,
+      "unresolved": 0,
+      "adjudicated_precision": 1.0,
+      "precision_bounds": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "ordinary",
+      "type": "type1",
+      "unit": "repeated_group",
+      "scope": "unresolved",
+      "counts": {
+        "unresolved_group": 1
+      }
+    },
+    {
+      "cohort": "targets",
+      "type": "type1",
+      "unit": "one_to_one",
+      "scope": "unresolved",
+      "counts": {
+        "unresolved": 1
+      },
+      "tp": 0,
+      "fp": 0,
+      "unresolved": 1,
+      "adjudicated_precision": null,
+      "precision_bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "targets",
+      "type": "type1",
+      "unit": "repeated_group",
+      "scope": "unresolved",
+      "counts": {
+        "unresolved_group": 1
+      }
+    },
+    {
+      "cohort": "ordinary",
+      "type": "type2",
+      "unit": "one_to_one",
+      "scope": "carried_descendant",
+      "counts": {
+        "valid_carried": 1
+      },
+      "tp": 1,
+      "fp": 0,
+      "unresolved": 0,
+      "adjudicated_precision": 1.0,
+      "precision_bounds": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "ordinary",
+      "type": "type1",
+      "unit": "one_to_one",
+      "scope": "carried_descendant",
+      "counts": {
+        "valid_carried": 33
+      },
+      "tp": 33,
+      "fp": 0,
+      "unresolved": 0,
+      "adjudicated_precision": 1.0,
+      "precision_bounds": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "ordinary",
+      "type": "type1",
+      "unit": "one_to_one",
+      "scope": "whole_construct",
+      "counts": {
+        "valid_independent": 37
+      },
+      "tp": 37,
+      "fp": 0,
+      "unresolved": 0,
+      "adjudicated_precision": 1.0,
+      "precision_bounds": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "ordinary",
+      "type": "type1",
+      "unit": "repeated_group",
+      "scope": "group",
+      "counts": {
+        "unresolved_group": 16
+      }
+    },
+    {
+      "cohort": "ordinary",
+      "type": "type1",
+      "unit": "one_to_one",
+      "scope": "preprocessor_restructure",
+      "counts": {
+        "unresolved": 26
+      },
+      "tp": 0,
+      "fp": 0,
+      "unresolved": 26,
+      "adjudicated_precision": null,
+      "precision_bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "ordinary",
+      "type": "type2",
+      "unit": "one_to_one",
+      "scope": "preprocessor_restructure",
+      "counts": {
+        "unresolved": 7
+      },
+      "tp": 0,
+      "fp": 0,
+      "unresolved": 7,
+      "adjudicated_precision": null,
+      "precision_bounds": [
+        0.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "targets",
+      "type": "type1",
+      "unit": "one_to_one",
+      "scope": "carried_descendant",
+      "counts": {
+        "valid_carried": 58
+      },
+      "tp": 58,
+      "fp": 0,
+      "unresolved": 0,
+      "adjudicated_precision": 1.0,
+      "precision_bounds": [
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "cohort": "targets",
+      "type": "type1",
+      "unit": "repeated_group",
+      "scope": "group",
+      "counts": {
+        "unresolved_group": 6
+      }
+    }
+  ],
+  "limiting_stages": {
+    "selected": 18,
+    "selection": 4,
+    "whole_endpoint_not_exposed": 2,
+    "type2_candidate_eligibility": 1,
+    "candidate_filtering/subconstruct_only": 5
+  },
+  "mode_equivalence": {
+    "results-only:equivalent": 83,
+    "diagnostics:equivalent": 83
+  },
+  "type3_observations": [
+    {
+      "repository": "sqlite",
+      "cohort": "ordinary",
+      "groups": 1
+    },
+    {
+      "repository": "sqlite",
+      "cohort": "targets",
+      "groups": 2
+    },
+    {
+      "repository": "notepadpp",
+      "cohort": "ordinary",
+      "groups": 3
+    },
+    {
+      "repository": "notepadpp",
+      "cohort": "targets",
+      "groups": 1
+    },
+    {
+      "repository": "opencv",
+      "cohort": "ordinary",
+      "groups": 2
+    },
+    {
+      "repository": "opencv",
+      "cohort": "targets",
+      "groups": 17
+    }
+  ]
+}

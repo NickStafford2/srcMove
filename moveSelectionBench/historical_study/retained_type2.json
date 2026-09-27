@@ -1,0 +1,305 @@
+{
+  "schema_version": 1,
+  "reviewer": "Codex /root/sqlite_review",
+  "previously_exposed": true,
+  "detector_blind": false,
+  "cohort": "retained_development",
+  "oracle_status": "Eight previously claimed whole Type2 targets source-verified and frozen before this current replay; previous outcomes already known.",
+  "limitations": [
+    "Purposive previously exposed development evidence, not a held-out accuracy sample.",
+    "Only eight prescribed whole endpoints scored; other selected outputs not adjudicated for precision.",
+    "Retained srcDiff inputs are reused, their source reconstruction verified against exact Git revisions."
+  ],
+  "cases": [
+    {
+      "id": "sqlite-retained-type2",
+      "repository": "sqlite",
+      "parent": "991cbd78b37a4b6e6e305bc04ebd267af4c0f745",
+      "commit": "3d006d0d00cc79bb8cfb9dc63f2db2acb080ac82",
+      "previously_exposed": true,
+      "detector_blind": false,
+      "cohort": "retained_development",
+      "input_srcdiff": "benchmark-results/correspondence-phase4-history-next/sqlite/extension_move_rename/srcdiff.xml",
+      "source_files": [
+        {
+          "side": "old",
+          "path": "ext/misc/analyze.c",
+          "sha256": "b1ba9c0e8fd54c2f0dd14c3b8fad93f3700f8050cc18010b67344e9d0fce0741"
+        },
+        {
+          "side": "new",
+          "path": "ext/misc/diskused.c",
+          "sha256": "12e6b677339089d38c1b4ce7260defd9af2b6b6a36d38ff4519d7a654ab1dbaa"
+        }
+      ],
+      "events": [
+        {
+          "id": "sqlite-analysisReset",
+          "type": "type2",
+          "scope": "whole_construct",
+          "construct_kind": "function",
+          "parent_event": null,
+          "old": {
+            "path": "ext/misc/analyze.c",
+            "start_line": 43,
+            "end_line": 54,
+            "text": "static void analysisReset(Analysis *p){\n  if( p->zSU ){\n    char *zSql = sqlite3_mprintf(\"DROP TABLE temp.%s;\", p->zSU);\n    if( zSql ){\n      sqlite3_exec(p->db, zSql, 0, 0, 0);\n      sqlite3_free(zSql);\n    }\n  }\n  sqlite3_str_free(p->pOut);\n  sqlite3_free(p->zSU);\n  memset(p, 0, sizeof(*p));\n}\n",
+            "text_sha256": "8cfa3b341964ef12e277fe69361c5baff4119b7588f5820969a6060cf0fa4876"
+          },
+          "new": {
+            "path": "ext/misc/diskused.c",
+            "start_line": 52,
+            "end_line": 63,
+            "text": "static void diskusedReset(DiskUsed *p){\n  if( p->zSU ){\n    char *zSql = sqlite3_mprintf(\"DROP TABLE temp.%s;\", p->zSU);\n    if( zSql ){\n      sqlite3_exec(p->db, zSql, 0, 0, 0);\n      sqlite3_free(zSql);\n    }\n  }\n  sqlite3_str_free(p->pOut);\n  sqlite3_free(p->zSU);\n  memset(p, 0, sizeof(*p));\n}\n",
+            "text_sha256": "8ee7ecf4164e797e7837484e5d73b3c7a5f3cbed60ff1111a9ab5ed0c0a4088e"
+          },
+          "source_review": "confirmed_whole_type2",
+          "identifier_mapping": {
+            "analysisReset": "diskusedReset",
+            "Analysis": "DiskUsed"
+          },
+          "source_rationale": "Complete function transfers to another real repository path. Applying only the listed consistent identifier substitutions reproduces the new function byte-for-byte, including unchanged body order and literals. Children are carried, not independent targets."
+        },
+        {
+          "id": "sqlite-analysisPrepare",
+          "type": "type2",
+          "scope": "whole_construct",
+          "construct_kind": "function",
+          "parent_event": null,
+          "old": {
+            "path": "ext/misc/analyze.c",
+            "start_line": 99,
+            "end_line": 106,
+            "text": "static sqlite3_stmt *analysisPrepare(Analysis *p, const char *zFormat, ...){\n  va_list ap;\n  sqlite3_stmt *pStmt = 0;\n  va_start(ap, zFormat);\n  pStmt = analysisVPrep(p,zFormat,ap);\n  va_end(ap);\n  return pStmt;\n}\n",
+            "text_sha256": "2201ba2d9c24957fc306066a561f6ab939d489bf7bccc94e26a593691daf3253"
+          },
+          "new": {
+            "path": "ext/misc/diskused.c",
+            "start_line": 108,
+            "end_line": 115,
+            "text": "static sqlite3_stmt *diskusedPrepare(DiskUsed *p, const char *zFormat, ...){\n  va_list ap;\n  sqlite3_stmt *pStmt = 0;\n  va_start(ap, zFormat);\n  pStmt = diskusedVPrep(p,zFormat,ap);\n  va_end(ap);\n  return pStmt;\n}\n",
+            "text_sha256": "377f050ce20c6412f4f1f9859e07986869abf9f454342ce63ad4eff9d1bf899d"
+          },
+          "source_review": "confirmed_whole_type2",
+          "identifier_mapping": {
+            "analysisPrepare": "diskusedPrepare",
+            "Analysis": "DiskUsed",
+            "analysisVPrep": "diskusedVPrep"
+          },
+          "source_rationale": "Complete function transfers to another real repository path. Applying only the listed consistent identifier substitutions reproduces the new function byte-for-byte, including unchanged body order and literals. Children are carried, not independent targets."
+        },
+        {
+          "id": "sqlite-analysisPercent",
+          "type": "type2",
+          "scope": "whole_construct",
+          "construct_kind": "function",
+          "parent_event": null,
+          "old": {
+            "path": "ext/misc/analyze.c",
+            "start_line": 251,
+            "end_line": 271,
+            "text": "static void analysisPercent(Analysis *p, double r){\n  char zNum[100];\n  char *zDP;\n  int nLeadingDigit;\n  int sz;\n  sqlite3_snprintf(sizeof(zNum)-5, zNum, r>=10.0 ? \"%.3g\" :\"%.2g\", r);\n  sz = (int)strlen(zNum);\n  zDP = strchr(zNum, '.');\n  if( zDP==0 ){\n    memcpy(zNum+sz,\".0\",3);\n    nLeadingDigit = sz;\n    sz += 2;\n  }else{\n    nLeadingDigit = (int)(zDP - zNum);\n  }\n  if( nLeadingDigit<3 ){\n    sqlite3_str_appendchar(p->pOut, 3-nLeadingDigit, ' ');\n  }\n  sqlite3_str_append(p->pOut, zNum, sz);\n  sqlite3_str_append(p->pOut, \"%\\n\", 2);\n}\n",
+            "text_sha256": "eca0fc7aba0e38a61030190e177205d3b706ae3bc8107f01e7f3175063eab694"
+          },
+          "new": {
+            "path": "ext/misc/diskused.c",
+            "start_line": 260,
+            "end_line": 280,
+            "text": "static void diskusedPercent(DiskUsed *p, double r){\n  char zNum[100];\n  char *zDP;\n  int nLeadingDigit;\n  int sz;\n  sqlite3_snprintf(sizeof(zNum)-5, zNum, r>=10.0 ? \"%.3g\" :\"%.2g\", r);\n  sz = (int)strlen(zNum);\n  zDP = strchr(zNum, '.');\n  if( zDP==0 ){\n    memcpy(zNum+sz,\".0\",3);\n    nLeadingDigit = sz;\n    sz += 2;\n  }else{\n    nLeadingDigit = (int)(zDP - zNum);\n  }\n  if( nLeadingDigit<3 ){\n    sqlite3_str_appendchar(p->pOut, 3-nLeadingDigit, ' ');\n  }\n  sqlite3_str_append(p->pOut, zNum, sz);\n  sqlite3_str_append(p->pOut, \"%\\n\", 2);\n}\n",
+            "text_sha256": "4d3a5c92539745651647d702332b5aaa06869e8bcd20fe0fc23bae845011f9f4"
+          },
+          "source_review": "confirmed_whole_type2",
+          "identifier_mapping": {
+            "analysisPercent": "diskusedPercent",
+            "Analysis": "DiskUsed"
+          },
+          "source_rationale": "Complete function transfers to another real repository path. Applying only the listed consistent identifier substitutions reproduces the new function byte-for-byte, including unchanged body order and literals. Children are carried, not independent targets."
+        }
+      ],
+      "input_srcdiff_sha256": "d915f9ad4d69b523dee33ea54a6bd3bd7a4cd07f29c57a67af135f4e134227cb",
+      "source_provenance_verified": [
+        {
+          "path": "ext/misc/analyze.c",
+          "side": "old",
+          "git_equals_snapshot": true,
+          "xml_reconstructs_full_git_source": true
+        },
+        {
+          "path": "ext/misc/diskused.c",
+          "side": "new",
+          "git_equals_snapshot": true,
+          "xml_reconstructs_full_git_source": true
+        }
+      ]
+    },
+    {
+      "id": "notepadpp-retained-type2",
+      "repository": "notepadpp",
+      "parent": "40eb02ab1fef76227f8af0809e947b2b12660969",
+      "commit": "fd02b9df00a129b8e6c318c8d5f101c5a7f2a340",
+      "previously_exposed": true,
+      "detector_blind": false,
+      "cohort": "retained_development",
+      "input_srcdiff": "benchmark-results/correspondence-phase4-history-next/notepadpp/localization_transfer/srcdiff.xml",
+      "source_files": [
+        {
+          "side": "old",
+          "path": "PowerEditor/src/NppLocalization.cpp",
+          "sha256": "75e1091c36d0200ba3d080d808acad9eb38f231b3b6526bf567d0f8950bcbe66"
+        },
+        {
+          "side": "new",
+          "path": "PowerEditor/src/localization.cpp",
+          "sha256": "e991b614ac25c6aa3f07b70ddc12927a4ac3a217dfa7855dd84625335f569dc0"
+        }
+      ],
+      "events": [
+        {
+          "id": "notepadpp-changeStyleCtrlsLang",
+          "type": "type2",
+          "scope": "whole_construct",
+          "construct_kind": "function",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/NppLocalization.cpp",
+            "start_line": 556,
+            "end_line": 580,
+            "text": "void Notepad_plus::changeStyleCtrlsLang(HWND hDlg, int *idArray, const char **translatedText)\r\n{\r\n\tconst int iColorStyle = 0;\r\n\tconst int iUnderline = 8;\r\n\r\n\tHWND hItem;\r\n\tfor (int i = iColorStyle ; i < (iUnderline + 1) ; i++)\r\n\t{\r\n\t\tif (translatedText[i] && translatedText[i][0])\r\n\t\t{\r\n\t\t\thItem = ::GetDlgItem(hDlg, idArray[i]);\r\n\t\t\tif (hItem)\r\n\t\t\t{\r\n#ifdef UNICODE\r\n\t\t\t\tWcharMbcsConvertor *wmc = WcharMbcsConvertor::getInstance();\r\n\t\t\t\tconst wchar_t *nameW = wmc->char2wchar(translatedText[i], _nativeLangEncoding);\r\n\t\t\t\t::SetWindowText(hItem, nameW);\r\n#else\r\n\t\t\t\t::SetWindowText(hItem, translatedText[i]);\r\n#endif\r\n\t\t\t\t\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n}\r\n",
+            "text_sha256": "d9300923c475d8944feb6a9b2d4936f39bfb8cc24fcaa59e6b88cd0b027e0f3e"
+          },
+          "new": {
+            "path": "PowerEditor/src/localization.cpp",
+            "start_line": 596,
+            "end_line": 620,
+            "text": "void NativeLangSpeaker::changeStyleCtrlsLang(HWND hDlg, int *idArray, const char **translatedText)\r\n{\r\n\tconst int iColorStyle = 0;\r\n\tconst int iUnderline = 8;\r\n\r\n\tHWND hItem;\r\n\tfor (int i = iColorStyle ; i < (iUnderline + 1) ; i++)\r\n\t{\r\n\t\tif (translatedText[i] && translatedText[i][0])\r\n\t\t{\r\n\t\t\thItem = ::GetDlgItem(hDlg, idArray[i]);\r\n\t\t\tif (hItem)\r\n\t\t\t{\r\n#ifdef UNICODE\r\n\t\t\t\tWcharMbcsConvertor *wmc = WcharMbcsConvertor::getInstance();\r\n\t\t\t\tconst wchar_t *nameW = wmc->char2wchar(translatedText[i], _nativeLangEncoding);\r\n\t\t\t\t::SetWindowText(hItem, nameW);\r\n#else\r\n\t\t\t\t::SetWindowText(hItem, translatedText[i]);\r\n#endif\r\n\t\t\t\t\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n}\r\n",
+            "text_sha256": "f538856d7585d4143e02dc24a018622e89342617c598990f29a4a631f1ddc9d5"
+          },
+          "source_review": "confirmed_whole_type2",
+          "identifier_mapping": {
+            "Notepad_plus": "NativeLangSpeaker"
+          },
+          "source_rationale": "Complete function transfers to another real repository path. Applying only the listed consistent identifier substitutions reproduces the new function byte-for-byte, including unchanged body order and literals. Children are carried, not independent targets."
+        },
+        {
+          "id": "notepadpp-changeShortcutLang",
+          "type": "type2",
+          "scope": "whole_construct",
+          "construct_kind": "function",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/NppLocalization.cpp",
+            "start_line": 884,
+            "end_line": 960,
+            "text": "void Notepad_plus::changeShortcutLang()\r\n{\r\n\tif (!_nativeLangA) return;\r\n\r\n\tNppParameters * pNppParam = NppParameters::getInstance();\r\n\tvector<CommandShortcut> & mainshortcuts = pNppParam->getUserShortcuts();\r\n\tvector<ScintillaKeyMap> & scinshortcuts = pNppParam->getScintillaKeyList();\r\n\tint mainSize = (int)mainshortcuts.size();\r\n\tint scinSize = (int)scinshortcuts.size();\r\n\r\n\tTiXmlNodeA *shortcuts = _nativeLangA->FirstChild(\"Shortcuts\");\r\n\tif (!shortcuts) return;\r\n\r\n\tshortcuts = shortcuts->FirstChild(\"Main\");\r\n\tif (!shortcuts) return;\r\n\r\n\tTiXmlNodeA *entriesRoot = shortcuts->FirstChild(\"Entries\");\r\n\tif (!entriesRoot) return;\r\n\r\n\tfor (TiXmlNodeA *childNode = entriesRoot->FirstChildElement(\"Item\");\r\n\t\tchildNode ;\r\n\t\tchildNode = childNode->NextSibling(\"Item\") )\r\n\t{\r\n\t\tTiXmlElementA *element = childNode->ToElement();\r\n\t\tint index, id;\r\n\t\tif (element->Attribute(\"index\", &index) && element->Attribute(\"id\", &id))\r\n\t\t{\r\n\t\t\tif (index > -1 && index < mainSize) { //valid index only\r\n\t\t\t\tconst char *name = element->Attribute(\"name\");\r\n\t\t\t\tCommandShortcut & csc = mainshortcuts[index];\r\n\t\t\t\tif (csc.getID() == (unsigned long)id) \r\n\t\t\t\t{\r\n#ifdef UNICODE\r\n\t\t\t\t\tWcharMbcsConvertor *wmc = WcharMbcsConvertor::getInstance();\r\n\t\t\t\t\tconst wchar_t * nameW = wmc->char2wchar(name, _nativeLangEncoding);\r\n\t\t\t\t\tcsc.setName(nameW);\r\n#else\r\n\t\t\t\t\tcsc.setName(name);\r\n#endif\r\n\t\t\t\t}\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n\r\n\t//Scintilla\r\n\tshortcuts = _nativeLangA->FirstChild(\"Shortcuts\");\r\n\tif (!shortcuts) return;\r\n\r\n\tshortcuts = shortcuts->FirstChild(\"Scintilla\");\r\n\tif (!shortcuts) return;\r\n\r\n\tentriesRoot = shortcuts->FirstChild(\"Entries\");\r\n\tif (!entriesRoot) return;\r\n\r\n\tfor (TiXmlNodeA *childNode = entriesRoot->FirstChildElement(\"Item\");\r\n\t\tchildNode ;\r\n\t\tchildNode = childNode->NextSibling(\"Item\") )\r\n\t{\r\n\t\tTiXmlElementA *element = childNode->ToElement();\r\n\t\tint index;\r\n\t\tif (element->Attribute(\"index\", &index))\r\n\t\t{\r\n\t\t\tif (index > -1 && index < scinSize) { //valid index only\r\n\t\t\t\tconst char *name = element->Attribute(\"name\");\r\n\t\t\t\tScintillaKeyMap & skm = scinshortcuts[index];\r\n#ifdef UNICODE\r\n\t\t\t\tWcharMbcsConvertor *wmc = WcharMbcsConvertor::getInstance();\r\n\t\t\t\tconst wchar_t * nameW = wmc->char2wchar(name, _nativeLangEncoding);\r\n\t\t\t\tskm.setName(nameW);\r\n#else\r\n\t\t\t\tskm.setName(name);\r\n#endif\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n\r\n}\r\n",
+            "text_sha256": "24437aa5b4639fc671bcecac7032cbccf0ca901ddc17c2de8fe9710235e631f3"
+          },
+          "new": {
+            "path": "PowerEditor/src/localization.cpp",
+            "start_line": 924,
+            "end_line": 1000,
+            "text": "void NativeLangSpeaker::changeShortcutLang()\r\n{\r\n\tif (!_nativeLangA) return;\r\n\r\n\tNppParameters * pNppParam = NppParameters::getInstance();\r\n\tvector<CommandShortcut> & mainshortcuts = pNppParam->getUserShortcuts();\r\n\tvector<ScintillaKeyMap> & scinshortcuts = pNppParam->getScintillaKeyList();\r\n\tint mainSize = (int)mainshortcuts.size();\r\n\tint scinSize = (int)scinshortcuts.size();\r\n\r\n\tTiXmlNodeA *shortcuts = _nativeLangA->FirstChild(\"Shortcuts\");\r\n\tif (!shortcuts) return;\r\n\r\n\tshortcuts = shortcuts->FirstChild(\"Main\");\r\n\tif (!shortcuts) return;\r\n\r\n\tTiXmlNodeA *entriesRoot = shortcuts->FirstChild(\"Entries\");\r\n\tif (!entriesRoot) return;\r\n\r\n\tfor (TiXmlNodeA *childNode = entriesRoot->FirstChildElement(\"Item\");\r\n\t\tchildNode ;\r\n\t\tchildNode = childNode->NextSibling(\"Item\") )\r\n\t{\r\n\t\tTiXmlElementA *element = childNode->ToElement();\r\n\t\tint index, id;\r\n\t\tif (element->Attribute(\"index\", &index) && element->Attribute(\"id\", &id))\r\n\t\t{\r\n\t\t\tif (index > -1 && index < mainSize) { //valid index only\r\n\t\t\t\tconst char *name = element->Attribute(\"name\");\r\n\t\t\t\tCommandShortcut & csc = mainshortcuts[index];\r\n\t\t\t\tif (csc.getID() == (unsigned long)id) \r\n\t\t\t\t{\r\n#ifdef UNICODE\r\n\t\t\t\t\tWcharMbcsConvertor *wmc = WcharMbcsConvertor::getInstance();\r\n\t\t\t\t\tconst wchar_t * nameW = wmc->char2wchar(name, _nativeLangEncoding);\r\n\t\t\t\t\tcsc.setName(nameW);\r\n#else\r\n\t\t\t\t\tcsc.setName(name);\r\n#endif\r\n\t\t\t\t}\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n\r\n\t//Scintilla\r\n\tshortcuts = _nativeLangA->FirstChild(\"Shortcuts\");\r\n\tif (!shortcuts) return;\r\n\r\n\tshortcuts = shortcuts->FirstChild(\"Scintilla\");\r\n\tif (!shortcuts) return;\r\n\r\n\tentriesRoot = shortcuts->FirstChild(\"Entries\");\r\n\tif (!entriesRoot) return;\r\n\r\n\tfor (TiXmlNodeA *childNode = entriesRoot->FirstChildElement(\"Item\");\r\n\t\tchildNode ;\r\n\t\tchildNode = childNode->NextSibling(\"Item\") )\r\n\t{\r\n\t\tTiXmlElementA *element = childNode->ToElement();\r\n\t\tint index;\r\n\t\tif (element->Attribute(\"index\", &index))\r\n\t\t{\r\n\t\t\tif (index > -1 && index < scinSize) { //valid index only\r\n\t\t\t\tconst char *name = element->Attribute(\"name\");\r\n\t\t\t\tScintillaKeyMap & skm = scinshortcuts[index];\r\n#ifdef UNICODE\r\n\t\t\t\tWcharMbcsConvertor *wmc = WcharMbcsConvertor::getInstance();\r\n\t\t\t\tconst wchar_t * nameW = wmc->char2wchar(name, _nativeLangEncoding);\r\n\t\t\t\tskm.setName(nameW);\r\n#else\r\n\t\t\t\tskm.setName(name);\r\n#endif\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n\r\n}\r\n",
+            "text_sha256": "cba40c3f0eaddbffa59d6deba0d2cb71ac15f839b8e6b5e6c44af38bfa2b0c4c"
+          },
+          "source_review": "confirmed_whole_type2",
+          "identifier_mapping": {
+            "Notepad_plus": "NativeLangSpeaker"
+          },
+          "source_rationale": "Complete function transfers to another real repository path. Applying only the listed consistent identifier substitutions reproduces the new function byte-for-byte, including unchanged body order and literals. Children are carried, not independent targets."
+        },
+        {
+          "id": "notepadpp-changeShortcutmapperLang",
+          "type": "type2",
+          "scope": "whole_construct",
+          "construct_kind": "function",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/NppLocalization.cpp",
+            "start_line": 962,
+            "end_line": 994,
+            "text": "void Notepad_plus::changeShortcutmapperLang(ShortcutMapper * sm)\r\n{\r\n\tif (!_nativeLangA) return;\r\n\r\n\tTiXmlNodeA *shortcuts = _nativeLangA->FirstChild(\"Dialog\");\r\n\tif (!shortcuts) return;\r\n\r\n\tshortcuts = shortcuts->FirstChild(\"ShortcutMapper\");\r\n\tif (!shortcuts) return;\r\n\r\n\tfor (TiXmlNodeA *childNode = shortcuts->FirstChildElement(\"Item\");\r\n\t\tchildNode ;\r\n\t\tchildNode = childNode->NextSibling(\"Item\") )\r\n\t{\r\n\t\tTiXmlElementA *element = childNode->ToElement();\r\n\t\tint index;\r\n\t\tif (element->Attribute(\"index\", &index))\r\n\t\t{\r\n\t\t\tif (index > -1 && index < 5)  //valid index only\r\n\t\t\t{\r\n\t\t\t\tconst char *name = element->Attribute(\"name\");\r\n\r\n#ifdef UNICODE\r\n\t\t\t\tWcharMbcsConvertor *wmc = WcharMbcsConvertor::getInstance();\r\n\t\t\t\tconst wchar_t * nameW = wmc->char2wchar(name, _nativeLangEncoding);\r\n\t\t\t\tsm->translateTab(index, nameW);\r\n#else\r\n\t\t\t\tsm->translateTab(index, name);\r\n#endif\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n}\r\n",
+            "text_sha256": "8b17642bad562122839883dba2e6674143e83c68696fcb00888633403e16b124"
+          },
+          "new": {
+            "path": "PowerEditor/src/localization.cpp",
+            "start_line": 1002,
+            "end_line": 1034,
+            "text": "void NativeLangSpeaker::changeShortcutmapperLang(ShortcutMapper * sm)\r\n{\r\n\tif (!_nativeLangA) return;\r\n\r\n\tTiXmlNodeA *shortcuts = _nativeLangA->FirstChild(\"Dialog\");\r\n\tif (!shortcuts) return;\r\n\r\n\tshortcuts = shortcuts->FirstChild(\"ShortcutMapper\");\r\n\tif (!shortcuts) return;\r\n\r\n\tfor (TiXmlNodeA *childNode = shortcuts->FirstChildElement(\"Item\");\r\n\t\tchildNode ;\r\n\t\tchildNode = childNode->NextSibling(\"Item\") )\r\n\t{\r\n\t\tTiXmlElementA *element = childNode->ToElement();\r\n\t\tint index;\r\n\t\tif (element->Attribute(\"index\", &index))\r\n\t\t{\r\n\t\t\tif (index > -1 && index < 5)  //valid index only\r\n\t\t\t{\r\n\t\t\t\tconst char *name = element->Attribute(\"name\");\r\n\r\n#ifdef UNICODE\r\n\t\t\t\tWcharMbcsConvertor *wmc = WcharMbcsConvertor::getInstance();\r\n\t\t\t\tconst wchar_t * nameW = wmc->char2wchar(name, _nativeLangEncoding);\r\n\t\t\t\tsm->translateTab(index, nameW);\r\n#else\r\n\t\t\t\tsm->translateTab(index, name);\r\n#endif\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n}\r\n",
+            "text_sha256": "9d1f9f79a609f6e6a61e1f3f407b97891eae7488bb0c29068fbad714b67c93d8"
+          },
+          "source_review": "confirmed_whole_type2",
+          "identifier_mapping": {
+            "Notepad_plus": "NativeLangSpeaker"
+          },
+          "source_rationale": "Complete function transfers to another real repository path. Applying only the listed consistent identifier substitutions reproduces the new function byte-for-byte, including unchanged body order and literals. Children are carried, not independent targets."
+        },
+        {
+          "id": "notepadpp-searchDlgNode",
+          "type": "type2",
+          "scope": "whole_construct",
+          "construct_kind": "function",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/NppLocalization.cpp",
+            "start_line": 997,
+            "end_line": 1009,
+            "text": "TiXmlNodeA * Notepad_plus::searchDlgNode(TiXmlNodeA *node, const char *dlgTagName)\r\n{\r\n\tTiXmlNodeA *dlgNode = node->FirstChild(dlgTagName);\r\n\tif (dlgNode) return dlgNode;\r\n\tfor (TiXmlNodeA *childNode = node->FirstChildElement();\r\n\t\tchildNode ;\r\n\t\tchildNode = childNode->NextSibling() )\r\n\t{\r\n\t\tdlgNode = searchDlgNode(childNode, dlgTagName);\r\n\t\tif (dlgNode) return dlgNode;\r\n\t}\r\n\treturn NULL;\r\n}\r\n",
+            "text_sha256": "374522bcf6880703d9650d4a66db6d1ddac6984fd91542a67f85bfd5296b89c7"
+          },
+          "new": {
+            "path": "PowerEditor/src/localization.cpp",
+            "start_line": 1037,
+            "end_line": 1049,
+            "text": "TiXmlNodeA * NativeLangSpeaker::searchDlgNode(TiXmlNodeA *node, const char *dlgTagName)\r\n{\r\n\tTiXmlNodeA *dlgNode = node->FirstChild(dlgTagName);\r\n\tif (dlgNode) return dlgNode;\r\n\tfor (TiXmlNodeA *childNode = node->FirstChildElement();\r\n\t\tchildNode ;\r\n\t\tchildNode = childNode->NextSibling() )\r\n\t{\r\n\t\tdlgNode = searchDlgNode(childNode, dlgTagName);\r\n\t\tif (dlgNode) return dlgNode;\r\n\t}\r\n\treturn NULL;\r\n}\r\n",
+            "text_sha256": "90610364ee162e05788ea0e57b9b6a45582c170ad84ed954256b65866ea3821b"
+          },
+          "source_review": "confirmed_whole_type2",
+          "identifier_mapping": {
+            "Notepad_plus": "NativeLangSpeaker"
+          },
+          "source_rationale": "Complete function transfers to another real repository path. Applying only the listed consistent identifier substitutions reproduces the new function byte-for-byte, including unchanged body order and literals. Children are carried, not independent targets."
+        },
+        {
+          "id": "notepadpp-changeDlgLang",
+          "type": "type2",
+          "scope": "whole_construct",
+          "construct_kind": "function",
+          "parent_event": null,
+          "old": {
+            "path": "PowerEditor/src/NppLocalization.cpp",
+            "start_line": 1011,
+            "end_line": 1066,
+            "text": "bool Notepad_plus::changeDlgLang(HWND hDlg, const char *dlgTagName, char *title)\r\n{\r\n\tif (title)\r\n\t\ttitle[0] = '\\0';\r\n\r\n\tif (!_nativeLangA) return false;\r\n\r\n\tTiXmlNodeA *dlgNode = _nativeLangA->FirstChild(\"Dialog\");\r\n\tif (!dlgNode) return false;\r\n\r\n\tdlgNode = searchDlgNode(dlgNode, dlgTagName);\r\n\tif (!dlgNode) return false;\r\n\r\n#ifdef UNICODE\r\n\tWcharMbcsConvertor *wmc = WcharMbcsConvertor::getInstance();\r\n#endif\r\n\r\n\t// Set Title\r\n\tconst char *titre = (dlgNode->ToElement())->Attribute(\"title\");\r\n\tif ((titre && titre[0]) && hDlg)\r\n\t{\r\n#ifdef UNICODE\r\n\t\tconst wchar_t *nameW = wmc->char2wchar(titre, _nativeLangEncoding);\r\n\t\t::SetWindowText(hDlg, nameW);\r\n#else\r\n\t\t::SetWindowText(hDlg, titre);\r\n#endif\r\n\t\tif (title)\r\n\t\t\tstrcpy(title, titre);\r\n\t}\r\n\r\n\t// Set the text of child control\r\n\tfor (TiXmlNodeA *childNode = dlgNode->FirstChildElement(\"Item\");\r\n\t\tchildNode ;\r\n\t\tchildNode = childNode->NextSibling(\"Item\") )\r\n\t{\r\n\t\tTiXmlElementA *element = childNode->ToElement();\r\n\t\tint id;\r\n\t\tconst char *sentinel = element->Attribute(\"id\", &id);\r\n\t\tconst char *name = element->Attribute(\"name\");\r\n\t\tif (sentinel && (name && name[0]))\r\n\t\t{\r\n\t\t\tHWND hItem = ::GetDlgItem(hDlg, id);\r\n\t\t\tif (hItem)\r\n\t\t\t{\r\n#ifdef UNICODE\r\n\t\t\t\tconst wchar_t *nameW = wmc->char2wchar(name, _nativeLangEncoding);\r\n\t\t\t\t::SetWindowText(hItem, nameW);\r\n#else\r\n\t\t\t\t::SetWindowText(hItem, name);\r\n#endif\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n\treturn true;\r\n}\r\n",
+            "text_sha256": "663286005824463e5f1d7c6c6ca1ae495c534f3f7e75d5984958131d3761edc4"
+          },
+          "new": {
+            "path": "PowerEditor/src/localization.cpp",
+            "start_line": 1051,
+            "end_line": 1106,
+            "text": "bool NativeLangSpeaker::changeDlgLang(HWND hDlg, const char *dlgTagName, char *title)\r\n{\r\n\tif (title)\r\n\t\ttitle[0] = '\\0';\r\n\r\n\tif (!_nativeLangA) return false;\r\n\r\n\tTiXmlNodeA *dlgNode = _nativeLangA->FirstChild(\"Dialog\");\r\n\tif (!dlgNode) return false;\r\n\r\n\tdlgNode = searchDlgNode(dlgNode, dlgTagName);\r\n\tif (!dlgNode) return false;\r\n\r\n#ifdef UNICODE\r\n\tWcharMbcsConvertor *wmc = WcharMbcsConvertor::getInstance();\r\n#endif\r\n\r\n\t// Set Title\r\n\tconst char *titre = (dlgNode->ToElement())->Attribute(\"title\");\r\n\tif ((titre && titre[0]) && hDlg)\r\n\t{\r\n#ifdef UNICODE\r\n\t\tconst wchar_t *nameW = wmc->char2wchar(titre, _nativeLangEncoding);\r\n\t\t::SetWindowText(hDlg, nameW);\r\n#else\r\n\t\t::SetWindowText(hDlg, titre);\r\n#endif\r\n\t\tif (title)\r\n\t\t\tstrcpy(title, titre);\r\n\t}\r\n\r\n\t// Set the text of child control\r\n\tfor (TiXmlNodeA *childNode = dlgNode->FirstChildElement(\"Item\");\r\n\t\tchildNode ;\r\n\t\tchildNode = childNode->NextSibling(\"Item\") )\r\n\t{\r\n\t\tTiXmlElementA *element = childNode->ToElement();\r\n\t\tint id;\r\n\t\tconst char *sentinel = element->Attribute(\"id\", &id);\r\n\t\tconst char *name = element->Attribute(\"name\");\r\n\t\tif (sentinel && (name && name[0]))\r\n\t\t{\r\n\t\t\tHWND hItem = ::GetDlgItem(hDlg, id);\r\n\t\t\tif (hItem)\r\n\t\t\t{\r\n#ifdef UNICODE\r\n\t\t\t\tconst wchar_t *nameW = wmc->char2wchar(name, _nativeLangEncoding);\r\n\t\t\t\t::SetWindowText(hItem, nameW);\r\n#else\r\n\t\t\t\t::SetWindowText(hItem, name);\r\n#endif\r\n\t\t\t}\r\n\t\t}\r\n\t}\r\n\treturn true;\r\n}\r\n",
+            "text_sha256": "df18ac94bb7a9527e49eeebaf1dce8f8c6ff0b4a621eefc70ad7c9d114b90e56"
+          },
+          "source_review": "confirmed_whole_type2",
+          "identifier_mapping": {
+            "Notepad_plus": "NativeLangSpeaker"
+          },
+          "source_rationale": "Complete function transfers to another real repository path. Applying only the listed consistent identifier substitutions reproduces the new function byte-for-byte, including unchanged body order and literals. Children are carried, not independent targets."
+        }
+      ],
+      "input_srcdiff_sha256": "8be0a76dd14950cfd770bda60bdcacbdec2daf56b067617c7bfb57341d229c53",
+      "source_provenance_verified": [
+        {
+          "path": "PowerEditor/src/NppLocalization.cpp",
+          "side": "old",
+          "git_equals_snapshot": true,
+          "xml_reconstructs_full_git_source": true
+        },
+        {
+          "path": "PowerEditor/src/localization.cpp",
+          "side": "new",
+          "git_equals_snapshot": true,
+          "xml_reconstructs_full_git_source": true
+        }
+      ]
+    }
+  ]
+}

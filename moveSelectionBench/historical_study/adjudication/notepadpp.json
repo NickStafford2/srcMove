@@ -1,0 +1,1248 @@
+{
+  "schema_version": 1,
+  "repository": "notepadpp",
+  "reviewer": "Codex /root/notepad_review post-output source adjudicator",
+  "detector_blind": false,
+  "method": "Compare every selected Type1/Type2 output group with Git source and exact srcdiff XPath positions/text; verify execution artifact receipts and frozen source line hashes. Apply source-only second-review confirmations without modifying frozen labels. Output indices are zero based in results.json moves array. No-source-change cases have no detector JSON by design.",
+  "source_review_sha256": "7d8407088d309b9f51e13ea6ee4a755953b83d088ace75d44dea456167171a75",
+  "second_review_sha256": "837244dc0ca18c842cbad1edf8463a23010a234d1b551567e0169e77a42e4350",
+  "cases": [
+    {
+      "id": "notepadpp-ordinary-01",
+      "cohort": "ordinary",
+      "parent": "bf5987d337efb44e28933ed107ef64c967baa213",
+      "commit": "de0a77ba7f9d0d81f5862f527e8afc2693ce49ff",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "03aa8938f286e03f1dbc90a454097c5914027e4c14e606630c716cfdcb7d0fc9",
+        "compare.stdout": "5e7883c74d72db2980ae1e31f27fbcd84dd724d5fbb6695b5f89dec6d83c7886",
+        "results.json": "4f312345398578e45685c6fe0b3413dd7b0a75233d7bb53591bb889df525d028",
+        "diagnostics.json": "80fecc9f0f17a2a789ddc238d1d3591cf54c9b82f0d47a248630115231a07a2f",
+        "diagnostics-run.command.json": "68811a5a75e96fdc173967dca2309d9eb8fcbf3bc629dcf4c947c14720beea57",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "4f312345398578e45685c6fe0b3413dd7b0a75233d7bb53591bb889df525d028",
+        "srcmove.xml": "ba6bf9a07ee83fff898f107dac6f41d6439820b93d545a2d23d9fb76ddfc9524",
+        "compare.command.json": "ce28c6e3edc6e5952622a8bb8f401e9569259aa37c785a3e13c2754798658143",
+        "execution.json": "6b977386fae475b798bcf15763187707317067c73b793cfbfb0c10864d4e1d20",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "2644d05391d42e41777085b5a9602283cf71ae0bbaedec1209a3ac9b14b33874"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-02",
+      "cohort": "ordinary",
+      "parent": "e52bb94d1ba1b1ec941cc9da9598bf06334fb657",
+      "commit": "bf5987d337efb44e28933ed107ef64c967baa213",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "ff5197b217af0bb00c5dcb319f29fb9cf1656b11f137d22ebbb6614eed043713",
+        "compare.stdout": "91883ee53e32009c3f077e267bb4ab11189ee0764ae2b5b9f0196e4f5ad42775",
+        "results.json": "b0ac431a23c07d4dcb06ca91246ab04592f3d4b0e7a073657cc1d36184ba6bfa",
+        "diagnostics.json": "5b5ea2a1b2def2c29674230d829a4505e1c1fa76bcdb4fbc7ac684dcdcc5bcc2",
+        "diagnostics-run.command.json": "b78494bf024d39dd4bafb08458f18e498d5f62292d2f9880ae46e60a88bedf3c",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "b0ac431a23c07d4dcb06ca91246ab04592f3d4b0e7a073657cc1d36184ba6bfa",
+        "srcmove.xml": "f01c3922a87d8f083f17dc9c0fb520ca7e4110193922c5ee74fb357839538e2a",
+        "compare.command.json": "cb34ec1f3e9a0aab99d4ca61267f2887c8d46456830b473c74d7fde37e09a4df",
+        "execution.json": "a2dd004718827665e194ef3f2f686fd33ad73c2e493a7543044099ed95b050b6",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "5681a4217a1867e280ca67ea8fc62ced71221a46ce2240018dd72e166742de72"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-03",
+      "cohort": "ordinary",
+      "parent": "e9113542ced88013e887ccd0e56c6aedf8e3246b",
+      "commit": "e52bb94d1ba1b1ec941cc9da9598bf06334fb657",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "5f542201420203edc6f263e18c2215a24c1af3fd330b35cea57e5de9f80d5760",
+        "compare.command.json": "2c9030f2f63a030408fcba9b58b1d087d4e1ae309348353995006d3f3b3884f1",
+        "execution.json": "2de4ccfe9f7448b3e7f3734f0d4b629b4ba3c078ab2b2845b81849a01fb8c09a"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-04",
+      "cohort": "ordinary",
+      "parent": "af5a1baef269127fb02931a63818d1bdcddbdb46",
+      "commit": "e9113542ced88013e887ccd0e56c6aedf8e3246b",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "a05b6f431cf404303e7e9bc56385405d2e540b48926aed15c6e720589fbde870",
+        "compare.stdout": "bc4a933114c9f61a1f1f80f02aef063f5bc39983dbb5f4967d5df33371dfe07d",
+        "results.json": "fe57c2435b30d90f95588873eafa22efe33172cc4938b459310c3ddb4f40e17a",
+        "diagnostics.json": "66ceb605144786d5229855d21cad469ea7bdb9eaadf6e385b4ec0ada0857230f",
+        "diagnostics-run.command.json": "adb3a7c2866a139834200d0cf86809b9391b719fbc04c73767643810fcb11885",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "fe57c2435b30d90f95588873eafa22efe33172cc4938b459310c3ddb4f40e17a",
+        "srcmove.xml": "f71a938c5a99bc87c9f1a314b2a7a662a04eb999edcf093bd5bebd87fa2e55bd",
+        "compare.command.json": "d9e4cfcd2f4f1ecf7568d0933220969cdcf405fb4d9842279d348fa2a7058568",
+        "execution.json": "6788fb59bae31ce9f53daf2435226ec9c2b5c52c03f073ac11540c630ce5f1d8",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "4704eccc305c9e9faa27c4729c458057e1afc67fe496e242aa2ccfab660d8b84"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-05",
+      "cohort": "ordinary",
+      "parent": "39419d36a8f7db47cdc51fce755d5a4807edef75",
+      "commit": "af5a1baef269127fb02931a63818d1bdcddbdb46",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "d795edf1cb643108f0a26b3beabc65716e49ef026d9a0652fdf4641ecdf7032d",
+        "compare.stdout": "981140c4d1afb1675e64d838ecb0ebc87252dd73e48ca451e00effcfe8ede3c9",
+        "results.json": "f7395935a753294efe00d63c2f3f1547bfcb4c95442c159c1d7360a81ccc811d",
+        "diagnostics.json": "2ad249841a4194a97bd7506117d92c37cd964ebcde1b53847b4f01c60fd54177",
+        "diagnostics-run.command.json": "f6550f73a0f5d62cd4d45b95d6d967708d6998b7b8b4a80249ed619351a944fe",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "f7395935a753294efe00d63c2f3f1547bfcb4c95442c159c1d7360a81ccc811d",
+        "srcmove.xml": "326d2b8d0dfcf60af919183652a6f42eed0f65e6130d5ade6d16dce59719045c",
+        "compare.command.json": "31cddbe731f2e8e675f1fd12e59d8b53c829b740765f2637f22ccdb292748227",
+        "execution.json": "e46195b74506e7de344729d081a2a5e02b57fb0e1648c89d9009d75fe2c2d8fd",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "f8450c5b865ca339735dec9e698ff90dbbe72dda587a34839b1c7a2a057a57e2"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-06",
+      "cohort": "ordinary",
+      "parent": "4f6711674e5a8ce41ac01bededfff8d6e5882676",
+      "commit": "39419d36a8f7db47cdc51fce755d5a4807edef75",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "692948ba0c8383c3c12cb70825b94bc4f97aa83730c1afb8abcf7f578765585d",
+        "compare.command.json": "b5be1cf80c4adba19c27ad4f106f7ece713ef8fa6e262cadcc71913b77542594",
+        "execution.json": "84c4bd1216521ff8003535a1cab38a6ff3e42b231b785d8458225b97135a74ac"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-07",
+      "cohort": "ordinary",
+      "parent": "8315de0a5d0750b3a64f07739e4fc31d6b49f8c5",
+      "commit": "4f6711674e5a8ce41ac01bededfff8d6e5882676",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "75d77582f63592825686e5d8ecc489729058f426bf53ed0c649ecd850b29b754",
+        "compare.command.json": "d330c687784858090b0309b6d6f7b22a25cb58f6529e753a9caa59de210e14d1",
+        "execution.json": "23e76679540218577e66c064a555feec2e71d570453b7fdcf699adaef8ed1686"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-08",
+      "cohort": "ordinary",
+      "parent": "65888f0de73f7b8a85866f30729166c8eb118885",
+      "commit": "8315de0a5d0750b3a64f07739e4fc31d6b49f8c5",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "7359a9562fc7e98060e32b54bc685a7b76e3ba7b6ae4dac57784fd6be690931d",
+        "compare.command.json": "75d48761be359212bf253e6f5551daee2e5f619549fbcb2d4674abaa9e05e91b",
+        "execution.json": "046096b451df7ffaef4c3a7ebe3c0b6e70ca4a3fb56a129e53a8ee83a5980460"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-09",
+      "cohort": "ordinary",
+      "parent": "007a23038edc121eddc9d6bacba6af5acf3b0c5e",
+      "commit": "65888f0de73f7b8a85866f30729166c8eb118885",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "604acdcd15f26651269ed9af0fb9faa841eb454354cf5bfe2888610ec568b487",
+        "compare.stdout": "ef4f379a5b040191df971d9cb724b4ecf50fd6c6fb7ae5bb6da42c3271d8c87c",
+        "results.json": "e78680daa8b0a8d23c56fdab0650e0d5043fce4465d3d3809cc742ee9da29099",
+        "diagnostics.json": "b195b417a93efa21a59a50312a7c123994a7c52a4947d549ef6b60b01163bd57",
+        "diagnostics-run.command.json": "3440ae6d123d910e1dc60ddbf30ed64973b5dbfd93d7e7559b52626512f85905",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "e78680daa8b0a8d23c56fdab0650e0d5043fce4465d3d3809cc742ee9da29099",
+        "srcmove.xml": "ba1fcff8b27e39db16b14cbdcd4afeeaec8227adb38847d41e147dbac1e7bf28",
+        "compare.command.json": "4563ef039327500f1bb3a4523cd4e99cfbfde1424f451c665867b5c3c9d9fc83",
+        "execution.json": "2416561ffdaf25cf187fe7b470afc3c22eff82433c3b5aa04794c09ec7134e8b",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "cd333650ff077c9a646e26c6c410e8af97f2c4aa6e7780ac4cd4b329919cc8ef"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-10",
+      "cohort": "ordinary",
+      "parent": "9f54785853da953a5dd851ead4ac49b24e190e93",
+      "commit": "007a23038edc121eddc9d6bacba6af5acf3b0c5e",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "4bd9b38614333e24c794a180ccbf637c9173a852f03f7b1257fb7c19126c2dfb",
+        "compare.stdout": "682188364385feddfc14c567bb1dcfdbc3d6f34e7b5b9b819af794c763d876cb",
+        "results.json": "dffd41190de917b7f1d95517b57159edd483f0a972dbc8ba66bb9ae5de043199",
+        "diagnostics.json": "29eb14c3b4a7a9cb07b1b0b2c7e450c9daf9139536097fb62b9152d7ad0970a9",
+        "diagnostics-run.command.json": "56ade52209555eff5465c664cb71388d22ae32e8b5297a6ae0e086b3c6494b75",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "dffd41190de917b7f1d95517b57159edd483f0a972dbc8ba66bb9ae5de043199",
+        "srcmove.xml": "e2dcfb84d107a15d2381dc85f4c694148184be1ab4e6cee547017456d5ab3634",
+        "compare.command.json": "73c2b26dcb7d05c413593e6c2f0139888ad41b81414eb41aaed5ebc7da372b93",
+        "execution.json": "98060f307cb5d189af683c3f6f07395354dc6fe68ca4127ee0a7e9b97d3eb6b9",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "aa78ebcdefae99d8973cfc004ea5ee356e873c508c0bf72bcf813910ce18a45d"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-11",
+      "cohort": "ordinary",
+      "parent": "10d4f2ef8c124aff2a7f4371e14f1d4b10842fa8",
+      "commit": "9f54785853da953a5dd851ead4ac49b24e190e93",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "5d1109862808f222363c7a1413d054e7f406dfbeb605ff253fdc86be12071e38",
+        "compare.stdout": "9dba93afc2861856cbd4270c0a972a559061bc47f9f05efef97a0ff9e85349a3",
+        "results.json": "b6a02bb84075b54787f62da4ccdb4495c531516c48adc32b43f1e73a7fa8fe11",
+        "diagnostics.json": "32b2108aba291a1512993b9e3c1312880ad9df51f0b7c9f5bc77aefa5e0fd464",
+        "diagnostics-run.command.json": "9ab14e7c97b0bf680c7ddced5df5eea3f9346b2c5d581c4e8470afbbccfbc1e6",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "b6a02bb84075b54787f62da4ccdb4495c531516c48adc32b43f1e73a7fa8fe11",
+        "srcmove.xml": "39dc48f48bd2e51d9628ccfe4dd148241a71775deb32cfb9c47b74c27d46bf50",
+        "compare.command.json": "00fb7ed48e2d914c698642e73e30595fd56885a65e77f52e83d5f31d26098764",
+        "execution.json": "defd1c0f057c4f134b4da5dc5dc82462fc03546a55162c3bcadff0619879ed66",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "4cdee9bee237a31486f1ed827ab03b7db5272c36cfa0518c1bb95d2147eb1cba"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-12",
+      "cohort": "ordinary",
+      "parent": "e59774add26b0130d38aaf722aceb0259ccc0078",
+      "commit": "10d4f2ef8c124aff2a7f4371e14f1d4b10842fa8",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "709ad0f26eb53173c7dd67e2718548e89cd6db5b69985f3bee83faf5ea89c1ce",
+        "compare.stdout": "5a68c184989e5ba6c45f45da7366930b090112841a00b749cfadd5632e8e5aac",
+        "results.json": "279a81985f0b3919523b8c440e2ede5ad9326e415f85323136174a86b600309c",
+        "diagnostics.json": "c66dfb2b6b37c310022485b3e715a70ad0f9ec18911e64e32ca318ca40b0b61b",
+        "diagnostics-run.command.json": "36379b27f3023960b2a9dc80832aa8624bcc80e3b140a084d985fbdf661bf414",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "279a81985f0b3919523b8c440e2ede5ad9326e415f85323136174a86b600309c",
+        "srcmove.xml": "2dd162d50f530231816aada0edfcbb1ebbd6ebaa4a11424fec2e1cff6cb7714c",
+        "compare.command.json": "aae2dd8944db0970f5385fdcdc9f54776c995443a5705e27e065769b557d08ed",
+        "execution.json": "2cd74b959cc8e270388c67b18db61e219cb08e6d78e8211c73b557d7e79ccdfe",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "59dcf5fb4457436618ffecd7ac8166b9b167f6e977f9e16f2e279d9a239dfcd4"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-13",
+      "cohort": "ordinary",
+      "parent": "bf9f8b4c9549dadd23f483190dd1e1e4707da3ea",
+      "commit": "e59774add26b0130d38aaf722aceb0259ccc0078",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "0ca1dd3373e78a7c633472e852fe72b8dc87b8a187d785a86adb6e586c890ea5",
+        "compare.stdout": "57aaf1055c956adfcdbbd349b03ca44998e7a63cbc4a1172598aa502e9ffdd3c",
+        "results.json": "a0c0b469a9a4100a9657c2f6cac9b747d02e45aab3c00e15ad287ace9f6243ab",
+        "diagnostics.json": "8b5ae96802a2c4f8f6da994800371e9fe1542e5194e16cac4a265909fcb2ac68",
+        "diagnostics-run.command.json": "1da84375542ffcdbefab93a94dcf2d146b69b0f5aeb2b5db66fe12038aab68fa",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "a0c0b469a9a4100a9657c2f6cac9b747d02e45aab3c00e15ad287ace9f6243ab",
+        "srcmove.xml": "04bb327ade3180f85fc75c279d422c57e033f81453a5e6a196e994eb7b85e311",
+        "compare.command.json": "de09cb2b7dfd2dfecc7eeae5faeff77ee469f942bc691fbb756eb33e20ad202d",
+        "execution.json": "ee69e9a83dd455899b19de2d406e0023a22fbc07b31ba562c94e857b88cae664",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "ed84f103ffbb5b83a3986093b706ea70a77b97c1b9c0490eb80241718c19f01d"
+      },
+      "outputs": [
+        {
+          "index": 0,
+          "type": "type1",
+          "verdict": "valid_independent",
+          "scope": "independent_descendant",
+          "rationale": "Exact SetIdle declaration crosses the retained timers/FineTicker declaration sequence; complete declaration, not whole class.",
+          "endpoints": {
+            "from": [
+              {
+                "xpath": "/src:unit[@filename='scintilla/win32/ScintillaWin.cxx']/src:namespace[3]/src:block[1]/src:class[1]/src:block[1]/src:private[1]/diff:delete[1]/diff:delete[3]/src:function_decl[src:name='SetIdle']",
+                "raw_text": "bool SetIdle(bool on) override;",
+                "path": "scintilla/win32/ScintillaWin.cxx",
+                "start_line": 656,
+                "end_line": 656,
+                "text_sha256": "4ef76b4028b8ab73a3cd86970c8eea59232cdfdf497b5ed8d83ebf540c60112c"
+              }
+            ],
+            "to": [
+              {
+                "xpath": "/src:unit[@filename='scintilla/win32/ScintillaWin.cxx']/src:namespace[3]/src:block[1]/src:class[1]/src:block[1]/src:private[1]/diff:insert[1]/diff:insert[1]/src:function_decl[src:name='SetIdle']",
+                "raw_text": "bool SetIdle(bool on) override;",
+                "path": "scintilla/win32/ScintillaWin.cxx",
+                "start_line": 658,
+                "end_line": 658,
+                "text_sha256": "4ef76b4028b8ab73a3cd86970c8eea59232cdfdf497b5ed8d83ebf540c60112c"
+              }
+            ]
+          }
+        },
+        {
+          "index": 1,
+          "type": "type1",
+          "verdict": "valid_independent",
+          "scope": "independent_descendant",
+          "rationale": "Exact IdleWork declaration crosses the retained timers/FineTicker declaration sequence; complete declaration, not whole class.",
+          "endpoints": {
+            "from": [
+              {
+                "xpath": "/src:unit[@filename='scintilla/win32/ScintillaWin.cxx']/src:namespace[3]/src:block[1]/src:class[1]/src:block[1]/src:private[1]/diff:delete[1]/diff:delete[1]/src:function_decl[src:name='IdleWork']",
+                "raw_text": "void IdleWork() override;",
+                "path": "scintilla/win32/ScintillaWin.cxx",
+                "start_line": 654,
+                "end_line": 654,
+                "text_sha256": "4f6d1d172f7891eecfa8e761c0ee8cb9bddf1083dcee4373b1a9fce9ca0227b8"
+              }
+            ],
+            "to": [
+              {
+                "xpath": "/src:unit[@filename='scintilla/win32/ScintillaWin.cxx']/src:namespace[3]/src:block[1]/src:class[1]/src:block[1]/src:private[1]/diff:insert[1]/diff:insert[2]/src:function_decl[src:name='IdleWork']",
+                "raw_text": "void IdleWork() override;",
+                "path": "scintilla/win32/ScintillaWin.cxx",
+                "start_line": 659,
+                "end_line": 659,
+                "text_sha256": "4f6d1d172f7891eecfa8e761c0ee8cb9bddf1083dcee4373b1a9fce9ca0227b8"
+              }
+            ]
+          }
+        },
+        {
+          "index": 2,
+          "type": "type1",
+          "verdict": "unresolved_group",
+          "scope": "unresolved",
+          "rationale": "One old RetrieveLineLayout assignment becomes two identical assignments in the new multiThreaded if/else branches within the rewritten WrapBlock lambda. Source supports duplication and restructuring; no unique one-to-one independent movement is established. Do not expand the group into two true-positive moves.",
+          "endpoints": {
+            "from": [
+              {
+                "xpath": "/src:unit[@filename='scintilla/src/Editor.cxx']/src:function[81]/src:block[1]/src:block_content[1]/diff:delete[2]/src:for[1]/src:block[1]/src:block_content[1]/src:decl_stmt[1]/src:decl[src:name='fut']/src:init[1]/src:expr[1]/src:call[1]/src:argument_list[1]/src:argument[2]/src:expr[1]/src:lambda[1]/src:block[1]/src:block_content[1]/src:while[1]/src:block[1]/src:block_content[1]/src:if_stmt[2]/src:if[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]/src:if[1]/src:block[1]/src:block_content[1]/src:expr_stmt[1]",
+                "raw_text": "ll = view.RetrieveLineLayout(lineNumber, *this);",
+                "path": "scintilla/src/Editor.cxx",
+                "start_line": 1595,
+                "end_line": 1595,
+                "text_sha256": "2fafeed2e1e8695a483d346bd318deefba23ea7c2a53a447cd4e3fa43ecb713d"
+              }
+            ],
+            "to": [
+              {
+                "xpath": "/src:unit[@filename='scintilla/src/Editor.cxx']/src:function[81]/src:block[1]/src:block_content[1]/diff:insert[1]/src:expr_stmt[1]/src:expr[1]/src:call[1]/src:argument_list[1]/src:argument[2]/src:expr[1]/src:lambda[1]/src:block[1]/src:block_content[1]/src:while[1]/src:block[1]/src:block_content[1]/src:if_stmt[2]/src:if[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]/src:if[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]/src:if[1]/src:block[1]/src:block_content[1]/src:expr_stmt[1]",
+                "raw_text": "ll = view.RetrieveLineLayout(lineNumber, *this);",
+                "path": "scintilla/src/Editor.cxx",
+                "start_line": 1595,
+                "end_line": 1595,
+                "text_sha256": "7963a0988caf955c051edb5eb431b1cbe0cf999aa838db7184330175099e7eb1"
+              },
+              {
+                "xpath": "/src:unit[@filename='scintilla/src/Editor.cxx']/src:function[81]/src:block[1]/src:block_content[1]/diff:insert[1]/src:expr_stmt[1]/src:expr[1]/src:call[1]/src:argument_list[1]/src:argument[2]/src:expr[1]/src:lambda[1]/src:block[1]/src:block_content[1]/src:while[1]/src:block[1]/src:block_content[1]/src:if_stmt[2]/src:if[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]/src:if[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]/src:else[1]/src:block[1]/src:block_content[1]/src:expr_stmt[1]",
+                "raw_text": "ll = view.RetrieveLineLayout(lineNumber, *this);",
+                "path": "scintilla/src/Editor.cxx",
+                "start_line": 1598,
+                "end_line": 1598,
+                "text_sha256": "7963a0988caf955c051edb5eb431b1cbe0cf999aa838db7184330175099e7eb1"
+              }
+            ]
+          }
+        },
+        {
+          "index": 4,
+          "type": "type1",
+          "verdict": "valid_independent",
+          "scope": "independent_descendant",
+          "rationale": "Exact QueueIdleWork declaration crosses the retained timers/FineTicker declaration sequence; complete declaration, not whole class.",
+          "endpoints": {
+            "from": [
+              {
+                "xpath": "/src:unit[@filename='scintilla/win32/ScintillaWin.cxx']/src:namespace[3]/src:block[1]/src:class[1]/src:block[1]/src:private[1]/diff:delete[1]/diff:delete[2]/src:function_decl[src:name='QueueIdleWork']",
+                "raw_text": "void QueueIdleWork(WorkItems items, Sci::Position upTo) override;",
+                "path": "scintilla/win32/ScintillaWin.cxx",
+                "start_line": 655,
+                "end_line": 655,
+                "text_sha256": "0efdbce650637cfc1268aecf43278bbea49c4957dbe2731cf7cca85ccf11fa21"
+              }
+            ],
+            "to": [
+              {
+                "xpath": "/src:unit[@filename='scintilla/win32/ScintillaWin.cxx']/src:namespace[3]/src:block[1]/src:class[1]/src:block[1]/src:private[1]/diff:insert[1]/diff:insert[3]/src:function_decl[src:name='QueueIdleWork']",
+                "raw_text": "void QueueIdleWork(WorkItems items, Sci::Position upTo) override;",
+                "path": "scintilla/win32/ScintillaWin.cxx",
+                "start_line": 660,
+                "end_line": 660,
+                "text_sha256": "0efdbce650637cfc1268aecf43278bbea49c4957dbe2731cf7cca85ccf11fa21"
+              }
+            ]
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "notepadpp-ordinary-13-event-01",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "outcome": "detected",
+          "limiting_stage": "selected",
+          "output_index": 1,
+          "rationale": "Exact file and inclusive source line endpoints match selected complete construct; raw XML text matches Git source. No enclosing or descendant-only substitution.",
+          "selected_indices": [
+            1
+          ]
+        },
+        {
+          "id": "notepadpp-ordinary-13-event-02",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "outcome": "detected",
+          "limiting_stage": "selected",
+          "output_index": 4,
+          "rationale": "Exact file and inclusive source line endpoints match selected complete construct; raw XML text matches Git source. No enclosing or descendant-only substitution.",
+          "selected_indices": [
+            4
+          ]
+        },
+        {
+          "id": "notepadpp-ordinary-13-event-03",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "outcome": "detected",
+          "limiting_stage": "selected",
+          "output_index": 0,
+          "rationale": "Exact file and inclusive source line endpoints match selected complete construct; raw XML text matches Git source. No enclosing or descendant-only substitution.",
+          "selected_indices": [
+            0
+          ]
+        }
+      ],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-14",
+      "cohort": "ordinary",
+      "parent": "366406ab48893ae6a5f55cf3309eb5e0faa21ab1",
+      "commit": "bf9f8b4c9549dadd23f483190dd1e1e4707da3ea",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "00405dd5013018d77bfa11b09db5e1ec77eac6ed44e64142c5eb01cbe48b5942",
+        "compare.command.json": "adc1371ab065955cdd1a29889f10b1f2b3786c4a5f58751d1999dfcf0e0ce55d",
+        "execution.json": "d2b9f76c83e5e87dcbd79dc22953362681e3e79ea14e49cf87b206cd0506074f"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-15",
+      "cohort": "ordinary",
+      "parent": "0b2b8442f319e669aabae3b82ba30b29a98e5a94",
+      "commit": "366406ab48893ae6a5f55cf3309eb5e0faa21ab1",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "8e7f516cd6fbdc517778f3632cfc61cf8ef0f987c4c3b48c3299150a33a895e5",
+        "compare.command.json": "b479876e18ab2248cb2089578703bd8b60525e64d7ed2fe264a8babefa018168",
+        "execution.json": "7f0609a2c5346e6f3f047972b5f07d5eea39b9bcdbb5ec659568e9b7f5a39903"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-16",
+      "cohort": "ordinary",
+      "parent": "b8dd0e72bb1041da4b5a78c75c267b120007b6ab",
+      "commit": "0b2b8442f319e669aabae3b82ba30b29a98e5a94",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "2fac9b01d1acdfe010d7b5c853981f218bcc77fba35c06ed015053f32a8c167d",
+        "compare.stdout": "7a9f576e7942e190bbf8031deb3949f66712e758b7d418e8595975c84f9e1266",
+        "results.json": "9809c5157b766839d12458d79d66be8a3b95a62814fd6b66c20538bb548c78fe",
+        "diagnostics.json": "0aaed15f299b5ae7c4c55f8f2b26490e1ef438e72c1618b1b3b3aeedcfd395af",
+        "diagnostics-run.command.json": "1c381e0482e2963d92bdaa9e9e8e57b20e2cf9c917a23b48c174db7d6b45ee1b",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "9809c5157b766839d12458d79d66be8a3b95a62814fd6b66c20538bb548c78fe",
+        "srcmove.xml": "2c206249bcd15648c7bca34ae089bb9fbd79c38c5f7700d4ad5b7d853e5d29b1",
+        "compare.command.json": "143b95c00d05a51997e8d3d5aca97e53cd5b6bb4ad7bbc7565c8260037def3d7",
+        "execution.json": "17e50e03a6dae6e34bd386bc34567ebcaf4544c2067b95cda185f06e93d00342",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "90653b47618fa6769604edbf2a81a4821d640675d7d60b486ca5d1695ce32bc1"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-17",
+      "cohort": "ordinary",
+      "parent": "c647879f8a0238081247c57c0e0ad9ff3dbd2de2",
+      "commit": "b8dd0e72bb1041da4b5a78c75c267b120007b6ab",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "f3c018c5efe1526ecaf0efdef34fea6b45625ef6b528d379246c25b536e56dd5",
+        "compare.command.json": "4d190006347495d1712f6ecc37619a8f0790773ef8c20611b38c13e2a72dbf41",
+        "execution.json": "367723385daeb95b5e886c8d31445de60e0ad2d727dd902fd664ce726b26ee25"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-18",
+      "cohort": "ordinary",
+      "parent": "4d57b8ec637f8931765b6f838ff60884a51b3175",
+      "commit": "c647879f8a0238081247c57c0e0ad9ff3dbd2de2",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "15aecae158ffdcde2f3ef6a37c3934522be7aaef1f1066c0bfabf75e00cbee22",
+        "compare.command.json": "e5878f085864e2ff704a804d192b4887036233e886199207b0311f1ae9c4589c",
+        "execution.json": "92c90c41aa6e34fb844c16daddc2c11b991f52b618730862efee54acb5cd697f"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-19",
+      "cohort": "ordinary",
+      "parent": "0fdbf4c502a353ac2527d310d3cefc7f095ecd1a",
+      "commit": "4d57b8ec637f8931765b6f838ff60884a51b3175",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "197aec34c8b42609862fcf9d5d119de7387d6ab79a4ea51d141239dce7509901",
+        "compare.command.json": "7a057664df3abaaa7da6dca4f2a21a413f6c4cb5227792bd0acac0d1a27f5377",
+        "execution.json": "c0bd765e89860dc0b63750a8b8c421914e872d9aa3daf458725e6fa851051739"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-20",
+      "cohort": "ordinary",
+      "parent": "2ccb9d7abbf4c096d4a109f98c30d7e83fc6cb3f",
+      "commit": "0fdbf4c502a353ac2527d310d3cefc7f095ecd1a",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "e0a734fe5f3d7cc550b13c80e9d85b631132eabbaaa83932da9403dbc3aee5e4",
+        "compare.command.json": "310be3c2b9873de558279d5e31e20e6893c6c2385ee1e55c7c3735b4704bd43f",
+        "execution.json": "eed7aaf65fcfb7a52f2141881a2267bce42b09d2f8435981044d9c3d1d28bd82"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-21",
+      "cohort": "ordinary",
+      "parent": "1ede41f811847b871cdb245223c81bc33ebd1855",
+      "commit": "2ccb9d7abbf4c096d4a109f98c30d7e83fc6cb3f",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "91491438d6a0b19861a2cf0baa8622582b85db0457f204a1d552fa7364a2f17c",
+        "compare.command.json": "360d70b17881f047a8ec439d5d4742aa2a5bcf931f7ce0b643a6e751159056b9",
+        "execution.json": "631f0c6f2903208895b84f486f7c5056291d42b5c2ce8c4102da9c6f9d3aa9f2"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-22",
+      "cohort": "ordinary",
+      "parent": "a3fd3597ae221be18b5c14d307e86b17f38196f8",
+      "commit": "1ede41f811847b871cdb245223c81bc33ebd1855",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "55e9d4cf63f41c4c75f1376c569485c39c8e5ff269f3cfd9d8d7a123073f0d79",
+        "compare.command.json": "2abad8ac7b595c54ed2b8ea7dead1a02267f7e98b358b174eebfab0fbc66a489",
+        "execution.json": "731dcaab68c74ff55846381727514a6e5ee6cb423e285141bbf3c98bff03d870"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-23",
+      "cohort": "ordinary",
+      "parent": "151e1985156e30656ca6ace1be8324c2ce2cdc35",
+      "commit": "a3fd3597ae221be18b5c14d307e86b17f38196f8",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "3c8d60e5107edd0f57445ba62d5d243af2d584f51de6c596041a4dcfe16c0ece",
+        "compare.command.json": "4bb386f6ca258c2a978bc7615a04537a1f7cfa033840fab3905ca488fad9d1dc",
+        "execution.json": "5dd50471e49b4be3df9b0a37424bee9f570840d979ed969169fbf36455ded1b7"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-24",
+      "cohort": "ordinary",
+      "parent": "603f7008e0fcf9ad32996c1db9e9b4bc4742c875",
+      "commit": "151e1985156e30656ca6ace1be8324c2ce2cdc35",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "7576dc35ecb6cea3b31c3e2896d2c65de081c41119c22e4c047d3ab8a1eb9386",
+        "compare.command.json": "cb927140a9a25e1660439addbe1f622f2126fd2a98b81fd463a89d981b2c2e54",
+        "execution.json": "18e22e15e3d43d78a35ed22c8c1ffc22a7acea80312aecf554f780181524ad0b"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-25",
+      "cohort": "ordinary",
+      "parent": "89f9745483123b042dee152292ab329321b8fcd1",
+      "commit": "603f7008e0fcf9ad32996c1db9e9b4bc4742c875",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "37a8c14552fac87ef1d21d934fd10919fc0be722a0a1e4c2547da0ebd40d1350",
+        "compare.stdout": "c866ca25f6f633f9941508ef0209ca0992dd533268aa8b72d4f3bd20431c21f1",
+        "results.json": "4b843f4362fc2c0db1d562fefbe18e568c18e1a161a37a6f3c32f84e5eba244e",
+        "diagnostics.json": "65485663304aa8a2c6cd448294293516eb4695e06ae5cf7797ec950d3c5a22fa",
+        "diagnostics-run.command.json": "880029f870e967fecfc2c7ce2146981b3a6d4a58df5513eaaadfe050d08a6abc",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "4b843f4362fc2c0db1d562fefbe18e568c18e1a161a37a6f3c32f84e5eba244e",
+        "srcmove.xml": "cdd048e1d42d4b9b246086d23e561dd26329e088f577254c4b9ee3544735dad0",
+        "compare.command.json": "934c02c3fad06336f53c34eee97b55cb6788e11193b9ec75c0e06d66ac0ccff3",
+        "execution.json": "c60e3fee5496f3824bff5bfc9aff6a3e198ff4d6a7a361bf23e556cc88f24577",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "b593e86fb621299acf69226f04bbab35874131b3d629ad1756c520e98368eca1"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-26",
+      "cohort": "ordinary",
+      "parent": "f85033104f046c9e74b4ca9ee7fd2d9bbb9fba4d",
+      "commit": "89f9745483123b042dee152292ab329321b8fcd1",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "352646afef1134c011c02c851a9c5ce422d3ae3faa27b84781526c3859dcfd29",
+        "compare.stdout": "9a5510e39ccf1fe11c15dc56e2982f2d6ff70c811536ddd8b08dac4003b684c4",
+        "results.json": "332a7dcbadab39a4e12fc396ef361ad5757eb85bc0e9e174993668adebb18de9",
+        "diagnostics.json": "5d7a89315fefaa658571bba96b18a01db1f0eff1b8848b3e0c2329b9c3249262",
+        "diagnostics-run.command.json": "c687d52565d11860e61d72092097e8852b1b16bb6b984f680ae30e39e4334f71",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "332a7dcbadab39a4e12fc396ef361ad5757eb85bc0e9e174993668adebb18de9",
+        "srcmove.xml": "985e6fbbe126afb327249eb9262bdfc3840da970821088ea7f5fe3a0710bf6e1",
+        "compare.command.json": "3ae9b3efdf3962c46873acbbc1df12cf8bfca4ca496910658b9fa4e0e6adaa07",
+        "execution.json": "41415177a748b674012596db711898c46fda3c155cc0168f17d1f754ccdd2a2e",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "f8375e36162ca0687097590f40ed7f5e5525b4d9e5a445da47c010e39b1015d3"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-27",
+      "cohort": "ordinary",
+      "parent": "15f32ff6a4ef37c2a860c799f478c5c6441ac574",
+      "commit": "f85033104f046c9e74b4ca9ee7fd2d9bbb9fba4d",
+      "execution_status": "no_analyzable_change",
+      "artifact_sha256": {
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stdout": "e37d54550e1827c6b8d296bf3989d005559f0ba4290c11f632a87cdc1069d946",
+        "compare.command.json": "ede243fc61050d47f1d1dc689a6182aa505f032ae740510237c4bcb7ab4e6409",
+        "execution.json": "1afd1258610cc2a6cac0110c4de70b89209096b409ace5669ea025917b01e836"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "no_in_scope_source_changes"
+    },
+    {
+      "id": "notepadpp-ordinary-28",
+      "cohort": "ordinary",
+      "parent": "9d5eb7e47afc74523a2085ed25467634f6c4adc5",
+      "commit": "15f32ff6a4ef37c2a860c799f478c5c6441ac574",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "2f3d58d3d1b1461da16b559364fedb991a1341502c7c0e75371bc4bc6694fb30",
+        "compare.stdout": "c840504a479cdcc8e918f4d2561fab8c16e0a719b09f5f72f1528848382e1438",
+        "results.json": "b6716922acb8834a38dc77b8dbfcbb5e80f66fa95a411bf27426bf13a3119c4b",
+        "diagnostics.json": "47485611bd6fcdd6f7c46f30c83cd7bfb0e9b8cd3ddcf52d911c275fba2d0c67",
+        "diagnostics-run.command.json": "e8976ef3bd03acad650289e3f09de9e457fa0beb155fa10fcaf9d87c5ac8090f",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "b6716922acb8834a38dc77b8dbfcbb5e80f66fa95a411bf27426bf13a3119c4b",
+        "srcmove.xml": "7a635d6bb696c5449d1b28c5ec75905eeb9db32f4aa31f555f2fa55c1e1da403",
+        "compare.command.json": "f2f0861f0401a9b9449b58772a88a1d466fb26ab085f6b484b9522c0bc55f555",
+        "execution.json": "502f84486423a1f3da57db995955f14e32e43e43101dfd408381f8bdd39cafcb",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "29040d9d02b2e3e83427d21d082ca3da4469914a20be9706d3959fe51d3543ef"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-29",
+      "cohort": "ordinary",
+      "parent": "112e6d90e81afd1726a5ca25644a2e088f5416d3",
+      "commit": "9d5eb7e47afc74523a2085ed25467634f6c4adc5",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "7a6ff7f8edb00b1af735ddbb2bf4913162b3bf2f066b2ecfbe53155acc2a69e9",
+        "compare.stdout": "10249117b5eb6d693725bffb3dd156386994fd7edea731c79721014eb503832f",
+        "results.json": "cb503159bd4f6dcb977dbfde6cecf77c245ea7a6c716fc415b3b802b6b7a831b",
+        "diagnostics.json": "82acd5ee1192d40b1717e6f89acd45e4c23bf04614eb55f1bcc81180af30751b",
+        "diagnostics-run.command.json": "d43acc49dde3a60efcb7d6f3bc6377ca44e6f35f6280d20095a6fac9d397d5fa",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "cb503159bd4f6dcb977dbfde6cecf77c245ea7a6c716fc415b3b802b6b7a831b",
+        "srcmove.xml": "f0b46f5785297f3cc2a7e133e06af78c9fbebffbf2fdf8c5285158c3e8fbd30b",
+        "compare.command.json": "e986b7b6b26c3fa05165f58e5ca0ce96165d54ebcd13a1632c1a69ab141c062b",
+        "execution.json": "3ba03d449b5f7773693d300a792ceddab7c24fecfb9d8c22b2f4b259ba0e98ce",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "003b711eeab6a5c4045c4d2ca3f14fa19d1bc53682569c48acbaa9e3c9d22832"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-ordinary-30",
+      "cohort": "ordinary",
+      "parent": "c9a65d9c9d56b104cd785e658d89b8f7cdffb535",
+      "commit": "112e6d90e81afd1726a5ca25644a2e088f5416d3",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "b63afd642f213b7a73b444905563c04ab1c795c9249e99539cbee3098a6182f3",
+        "compare.stdout": "860da8134d74e1c54fe7fff78e2d0ae9b36428fee6fe3a766cdaffa2c8b5e686",
+        "results.json": "994ee955d464b792de0dacc46faaadb69bef1512261135edeafeb1222e69d583",
+        "diagnostics.json": "fe2ac56533e54dfd52bf047d7266c39eaeacc266ca1007d0691e22e2f6725329",
+        "diagnostics-run.command.json": "f6af06cda4f6cbb8cf2392c5c2c23f3feae1e78e3ddd3923ec386f3697183e85",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "994ee955d464b792de0dacc46faaadb69bef1512261135edeafeb1222e69d583",
+        "srcmove.xml": "fb4d41b843a7a13f33bf3ee199c46db4033700febaa38a24fadd10c622e5d024",
+        "compare.command.json": "4e6fc5509fdf01d876b7a134ecd23442bb55b0055500937836bc58082198a81b",
+        "execution.json": "0222baddfe1ee153ecf26af852247bc4ef1858910798e2dec1b000988e6db1c2",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "02aa990b2dd80e6b17faa8937f745c4cd152fede8cb3924274ceddf9eeca469c"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed"
+    },
+    {
+      "id": "notepadpp-target-03",
+      "cohort": "targets",
+      "parent": "1331002c74ad8b958ea2588e1508a7841626906c",
+      "commit": "a1f5405387df3f13d0addef8aba8a7ac5b484848",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "5b5f2064efcc00f18b321ca97317fe7a1b390b48ef4bfb9b613feb6b6f491259",
+        "compare.stdout": "e8f78f4b95a3eaf601ead7bcc092f350044931c62562a2fe3cfc0574603ec167",
+        "results.json": "3de1160058391ce285f8ead7f90beb18e75b6250d7db392e520ed20750a7fc2e",
+        "diagnostics.json": "e7e3b3497606a1578692b4645085736a93c0b4cf4e18d8d01658bfc41981a89c",
+        "diagnostics-run.command.json": "20648681e754faee8a2af6008d8be46d12ec956a18ce4fa26221491456e67682",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "3de1160058391ce285f8ead7f90beb18e75b6250d7db392e520ed20750a7fc2e",
+        "srcmove.xml": "ecdb43222c9ed5f5730369ae0bb47ca67cccf4b7c50008018f5c62c1bc6c2719",
+        "compare.command.json": "b2981a769faa68a8ad8278cf6c1c484e93207f81f82f69ffd8c491589e0d25d3",
+        "execution.json": "a2a7612ae37dbcbf0ebb6e64f587841477b651d0c0610c287b79da55b466028a",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "d4cff05d3b9fd3ff07262662142311f8f1bfa96d4200691c356990c62d69b45d"
+      },
+      "outputs": [
+        {
+          "index": 0,
+          "type": "type1",
+          "verdict": "valid_independent",
+          "scope": "independent_descendant",
+          "rationale": "Exact SQL-checkbox initialization transfers between continuing IndentationSubDlg and LanguageSubDlg handlers. XML positions equal independently frozen source endpoints.",
+          "endpoints": {
+            "from": [
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/WinControls/Preference/preferenceDlg.cpp']/src:function[28]/src:block[1]/src:block_content[1]/src:switch[1]/src:block[1]/src:block_content[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[1]",
+                "raw_text": "::SendDlgItemMessage(_hSelf, IDC_CHECK_BACKSLASHISESCAPECHARACTERFORSQL, BM_SETCHECK, nppGUI._backSlashIsEscapeCharacterForSql, 0);",
+                "path": "PowerEditor/src/WinControls/Preference/preferenceDlg.cpp",
+                "start_line": 3364,
+                "end_line": 3364,
+                "text_sha256": "363b76a150943abfd5883ca8a52dc3e916fed6a505e9b0d74ead0b89fa7b4a17"
+              }
+            ],
+            "to": [
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/WinControls/Preference/preferenceDlg.cpp']/src:function[29]/src:block[1]/src:block_content[1]/src:switch[1]/src:block[1]/src:block_content[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:expr_stmt[1]",
+                "raw_text": "::SendDlgItemMessage(_hSelf, IDC_CHECK_BACKSLASHISESCAPECHARACTERFORSQL, BM_SETCHECK, nppGUI._backSlashIsEscapeCharacterForSql, 0);",
+                "path": "PowerEditor/src/WinControls/Preference/preferenceDlg.cpp",
+                "start_line": 3791,
+                "end_line": 3791,
+                "text_sha256": "363b76a150943abfd5883ca8a52dc3e916fed6a505e9b0d74ead0b89fa7b4a17"
+              }
+            ]
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "notepadpp-target-03-event-01",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "outcome": "detected",
+          "limiting_stage": "selected",
+          "output_index": 0,
+          "rationale": "Exact file and inclusive source line endpoints match selected complete construct; raw XML text matches Git source. No enclosing or descendant-only substitution.",
+          "selected_indices": [
+            0
+          ]
+        }
+      ],
+      "source_inventory_limit": "source_reviewed_targeted"
+    },
+    {
+      "id": "notepadpp-target-13",
+      "cohort": "targets",
+      "parent": "106bdcc0164e819cc83f999bd4f95978ecf2f1ea",
+      "commit": "49340a87074dfc843c9634285fb14e905b9a24e0",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "17588a6140f08863132df49ff5b626d6c97109c37a65e8f52101016157274978",
+        "compare.stdout": "104fbfa6be375944af65e4c7ce1053f2267008261fafefd6f516c2b9f4bb0d1e",
+        "results.json": "88b29f7c2757ce0a297e22276ceb1d42b4a6facd3f7c980163a38b2a54f9f7a1",
+        "diagnostics.json": "764279fa0b665bc10faa5a7fcbf25b57f6a3956dd712dfa3f8fbe20d6a039edc",
+        "diagnostics-run.command.json": "2e2a5313a79ecf1b696fc5c92762bae94f7d87b8b3dc25a3489e8b2638d4cb7a",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "88b29f7c2757ce0a297e22276ceb1d42b4a6facd3f7c980163a38b2a54f9f7a1",
+        "srcmove.xml": "d9bcc2ee07e11b77554159e464e1c18845bfb1672649b11e477722c00dc1239b",
+        "compare.command.json": "5c70f161df007a60984cf65103048424aa8eeca9b2601fead417c0226e625a58",
+        "execution.json": "4827556c82d76dea7c4b57a387640ab95d9e21b7d82c34af6edebed98e360f00",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "a82ddc996729055280e610536342e0fdcf69ca9f181d33cc2b8e111b175be26e"
+      },
+      "outputs": [
+        {
+          "index": 1,
+          "type": "type1",
+          "verdict": "unresolved",
+          "scope": "unresolved",
+          "rationale": "Exact RECT rcTab{} declaration leaves initTabs and appears in rewritten getClientRect. Old use computes a tab-item rectangle via TCM_GETITEMRECT to reposition the tab control; new use obtains the mapped whole child rectangle to bound client layout. The short declaration is identical and related to tab geometry, but source alone cannot establish whether this is transferred declaration identity or independent replacement of a local scratch variable. Exclude from established true positives and show the uncertainty.",
+          "endpoints": {
+            "from": [
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/WinControls/Grid/ShortcutMapper.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[3]/src:decl_stmt[1]",
+                "raw_text": "RECT rcTab{};",
+                "path": "PowerEditor/src/WinControls/Grid/ShortcutMapper.cpp",
+                "start_line": 42,
+                "end_line": 42,
+                "text_sha256": "a6bc9153f721283b88332fbb937f40a1221080a58561b5d17e6bf4ab27b04d61"
+              }
+            ],
+            "to": [
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/WinControls/Grid/ShortcutMapper.cpp']/src:function[2]/src:block[1]/src:block_content[1]/diff:insert[1]/src:decl_stmt[1]",
+                "raw_text": "RECT rcTab{};",
+                "path": "PowerEditor/src/WinControls/Grid/ShortcutMapper.cpp",
+                "start_line": 46,
+                "end_line": 46,
+                "text_sha256": "a6bc9153f721283b88332fbb937f40a1221080a58561b5d17e6bf4ab27b04d61"
+              }
+            ]
+          }
+        }
+      ],
+      "events": [],
+      "source_inventory_limit": "source_reviewed_targeted"
+    },
+    {
+      "id": "notepadpp-target-14",
+      "cohort": "targets",
+      "parent": "d0e3a1a210c6a2ea5eb3e92db4c248added8ec9b",
+      "commit": "fb086bbcdaadc2b0c434948e0397c8395b6b3a94",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "b673ca96bfe9feebe954bad0d4e92530bbd4a8fac2d89220d9302a86b810d59c",
+        "compare.stdout": "e30e744150c0f291c4a9d504ad61e3b5fe5256be9ca58800026b39e40624e079",
+        "results.json": "7ea6e2cf7bdfe9721ce428927e008ae5e3c546b5fcade6d5e7c2547384e133e0",
+        "diagnostics.json": "1ecafc86158f3c35eccbe39594e730307634cb87b9d2252d64920397e86a01d4",
+        "diagnostics-run.command.json": "c0b7c3f78ee5ba13d3489bcb26f419cf4368c6c47dc3ca4f3fc1a30fce7686e8",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "7ea6e2cf7bdfe9721ce428927e008ae5e3c546b5fcade6d5e7c2547384e133e0",
+        "srcmove.xml": "42bd7cb2e4f083be6811b78b94b1940c0718e8af1223df9dbf8a81100bce4970",
+        "compare.command.json": "a0da8f8eab3447c9c88ee26f59eb37f716bd96e198084c49a047698465683b6f",
+        "execution.json": "f489251cbbb45a39358cf00115dd712f527e30d7c58905b5066114e79c084b4c",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "441a5d05a07e2dcf220e0e51df33681266a10ca36bd6adf7bdc9d6ee5dcddc38"
+      },
+      "outputs": [
+        {
+          "index": 0,
+          "type": "type1",
+          "verdict": "unresolved_group",
+          "scope": "unresolved",
+          "rationale": "Four identical centering statements in continuing doDialog methods are consolidated into one newly introduced StaticDialog::moveForDpiChange helper. This is a source-supported extraction/consolidation group, not four uniquely identified one-to-one movements; retain grouped uncertainty separately.",
+          "endpoints": {
+            "from": [
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/MISC/md5/md5Dlgs.cpp']/src:function[4]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[1]",
+                "raw_text": "goToCenter(SWP_HIDEWINDOW | SWP_NOSIZE | SWP_NOACTIVATE);",
+                "path": "PowerEditor/src/MISC/md5/md5Dlgs.cpp",
+                "start_line": 306,
+                "end_line": 306,
+                "text_sha256": "06723828699745e1319d2039772e6507a51712a6968378242fc1500da3869998"
+              },
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/MISC/md5/md5Dlgs.cpp']/src:function[10]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[1]",
+                "raw_text": "goToCenter(SWP_HIDEWINDOW | SWP_NOSIZE | SWP_NOACTIVATE);",
+                "path": "PowerEditor/src/MISC/md5/md5Dlgs.cpp",
+                "start_line": 662,
+                "end_line": 662,
+                "text_sha256": "06723828699745e1319d2039772e6507a51712a6968378242fc1500da3869998"
+              },
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/WinControls/AboutDlg/AboutDlg.cpp']/src:function[2]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[1]",
+                "raw_text": "goToCenter(SWP_HIDEWINDOW | SWP_NOSIZE | SWP_NOACTIVATE);",
+                "path": "PowerEditor/src/WinControls/AboutDlg/AboutDlg.cpp",
+                "start_line": 154,
+                "end_line": 154,
+                "text_sha256": "6ee1e3ccba303a79c21a571ee241aa0ff4e6523a809da21b19e60cc0b30c16d7"
+              },
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/WinControls/AboutDlg/AboutDlg.cpp']/src:function[4]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[1]",
+                "raw_text": "goToCenter(SWP_HIDEWINDOW | SWP_NOSIZE | SWP_NOACTIVATE);",
+                "path": "PowerEditor/src/WinControls/AboutDlg/AboutDlg.cpp",
+                "start_line": 436,
+                "end_line": 436,
+                "text_sha256": "6ee1e3ccba303a79c21a571ee241aa0ff4e6523a809da21b19e60cc0b30c16d7"
+              }
+            ],
+            "to": [
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/WinControls/StaticDialog/StaticDialog.cpp']/diff:insert[1]/src:function[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]/src:if[1]/src:block[1]/src:block_content[1]/src:expr_stmt[1]",
+                "raw_text": "goToCenter(SWP_HIDEWINDOW | SWP_NOSIZE | SWP_NOACTIVATE);",
+                "path": "PowerEditor/src/WinControls/StaticDialog/StaticDialog.cpp",
+                "start_line": 104,
+                "end_line": 104,
+                "text_sha256": "b735e0eb74d7fecae39472da6d86e113aa87571dbf26063eba46f030d7a6a7b0"
+              }
+            ]
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "notepadpp-target-14-event-01",
+          "type": "type2",
+          "scope": "independent_descendant",
+          "outcome": "missed",
+          "limiting_stage": "type2_candidate_eligibility",
+          "candidate_ids": [
+            22,
+            24
+          ],
+          "rationale": "Source and XML show getClientRect(_rc) at old AboutDlg.cpp:384 crossing retained setPositionDpi(lParam) to getWindowRect(_rc) at new:381 in DebugInfoDlg WM_DPICHANGED. Both exact expr_stmt endpoints are collected (diagnostics22/24), but region_filter.cpp:161-167 excludes expr_stmt from Type2 eligibility; content_group_builder.cpp:393-405 skips ineligible candidates. No output identifies this event, its enclosing construct, or a relevant descendant. This is a real lexical Type2 reorder with API-semantic change; eligibility is demonstrated first limiting stage. Call-anchor sufficiency is not tested because matching is already blocked.",
+          "code_evidence": [
+            "src/region_filter.cpp:161",
+            "src/region_filter.cpp:166",
+            "src/move_registry/content_group_builder.cpp:393",
+            "src/move_registry/content_group_builder.cpp:404"
+          ],
+          "selected_indices": []
+        }
+      ],
+      "source_inventory_limit": "source_reviewed_targeted"
+    },
+    {
+      "id": "notepadpp-target-16",
+      "cohort": "targets",
+      "parent": "e53bb4c88fe2e7c253519f3e5b7456f7fe793ec3",
+      "commit": "c64d706871d1770793160c047cbcae06f09333d2",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "57498a473f9a2f90bb758f440aa1d6542a0584f90faf274d6a1f1ea80a368bcb",
+        "compare.stdout": "45e9998655dfeb8605f9f9428b42b94d311d28ab1b8a9dfe6f465ee337383cda",
+        "results.json": "67f79be50dc5f0ba69719d26c9de763e77778a14dc461aba70bc370ae5fcdea6",
+        "diagnostics.json": "92ea10f0bcbee9c0cb097a2e27ba7505dc272ac630ca6da4c590df204b2bdcb5",
+        "diagnostics-run.command.json": "66a6d162c95d69d2dde2a0ec6b136dd0cccba0735f8b8a82820a5a4074e93276",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "67f79be50dc5f0ba69719d26c9de763e77778a14dc461aba70bc370ae5fcdea6",
+        "srcmove.xml": "8cc6a277a66b7de0427adc3f7be44d6d3290894f2522310c75752958cec756be",
+        "compare.command.json": "bc53d828444e2ba5c789d5d7984b3559208266dd13865fd02e541903fce4b43d",
+        "execution.json": "c733bf5e83d10e160bb7e148d58c7d62d7c97babde308ceb2864610ff796f3d0",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "d3e81f2ce9b3900c6f6933192aa6d979fd33e941d96da6f4a9669e13285eaa23"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed_targeted"
+    },
+    {
+      "id": "notepadpp-target-17",
+      "cohort": "targets",
+      "parent": "2531b4d12c4eddc6c0a519eb37c6edf25196619e",
+      "commit": "560f29fc8c7220a9bbbcab98ea3bfff6213671e5",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "5df58103caef5cfb1ba3a99f00fd803f4a0e8caafc640f4f18d223a3dbd20862",
+        "compare.stdout": "d117ff9b1abd5ac8313f32bef307b00b30562e4bad31a45c946984c08df0e007",
+        "results.json": "bd67535c17dfc275514490ec5f827e6bad0abf901f618aec8dc90bbbf9d4e88b",
+        "diagnostics.json": "173810eed1d771f172707634dec9ff74e6760f143b4fc4e3555b3ea56ce84ad2",
+        "diagnostics-run.command.json": "12d54f00b01841d15c166011dd0cc5ecb75e06b201927d4995d3def94366ee14",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "bd67535c17dfc275514490ec5f827e6bad0abf901f618aec8dc90bbbf9d4e88b",
+        "srcmove.xml": "c4275f0d15ecd5f9c04f234191107291a1e104e25a0462259046b5c382dcc9c5",
+        "compare.command.json": "f03b4faea3b2ae1a03d80b699185e5494af0756053fb4e87172604a39ffdef4e",
+        "execution.json": "5fc0b0078fffa157baec3cae7f24e950650a89fab685044f83922f9d4f4605b2",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "59df3c17e98843074eb994511fe84188759b4fc25c3b77612452b52f9fd35d87"
+      },
+      "outputs": [],
+      "events": [],
+      "source_inventory_limit": "source_reviewed_targeted"
+    },
+    {
+      "id": "notepadpp-target-18",
+      "cohort": "targets",
+      "parent": "fc52cd3f4fff2133d45d4fe4314ffee9bf6b3a99",
+      "commit": "5b8e13ab9be99f53c4848129ff1422a50012584e",
+      "execution_status": "completed",
+      "artifact_sha256": {
+        "diagnostics-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "compare.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.command.json": "422484878b783a5fe4ded4527ebc19b94a1525ecd1f3b91fdc688e6448c72f12",
+        "compare.stdout": "a60602076dbe777000cd13fa6522d1e7f528d0b6c5d8134618c8ae7ef585810f",
+        "results.json": "103670b21a899528854ada0c5c786a5cf6aa4a9c407110627326628a8d02a290",
+        "diagnostics.json": "769558916b6d14748d264c7ffe69be815a50ee0852257a3242e89de69f580a36",
+        "diagnostics-run.command.json": "d49eeb15dc684d497a914c4e337faf7ff163028778f59bf74d388f4861c0f170",
+        "diagnostics-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only-run.stdout": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "results-only.json": "103670b21a899528854ada0c5c786a5cf6aa4a9c407110627326628a8d02a290",
+        "srcmove.xml": "ae82f3ef13e5411cb2749dbb167f6000c2c2de04aa2f6ccc27b7f12371f633e5",
+        "compare.command.json": "a1dea506614c63ef1318db8f950a84a056a6447ce240a797fefe787014edcdc5",
+        "execution.json": "dce3563aff5def060c5a572ee83fc4cc5e26bf35242d82fd41a0db9278e0eb0b",
+        "results-only-run.stderr": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "srcdiff.xml": "bb3488445915781e088dea2b3ce6de8c176bc25e03d95b48d9ea86a32d6adcf9"
+      },
+      "outputs": [
+        {
+          "index": 0,
+          "type": "type1",
+          "verdict": "valid_independent",
+          "scope": "independent_descendant",
+          "rationale": "Exact dlgT declaration moves above continuing resize-toggle conditional and status-bar resize operations; XML position equals independently frozen source endpoints.",
+          "endpoints": {
+            "from": [
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/ScintillaComponent/FindReplaceDlg.cpp']/src:function[27]/src:block[1]/src:block_content[1]/src:switch[1]/src:block[1]/src:block_content[1]/src:block[14]/src:block_content[1]/src:switch[1]/src:block[1]/src:block_content[1]/src:block[31]/src:block_content[1]/diff:delete[6]/diff:delete[1]/src:decl_stmt[1]",
+                "raw_text": "DIALOG_TYPE dlgT = getCurrentStatus();",
+                "path": "PowerEditor/src/ScintillaComponent/FindReplaceDlg.cpp",
+                "start_line": 2377,
+                "end_line": 2377,
+                "text_sha256": "2427445ef28f44a7b3441413d761f72c07472133a645b81ce0586d93d03b6f62"
+              }
+            ],
+            "to": [
+              {
+                "xpath": "/src:unit[@filename='PowerEditor/src/ScintillaComponent/FindReplaceDlg.cpp']/src:function[27]/src:block[1]/src:block_content[1]/src:switch[1]/src:block[1]/src:block_content[1]/src:block[14]/src:block_content[1]/src:switch[1]/src:block[1]/src:block_content[1]/src:block[31]/src:block_content[1]/diff:insert[1]/diff:insert[1]/src:decl_stmt[1]",
+                "raw_text": "DIALOG_TYPE dlgT = getCurrentStatus();",
+                "path": "PowerEditor/src/ScintillaComponent/FindReplaceDlg.cpp",
+                "start_line": 2294,
+                "end_line": 2294,
+                "text_sha256": "2427445ef28f44a7b3441413d761f72c07472133a645b81ce0586d93d03b6f62"
+              }
+            ]
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "notepadpp-target-18-event-01",
+          "type": "type1",
+          "scope": "independent_descendant",
+          "outcome": "detected",
+          "limiting_stage": "selected",
+          "output_index": 0,
+          "rationale": "Exact file and inclusive source line endpoints match selected complete construct; raw XML text matches Git source. No enclosing or descendant-only substitution.",
+          "selected_indices": [
+            0
+          ]
+        }
+      ],
+      "source_inventory_limit": "source_reviewed_targeted"
+    }
+  ],
+  "uncertain_source_events": [
+    {
+      "id": "notepadpp-target-13-event-01",
+      "case_id": "notepadpp-target-13",
+      "source_verdict": "uncertain",
+      "excluded_from_denominator": true,
+      "rationale": "Endpoint identity and lexical Type2 are confirmed: the paired babygrid rectangle query/resize operations survive with rect renamed rcClient. They change function and move after other control-positioning operations. However they form one adjacent two-statement extracted sequence; neither moves independently of the other. Under the strict rule excluding carried components of edited extraction parents, these are two coverage endpoints of one extraction event, not two independent events. Coordinator must apply the same extraction policy as OpenCV ordinary-04 before counting."
+    },
+    {
+      "id": "notepadpp-target-13-event-02",
+      "case_id": "notepadpp-target-13",
+      "source_verdict": "uncertain",
+      "excluded_from_denominator": true,
+      "rationale": "Endpoint identity and lexical Type2 are confirmed: the paired babygrid rectangle query/resize operations survive with rect renamed rcClient. They change function and move after other control-positioning operations. However they form one adjacent two-statement extracted sequence; neither moves independently of the other. Under the strict rule excluding carried components of edited extraction parents, these are two coverage endpoints of one extraction event, not two independent events. Coordinator must apply the same extraction policy as OpenCV ordinary-04 before counting."
+    },
+    {
+      "id": "notepadpp-target-16-event-01",
+      "case_id": "notepadpp-target-16",
+      "source_verdict": "uncertain",
+      "excluded_from_denominator": true,
+      "rationale": "Exact endpoint identity confirmed. Three declarations reverse A,B,C to C,B,A between unchanged outer neighbors. The primary labels assume C (m_wstrDirectory) stationary, but source gives no privileged stationary reference among these three. B retains its middle ordinal position and numerical line, while reversing its relations to both neighbors. Record one unresolved reorder cluster or a declared order-relation convention; do not treat the chosen two relocated declarations as uniquely source-established independent moves."
+    },
+    {
+      "id": "notepadpp-target-16-event-02",
+      "case_id": "notepadpp-target-16",
+      "source_verdict": "uncertain",
+      "excluded_from_denominator": true,
+      "rationale": "Exact endpoint identity confirmed. Three declarations reverse A,B,C to C,B,A between unchanged outer neighbors. The primary labels assume C (m_wstrDirectory) stationary, but source gives no privileged stationary reference among these three. B retains its middle ordinal position and numerical line, while reversing its relations to both neighbors. Record one unresolved reorder cluster or a declared order-relation convention; do not treat the chosen two relocated declarations as uniquely source-established independent moves."
+    },
+    {
+      "id": "notepadpp-target-17-event-01",
+      "case_id": "notepadpp-target-17",
+      "source_verdict": "uncertain",
+      "excluded_from_denominator": true,
+      "rationale": "Exact endpoint identity and transfer from WM_DESTROY to new destroy helper confirmed; original handler calls helper. Four cleanup statements form a shared extraction. Foreground delete crosses background destroy, establishing internal reordering of that pair; the foreground destroy and background delete preserve boundary order within the extracted sequence. Null guards and resets are added. Counting all four as independent needs an extraction-granularity convention consistent with OpenCV ordinary-04; otherwise retain carried coverage plus separately adjudicated internal reorder, not four independent events."
+    },
+    {
+      "id": "notepadpp-target-17-event-02",
+      "case_id": "notepadpp-target-17",
+      "source_verdict": "uncertain",
+      "excluded_from_denominator": true,
+      "rationale": "Exact endpoint identity and transfer from WM_DESTROY to new destroy helper confirmed; original handler calls helper. Four cleanup statements form a shared extraction. Foreground delete crosses background destroy, establishing internal reordering of that pair; the foreground destroy and background delete preserve boundary order within the extracted sequence. Null guards and resets are added. Counting all four as independent needs an extraction-granularity convention consistent with OpenCV ordinary-04; otherwise retain carried coverage plus separately adjudicated internal reorder, not four independent events."
+    },
+    {
+      "id": "notepadpp-target-17-event-03",
+      "case_id": "notepadpp-target-17",
+      "source_verdict": "uncertain",
+      "excluded_from_denominator": true,
+      "rationale": "Exact endpoint identity and transfer from WM_DESTROY to new destroy helper confirmed; original handler calls helper. Four cleanup statements form a shared extraction. Foreground delete crosses background destroy, establishing internal reordering of that pair; the foreground destroy and background delete preserve boundary order within the extracted sequence. Null guards and resets are added. Counting all four as independent needs an extraction-granularity convention consistent with OpenCV ordinary-04; otherwise retain carried coverage plus separately adjudicated internal reorder, not four independent events."
+    },
+    {
+      "id": "notepadpp-target-17-event-04",
+      "case_id": "notepadpp-target-17",
+      "source_verdict": "uncertain",
+      "excluded_from_denominator": true,
+      "rationale": "Exact endpoint identity and transfer from WM_DESTROY to new destroy helper confirmed; original handler calls helper. Four cleanup statements form a shared extraction. Foreground delete crosses background destroy, establishing internal reordering of that pair; the foreground destroy and background delete preserve boundary order within the extracted sequence. Null guards and resets are added. Counting all four as independent needs an extraction-granularity convention consistent with OpenCV ordinary-04; otherwise retain carried coverage plus separately adjudicated internal reorder, not four independent events."
+    }
+  ],
+  "summary": {
+    "cases": 36,
+    "type1_outputs": 8,
+    "type2_outputs": 0,
+    "valid_independent_outputs": 5,
+    "valid_carried_outputs": 0,
+    "unresolved_group_outputs": 2,
+    "unresolved_outputs": 1,
+    "confirmed_type1_events": 5,
+    "detected_type1_events": 5,
+    "confirmed_type2_events": 1,
+    "detected_type2_events": 0,
+    "uncertain_source_events_excluded": 8
+  },
+  "limitations": [
+    "Small purposive positives and partial source inventory do not establish general recall. No confirmed whole-construct Notepad++ events; all six labels are independently moving descendants.",
+    "Ordinary13 is retained previously evaluated evidence, not fresh held-out evidence. Its three known Type1 events must be separated from the two fresh targeted Type1 detections.",
+    "AI source adjudication, not independent human gold standard. Type1 outputs include two non-bijective groups and one unresolved declaration identity; do not present 8/8 precision.",
+    "Type3 outputs excluded from this audit and behavior unchanged. No frozen source labels were changed after exposure to detector outputs."
+  ]
+}

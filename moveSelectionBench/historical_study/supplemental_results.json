@@ -1,0 +1,500 @@
+{
+  "schema_version": 1,
+  "cohorts": [
+    {
+      "cohort": "historical-type12-controls",
+      "report_sha256": "c53f015c1f4d37326e2bff2776ebd6775714cec2c562409f62726d1413508536",
+      "provenance": {
+        "schema_version": 1,
+        "oracle_sha256": "410d6190566122d606810d045699cdbdd264b20d60da462d49df9df5d1fdeb6e",
+        "runner_sha256": "a7c263d44bf5a57ad1bfa6711154916aa32a7d5c05325b1b4746b5e2330967cc",
+        "srcmove_sha256": "359baf50869312f88f8737becfb76fc47915cc9ad63c1b5a49fe3a81de03ebaa",
+        "srcdiff_sha256": "36e0b7e021e997cd0aadbe899ad56c90c97c250d4c9be0159243229e44b0e7df",
+        "source_revision": "20f22b6a1de04b0ca9c39b23f1386cb2ab9a89d2",
+        "argv_source": "Source-defined controls; no historical or population accuracy inference."
+      },
+      "limitations": [
+        "Controlled development diagnostics, not historical accuracy.",
+        "Strict source-text endpoints only; no descendant coverage credit for whole targets.",
+        "Other outputs remain unadjudicated; passing forbidden pairs is not global precision.",
+        "No Type2 positive controls in this bounded first batch."
+      ],
+      "cases": [
+        {
+          "id": "type1-cross-file-function",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [
+            {
+              "id": "type1-cross-file-function-expected-1",
+              "scope": "whole_construct",
+              "exact_selected_indices": [
+                0
+              ],
+              "returned_types": [
+                "type1"
+              ],
+              "outcome": "detected"
+            }
+          ],
+          "forbidden": []
+        },
+        {
+          "id": "type1-cross-container-statement",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [
+            {
+              "id": "type1-cross-container-statement-expected-1",
+              "scope": "independent_descendant",
+              "exact_selected_indices": [
+                0
+              ],
+              "returned_types": [
+                "type1"
+              ],
+              "outcome": "detected"
+            }
+          ],
+          "forbidden": []
+        },
+        {
+          "id": "type1-reorder-declaration",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [
+            {
+              "id": "type1-reorder-declaration-expected-1",
+              "scope": "independent_descendant",
+              "exact_selected_indices": [
+                0
+              ],
+              "returned_types": [
+                "type1"
+              ],
+              "outcome": "detected"
+            }
+          ],
+          "forbidden": []
+        },
+        {
+          "id": "type1-reorder-conditional",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [
+            {
+              "id": "type1-reorder-conditional-expected-1",
+              "scope": "independent_descendant",
+              "exact_selected_indices": [
+                0
+              ],
+              "returned_types": [
+                "type1"
+              ],
+              "outcome": "detected"
+            }
+          ],
+          "forbidden": []
+        },
+        {
+          "id": "type1-parent-transfer",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [
+            {
+              "id": "type1-parent-transfer-expected-1",
+              "scope": "whole_construct",
+              "exact_selected_indices": [
+                0
+              ],
+              "returned_types": [
+                "type1"
+              ],
+              "outcome": "detected"
+            }
+          ],
+          "forbidden": []
+        },
+        {
+          "id": "type1-independent-child-edited-parent",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [
+            {
+              "id": "type1-independent-child-edited-parent-expected-1",
+              "scope": "independent_descendant",
+              "exact_selected_indices": [
+                0
+              ],
+              "returned_types": [
+                "type1"
+              ],
+              "outcome": "detected"
+            }
+          ],
+          "forbidden": []
+        },
+        {
+          "id": "negative-stationary-line-shift",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [],
+          "forbidden": [
+            {
+              "id": "negative-stationary-line-shift-forbidden-1",
+              "scope": "independent_descendant",
+              "exact_selected_indices": [],
+              "returned_types": [],
+              "outcome": "forbidden_pair_not_reported"
+            }
+          ]
+        },
+        {
+          "id": "negative-wrapper-added",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [],
+          "forbidden": [
+            {
+              "id": "negative-wrapper-added-forbidden-1",
+              "scope": "independent_descendant",
+              "exact_selected_indices": [],
+              "returned_types": [],
+              "outcome": "forbidden_pair_not_reported"
+            }
+          ]
+        },
+        {
+          "id": "negative-wrapper-removed",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [],
+          "forbidden": [
+            {
+              "id": "negative-wrapper-removed-forbidden-1",
+              "scope": "independent_descendant",
+              "exact_selected_indices": [],
+              "returned_types": [],
+              "outcome": "forbidden_pair_not_reported"
+            }
+          ]
+        },
+        {
+          "id": "negative-in-place-identifier-literal",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [],
+          "forbidden": [
+            {
+              "id": "negative-in-place-identifier-literal-forbidden-1",
+              "scope": "independent_descendant",
+              "exact_selected_indices": [],
+              "returned_types": [],
+              "outcome": "forbidden_pair_not_reported"
+            }
+          ]
+        },
+        {
+          "id": "negative-repeated-stationary",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [],
+          "forbidden": [
+            {
+              "id": "negative-repeated-stationary-forbidden-1",
+              "scope": "independent_descendant",
+              "exact_selected_indices": [],
+              "returned_types": [],
+              "outcome": "forbidden_pair_not_reported"
+            }
+          ]
+        },
+        {
+          "id": "negative-unrelated-same-shape",
+          "status": "scored",
+          "unadjudicated_output_indices": [],
+          "expected": [],
+          "forbidden": [
+            {
+              "id": "negative-unrelated-same-shape-forbidden-1",
+              "scope": "independent_descendant",
+              "exact_selected_indices": [],
+              "returned_types": [],
+              "outcome": "forbidden_pair_not_reported"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "cohort": "historical-type12-retained",
+      "report_sha256": "409a272f5bc9c6ee92d600b1341ba170da16843fba0f2d551cc4b7e43398bae5",
+      "provenance": {
+        "schema_version": 1,
+        "oracle_sha256": "f62fceb51d4f7c289d44caac1a275117b6bdde95c2fa1f1cebc7ece602a934af",
+        "runner_sha256": "a84364c497a3a3ccb6d066af105eceb2742d0464242f6b2ebaa6fcad4e6f5e75",
+        "srcmove_sha256": "359baf50869312f88f8737becfb76fc47915cc9ad63c1b5a49fe3a81de03ebaa",
+        "attribution_sha256": "543065ea9a4fd9ae78be30f063048e844eb69a89eb4c35405377d6ade84452b3",
+        "source_revision": "04fd56dd81eb7161dc582eb124bfd6cfa4766df8",
+        "cohort": "previously_exposed_retained_development"
+      },
+      "limitations": [
+        "Purposive previously exposed development evidence, not a held-out accuracy sample.",
+        "Only eight prescribed whole endpoints scored; other selected outputs not adjudicated for precision.",
+        "Retained srcDiff inputs are reused, their source reconstruction verified against exact Git revisions."
+      ],
+      "cases": [
+        {
+          "id": "sqlite-retained-type2",
+          "status": "scored",
+          "results_only_equivalent": true,
+          "diagnostics_equivalent": true,
+          "selected_output_count": 14,
+          "unadjudicated_output_indices": [
+            0,
+            1,
+            3,
+            4,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            13
+          ],
+          "events": [
+            {
+              "id": "sqlite-analysisReset",
+              "scope": "whole_construct",
+              "exact_selected_indices": [
+                12
+              ],
+              "selected_types": [
+                "type2"
+              ],
+              "outcome": "detected"
+            },
+            {
+              "id": "sqlite-analysisPrepare",
+              "scope": "whole_construct",
+              "exact_selected_indices": [
+                5
+              ],
+              "selected_types": [
+                "type2"
+              ],
+              "outcome": "detected"
+            },
+            {
+              "id": "sqlite-analysisPercent",
+              "scope": "whole_construct",
+              "exact_selected_indices": [
+                2
+              ],
+              "selected_types": [
+                "type2"
+              ],
+              "outcome": "detected"
+            }
+          ]
+        },
+        {
+          "id": "notepadpp-retained-type2",
+          "status": "scored",
+          "results_only_equivalent": true,
+          "diagnostics_equivalent": true,
+          "selected_output_count": 134,
+          "unadjudicated_output_indices": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5,
+            6,
+            7,
+            8,
+            9,
+            10,
+            11,
+            12,
+            13,
+            14,
+            15,
+            16,
+            17,
+            18,
+            19,
+            20,
+            21,
+            22,
+            23,
+            24,
+            25,
+            26,
+            27,
+            28,
+            29,
+            30,
+            31,
+            32,
+            33,
+            34,
+            35,
+            36,
+            37,
+            38,
+            39,
+            40,
+            41,
+            42,
+            43,
+            44,
+            45,
+            46,
+            47,
+            48,
+            49,
+            50,
+            51,
+            52,
+            53,
+            54,
+            55,
+            56,
+            57,
+            58,
+            59,
+            60,
+            61,
+            62,
+            63,
+            64,
+            65,
+            66,
+            67,
+            68,
+            69,
+            70,
+            71,
+            72,
+            73,
+            74,
+            75,
+            76,
+            77,
+            78,
+            79,
+            80,
+            81,
+            82,
+            83,
+            84,
+            85,
+            86,
+            87,
+            88,
+            89,
+            90,
+            91,
+            92,
+            93,
+            94,
+            95,
+            96,
+            97,
+            98,
+            99,
+            100,
+            101,
+            102,
+            103,
+            104,
+            105,
+            107,
+            108,
+            109,
+            110,
+            111,
+            113,
+            114,
+            115,
+            116,
+            117,
+            118,
+            119,
+            120,
+            121,
+            122,
+            123,
+            124,
+            125,
+            126,
+            127,
+            128,
+            129,
+            131
+          ],
+          "events": [
+            {
+              "id": "notepadpp-changeStyleCtrlsLang",
+              "scope": "whole_construct",
+              "exact_selected_indices": [
+                112
+              ],
+              "selected_types": [
+                "type2"
+              ],
+              "outcome": "detected"
+            },
+            {
+              "id": "notepadpp-changeShortcutLang",
+              "scope": "whole_construct",
+              "exact_selected_indices": [
+                130
+              ],
+              "selected_types": [
+                "type2"
+              ],
+              "outcome": "detected"
+            },
+            {
+              "id": "notepadpp-changeShortcutmapperLang",
+              "scope": "whole_construct",
+              "exact_selected_indices": [
+                106
+              ],
+              "selected_types": [
+                "type2"
+              ],
+              "outcome": "detected"
+            },
+            {
+              "id": "notepadpp-searchDlgNode",
+              "scope": "whole_construct",
+              "exact_selected_indices": [
+                132
+              ],
+              "selected_types": [
+                "type2"
+              ],
+              "outcome": "detected"
+            },
+            {
+              "id": "notepadpp-changeDlgLang",
+              "scope": "whole_construct",
+              "exact_selected_indices": [
+                133
+              ],
+              "selected_types": [
+                "type2"
+              ],
+              "outcome": "detected"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

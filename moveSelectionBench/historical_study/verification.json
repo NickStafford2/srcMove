@@ -1,0 +1,35 @@
+{
+  "date": "2026-09-27",
+  "production_behavior_changed": false,
+  "version_changed": false,
+  "checks": [
+    {
+      "command": "./bin/srcml-dev-shell make --no-print-directory -C srcMove test",
+      "result": "passed all 13 steps; before final evaluation-only XPath performance refinement"
+    },
+    {
+      "command": "./bin/srcml-dev-shell make --no-print-directory -C srcMove test-move-selection",
+      "result": "passed 30 unit tests and 21 semantic contracts after final refinement"
+    },
+    {
+      "command": "study.py run",
+      "result": "106 completed comparisons: 83 tool comparisons and 23 no-analyzable-change; 83/83 normal/results-only/diagnostics equivalence"
+    },
+    {
+      "command": "summarize.py",
+      "result": "all 106 case receipts, 217 Type-1/Type-2 output adjudications, and 30 confirmed source events validated"
+    },
+    {
+      "command": "compare explained-fast.json with explained-final.json excluding scorer hash metadata",
+      "result": "all results equal; optimization affects evaluation runtime only"
+    },
+    {
+      "command": "git diff --check and local documentation link validation",
+      "result": "passed"
+    }
+  ],
+  "derived_report_sha256": {
+    "explained-fast.json": "4d49ab10a9398fa4534aa99b4511324ca84a53d5f51bafc72bdb9735a6c2c2c4",
+    "explained-final.json": "ddf890fa37c2375925ca82f76e623007921b0fd46b110138ae1d9d73d602037a"
+  }
+}

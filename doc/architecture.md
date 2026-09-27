@@ -182,6 +182,16 @@ Candidates are bucketed with 64-bit FNV-1a hashes of that canonical form. A hash
 is only an index: groups are split and confirmed using the full canonical text,
 so a hash collision is not accepted as a move.
 
+Type-2 eligibility is narrower than general candidate eligibility. The stream
+admits structural constructs (including functions and declarations of functions,
+types, and namespaces) plus `decl_stmt`, `if_stmt`, `for`, `while`, `do`,
+`switch`, and `try` statements. Standalone `expr_stmt` and `return` candidates
+can participate in exact Type-1 matching but are excluded from Type-2 grouping.
+The [historical study](../moveSelectionBench/historical_study/README.md) contains
+a source-reviewed renamed call reorder that reaches candidate construction but
+misses at this eligibility boundary. This is a limitation, not a negative move
+oracle or a lack of source evidence for relocation.
+
 [`src/move_registry/content_group_builder.cpp`](../src/move_registry/content_group_builder.cpp)
 builds all supported evidence before selection. Pure ranking and descendant
 bundle policy, including its declared constants, lives in
