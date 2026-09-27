@@ -55,6 +55,8 @@ struct correspondence_diagnostic {
   bool carried_by_parent = false;
   endpoint_context_diagnostic before_context;
   endpoint_context_diagnostic after_context;
+  std::size_t parent_delete_candidate_id = 0;
+  std::size_t parent_insert_candidate_id = 0;
 };
 
 struct selection_diagnostics {

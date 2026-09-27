@@ -99,13 +99,7 @@ class ShadowContractTests(unittest.TestCase):
         srcdiff = find_srcdiff(REPO_ROOT, None)
         self.assertIsNotNone(srcmove, "srcMove is required for shadow contracts")
         self.assertIsNotNone(srcdiff, "srcdiff is required for source-generated contracts")
-        known_gaps = {
-            "relocated_parent_carries_child": (
-                "relocated",
-                "different_semantic_container",
-                False,
-            ),
-        }
+        known_gaps: dict[str, tuple[object, object, object]] = {}
         observed_gaps: dict[str, tuple[object, object, object]] = {}
 
         with tempfile.TemporaryDirectory() as temporary_directory:

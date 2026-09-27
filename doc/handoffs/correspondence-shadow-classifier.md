@@ -81,13 +81,9 @@ resolves endpoints by each reviewed contract's construct and exact before/after
 text, asserts candidate cardinality, refuses to manufacture pairs for the 2x2
 case, and compares the resulting stable reason to the independent expectation.
 It uses fragment granularity so the deliberately small expression-statement
-contracts remain observable without changing production defaults. Eleven of
-the twelve contracts pass, including the source-generated `[[nodiscard]]` unwrap,
-which is classified `restructured/ancestor_unwrapped`. The test explicitly
-locks the remaining gap rather than weakening its oracle:
-
-- `relocated_parent_carries_child` currently reports
-  `relocated/different_semantic_container` with `carried_by_parent=false`.
+contracts remain observable without changing production defaults. All twelve
+contracts now pass, including the source-generated `[[nodiscard]]` unwrap,
+which is classified `restructured/ancestor_unwrapped`.
 
 Phase 2.3 closes the incompatible-wrapper gap without using raw XPath. Endpoint
 context now distinguishes a reliable summary from an interpretable one. A
@@ -97,12 +93,22 @@ classifier records incompatible ancestry and emits
 diagnostics and covered by both the pure classifier test and the executable
 contract.
 
+Phase 2.4 closes the parent-carried contract using only unique exact structural
+evidence. After independent pair classification, a child becomes
+`stationary/stable_relative_to_relocated_parent` only when one unique exact
+structural-parent pair strictly contains the child on both revision sides and
+that parent was independently classified as relocated. The nearest qualifying
+parent wins deterministically. Diagnostics record both parent candidate IDs.
+Diff-wrapper candidates are excluded, and no document-order or name-based
+pairing is used. In the contract, the `if_stmt` remains relocated while its
+contained `expr_stmt` is marked carried and stationary.
+
 The next implementation session should continue in this order:
 
-1. implement or conservatively defer `carried_by_parent`, preserving the
-   parent's unique Type-1 relationship rather than pairing by document order;
-2. run the retained
-   Notepad++ evaluation, then perform the independent review in Step 7.
+1. run the retained Notepad++ evaluation and report current-versus-shadow
+   disagreement counts and reasons;
+2. perform the independent review in Step 7, resolve substantive findings, and
+   produce the final milestone report required below.
 
 Do not derive containers or anchors from raw XPath, names alone, the candidate
 being classified, or a second tree-matching pass. Shadow correspondences are

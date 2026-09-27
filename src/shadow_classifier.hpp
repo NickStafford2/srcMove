@@ -18,6 +18,7 @@ enum class shadow_classification_reason {
   crossed_stable_sibling,
   ancestor_wrapped,
   ancestor_unwrapped,
+  stable_relative_to_relocated_parent,
   incompatible_context,
   insufficient_context,
 };

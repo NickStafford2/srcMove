@@ -194,6 +194,14 @@ inline void write_selection_diagnostics(std::ostream &out,
     write_string(out, item.ancestor_observation); out << ",\n";
     out << "        \"carried_by_parent\": "
         << (item.carried_by_parent ? "true" : "false") << ",\n";
+    out << "        \"parent_delete_candidate_id\": ";
+    if (item.carried_by_parent) out << item.parent_delete_candidate_id;
+    else out << "null";
+    out << ",\n";
+    out << "        \"parent_insert_candidate_id\": ";
+    if (item.carried_by_parent) out << item.parent_insert_candidate_id;
+    else out << "null";
+    out << ",\n";
     out << "        \"before_context\": ";
     write_context(item.before_context, 8); out << ",\n";
     out << "        \"after_context\": ";

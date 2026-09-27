@@ -639,6 +639,81 @@ bool candidate_strictly_contains(const move_candidate &outer,
          (outer.start_idx < inner.start_idx || inner.end_idx < outer.end_idx);
 }
 
+void classify_parent_carried_correspondences(
+    const candidate_registry &registry,
+    selection_diagnostics &diagnostics) {
+  const std::vector<bool> independently_relocated = [&diagnostics] {
+    std::vector<bool> result;
+    result.reserve(diagnostics.correspondences.size());
+    for (const correspondence_diagnostic &item : diagnostics.correspondences) {
+      result.push_back(item.shadow_change == "relocated");
+    }
+    return result;
+  }();
+
+  for (std::size_t child_index = 0;
+       child_index < diagnostics.correspondences.size(); ++child_index) {
+    correspondence_diagnostic &child =
+        diagnostics.correspondences[child_index];
+    const move_candidate &child_del =
+        registry.candidate(child.delete_candidate_id);
+    const move_candidate &child_ins =
+        registry.candidate(child.insert_candidate_id);
+    if (child_del.role != move_candidate::Role::structural_child ||
+        child_ins.role != move_candidate::Role::structural_child) {
+      continue;
+    }
+
+    std::size_t best_parent = diagnostics.correspondences.size();
+    std::size_t best_span = 0;
+    for (std::size_t parent_index = 0;
+         parent_index < diagnostics.correspondences.size(); ++parent_index) {
+      if (parent_index == child_index ||
+          !independently_relocated[parent_index]) {
+        continue;
+      }
+      const correspondence_diagnostic &parent =
+          diagnostics.correspondences[parent_index];
+      const move_candidate &parent_del =
+          registry.candidate(parent.delete_candidate_id);
+      const move_candidate &parent_ins =
+          registry.candidate(parent.insert_candidate_id);
+      if (parent_del.role != move_candidate::Role::structural_child ||
+          parent_ins.role != move_candidate::Role::structural_child ||
+          !candidate_strictly_contains(parent_del, child_del) ||
+          !candidate_strictly_contains(parent_ins, child_ins)) {
+        continue;
+      }
+      const std::size_t span = candidate_span(parent_del) +
+                               candidate_span(parent_ins);
+      if (best_parent == diagnostics.correspondences.size() ||
+          span < best_span ||
+          (span == best_span &&
+           std::pair{parent.delete_candidate_id,
+                     parent.insert_candidate_id} <
+               std::pair{diagnostics.correspondences[best_parent]
+                             .delete_candidate_id,
+                         diagnostics.correspondences[best_parent]
+                             .insert_candidate_id})) {
+        best_parent = parent_index;
+        best_span = span;
+      }
+    }
+
+    if (best_parent == diagnostics.correspondences.size()) {
+      continue;
+    }
+    const correspondence_diagnostic &parent =
+        diagnostics.correspondences[best_parent];
+    child.shadow_change = "stationary";
+    child.classification_reason = std::string(to_string(
+        shadow_classification_reason::stable_relative_to_relocated_parent));
+    child.carried_by_parent = true;
+    child.parent_delete_candidate_id = parent.delete_candidate_id;
+    child.parent_insert_candidate_id = parent.insert_candidate_id;
+  }
+}
+
 bool proposal_is_descendant(const match_proposal &child,
                             const match_proposal &parent,
                             const candidate_registry &registry) {
@@ -1002,6 +1077,7 @@ content_groups build_content_groups(const candidate_registry &registry,
     if (diagnostics != nullptr) {
       collect_unique_type1_correspondences(registry, exact_groups,
                                            *diagnostics);
+      classify_parent_carried_correspondences(registry, *diagnostics);
     }
   }
 

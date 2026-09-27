@@ -161,6 +161,9 @@ std::string_view to_string(shadow_classification_reason value) noexcept {
     SRCMOVE_ENUM_STRING_CASE(shadow_classification_reason::ancestor_unwrapped,
                              "ancestor_unwrapped");
     SRCMOVE_ENUM_STRING_CASE(
+        shadow_classification_reason::stable_relative_to_relocated_parent,
+        "stable_relative_to_relocated_parent");
+    SRCMOVE_ENUM_STRING_CASE(
         shadow_classification_reason::incompatible_context,
         "incompatible_context");
     SRCMOVE_ENUM_STRING_CASE(

@@ -132,6 +132,11 @@ int main() {
     require(to_string(shadow_classification_reason::same_anchor_interval) ==
                 "same_anchor_interval",
             "reason strings are part of the diagnostic contract");
+    require(to_string(
+                shadow_classification_reason::
+                    stable_relative_to_relocated_parent) ==
+                "stable_relative_to_relocated_parent",
+            "parent-carried reason must remain stable");
     require(to_string(semantic_container_observation::different_mapped) ==
                 "different_mapped",
             "observation strings must remain stable");
