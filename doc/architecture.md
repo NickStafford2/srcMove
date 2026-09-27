@@ -65,11 +65,18 @@ grouping and classification, including incremental multi-file use. Common
 elements and elements belonging only to the endpoint revision are included;
 elements exclusive to the opposite revision are not. Removing an incremental
 file compacts this side table to summaries still referenced by active
-candidates. After the streaming pass, complete substantial common declarations
-with unique canonical identity in a mapped container become stable anchors.
-Mixed or repeated declarations are excluded. Each mapped candidate receives
-its nearest unique anchors, falling back to explicit container-begin and
-container-end sentinels, so crossings are observable without tree rematching.
+candidates. After the streaming pass, complete common declarations and
+conditionals (`decl_stmt` and `if_stmt`) with substantive text and unique exact
+canonical identity in a mapped container become stable anchors. Mixed or
+repeated constructs are excluded. Independent declaration and conditional
+collectors preserve declarations inside mixed conditionals. Conditional capture
+restarts at each nested common `if_stmt`, retaining innermost conditionals even
+inside an edited outer conditional, with at most two canonicalizers active. Each mapped candidate receives the
+nearest nonoverlapping anchors by their end/start positions, independent of
+collection order, falling back to container-begin and container-end sentinels.
+This exposes crossings of unchanged conditionals without tree rematching.
+Enclosing conditionals are not also retained as anchors; repeated innermost
+conditionals can therefore still leave order unresolved.
 Unmapped candidates retain unreliable anchor intervals. Production selection
 consumes this context only for unique one-to-one Type-1 correspondences.
 

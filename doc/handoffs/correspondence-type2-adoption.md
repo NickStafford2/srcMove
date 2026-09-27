@@ -27,18 +27,24 @@ diagnostics (schema 3), and adds an independent Type-2 contract catalog. Normal
 production behavior remains unchanged. The fixture baseline is audited; the
 historical follow-up now exposes eight pre-reviewed moved functions across two
 file transfers and two retrospectively source-reviewed stationary declarations.
-An isolated Phase 4.1 gate trial based on `9efc4eb` now demonstrates a real
-same-file recall regression: SQLite's edited floating-point rendering block
-crosses common conditional siblings but is classified stationary. Production
-reports it; the trial suppresses it. **Do not adopt the gate until that context
-error is fixed and reevaluated.** No production algorithm has changed.
+An isolated Phase 4.1 gate trial based on `9efc4eb` exposed a real same-file
+recall regression: SQLite's edited floating-point rendering block crosses common
+conditional siblings but was classified stationary. The common-conditional
+context repair is now implemented, with declaration preservation and ambiguity
+guards. The full SQLite replay now classifies the move as relocated and the
+isolated gate preserves it. Type-2 production selection still uses its existing
+policy; gate adoption remains a separate step.
 
 The accepted `type2_reorder_across_common_conditionals` output contract protects
 this move. The [gate-trial evidence](../../moveSelectionBench/README.md#type-2-gate-trial-same-file-recall-regression)
 records the source oracle, actual output transitions, successful same-file
 OpenCV controls, and the isolated experiment's unique-Type-2 endpoint reservation.
-The next step is a focused common-sibling context repair, preserving declaration
-anchors and ambiguity safeguards; not another unbounded history search.
+The next step is to resolve the remaining gate differences against independent
+source/output contracts, particularly the two context-free parent-selection
+fixtures. Preserve genuine moves when making those contracts structurally
+meaningful; do not simply change expected output to match the gate. Keep the
+unique-Type-2 endpoint reservation and its alternate-Type-3 controls explicit
+in the adoption review.
 
 Current evidence and reproduction details belong in
 [`moveSelectionBench/README.md`](../../moveSelectionBench/README.md#type-2-observation-baseline).

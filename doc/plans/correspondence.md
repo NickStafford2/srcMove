@@ -7,9 +7,10 @@ retained real-history evaluation (3.3). Phase 4 unifies Type-1/2/3 movement
 classification; Phase 5 addresses repeated groups; Phase 6 evaluates and
 consolidates the system. Phase 4.0 has shared-classifier code, Type-2 observation
 contracts, fixture baseline evidence, and exposed historical Type-2 examples;
-a Phase 4.1 isolated gate trial now finds a real same-file recall regression.
-Production adoption is blocked on repairing common-sibling context; historical
-improvement is not yet established. Production adoption and Phases 5/6 are not implemented. This
+a Phase 4.1 isolated gate trial exposed a real same-file recall regression.
+Common conditional anchors now address that context gap; production adoption
+still requires review of the remaining gate differences. Historical improvement
+is not yet established. Production adoption and Phases 5/6 are not implemented. This
 document records rationale, semantics, decision points, and future
 implementation phases rather than the full current behavior. The verified
 implementation remains documented in
@@ -531,8 +532,9 @@ understood and stable.
 ### Phase 4: unify movement classification across Type-1/2/3
 
 Status: observation-only implementation and baseline review exist. An isolated
-Phase 4.1 trial loses a reviewed SQLite reorder across common conditionals;
-repair context before production adoption. See the
+Phase 4.1 trial exposed a reviewed SQLite reorder across common conditionals.
+The context repair now captures those siblings; review the remaining trial
+output differences before production adoption. See the
 [trial evidence](../../moveSelectionBench/README.md#type-2-gate-trial-same-file-recall-regression). Use one
 location classifier and one eligibility/selection path.
 Keep the existing matching representations and Type-3 verification rule.

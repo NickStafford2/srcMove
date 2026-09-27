@@ -168,6 +168,7 @@ def load_shadow_contracts(path: Path, correspondence_kind: str = "type1") -> lis
             "anchors",
             "container_bounds",
             "crossed_common",
+            "crossed_common_element",
             "exclusive_ancestors",
             "corresponding_parent",
         }
@@ -349,11 +350,13 @@ def validate_srcdiff_precondition(case: dict[str, Any], srcdiff_path: Path) -> d
             f"{case['id']}: container bounds require one shared mapped container"
         )
 
-    def common_exact(text: str) -> ET.Element:
+    def common_exact(text: str, element_name: str | None = None) -> ET.Element:
         matches = [
             element
             for element, membership in walked
-            if membership == "both" and normalize_text("".join(element.itertext())) == text
+            if membership == "both"
+            and (element_name is None or _expanded_name(element.tag) == (SRC_NAMESPACE, element_name))
+            and normalize_text("".join(element.itertext())) == text
         ]
         if len(matches) != 1:
             raise ShadowContractError(
@@ -373,8 +376,10 @@ def validate_srcdiff_precondition(case: dict[str, Any], srcdiff_path: Path) -> d
 
     crossed = structural.get("crossed_common")
     if crossed is not None:
-        anchor = common_exact(normalize_text(crossed))
-        if not (positions[id(before)] < positions[id(anchor)] < positions[id(after)]):
+        anchor = common_exact(normalize_text(crossed), structural.get("crossed_common_element"))
+        if not (min(positions[id(before)], positions[id(after)])
+                < positions[id(anchor)]
+                < max(positions[id(before)], positions[id(after)])):
             raise ShadowContractError(f"{case['id']}: target does not cross the common sibling")
 
     expected_ancestors = structural.get("exclusive_ancestors")

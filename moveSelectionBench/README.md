@@ -136,7 +136,7 @@ under test unchanged. It applies to `nested_exact_parent_over_child`,
 ## Type-2 observation baseline
 
 Phase 4.0 uses `type2_contracts.json` and `type2_cases/` as an independent
-location oracle. The twelve contracts cover cross-file/container movement,
+location oracle. The fourteen contracts cover cross-file/container movement,
 reordering, identifier/literal edits in place, wrapping, missing context,
 repeated normalized groups, and movement inside edited parents. A selected
 parent can explain a relocated child without selecting that child separately.
@@ -287,7 +287,7 @@ From the parent workspace, the retained scripts reproduce the runs:
 
 The next comparison enabled the proposed gate only in a detached, ignored
 worktree at `build/type2-gate-trial/source`, based on `9efc4eb`. Production source
-and its executable remain unchanged. The trial classifies unique Type-2 pairs
+and its executable were unchanged in that comparison. The trial classifies unique Type-2 pairs
 before selection, uses the shared eligibility gate, and removes the adjacent
 replacement heuristic. It also reserves both IDs of every unique Type-2 pair
 from alternate Type-3 matches. This identity reservation is independent of
@@ -295,7 +295,7 @@ location, applies to IDs rather than spans, and intentionally strengthens
 correspondence precedence; it is an experimental policy change, not an adopted
 feature. Repeated normalized groups retain their existing policy.
 
-**Do not adopt this trial: it loses a source-reviewed real Type-2 move.** SQLite
+**The original trial lost a source-reviewed real Type-2 move.** SQLite
 `c799c15dbef70dd8ee63be2c4b77ebeacce1df00` moves the floating-point formatting
 block in `src/shell.c.in` from after unchanged line-limit/quote handling to
 before it. The block's field and string literals change from `zRealFmt` /
@@ -304,10 +304,10 @@ reorder; line displacement alone is not the evidence. The comparison registers
 `.in=C` through srcDiff's existing `--register-ext` option, preserving the actual
 source bytes and shared logical filename. srcMove uses default granularity.
 
-Production selects the block as one Type-2 move. The shared classifier calls
-both it and its nested declaration `stationary/same_anchor_interval`; the trial
-therefore emits zero moves. `region_filter.cpp` currently collects common
-`decl_stmt` anchors only. The crossed common conditionals do not divide the
+Before the context repair, production selected the block as one Type-2 move.
+The shared classifier called both it and its nested declaration
+`stationary/same_anchor_interval`; the trial therefore emitted zero moves.
+`region_filter.cpp` collected common `decl_stmt` anchors only. The crossed common conditionals do not divide the
 interval, and equal ancestry plus this coarse interval is mistaken for proof
 of stationarity. This is a context/classification error, not poor normalized
 matching or a threshold problem.
@@ -318,7 +318,7 @@ is a small source-generated reduction of that scenario, with a common function,
 two common conditional siblings, and one reordered/renamed conditional. It
 requires the whole Type-2 move and normal/results-only equivalence. Its oracle
 comes from source order; it deliberately does not canonize the current incorrect
-stationary diagnostic. Production passes it; the trial fails it.
+stationary diagnostic. Production passed it; the original trial failed it.
 
 A comparison of the pre-existing 157 fixtures plus 14 historical inputs changed
 12 cases: nine XML cases lose ten contextless Type-2 pairs, two selection
@@ -349,15 +349,41 @@ counterpart. Reservation prevents the false alternate while each control still
 selects its legitimate Type-3 match. This does not justify accepting the separate
 SQLite recall regression or establish a historical precision gain.
 
-The next focused work is to capture positive order evidence from substantial
-common non-declaration siblings before making Type-2 output depend on the
-classifier. Reuse the streaming context representation and classifier; test
-unique/repeated/mixed conditionals and preserve existing declaration anchors.
-Do not turn all context-free pairs back into moves, introduce line-distance
-rules, or treat the known reorder as an acceptable non-move.
+The focused repair adds common conditional anchors to the existing streaming
+context representation (see [architecture](../doc/architecture.md)). Location
+tests cover unique, repeated, mixed, nested, stationary, and comment-only cases;
+two additional Type-2 contracts assert relocation across common conditionals,
+including the source-generated historical reduction. No output golden is
+weakened, and Type-2 production eligibility remains on its existing path.
+
+The full SQLite replay exposed an important difference from the first reduction:
+the crossed siblings are themselves inside an edited conditional. An initial
+outermost-only collector fixed the reduction but still missed the real case.
+The final collector restarts at nested common conditionals, preserving those
+inner anchors with bounded active capture. The full SQLite block and its nested
+declaration now classify `relocated/crossed_stable_sibling`; the isolated gate
+retains the single whole-block Type-2 move. The nested declaration remains
+covered by the selected block. All eight retained same-file probes, including
+that full input and the reduction, have identical ordinary output between old
+production, repaired production, and the repaired gate. This repairs the known
+recall regression; it does not establish overall historical precision or recall.
+
+The final Docker `make test` passes all 13 steps. A separate 158-fixture audit
+finds byte-identical ordinary JSON/XML before and after the context repair,
+with existing Type-1 diagnostics unchanged. The repaired gate comparison covers
+those fixtures plus 14 retained historical inputs: all historical selected
+outputs are preserved. Eleven fixture cases still differ, removing twelve
+context-free Type-2 selections (one also exposes a repeated Type-1 alternative).
+Those differences still require policy review before adoption. The repaired
+gate passes 19 of 21 accepted selection contracts; only the two previously
+identified context-free parent-selection contracts still fail. All four
+Type-2 identity-reservation/Type-3 alternate controls pass.
 
 Retained evidence:
 
+- `build/common-anchor-baseline/`: pre-repair executable and receipt, old/fixed/gate
+  fixture and historical comparisons, hashes, and the failed outermost-only
+  experiment retained separately as `outermost-if-*`.
 - `build/type2-gate-trial/`: detached worktree, `trial.patch`, build receipt,
   executable/patch hashes, `compare.py`, per-case outputs and `comparison.json`.
 - `benchmark-results/correspondence-type2-gate-trial/`: SQLite source-reviewed

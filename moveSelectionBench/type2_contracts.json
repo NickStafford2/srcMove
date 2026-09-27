@@ -380,6 +380,70 @@
       "expected_type2_output": "not_move",
       "expected_current_result": "not_move",
       "expected_selection": "covered_by_selected_parent"
+    },
+    {
+      "id": "reorder_past_common_conditional",
+      "fixture": {
+        "srcdiff": "type2_cases/reorder_past_common_conditional.xml"
+      },
+      "rationale": "Inside an edited outer conditional, a renamed declaration crosses an unchanged inner conditional sibling in the same mapped function. A mixed outer wrapper must not hide the genuine displacement evidence.",
+      "srcdiff_precondition": {
+        "element": "decl_stmt",
+        "before_text": "int old_count = 1;",
+        "after_text": "int new_count = 1;",
+        "before_count": 1,
+        "after_count": 1,
+        "correspondence_kind": "type2",
+        "cardinality": "one_to_one"
+      },
+      "structural_precondition": {
+        "crossed_common": "checkpoint();",
+        "crossed_common_element": "expr_stmt"
+      },
+      "observed_context": {
+        "file": "same",
+        "semantic_container": "same_mapped",
+        "anchor_interval": "crossed",
+        "ancestor_change": "none",
+        "relative_order": "crossed_stable_sibling"
+      },
+      "expected_shadow": {
+        "change_kind": "relocated",
+        "classification_reason": "crossed_stable_sibling"
+      },
+      "expected_type2_output": "move"
+    },
+    {
+      "id": "historical_reduced_conditional_reorder",
+      "fixture": {
+        "srcdiff": "cases/type2_reorder_across_common_conditionals.xml"
+      },
+      "rationale": "Source-reviewed reduced SQLite ordering change moves a renamed format block upward across two unchanged conditionals; this is genuine same-function relocation, not stationary editing.",
+      "srcdiff_precondition": {
+        "element": "if_stmt",
+        "before_text": "if (all || p->realFmt != 0) { const char *format = p->realFmt; append(out, \" --realfmt %s\", format ? format : \"default\"); }",
+        "after_text": "if (all || p->fpFmt != 0) { const char *format = p->fpFmt; append(out, \" --fpfmt %s\", format ? format : \"empty\"); }",
+        "before_count": 1,
+        "after_count": 1,
+        "correspondence_kind": "type2",
+        "cardinality": "one_to_one"
+      },
+      "structural_precondition": {
+        "crossed_common": "append(out, \" --linelimit %d\", p->lineLimit);",
+        "crossed_common_element": "expr_stmt"
+      },
+      "observed_context": {
+        "file": "same",
+        "semantic_container": "same_mapped",
+        "anchor_interval": "crossed",
+        "ancestor_change": "none",
+        "relative_order": "crossed_stable_sibling"
+      },
+      "expected_shadow": {
+        "change_kind": "relocated",
+        "classification_reason": "crossed_stable_sibling"
+      },
+      "expected_type2_output": "move"
     }
   ]
 }

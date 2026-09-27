@@ -34,7 +34,7 @@ class Type2ContractTests(unittest.TestCase):
             load_shadow_contracts(CATALOG)
 
     def test_reviewed_matrix_and_srcdiff_preconditions(self) -> None:
-        self.assertEqual(len(self.cases), 12)
+        self.assertEqual(len(self.cases), 14)
         self.assertEqual(
             {case['expected_shadow']['change_kind'] for case in self.cases},
             {'stationary', 'relocated', 'restructured', 'ambiguous'},

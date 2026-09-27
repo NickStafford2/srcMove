@@ -165,6 +165,67 @@ int main(int argc, char **argv) {
                 bounded_next == bounded_insert->location.next_common_anchor_id,
             "repeated and mixed declarations must not become anchors");
 
+    // Only complete, unique, substantive common constructs establish anchors.
+    // This matrix also protects declaration collection inside a mixed wrapper.
+    for (const auto &scenario : std::vector<std::pair<std::string, int>>{
+             {"conditional_crossing", 71}, {"mixed_nested_declaration", 83},
+             {"nested_conditional", 97}, {"mixed_outer_conditional", 107}}) {
+      const std::string text = "int " + scenario.first + " = " +
+                               std::to_string(scenario.second) + ";";
+      const auto *before = find_candidate(collection, move_candidate::Kind::del,
+                                           text, "decl_stmt");
+      const auto *after = find_candidate(collection, move_candidate::Kind::insert,
+                                          text, "decl_stmt");
+      require(before && after, "expected conditional crossing candidates");
+      require(before->location.anchor_interval_reliable &&
+                  after->location.anchor_interval_reliable &&
+                  before->location.next_common_anchor_id ==
+                      after->location.previous_common_anchor_id &&
+                  !has_suffix(before->location.next_common_anchor_id, ":end") &&
+                  has_suffix(before->location.previous_common_anchor_id, ":begin") &&
+                  has_suffix(after->location.next_common_anchor_id, ":end"),
+              "unique common conditional or nested declaration must expose crossing");
+    }
+    {
+      const std::string text = "int conditional_stationary = 73;";
+      const auto *before = find_candidate(collection, move_candidate::Kind::del,
+                                           text, "decl_stmt");
+      const auto *after = find_candidate(collection, move_candidate::Kind::insert,
+                                          text, "decl_stmt");
+      require(before && after, "expected stationary conditional candidates");
+      require(before->location.previous_common_anchor_id ==
+                  after->location.previous_common_anchor_id &&
+                  before->location.next_common_anchor_id ==
+                  after->location.next_common_anchor_id &&
+                  !has_suffix(before->location.previous_common_anchor_id, ":begin"),
+              "staying after a common conditional must retain the same interval");
+    }
+    for (const auto &scenario : std::vector<std::pair<std::string, int>>{
+             {"conditional_repeated", 79}, {"empty_conditional", 101}}) {
+      const std::string text = "int " + scenario.first + " = " +
+                               std::to_string(scenario.second) + ";";
+      for (const auto side : {move_candidate::Kind::del, move_candidate::Kind::insert}) {
+        const auto *value = find_candidate(collection, side, text, "decl_stmt");
+        require(value, "expected excluded-anchor guard candidates");
+        require(has_suffix(value->location.previous_common_anchor_id, ":begin") &&
+                    has_suffix(value->location.next_common_anchor_id, ":end"),
+                "repeated or comment-only conditional must not establish an anchor");
+      }
+    }
+    // Re-reading a nested common tree must assign exactly the same boundaries.
+    srcml_reader repeated_reader(argv[1]);
+    const auto repeated_collection = collect_candidates_streaming(
+        repeated_reader, get_default_filter_options());
+    for (const auto &value : collection.candidates) {
+      const auto *again = find_candidate(repeated_collection, value.kind,
+                                         value.raw_text, value.full_name);
+      require(again && value.location.previous_common_anchor_id ==
+                           again->location.previous_common_anchor_id &&
+                           value.location.next_common_anchor_id ==
+                           again->location.next_common_anchor_id,
+              "anchor intervals must be deterministic across parses");
+    }
+
     const std::string member = "int member() {return 23;}";
     const move_candidate *member_delete = find_candidate(
         collection, move_candidate::Kind::del, member, "function");

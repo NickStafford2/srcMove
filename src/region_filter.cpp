@@ -471,6 +471,8 @@ void resolve_anchor_intervals(std::vector<move_candidate> &candidates,
         context.semantic_container_id + ":begin";
     context.next_common_anchor_id = context.semantic_container_id + ":end";
 
+    const common_anchor *previous = nullptr;
+    const common_anchor *next = nullptr;
     for (const common_anchor &anchor : anchors) {
       if (anchor.container_id != context.semantic_container_id) {
         continue;
@@ -481,12 +483,19 @@ void resolve_anchor_intervals(std::vector<move_candidate> &candidates,
       if (identity_counts[key] != 1) {
         continue;
       }
-      if (anchor.end_idx < candidate.start_idx) {
-        context.previous_common_anchor_id = anchor.stable_id;
-      } else if (anchor.start_idx > candidate.end_idx) {
-        context.next_common_anchor_id = anchor.stable_id;
-        break;
+      if (anchor.end_idx < candidate.start_idx &&
+          (previous == nullptr || anchor.end_idx > previous->end_idx)) {
+        previous = &anchor;
+      } else if (anchor.start_idx > candidate.end_idx &&
+                 (next == nullptr || anchor.start_idx < next->start_idx)) {
+        next = &anchor;
       }
+    }
+    if (previous != nullptr) {
+      context.previous_common_anchor_id = previous->stable_id;
+    }
+    if (next != nullptr) {
+      context.next_common_anchor_id = next->stable_id;
     }
     context.anchor_interval_reliable = true;
   }
@@ -723,7 +732,9 @@ collect_candidates_streaming(srcml_reader                &reader,
   std::vector<revision_membership> revision_states;
   std::vector<source_element_frame> source_elements;
   ancestor_summary_interner ancestor_summaries;
-  std::optional<pending_common_anchor> pending_anchor;
+  // Independent collectors preserve declaration anchors inside mixed conditionals.
+  // Restarting conditional capture at nested ifs bounds canonicalization work.
+  std::optional<pending_common_anchor> pending_anchors[2];
   std::vector<common_anchor> common_anchors;
   std::size_t ignored_evidence_depth = 0;
   std::vector<std::vector<move_candidate>> candidate_sets;
@@ -805,24 +816,30 @@ collect_candidates_streaming(srcml_reader                &reader,
     const revision_membership effective =
         revision_states.empty() ? revision_membership::both
                                 : revision_states.back();
-    if (node.is_start() && node.name == "decl_stmt" && !pending_anchor &&
-        effective == revision_membership::both) {
-      const std::optional<std::size_t> container_index =
-          nearest_common_container_index(source_elements);
-      if (container_index) {
-        pending_anchor.emplace();
-        pending_anchor->container_id =
-            source_elements[*container_index].container_id;
-        pending_anchor->start_idx = node_index;
+    for (std::size_t slot = 0; slot < 2; ++slot) {
+      auto &pending_anchor = pending_anchors[slot];
+      const bool anchor_start = slot == 0 ? node.name == "decl_stmt"
+                                         : node.name == "if_stmt";
+      if (node.is_start() && anchor_start &&
+          (!pending_anchor || slot == 1) &&
+          effective == revision_membership::both) {
+        const std::optional<std::size_t> container_index =
+            nearest_common_container_index(source_elements);
+        if (container_index) {
+          pending_anchor.emplace();
+          pending_anchor->container_id =
+              source_elements[*container_index].container_id;
+          pending_anchor->start_idx = node_index;
+        }
       }
-    }
-    if (pending_anchor) {
-      if (node.is_start()) {
-        ++pending_anchor->depth;
-      }
-      pending_anchor->forms.consume(node);
-      if (effective != revision_membership::both) {
-        pending_anchor->mixed = true;
+      if (pending_anchor) {
+        if (node.is_start()) {
+          ++pending_anchor->depth;
+        }
+        pending_anchor->forms.consume(node);
+        if (effective != revision_membership::both) {
+          pending_anchor->mixed = true;
+        }
       }
     }
 
@@ -869,9 +886,11 @@ collect_candidates_streaming(srcml_reader                &reader,
     const bool substantive =
         ignored_evidence_depth == 0 && node.is_text() && node.content &&
         any_substantive_text(*node.content);
-    if (pending_anchor && substantive &&
-        effective == revision_membership::both) {
-      ++pending_anchor->substantive_common;
+    for (auto &pending_anchor : pending_anchors) {
+      if (pending_anchor && substantive &&
+          effective == revision_membership::both) {
+        ++pending_anchor->substantive_common;
+      }
     }
     if (substantive && !open_regions.empty()) {
       const revision_membership effective =
@@ -909,22 +928,24 @@ collect_candidates_streaming(srcml_reader                &reader,
                                 ancestor_summaries);
     }
 
-    if (pending_anchor && node.is_end()) {
-      --pending_anchor->depth;
-      if (pending_anchor->depth == 0) {
-        canonical_forms forms = pending_anchor->forms.finish();
-        if (!pending_anchor->mixed &&
-            pending_anchor->substantive_common != 0 && !forms.exact.empty()) {
-          common_anchor anchor;
-          anchor.container_id = std::move(pending_anchor->container_id);
-          anchor.canonical_identity = std::move(forms.exact);
-          anchor.start_idx = pending_anchor->start_idx;
-          anchor.end_idx = node_index;
-          anchor.stable_id = anchor.container_id + ":anchor:" +
-                             std::to_string(anchor.start_idx);
-          common_anchors.push_back(std::move(anchor));
+    for (auto &pending_anchor : pending_anchors) {
+      if (pending_anchor && node.is_end()) {
+        --pending_anchor->depth;
+        if (pending_anchor->depth == 0) {
+          canonical_forms forms = pending_anchor->forms.finish();
+          if (!pending_anchor->mixed &&
+              pending_anchor->substantive_common != 0 && !forms.exact.empty()) {
+            common_anchor anchor;
+            anchor.container_id = std::move(pending_anchor->container_id);
+            anchor.canonical_identity = std::move(forms.exact);
+            anchor.start_idx = pending_anchor->start_idx;
+            anchor.end_idx = node_index;
+            anchor.stable_id = anchor.container_id + ":anchor:" +
+                               std::to_string(anchor.start_idx);
+            common_anchors.push_back(std::move(anchor));
+          }
+          pending_anchor.reset();
         }
-        pending_anchor.reset();
       }
     }
 
@@ -1055,8 +1076,10 @@ collect_candidates_streaming(srcml_reader                &reader,
   if (!source_elements.empty()) {
     throw std::runtime_error("unexpected EOF inside source element");
   }
-  if (pending_anchor) {
-    throw std::runtime_error("unexpected EOF inside common declaration anchor");
+  for (const auto &pending_anchor : pending_anchors) {
+    if (pending_anchor) {
+      throw std::runtime_error("unexpected EOF inside common anchor");
+    }
   }
   if (!document_done) {
     throw std::runtime_error("unexpected EOF while reading srcDiff document");
