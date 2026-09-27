@@ -190,6 +190,8 @@ inline void write_selection_diagnostics(std::ostream &out,
     write_string(out, item.semantic_container_observation); out << ",\n";
     out << "        \"anchor_interval_observation\": ";
     write_string(out, item.anchor_interval_observation); out << ",\n";
+    out << "        \"relative_order_observation\": ";
+    write_string(out, item.relative_order_observation); out << ",\n";
     out << "        \"ancestor_observation\": ";
     write_string(out, item.ancestor_observation); out << ",\n";
     out << "        \"carried_by_parent\": "

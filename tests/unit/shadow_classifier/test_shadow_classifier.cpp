@@ -122,9 +122,14 @@ int main() {
               std::string(test.name) + ": unexpected change kind");
       require(result.reason == test.expected_reason,
               std::string(test.name) + ": unexpected reason");
+      if (std::string(test.name) == "different mapped container") {
+        require(result.observations.anchor_interval ==
+                    anchor_interval_observation::different,
+                "container-local anchor intervals must be incomparable");
+      }
       require(!result.carried_by_parent,
               std::string(test.name) +
-                  ": parent carrying is unsupported in this slice");
+                  ": the pure classifier must not infer hierarchy evidence");
     }
 
     require(to_string(shadow_change_kind::stationary) == "stationary",
@@ -140,6 +145,8 @@ int main() {
     require(to_string(semantic_container_observation::different_mapped) ==
                 "different_mapped",
             "observation strings must remain stable");
+    require(to_string(anchor_interval_observation::different) == "different",
+            "incomparable interval strings must remain stable");
 
     std::cout << "PASS shadow classifier tests\n";
     return 0;

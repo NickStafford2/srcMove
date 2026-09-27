@@ -7,6 +7,7 @@
 #include "move_candidate.hpp"
 #include "move_registry/move_buckets.hpp"
 
+#include <cassert>
 #include <iterator>
 #include <stdexcept>
 #include <utility>
@@ -107,11 +108,14 @@ void candidate_registry::remove_candidates_for_file(const file_key &file) {
     }
 
     records_[id].active = false;
+    records_[id].candidate.location.ancestor_summary_id = 0;
+    records_[id].candidate.location.ancestor_summary_reliable = false;
     --active_count_;
   }
 
   file_to_candidate_ids_.erase(it);
   rebuild_hash_buckets();
+  rebuild_ancestor_summaries();
 }
 
 void candidate_registry::replace_candidates_for_file(
@@ -149,6 +153,30 @@ void candidate_registry::rebuild_hash_buckets() {
     }
     activate_in_bucket(id);
   }
+}
+
+void candidate_registry::rebuild_ancestor_summaries() {
+  std::vector<std::vector<std::string>> rebuilt{{}};
+  rebuilt.reserve(active_count_ + 1);
+  std::vector<std::size_t> remapped(ancestor_summaries_.size(), 0);
+
+  for (candidate_record &record : records_) {
+    if (!record.active ||
+        !record.candidate.location.ancestor_summary_reliable ||
+        record.candidate.location.ancestor_summary_id == 0) {
+      continue;
+    }
+    const std::size_t old_id =
+        record.candidate.location.ancestor_summary_id;
+    assert(old_id < ancestor_summaries_.size());
+    if (remapped[old_id] == 0) {
+      remapped[old_id] = rebuilt.size();
+      rebuilt.push_back(ancestor_summaries_[old_id]);
+    }
+    record.candidate.location.ancestor_summary_id = remapped[old_id];
+  }
+
+  ancestor_summaries_.swap(rebuilt);
 }
 
 } // namespace srcmove

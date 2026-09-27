@@ -29,7 +29,7 @@ enum class semantic_container_observation {
   different_mapped,
   unknown,
 };
-enum class anchor_interval_observation { same, crossed, unknown };
+enum class anchor_interval_observation { same, different, crossed, unknown };
 enum class ancestor_observation {
   same,
   wrapped,

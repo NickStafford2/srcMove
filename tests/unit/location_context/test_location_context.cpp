@@ -4,6 +4,7 @@
 #include "region_filter.hpp"
 #include "srcml_reader.hpp"
 
+#include <algorithm>
 #include <iostream>
 #include <stdexcept>
 #include <string>
@@ -199,6 +200,8 @@ int main(int argc, char **argv) {
                 (std::vector<std::string>{"block", "if_stmt", "if", "block"}),
             "registry must preserve summaries after parse storage is released");
 
+    const std::size_t original_summary_count =
+        registry.ancestor_summaries().size();
     move_candidate later =
         candidate(move_candidate::Kind::del, "later-old.cpp|later-new.cpp");
     later.location.ancestor_summary_reliable = true;
@@ -213,6 +216,15 @@ int main(int argc, char **argv) {
                 registry.ancestor_summaries().at(rebased_id) ==
                     std::vector<std::string>{"while"},
             "independent document summary ids must not collide");
+    registry.remove_candidates_for_file("later.xml");
+    const bool retained_removed_summary = std::find(
+        registry.ancestor_summaries().begin(),
+        registry.ancestor_summaries().end(),
+        std::vector<std::string>{"while"}) !=
+        registry.ancestor_summaries().end();
+    require(!retained_removed_summary &&
+                registry.ancestor_summaries().size() <= original_summary_count,
+            "removal must reclaim summaries no longer referenced by active candidates");
 
     std::cout << "PASS location context tests\n";
     return 0;

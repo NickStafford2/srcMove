@@ -60,21 +60,21 @@ container fallback, conservative file-root defaults, wrapper differences,
 registry ownership and rebasing, same intervals, crossed stable siblings, and
 mixed/repeated anchor rejection.
 
-The shadow-classifier phase has started. `src/shadow_classifier.hpp` and
+The shadow-classifier phase is complete. `src/shadow_classifier.hpp` and
 `src/shadow_classifier.cpp` define a pure classifier for one unique Type-1
 pair, stable diagnostic strings, and explicit observed dimensions. Its ordered
 rules classify different files, different mapped containers, and crossed
 stable anchors as relocated; equal ancestry in one stable interval as
 stationary; meaningful prefix wrapper additions/removals as restructured; and
-missing or incompatible evidence as ambiguous. Parent-carried relationships
-remain deliberately unsupported. The refined group builder now harvests unique
-Type-1 exact pairs before local-replacement rejection and hierarchy selection,
-classifies them, and exposes their endpoint contexts and eventual current
-selection result in opt-in diagnostics schema version 2. The focused
-end-to-end check proves that selection-rejected stationary evidence survives
-and that enabling diagnostics leaves all ordinary result fields unchanged.
-`shadow_classifier_test` covers every rule branch and conservative
-counterexamples.
+missing or incompatible evidence as ambiguous. The refined group builder
+harvests unique Type-1 exact pairs before local-replacement rejection and
+hierarchy selection, classifies them, and exposes their endpoint contexts and
+eventual current selection result in opt-in diagnostics schema version 2. The
+focused end-to-end check proves that selection-rejected stationary evidence
+survives and that enabling diagnostics leaves all ordinary result fields
+unchanged. `shadow_classifier_test` covers every rule branch and conservative
+counterexamples. Supported parent-carried relationships are described in
+Phase 2.4 below.
 
 Phase 2.2 connects the Phase 0 catalog to executable diagnostics. The adapter
 resolves endpoints by each reviewed contract's construct and exact before/after
@@ -116,10 +116,27 @@ are unselected. This is conservative rather than proof that the 12 are
 stationary or restructured; their real srcDiff representation supplies no
 mapped common semantic container.
 
-The next implementation session should continue in this order:
+Phase 2.6 independent review is complete. It found no circular anchors,
+production-selection feedback, raw XPath or line-distance relocation proof,
+non-unique anchor acceptance, undocumented schema bump, or inaccurate retained
+evaluation claims. The review's substantive findings were resolved:
 
-1. perform the independent review in Step 7, resolve substantive findings, and
-   produce the final milestone report required below.
+- executable one-to-one contracts now compare every declared observed context
+  dimension, not only the final label and reason;
+- anchor intervals in different mapped containers are explicitly `different`
+  and have unknown relative order rather than being called crossed siblings;
+- carried children explicitly report `same_within_parent` and unchanged
+  relative order;
+- correspondence diagnostics are sorted by endpoint candidate IDs;
+- incremental registry removal compacts the ancestor-summary side table; and
+- the completed backward-compatible feature advances `VERSION` to `0.4.0`.
+
+The next session should continue in this order:
+
+1. review and commit the completed Phase 2.6 slice. Final Docker verification
+   passed all 13 `make test` steps on 2026-09-27, and `git diff --check` passed;
+2. after human acceptance, delete this temporary handoff because architecture,
+   tests, and benchmark documentation now own the durable facts.
 
 Do not derive containers or anchors from raw XPath, names alone, the candidate
 being classified, or a second tree-matching pass. Shadow correspondences are

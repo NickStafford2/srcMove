@@ -469,17 +469,46 @@ def evaluate_shadow_diagnostics(
             f"{case['id']}: resolved {len(matching)} unique diagnostic records"
         )
     record = matching[0]
+    anchor_interval = record.get("anchor_interval_observation")
+    ancestor_change = {
+        "same": "none",
+        "wrapped": "wrapped",
+        "unwrapped": "unwrapped",
+        "incompatible": "incompatible",
+        "unknown": "unknown",
+    }.get(record.get("ancestor_observation"))
     return {
         "change_kind": record.get("shadow_change"),
         "classification_reason": record.get("classification_reason"),
         "carried_by_parent": record.get("carried_by_parent", False),
+        "observed_context": {
+            "file": record.get("file_observation"),
+            "semantic_container": record.get("semantic_container_observation"),
+            "anchor_interval": anchor_interval,
+            "ancestor_change": ancestor_change,
+            "relative_order": record.get("relative_order_observation"),
+        },
     }
 
 
 def assert_shadow_expectation(case: dict[str, Any], actual: dict[str, Any]) -> None:
     expected = dict(case["expected_shadow"])
     expected.setdefault("carried_by_parent", False)
-    if actual != expected:
+    actual_shadow = {
+        field: actual.get(field)
+        for field in ("change_kind", "classification_reason", "carried_by_parent")
+    }
+    if actual_shadow != expected:
         raise ShadowContractError(
-            f"{case['id']}: shadow result {actual}, expected {expected}"
+            f"{case['id']}: shadow result {actual_shadow}, expected {expected}"
         )
+    # Non-unique groups intentionally have no manufactured correspondence
+    # record. Their context remains an independently reviewed XML precondition;
+    # every executable one-to-one record must expose all declared dimensions.
+    if case["srcdiff_precondition"]["cardinality"] == "one_to_one":
+        observed_context = actual.get("observed_context")
+        if observed_context != case["observed_context"]:
+            raise ShadowContractError(
+                f"{case['id']}: observed context {observed_context}, "
+                f"expected {case['observed_context']}"
+            )

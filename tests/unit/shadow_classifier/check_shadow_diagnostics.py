@@ -45,6 +45,11 @@ def main() -> int:
     assert ordinary == diagnostic_without_evidence
     assert evidence["schema_version"] == 2
     records = evidence["correspondences"]
+    correspondence_ids = [
+        (record["delete_candidate_id"], record["insert_candidate_id"])
+        for record in records
+    ]
+    assert correspondence_ids == sorted(correspondence_ids)
     assert has_record(
         records,
         current_result="move",

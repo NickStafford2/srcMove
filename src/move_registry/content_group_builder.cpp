@@ -239,6 +239,20 @@ endpoint_context_diagnostic endpoint_diagnostic(
   };
 }
 
+std::string_view relative_order_observation(
+    anchor_interval_observation observation) {
+  switch (observation) {
+  case anchor_interval_observation::same:
+    return "unchanged";
+  case anchor_interval_observation::crossed:
+    return "crossed_stable_sibling";
+  case anchor_interval_observation::different:
+  case anchor_interval_observation::unknown:
+    return "unknown";
+  }
+  return "unknown";
+}
+
 void collect_unique_type1_correspondences(
     const candidate_registry &registry,
     const std::vector<pending_group> &exact_groups,
@@ -267,6 +281,8 @@ void collect_unique_type1_correspondences(
         std::string(
             to_string(classification.observations.semantic_container)),
         std::string(to_string(classification.observations.anchor_interval)),
+        std::string(relative_order_observation(
+            classification.observations.anchor_interval)),
         std::string(to_string(classification.observations.ancestor)),
         classification.carried_by_parent,
         endpoint_diagnostic(registry, deleted),
@@ -708,10 +724,22 @@ void classify_parent_carried_correspondences(
     child.shadow_change = "stationary";
     child.classification_reason = std::string(to_string(
         shadow_classification_reason::stable_relative_to_relocated_parent));
+    child.anchor_interval_observation = "same_within_parent";
+    child.relative_order_observation = "unchanged";
     child.carried_by_parent = true;
     child.parent_delete_candidate_id = parent.delete_candidate_id;
     child.parent_insert_candidate_id = parent.insert_candidate_id;
   }
+}
+
+void order_correspondence_diagnostics(selection_diagnostics &diagnostics) {
+  std::sort(
+      diagnostics.correspondences.begin(), diagnostics.correspondences.end(),
+      [](const correspondence_diagnostic &lhs,
+         const correspondence_diagnostic &rhs) {
+        return std::pair{lhs.delete_candidate_id, lhs.insert_candidate_id} <
+               std::pair{rhs.delete_candidate_id, rhs.insert_candidate_id};
+      });
 }
 
 bool proposal_is_descendant(const match_proposal &child,
@@ -1078,6 +1106,7 @@ content_groups build_content_groups(const candidate_registry &registry,
       collect_unique_type1_correspondences(registry, exact_groups,
                                            *diagnostics);
       classify_parent_carried_correspondences(registry, *diagnostics);
+      order_correspondence_diagnostics(*diagnostics);
     }
   }
 

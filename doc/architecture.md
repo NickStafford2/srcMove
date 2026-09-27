@@ -63,13 +63,15 @@ The parser emits a document-local intern table; the candidate registry rebases
 incoming IDs into registry-owned storage so they remain resolvable throughout
 grouping and classification, including incremental multi-file use. Common
 elements and elements belonging only to the endpoint revision are included;
-elements exclusive to the opposite revision are not. After the streaming pass,
-complete substantial common declarations with unique canonical identity in a
-mapped container become stable anchors. Mixed or repeated declarations are
-excluded. Each mapped candidate receives its nearest unique anchors, falling
-back to explicit container-begin and container-end sentinels, so crossings are
-observable without tree rematching. Unmapped candidates retain unreliable
-anchor intervals. Current selection does not consume any location context.
+elements exclusive to the opposite revision are not. Removing an incremental
+file compacts this side table to summaries still referenced by active
+candidates. After the streaming pass, complete substantial common declarations
+with unique canonical identity in a mapped container become stable anchors.
+Mixed or repeated declarations are excluded. Each mapped candidate receives
+its nearest unique anchors, falling back to explicit container-begin and
+container-end sentinels, so crossings are observable without tree rematching.
+Unmapped candidates retain unreliable anchor intervals. Current selection does
+not consume any location context.
 
 This distinction permits a deletion in one archive unit to match an insertion
 in another without mistaking a combined srcDiff filename for one revision's
@@ -239,8 +241,11 @@ schema version `2` records unique Type-1 correspondence classifications and
 endpoint context before selection, retained candidates, and Type-3 shortlist
 decisions, including observed line and token LCS evidence for below-threshold
 pairs and whether a verified edge was selected. Each correspondence also says
-whether current selection emitted it as a move. Diagnostics require `--results`
-and are not emitted during ordinary runs.
+whether current selection emitted it as a move. File, mapped-container,
+anchor-interval, relative-order, and ancestor observations are explicit.
+Container-local anchor intervals are `different`, not crossed, when their
+mapped containers differ. Diagnostics require `--results` and are not emitted
+during ordinary runs.
 
 ### Results terminology
 

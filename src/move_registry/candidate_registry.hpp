@@ -150,6 +150,9 @@ private:
   // Rebuild buckets after removals.
   void rebuild_hash_buckets();
 
+  // Rebuild the compact summary side table from active candidates.
+  void rebuild_ancestor_summaries();
+
   std::vector<candidate_record> records_;
 
   // Registry-owned side table referenced by candidate location contexts.

@@ -51,6 +51,7 @@ struct correspondence_diagnostic {
   std::string file_observation;
   std::string semantic_container_observation;
   std::string anchor_interval_observation;
+  std::string relative_order_observation;
   std::string ancestor_observation;
   bool carried_by_parent = false;
   endpoint_context_diagnostic before_context;

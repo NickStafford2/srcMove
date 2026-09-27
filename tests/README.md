@@ -40,9 +40,10 @@ python3 tests/regression/policy/list.py --catalog contextual
   explicitly with `make test-performance` and included by `make test-unit`.
 - `move-selection`: focused runner unit tests plus accepted semantic contracts,
   including stationary exact correspondences exposed as adjacent delete/insert
-  regions. It also validates the separate Phase 0 shadow-classifier oracle,
-  including every fixture's srcDiff membership and endpoint cardinality.
-  Shadow expectations do not yet change or assert the production `moves`
+  regions. It also executes the separate shadow-classifier oracle against
+  opt-in diagnostics, including every fixture's srcDiff membership, endpoint
+  cardinality, context observations, classification, and stable reason. Shadow
+  expectations do not change or serve as an oracle for the production `moves`
   array. Hypotheses remain observational benchmark cases. Run with `make
   test-move-selection`; it is also included by `make test-unit`.
 - `srcmove-history`: focused unit tests under

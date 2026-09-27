@@ -32,7 +32,14 @@ shadow_observations observe(
             : semantic_container_observation::different_mapped;
   }
 
-  if (before.anchor_interval_reliable && after.anchor_interval_reliable) {
+  if (before.anchor_interval_reliable && after.anchor_interval_reliable &&
+      result.semantic_container ==
+          semantic_container_observation::different_mapped) {
+    result.anchor_interval = anchor_interval_observation::different;
+  } else if (before.anchor_interval_reliable &&
+             after.anchor_interval_reliable &&
+             result.semantic_container ==
+                 semantic_container_observation::same_mapped) {
     const bool same = before.previous_common_anchor_id ==
                           after.previous_common_anchor_id &&
                       before.next_common_anchor_id == after.next_common_anchor_id;
@@ -197,6 +204,8 @@ std::string_view to_string(semantic_container_observation value) noexcept {
 std::string_view to_string(anchor_interval_observation value) noexcept {
   switch (value) {
     SRCMOVE_ENUM_STRING_CASE(anchor_interval_observation::same, "same");
+    SRCMOVE_ENUM_STRING_CASE(anchor_interval_observation::different,
+                             "different");
     SRCMOVE_ENUM_STRING_CASE(anchor_interval_observation::crossed, "crossed");
     SRCMOVE_ENUM_STRING_CASE(anchor_interval_observation::unknown, "unknown");
   }
