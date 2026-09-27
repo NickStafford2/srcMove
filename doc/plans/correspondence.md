@@ -529,7 +529,7 @@ At every milestone, preserve previous behavior behind a temporary comparison
 path until the new behavior has been evaluated. Remove that path once it no
 longer provides diagnostic value; it should not become a permanent second
 algorithm. Emit only accepted relocations as normal moves. Preserve other
-correspondence classes in results JSON or diagnostics, and update srcVisual
+correspondence classes in results JSON or diagnostics, and update srcDiffVisual
 deliberately rather than relying on old move annotations to encode new
 meanings.
 
@@ -607,7 +607,7 @@ Before production behavior changes, answer these questions explicitly:
    as restructuring in all cases, or can some wrapper changes constitute a
    relocation?
 2. Should normal srcMove output include copies, or should copies exist only in
-   JSON diagnostics and srcVisual?
+   JSON diagnostics and srcDiffVisual?
 3. Should ambiguous correspondences be visible by default, available only on
    request, or omitted from normal output?
 4. Is a changed semantic container always sufficient relocation evidence when

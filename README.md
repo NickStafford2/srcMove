@@ -18,7 +18,7 @@ produced by srcDiff.
 
 [SrcMLBuildTemplate](https://github.com/NickStafford2/SrcMLBuildTemplate)
 provides the recommended reproducible workspace for building the complete
-toolchain. The companion `srcVisual` project presents srcDiff and srcMove XML in
+toolchain. The companion `srcDiffVisual` project presents srcDiff and srcMove XML in
 a synchronized code-editor-like interface so detected moves can be inspected
 across files.
 
@@ -80,7 +80,7 @@ srcMLBuildTemplate/
   srcReader/
   srcDiff/
   srcMove/
-  srcVisual/
+  srcDiffVisual/
 ```
 
 The workspace is a convenience and the recommended installation experience,
