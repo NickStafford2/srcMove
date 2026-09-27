@@ -2,7 +2,10 @@
 
 Status: active roadmap. Delivery milestone 1 (context and shadow diagnostics)
 is complete in srcMove 0.4.0, and Phase 3 unique Type-1 production adoption is
-complete in srcMove 0.5.0. Phase 4, conservative Type-2 adoption, is next. This
+complete in srcMove 0.5.0, including source-input normalization (3.2) and
+retained real-history evaluation (3.3). Phase 4 unifies Type-1/2/3 movement
+classification; Phase 5 addresses repeated groups; Phase 6 evaluates and
+consolidates the system. These phases are planned, not implemented. This
 document records rationale, semantics, decision points, and future
 implementation phases rather than the full current behavior. The verified
 implementation remains documented in
@@ -33,9 +36,9 @@ A second stage should classify the observed relationship:
                                  |
                          change classifier
                                  |
-        +-------------+----------+----------+-------------+
-        |             |          |          |             |
-   stationary    relocated    copied   restructured   ambiguous
+        +-------------+----------------+-------------+
+        |             |                |             |
+   stationary    relocated       restructured    ambiguous
 ```
 
 The diagram shows alternative classifications, not a hierarchy. `ambiguous`
@@ -45,6 +48,27 @@ other conclusions.
 This separation prevents a strong content match from being mistaken for proof
 of movement. It also gives candidate generation, matching, classification, and
 hierarchical selection one clear responsibility each.
+
+## Historical-analysis objective
+
+The purpose is more useful historical analysis: distinguish real relocations
+from edits in place without unnecessarily losing genuine moves. Fewer reported
+moves, more `ambiguous` results, passing revised goldens, or a cleaner pipeline
+alone do not establish improvement. Evaluate false moves and missed real moves
+together, using reviewed source revisions independently of detector output.
+
+Positive relocation evidence remains the output rule, but conservatism is not
+the optimization target. When real moves become ambiguous, first investigate
+missing context, correspondence quality, and selection conflicts. Add only
+small, justified evidence improvements with positive and negative contracts;
+do not silently relabel known moves as non-moves to make tests pass. If a
+tradeoff remains, document which historical queries lose useful results and
+review that tradeoff before adopting the change.
+
+Use the acceptance criteria in [Phase 6](#phase-6-evaluate-and-consolidate)
+throughout Phases 4 and 5, not only after implementation. Preserve unresolved
+correspondences in opt-in diagnostics; `ambiguous` means unknown, not evidence
+that nothing moved.
 
 ## Why the distinction matters
 
@@ -109,7 +133,7 @@ sibling within one container.
 `relocated` is the classification that should normally become a user-visible
 srcMove move.
 
-#### Copied
+#### Copied (deferred)
 
 The source occurrence survives while a corresponding occurrence appears at a
 new location. Copy classification therefore requires evidence about surviving
@@ -143,10 +167,12 @@ only accepted relocations.
 
 ### Possible future extensions
 
-The five initial outcomes are deliberately small. One-to-many and many-to-one
+The active movement outcomes are stationary, relocated, restructured, and
+ambiguous, with parent carrying recorded separately. Copy detection is deferred
+because it needs source-survival evidence. One-to-many and many-to-one
 histories may later justify explicit `split`, `merged`, or `extracted`
 classifications. Until those semantics are defined and tested, such cases
-should remain copied or ambiguous rather than being forced into `relocated`.
+should remain unresolved unless movement is independently supported.
 
 ## Orthogonal dimensions
 
@@ -239,7 +265,7 @@ should be `ambiguous` rather than automatically `relocated`.
 
 ## Context evidence
 
-A future classifier should prefer durable structural evidence in roughly this
+The shared classifier should use durable structural evidence in roughly this
 order:
 
 1. **File identity.** A unique correspondence across files is strong
@@ -269,39 +295,40 @@ must not assume that:
 
 ## Proposed classification policy
 
-The first classifier should use ordered, explainable rules rather than another
-opaque score:
+Retain ordered, explainable rules rather than adding another score. For a pair
+whose correspondence is sufficiently established, the active location policy is:
 
 ```text
-if correspondence is not uniquely resolvable:
+if revision file changed:
+    relocated
+else if file identity or mapped container evidence is missing:
     ambiguous
-else if source demonstrably survives at its original location:
-    copied
-else if same stable anchor interval and meaningful ancestor chain changed:
-    restructured
-else if same semantic container and same stable anchor interval:
-    stationary
-else if file or semantic container changed:
+else if mapped semantic container changed:
     relocated
 else if candidate crossed a stable sibling:
     relocated
+else if same stable anchor interval and meaningful ancestry is unchanged:
+    stationary
+else if same stable anchor interval and ancestry supports wrapping/unwrapping:
+    restructured
 else:
     ambiguous
 ```
 
-The order is policy and must be tested. For example, source survival should
-prevent an additional occurrence from being mislabeled as a simple move, while
-wrapping should be recognized before a changed immediate parent triggers a
-relocation decision.
+The order is policy and must be tested. A changed immediate parent alone does
+not establish relocation; wrapping inside a stable interval is restructuring.
+Matching ambiguity and parent carrying remain explicit checks outside these
+pair-only location rules. Copy detection needs additional evidence and remains
+outside the active phases.
 
-The current implementation contains a deliberately narrow safeguard: a unique
-Type-1 or Type-2 pair in adjacent nested delete/insert regions in one file is
+The current implementation retains a deliberately narrow Type-2 safeguard:
+a unique pair in adjacent nested delete/insert regions in one file is
 rejected as a local replacement. It does not require identical inner paths,
 because srcDiff can expose stationary or restructured content under
 incompatible paths. This is useful negative relocation evidence but is not a
-complete classifier. A future implementation should convert the safeguard
-into one classification rule rather than continually adding special-case move
-rejections.
+complete classifier. Phase 4.1 replaces it with the shared classifier after
+its negative contracts are covered. Unique Type-1 already uses that classifier;
+the architecture document describes its verified behavior.
 
 ## Proposed pipeline
 
@@ -316,15 +343,12 @@ correspondence construction
   exact / Type 2 / Type 3
     |
     v
-cardinality and conflict analysis
+shared location classification
+  stationary / relocated / restructured / ambiguous
     |
     v
-change classification
-  stationary / relocated / copied / restructured / ambiguous
-    |
-    v
-hierarchical explanation selection
-  parent versus descendants; non-overlap
+common eligibility and conflict selection
+  correspondence ambiguity; parent carrying; parent versus descendants; non-overlap
     |
     v
 report accepted relocations
@@ -336,10 +360,19 @@ content matches. Correspondence asks *what continues*; classification asks
 *what happened*; hierarchy selection asks *which granularity best explains the
 change*.
 
+The location classifier can assess a proposed pair without proving that it is
+the unique correspondence. Matching uncertainty remains explicit through
+eligibility and selection. Parent carrying depends on relationships among
+correspondences, so it is a shared relationship check rather than an additional
+pair-only location rule. Reuse the existing classifier, decision record, and
+selector; do not add a generic framework or a second ranking system.
+
 ## Suggested data model
 
-Names are illustrative and should be reconciled with existing repository
-types before implementation.
+This early sketch is illustrative, not a requirement to add new types. Phase 4
+should generalize the existing compact decision record and classifier types.
+Keep parent carrying as an explicit relationship; do not introduce a copied
+outcome before source-survival evidence is in scope.
 
 ```cpp
 enum class correspondence_kind {
@@ -351,7 +384,6 @@ enum class correspondence_kind {
 enum class change_kind {
   stationary,
   relocated,
-  copied,
   restructured,
   ambiguous,
 };
@@ -476,73 +508,160 @@ their earlier group policy.
 Let the new classifier control output for unique exact correspondences first.
 Type-1 offers the clearest correspondence evidence, so failures in this phase
 mostly expose classification-policy problems rather than matching problems.
-Existing non-1x1 groups remain intact as diagnostics; they are not discarded or
-expanded into speculative pairs.
+Existing non-1x1 groups retain their earlier production policy until Phase 5;
+they are not expanded into speculative pairs.
 
-Initially support only:
+The initial adoption targeted:
 
 - `stationary` when structural location is effectively unchanged;
 - `relocated` when the location change is clear; and
 - `ambiguous` when evidence is insufficient or contradictory.
 
+The completed implementation also classifies basic wrapping/unwrapping as
+`restructured` and records exact-parent carrying; both remain non-move outcomes.
+
 Require positive relocation evidence and prefer `ambiguous` to a weak move
 claim. Keep Type-2 behavior on the existing path until Type-1 results are
 understood and stable.
 
-### Phase 4: extend the same classifier to Type-2
+### Phase 4: unify movement classification across Type-1/2/3
 
-Status: next. The diagnostics-first implementation sequence and checked-in
-baseline inventory are in the active
-[`Type-2 adoption handoff`](../handoffs/correspondence-type2-adoption.md).
+Status: next. Use one location classifier and one eligibility/selection path.
+Keep the existing matching representations and Type-3 verification rule.
+The active [Type-2 adoption handoff](../handoffs/correspondence-type2-adoption.md)
+covers the immediate Phase 4.0/4.1 work only.
 
-Reuse the Type-1 context and classification model for strong non-exact
-correspondences. Do not invent a separate definition of movement for Type-2;
-only its correspondence evidence and confidence should differ.
+#### Phase 4.0: consolidate the decision path and establish contracts
 
-Adopt Type-2 output conservatively, with explicit confidence thresholds and
-diagnostics for cases that fall back to `ambiguous`. Evaluate correspondence
-quality separately from classification quality so a poor match is not mistaken
-for a poor definition of movement.
+Generalize the existing Type-1/shadow names and compact decision record only
+where needed. Production and diagnostics must consume the same decision.
+Preserve Type-1 behavior and normal output while collecting observation-only
+Type-2 results. Record matching evidence separately from location classification
+and final selection; ranking confidence is not a probability of movement.
 
-### Phase 5: add restructuring dimensions
+Define reviewed contracts for movement, edits in place, wrapping, missing
+context, competing endpoints, and parent carrying. Use current exact-parent
+carrying only within its supported scope. Containment inside a normalized or
+edited parent does not prove a child's relative position stayed unchanged.
+Do not suppress a child merely because an unselected parent could carry it;
+the selected explanation must account for the child's movement.
 
-Add ancestor summaries and explicit wrap/unwrap contracts only after the basic
-stationary-versus-relocated decision is reliable. Classify structural parent,
-branch, ordering, and control-flow changes as restructuring where the evidence
-and policy are clear. Otherwise preserve the dimension values and classify the
-case as `ambiguous`.
+#### Phase 4.1: migrate Type-2
 
-### Phase 6: add copies and relationship cardinality
+Classify unique complete constructs with equal Type-2 identity using the shared
+classifier. Audit existing expectations and historical gains/losses before
+adopting the production gate. Remove the adjacent-local-replacement heuristic
+once its contracts are covered. Preserve unresolved normalized groups and
+prevent rejected correspondences from being relabeled as weaker Type-3 matches.
+Do not invent a confidence threshold from the fixed Type-2 ranking weight.
 
-Handle `copied` last. Add the minimum common-construct inventory needed to
-establish source survival, then represent one-to-many and many-to-one
-correspondence explicitly. Define provenance and tie-breaking policy before
-distinguishing true copies from repeated or unresolved exact groups. Consider
-`split` and `merged` only if reviewed examples justify expanding the taxonomy.
+#### Phase 4.2: migrate verified Type-3 correspondences
 
-At this phase, decide separately whether an unresolved group needs only a
-set-level classification or whether structural context supports decomposition
-into smaller groups or unique correspondences. Introduce change-event grouping
-only for cases where several established correspondences genuinely form one
-larger explanatory edit.
+Begin with independent contracts and observation-only classification of verified
+Type-3 edges, then evaluate before changing output. Type-3 similarity may yield
+several competing edges for an endpoint and is not transitive; do not convert
+connected similar pairs into an exact-style equivalence group or treat passing
+the similarity threshold as proof of a unique correspondence.
+
+Reuse the same location rules and existing conflict selector. Establish when
+competing correspondence evidence must remain ambiguous; a deterministic rank
+alone is not evidence of identity. Keep correspondence acceptance separate from
+location evidence so cross-file displacement cannot validate a poor match.
+Test edits in place, genuine edited moves, competing endpoints, and independently
+moved children inside edited parents. Extend parent carrying only when stable
+relative position is supported; otherwise let existing overlap selection avoid
+duplicate output. Do not add an optimizer, new retrieval model, or generalized
+matching framework to accomplish this migration.
+
+### Phase 5: consistent treatment of repeated correspondence groups
+
+Close the remaining repeated Type-1 exception to positive relocation evidence.
+Start with the normalized wrapper cases documented in the
+[Phase 3 inventory](../../moveSelectionBench/README.md#phase-32-normalized-source-inventory),
+where repeated groups can emit moves despite stationary or ambiguous unique
+child decisions. Establish positive repeated-move and negative repeat/wrapper
+contracts before changing group eligibility.
+
+Require supported movement for any emitted group. Preserve set-level evidence
+without asserting unknown individual pairings. A single displaced endpoint must
+not justify annotating an entire mixed stationary/moved group. If context does
+not establish the group's movement, retain it as ambiguous; measure the real
+moves lost by that choice rather than counting suppression as success.
+
+Do not pair by document order, expand Cartesian products, or interpret unequal
+counts as copies. Keep normalized repeats unresolved unless reviewed context
+justifies a small, explicit resolution rule. Group decomposition is not required
+for completion; add it only if evaluated historical cases justify it. Reuse the
+same movement evidence and common selector rather than introducing another
+movement definition or change-event system.
+
+### Phase 6: evaluate and consolidate
+
+Use this acceptance process for each production adoption, then perform a final
+integrated evaluation. Freeze the baseline, evaluated inputs, executable/build
+provenance, and independently reviewed expectations. Include both small semantic
+contracts and a bounded sample of real history across repositories and languages
+supported by the tool. Include same-file reorders, cross-container/file moves,
+edited moves, wrapping, repeated code, and weak srcDiff context. Select history
+samples before inspecting detector outcomes and retain a held-out portion for
+final evaluation; do not tune only against the retained Notepad++ example.
+
+Review source revisions to label real moves and non-moves independently of both
+versions' outputs. Include missed cases, not just the union of reported moves.
+Separate uncertain human judgments from confirmed labels. Report:
+
+- correspondence errors separately from location-classification errors;
+- false moves, missed reviewed moves, precision and recall where the labeled
+  sample supports them, with explicit counts and denominators;
+- results by evidence type and scenario, plus ambiguity counts and known real
+  moves withheld as ambiguous; Type-3 remains an observational recall stratum;
+- baseline-to-candidate gains and losses, identifying extraction, matching,
+  missing context, classification, or selection as the limiting stage; and
+- runtime and peak memory on the same inputs and execution environment.
+
+Use compatible counting units: repeated groups are not verified individual
+pairs, and parent-carried descendants must not inflate recall or duplicate
+errors. Synthetic transfers establish controlled capability, not representative
+historical accuracy. Zero reported moves on the retained Notepad++ input proves
+conservative fallback only; it does not prove improved precision or recall.
+
+Acceptance requires evidence of improved historical usefulness with reviewed
+precision/recall tradeoffs, not merely fewer outputs or passing tests. Investigate
+every lost reviewed positive in the bounded evaluation. Restore detection through
+justified evidence where feasible; otherwise make the remaining loss and its
+impact explicit for review before adoption. Do not invent numeric targets or
+claim general accuracy from a small sample. If results do not support improvement,
+revise or narrow the policy before calling the milestone complete.
+
+Finally remove obsolete comparison paths, consolidate decision/diagnostic code,
+and reconcile architecture and research documentation with verified behavior.
+Retain reproducible baseline evidence. No permanent dual algorithm, new scoring
+framework, or automatic release/version change is required.
+
+### Deferred work
+
+Basic ancestor summaries and wrap/unwrap classification already exist; validate
+them across evidence types in Phase 4 rather than scheduling them as a new
+Phase 5 feature. Richer branch/control-flow restructuring, copy detection,
+source-survival inventories, split/merge/extraction labels, and change-event
+grouping remain future work. Reconsider them only when concrete historical
+analysis needs and reviewed examples justify the added concepts.
 
 ### Delivery milestones
 
-Each milestone should be reviewable and releasable on its own:
+1. Context and shadow diagnostics exist (complete).
+2. Unique Type-1 output uses classification, with normalized regressions and
+   retained history evaluation (complete).
+3. Type-2 and verified Type-3 use shared classification and selection (Phase 4).
+4. Repeated groups obey a consistent movement policy (Phase 5).
+5. Historical usefulness and costs are evaluated, and the pipeline is
+   consolidated (Phase 6).
 
-1. Context and shadow diagnostics exist; public output is unchanged.
-2. The classifier controls Type-1 results.
-3. The classifier controls sufficiently confident Type-2 results.
-4. Restructuring dimensions and labels are available.
-5. Copy detection and non-one-to-one correspondence are represented.
-
-At every milestone, preserve previous behavior behind a temporary comparison
-path until the new behavior has been evaluated. Remove that path once it no
-longer provides diagnostic value; it should not become a permanent second
-algorithm. Emit only accepted relocations as normal moves. Preserve other
-correspondence classes in results JSON or diagnostics, and update srcDiffVisual
-deliberately rather than relying on old move annotations to encode new
-meanings.
+Each adoption uses a temporary comparison path until evaluated; remove it when
+it no longer provides diagnostic value. Only accepted relocations enter normal
+move output. Preserve other observations in opt-in diagnostics and update
+srcDiffVisual deliberately if its interpretation must change. Milestones do not
+authorize a version bump; follow the repository versioning policy.
 
 ## Test strategy
 
@@ -554,7 +673,7 @@ The semantic tests should cross correspondence evidence with change outcome:
 | exact | same statement moved to another function | relocated |
 | exact | statement reordered past stable sibling | relocated |
 | exact | statements wrapped by a new conditional | restructured |
-| exact | source remains and another occurrence appears | copied |
+| exact (deferred copy work) | source remains and another occurrence appears | copied, only with source-survival evidence |
 | Type 2 | identifier or literal changed in the same slot | stationary |
 | Type 2 | renamed statement moved to another function | relocated |
 | exact | repeated endpoints without unique pairing | ambiguous |
@@ -664,10 +783,10 @@ policy from incidental regression output.
 
 ## Effort and risk
 
-A three-way prototype (`stationary`, `relocated`, `ambiguous`) for unique Type-1
-and Type-2 correspondences is likely a small multi-day change. A robust
-classifier with anchors, restructuring, copy detection, output evolution, and
-real-history evaluation is closer to a one- or two-week focused effort.
+The classifier and streaming context already exist. The remaining work is
+migration, repeated-group policy, and evaluation. Keep each adoption small;
+do not make deferred copy detection or richer restructuring prerequisites for
+the thesis milestone.
 
 The main risk is not implementation cost. It is encoding an unclear definition
 of movement and then treating generated outputs as ground truth. Phase 0 and an

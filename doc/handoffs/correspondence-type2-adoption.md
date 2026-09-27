@@ -2,7 +2,7 @@
 
 ## Objective
 
-Implement Phase 4 of
+Implement Phases 4.0 and 4.1 of
 [`Correspondence before change classification`](../plans/correspondence.md):
 extend the reviewed structural change classifier to strong unique one-to-one
 Type-2 correspondences without changing the definition of relocation.
@@ -11,6 +11,13 @@ Do not change production output first. Begin with a reviewer-owned oracle and
 observation-only Type-2 diagnostics, characterize every checked-in Type-2
 expectation, and only then adopt the shared decision path. Type-1, Type-3, and
 non-1x1 policy must remain unchanged.
+
+This handoff covers the immediate Type-2 migration. Phase 4.2 migrates verified
+Type-3 correspondences; Phase 5 addresses repeated groups; Phase 6 evaluates and
+consolidates the system. Their scope and historical-analysis acceptance criteria
+live in the [roadmap](../plans/correspondence.md#historical-analysis-objective).
+Apply those criteria during this migration: fewer moves or more ambiguity alone
+does not demonstrate improvement. Audit missed real moves alongside false moves.
 
 ## Starting point
 
@@ -87,9 +94,15 @@ their current filenames. If they are intended to remain move-selection
 mechanics contracts, add explicit faithful relocation context as Phase 3 did;
 do not weaken the classifier to preserve them.
 
-## Required Phase 4.0: oracle and observation-only diagnostics
+## Required Phase 4.0: shared decisions, oracle, and observation-only diagnostics
 
 Before changing normal output:
+
+Generalize the existing Type-1/shadow classifier names and compact decision
+record only as needed for shared use. Keep matching evidence, location outcome,
+and selection disposition separate, with one decision feeding production and
+diagnostics. Preserve current Type-1 behavior; do not add a generic framework,
+new matcher, or parallel eligibility implementation.
 
 1. Add a separate reviewer-owned Type-2 contract catalog, or extend the
    existing catalog without weakening its Type-1 independence. Each unique
@@ -107,6 +120,10 @@ Before changing normal output:
 5. Run every current XML, source, policy, and move-selection Type-2 fixture
    with diagnostics and record a reviewed baseline in
    `moveSelectionBench/README.md`.
+6. Review a bounded historical sample independently of detector output,
+   including genuine edited moves and edits in place. Record baseline false
+   moves, missed moves, and unresolved cases using the
+   [Phase 6 evaluation criteria](../plans/correspondence.md#phase-6-evaluate-and-consolidate).
 
 Minimum independent contracts:
 
@@ -143,6 +160,15 @@ After the oracle and baseline are reviewed:
 
 A relocated Type-2 proposal may still lose to a stronger accepted parent or
 child explanation. Classification controls eligibility, not final selection.
+Do not extend exact-parent carrying to normalized parents on containment alone.
+Require evidence of stable relative position and a selected explanation that
+accounts for the child before suppressing a genuine child move.
+
+Before adoption, explain each gained or lost reviewed historical move. Missing
+context is a reason to investigate the evidence, not to redefine a known move
+as a negative test. Preserve genuine same-file positives; explicit cross-file
+context is appropriate for mechanics fixtures only when faithful to their
+intended scenario. Review unresolved precision/recall tradeoffs before adoption.
 
 ## Focused tests
 
@@ -156,6 +182,8 @@ At minimum, require:
 - stationary and missing-context Type-2 pairs do not fall through to Type-3;
 - the existing adjacent local-replacement negative remains a non-move;
 - non-1x1 normalized groups remain unresolved without manufactured pairs;
+- independently reordered children inside normalized parents are not incorrectly
+  suppressed as parent-carried;
 - Type-1 contract outputs and diagnostic order remain unchanged; and
 - Type-3 contracts remain unchanged.
 
@@ -170,6 +198,8 @@ Stop for review if:
 - a rejected Type-2 pair reappears as Type-3;
 - parent carrying would require pairing a non-1x1 normalized group;
 - location classification feeds back into Type-2 canonical identity; or
+- a reviewed real move is lost and the evaluation has not established an
+  acceptable historical-analysis tradeoff; or
 - ordinary output must change during the observation-only slice.
 
 ## Verification
@@ -188,6 +218,7 @@ git status --short
 ```
 
 Phase 4.0 diagnostics, tests, and documentation do not require a version bump.
-Advance the `0.x` minor version when the reviewed Type-2 production gate is
-adopted and reported results intentionally change. The user handles staging
-and commits.
+Production adoption also does not automatically authorize a release. Leave
+`VERSION` unchanged unless the user explicitly requests a release or approves
+that exact release step, following [the versioning policy](../../README.md#versioning).
+The user handles staging and commits.
