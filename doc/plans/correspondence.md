@@ -569,13 +569,22 @@ for the baseline and [context/history evaluation](../../moveSelectionBench/READM
 for the repaired structural-wrapper oracles and independently frozen source sample.
 No Type-3 production eligibility or parent-carrying rule has changed.
 
-The four new source-selected comparisons expose matching/extraction limitations,
-but no verified Type-3 edges. They do not validate a Type-3 gate. Next, freeze a
-separate source-reviewed sample of larger eligible edited constructs, retaining
-misses and edits in place, before inspecting outcomes. Review the proposed
-acceptance policy below and its historical tradeoffs before implementation;
-neither degree one nor the winning utility rank alone proves correspondence.
-Do not treat the current synthetic operator edits as historical accuracy evidence.
+The first four source-selected comparisons exposed matching/extraction limits
+without verified Type-3 edges. The subsequent
+[eligible-construct cohort](../../moveSelectionBench/README.md#type-3-eligible-construct-historical-evaluation)
+now supplies real verified edges, competing identities, five missed whole edited
+transfers, and two selected in-place regions. Its frozen target labels and
+post-outcome selected-edge audit have separate denominators. It is bounded
+convenience evidence, not held-out validation or grounds for immediate adoption.
+
+Next, retain source-generated observation contracts for the historical 2×2
+functor ambiguity and in-place warp cases, then review correspondence acceptance
+and the lost-transfer tradeoff before any isolated eligibility trial. A trial
+must rerun hierarchy selection and audit exposed alternatives, not just filter
+existing selected edges. Keep production Type-3 observation-only; do not treat a
+winning rank, small similarity margin, or degree one as independent identity
+proof. Further validation should include independently frozen same-file edited
+moves and competing false partners, not only these cross-file transfers.
 
 
 Begin with independent contracts and observation-only classification of verified
@@ -627,10 +636,11 @@ while the following policy and evidence are reviewed:
 
 Acceptance review must count real edited moves withheld by identity ambiguity,
 location ambiguity, and selection separately, alongside false moves suppressed.
-The current synthetic competition cases exercise the graph mechanics, but the
-retained history has no verified Type-3 competition to validate this policy.
-An independently frozen positive/negative sample with verified edges and an
-accepted identity rule remain blockers. Do not introduce a gate or start Phase 5
+The historical color-functor component now demonstrates both valid and invalid
+competing edges: current selection chooses the correct two, so excluding all
+competition has a measured loss on this component. The warp sample supplies
+selected edits in place, but missing mapped context leaves them ambiguous.
+An accepted identity rule and broader independent validation remain blockers. Do not introduce a gate or start Phase 5
 on the strength of the context repair or zero-output historical comparisons.
 
 ### Phase 5: consistent treatment of repeated correspondence groups

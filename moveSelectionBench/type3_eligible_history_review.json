@@ -1,0 +1,745 @@
+{
+  "sample_sha256": "389d374c3dcb1566cb0fd2ddd47b691f156d153c08f8dcbc7b98fcbd9d1e3c70",
+  "reviewed_at": "2026-09-27T15:59:23.788175+00:00",
+  "baseline_commit": "8378e56",
+  "production_changes": false,
+  "predeclared_targets": [
+    {
+      "case": "opencv-2c14cc1897",
+      "id": "ipp_calcHistParallel",
+      "expected_location": "relocated",
+      "endpoint_resolution": {
+        "176": "raw_text",
+        "63": "raw_text"
+      },
+      "candidate_ids": {
+        "delete": [
+          176
+        ],
+        "insert": [
+          63
+        ]
+      },
+      "shortlist": [
+        {
+          "delete_candidate_id": 176,
+          "insert_candidate_id": 63,
+          "outcome": "below_threshold",
+          "common_lines": 56,
+          "maximum_lines": 84,
+          "common_tokens": 526,
+          "maximum_tokens": 613
+        }
+      ],
+      "classifications": [],
+      "limiting_stage": "matching: below fixed similarity threshold"
+    },
+    {
+      "case": "opencv-2c14cc1897",
+      "id": "ipp_calchist",
+      "expected_location": "relocated",
+      "endpoint_resolution": {
+        "198": "raw_text",
+        "84": "raw_text"
+      },
+      "candidate_ids": {
+        "delete": [
+          198
+        ],
+        "insert": [
+          84
+        ]
+      },
+      "shortlist": [
+        {
+          "delete_candidate_id": 198,
+          "insert_candidate_id": 84,
+          "outcome": "below_threshold",
+          "common_lines": 5,
+          "maximum_lines": 24,
+          "common_tokens": 307,
+          "maximum_tokens": 391
+        }
+      ],
+      "classifications": [],
+      "limiting_stage": "matching: below fixed similarity threshold"
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "id": "CvtColorIPPLoop_Invoker",
+      "expected_location": "relocated",
+      "endpoint_resolution": {
+        "339": "raw_text",
+        "42": "raw_text"
+      },
+      "candidate_ids": {
+        "delete": [
+          339
+        ],
+        "insert": [
+          42
+        ]
+      },
+      "shortlist": [
+        {
+          "delete_candidate_id": 339,
+          "insert_candidate_id": 42,
+          "outcome": "below_threshold",
+          "common_lines": 6,
+          "maximum_lines": 22,
+          "common_tokens": 153,
+          "maximum_tokens": 224
+        }
+      ],
+      "classifications": [],
+      "limiting_stage": "matching: below fixed similarity threshold"
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "id": "IPPReorderGeneralFunctor",
+      "expected_location": "relocated",
+      "endpoint_resolution": {
+        "373": "raw_text",
+        "78": "raw_text"
+      },
+      "candidate_ids": {
+        "delete": [
+          373
+        ],
+        "insert": [
+          78
+        ]
+      },
+      "shortlist": [
+        {
+          "delete_candidate_id": 373,
+          "insert_candidate_id": 78,
+          "outcome": "selected",
+          "common_lines": 16,
+          "maximum_lines": 20,
+          "common_tokens": 205,
+          "maximum_tokens": 222
+        }
+      ],
+      "classifications": [
+        {
+          "correspondence_kind": "type3",
+          "shadow_change": "relocated",
+          "classification_reason": "different_file",
+          "current_result": "move",
+          "cardinality": "competing_edges"
+        }
+      ],
+      "limiting_stage": "none: selected reviewed Type-3 relocation"
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "id": "CvtColorIPPLoop",
+      "expected_location": "relocated",
+      "endpoint_resolution": {
+        "341": "raw_text",
+        "44": "raw_text"
+      },
+      "candidate_ids": {
+        "delete": [
+          341
+        ],
+        "insert": [
+          44
+        ]
+      },
+      "shortlist": [
+        {
+          "delete_candidate_id": 341,
+          "insert_candidate_id": 44,
+          "outcome": "selected",
+          "common_lines": 4,
+          "maximum_lines": 5,
+          "common_tokens": 85,
+          "maximum_tokens": 92
+        }
+      ],
+      "classifications": [
+        {
+          "correspondence_kind": "type3",
+          "shadow_change": "relocated",
+          "classification_reason": "different_file",
+          "current_result": "move",
+          "cardinality": "one_to_one"
+        }
+      ],
+      "limiting_stage": "none: selected reviewed Type-3 relocation"
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "id": "CvtColorIPPLoopCopy",
+      "expected_location": "relocated",
+      "endpoint_resolution": {
+        "348": "raw_text",
+        "52": "raw_text"
+      },
+      "candidate_ids": {
+        "delete": [
+          348
+        ],
+        "insert": [
+          52
+        ]
+      },
+      "shortlist": [
+        {
+          "delete_candidate_id": 348,
+          "insert_candidate_id": 52,
+          "outcome": "below_threshold",
+          "common_lines": 4,
+          "maximum_lines": 12,
+          "common_tokens": 123,
+          "maximum_tokens": 161
+        }
+      ],
+      "classifications": [],
+      "limiting_stage": "matching: below fixed similarity threshold"
+    },
+    {
+      "case": "opencv-1de6e20463",
+      "id": "openvx_FAST",
+      "expected_location": "relocated",
+      "endpoint_resolution": {
+        "57": "raw_text",
+        "27": "raw_text"
+      },
+      "candidate_ids": {
+        "delete": [
+          57
+        ],
+        "insert": [
+          27
+        ]
+      },
+      "shortlist": [
+        {
+          "delete_candidate_id": 57,
+          "insert_candidate_id": 27,
+          "outcome": "below_threshold",
+          "common_lines": 6,
+          "maximum_lines": 41,
+          "common_tokens": 170,
+          "maximum_tokens": 394
+        }
+      ],
+      "classifications": [],
+      "limiting_stage": "matching: below fixed similarity threshold"
+    },
+    {
+      "case": "opencv-9e515caeac",
+      "id": "ipp_hal_warpAffine",
+      "expected_location": "stationary",
+      "endpoint_resolution": {
+        "110": "revision_filtered_xml",
+        "63": "raw_text"
+      },
+      "candidate_ids": {
+        "delete": [
+          110
+        ],
+        "insert": [
+          63
+        ]
+      },
+      "shortlist": [],
+      "classifications": [],
+      "limiting_stage": "retrieval: outside both 0.90 size windows",
+      "sizes": {
+        "delete": {
+          "line_units": 116,
+          "token_units": 668
+        },
+        "insert": {
+          "line_units": 190,
+          "token_units": 933
+        }
+      }
+    },
+    {
+      "case": "opencv-9e515caeac",
+      "id": "ipp_hal_warpPerspective",
+      "expected_location": "stationary",
+      "endpoint_resolution": {},
+      "candidate_ids": {
+        "delete": [],
+        "insert": []
+      },
+      "shortlist": [],
+      "classifications": [],
+      "limiting_stage": "extraction: shared/mixed whole function has no complete endpoint pair"
+    }
+  ],
+  "post_outcome_selected_type3_review": [
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 341,
+      "insert_id": 44,
+      "construct": "function",
+      "files": {
+        "before": "modules/imgproc/src/color.hpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "1170bdc87ec422536acd0fe72ec8cec8ae57d5ca910bc196db3f51db397cf04f",
+        "after": "7aa9fe6427144b4dd2e255071d6c8bd6973fe8483457d0bac29b224b5557a7f3"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color.hpp']/src:namespace[1]/src:block[1]/diff:delete[1]/src:function[src:name='CvtColorIPPLoop']",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:namespace[1]/src:block[1]/src:function[src:name='CvtColorIPPLoop']",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Corresponding color helper transfers to HAL source with cv namespace qualifications; direct loop and reorder/general operation roles continue. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 373,
+      "insert_id": 78,
+      "construct": "struct",
+      "files": {
+        "before": "modules/imgproc/src/color.hpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "de96f1476713348f1648daaf9794ec5f185dc178598994c5823d2c3cca64009f",
+        "after": "995dcf2927bda70b2c193e3eface35bfe69587c189b33f22efc86ba8fa6370d7"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color.hpp']/src:namespace[1]/src:block[1]/diff:delete[1]/src:struct[3]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:namespace[1]/src:block[1]/src:struct[5]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Corresponding color helper transfers to HAL source with cv namespace qualifications; direct loop and reorder/general operation roles continue. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        2,
+        2
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 385,
+      "insert_id": 91,
+      "construct": "struct",
+      "files": {
+        "before": "modules/imgproc/src/color.hpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "cfe607fba3d460659a1db4292e73b5153bf3346eb0c9b9f923ffe433246271f1",
+        "after": "4f44f7e83200a6d143d3a4db15b9ea834086da34891f7c3e33568583944d6bfa"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color.hpp']/src:namespace[1]/src:block[1]/diff:delete[1]/src:struct[4]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:namespace[1]/src:block[1]/src:struct[6]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Corresponding color helper transfers to HAL source with cv namespace qualifications; direct loop and reorder/general operation roles continue. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        2,
+        2
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 405,
+      "insert_id": 182,
+      "construct": "if_stmt",
+      "files": {
+        "before": "modules/imgproc/src/color_hsv.dispatch.cpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "7904c2fa0d9304aa940747149dbc6e04c7436452c032ae6c6d66a25430b92eed",
+        "after": "b29005734a59f9b040e560de15f407178e86b974dc62c750dca7f499301b91a0"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color_hsv.dispatch.cpp']/src:namespace[1]/src:block[1]/src:namespace[1]/src:block[1]/src:function[src:name='cvtBGRtoHSV']/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:function[src:name='ipp_hal_cvtBGRtoHSV']/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Same conversion guards and exact operation sequence extracted into corresponding HAL routine; only success-return adaptation, comments and whitespace differ. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 418,
+      "insert_id": 195,
+      "construct": "if_stmt",
+      "files": {
+        "before": "modules/imgproc/src/color_hsv.dispatch.cpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "0c6acc5581678cb1b51e67469b5d229ad59398cbb0fabb5bcb86538f3be2256a",
+        "after": "47d9a746d8bdb16d764d3ff791121c7913e004d82654e3d4820a1e8adac99773"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color_hsv.dispatch.cpp']/src:namespace[1]/src:block[1]/src:namespace[1]/src:block[1]/src:function[src:name='cvtHSVtoBGR']/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:function[src:name='ipp_hal_cvtHSVtoBGR']/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Same conversion guards and exact operation sequence extracted into corresponding HAL routine; only success-return adaptation, comments and whitespace differ. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 429,
+      "insert_id": 244,
+      "construct": "if_stmt",
+      "files": {
+        "before": "modules/imgproc/src/color_lab.cpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "c92a5d0a3720d6f3bcbdee89bc539e836d8c2d424891b3ca7dc4c19fce669204",
+        "after": "1e38ca5df86d9b5c5cd29cf5833dadff3a3858980666f6c1f0fe4e4aee20aeb2"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color_lab.cpp']/src:namespace[2]/src:block[1]/src:function[src:name='cvtBGRtoXYZ']/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:function[src:name='ipp_hal_cvtBGRtoXYZ']/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Same conversion guards and exact operation sequence extracted into corresponding HAL routine; only success-return adaptation, comments and whitespace differ. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 433,
+      "insert_id": 257,
+      "construct": "if_stmt",
+      "files": {
+        "before": "modules/imgproc/src/color_lab.cpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "c07aefa84cdabf2ade89a6afe85f9d7975d376a539cee6e91e8956efda408359",
+        "after": "03e9260880584887f0be365b970afaa05c769f769fdfc1fbfcd92a3aa626e347"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color_lab.cpp']/src:namespace[2]/src:block[1]/src:function[src:name='cvtXYZtoBGR']/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:function[src:name='ipp_hal_cvtXYZtoBGR']/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Same conversion guards and exact operation sequence extracted into corresponding HAL routine; only success-return adaptation, comments and whitespace differ. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 436,
+      "insert_id": 260,
+      "construct": "if_stmt",
+      "files": {
+        "before": "modules/imgproc/src/color_lab.cpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "d366a1fd6eb1a5fe279132ddc5f4b61f8b70b7ab1bd59521078f7539c0435973",
+        "after": "00e4010fe346f7eb8a6fd02672076cfded95c6bd16d9a8fd5f5987795ff27092"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color_lab.cpp']/src:namespace[2]/src:block[1]/src:function[src:name='cvtXYZtoBGR']/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]/src:block_content[1]/src:if_stmt[2]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:function[src:name='ipp_hal_cvtXYZtoBGR']/src:block[1]/src:block_content[1]/src:if_stmt[2]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Same conversion guards and exact operation sequence extracted into corresponding HAL routine; only success-return adaptation, comments and whitespace differ. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 449,
+      "insert_id": 284,
+      "construct": "if_stmt",
+      "files": {
+        "before": "modules/imgproc/src/color_lab.cpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "d055f670ac97b8617cb970dd3442585dffbfe39a39a6d84135402daeaf83b2f2",
+        "after": "0adfbb17fc40b26a684f46557fae6fc716bda2699e705f57eb08bcbc39d9fd37"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color_lab.cpp']/src:namespace[2]/src:block[1]/src:function[src:name='cvtBGRtoLab']/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:function[src:name='ipp_hal_cvtBGRtoLab']/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Same conversion guards and exact operation sequence extracted into corresponding HAL routine; only success-return adaptation, comments and whitespace differ. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 464,
+      "insert_id": 310,
+      "construct": "if_stmt",
+      "files": {
+        "before": "modules/imgproc/src/color_lab.cpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "daad243d30d3a35d474ecb3f7a23f129419e905f4e1cdb0fea914a8349ddb0cf",
+        "after": "4286368d9b65f284104507a5c8a35a0c5db54c4fb1cbbe3f6ef4e27492a201ee"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color_lab.cpp']/src:namespace[2]/src:block[1]/src:function[src:name='cvtLabtoBGR']/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:function[src:name='ipp_hal_cvtLabtoBGR']/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Same conversion guards and exact operation sequence extracted into corresponding HAL routine; only success-return adaptation, comments and whitespace differ. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 517,
+      "insert_id": 151,
+      "construct": "if_stmt",
+      "files": {
+        "before": "modules/imgproc/src/color_rgb.dispatch.cpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "414153b70a975470b420b0918e60d367c27a213e6d975e6270f92924c8560935",
+        "after": "616102b74089acb67c183220b95021cfd00df32180f5804f210dd2f891d78a23"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color_rgb.dispatch.cpp']/src:namespace[1]/src:block[1]/src:namespace[1]/src:block[1]/src:function[src:name='cvtBGRtoBGR']/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:function[src:name='ipp_hal_cvtBGRtoBGR']/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Same conversion guards and exact operation sequence extracted into corresponding HAL routine; only success-return adaptation, comments and whitespace differ. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 543,
+      "insert_id": 213,
+      "construct": "if_stmt",
+      "files": {
+        "before": "modules/imgproc/src/color_yuv.dispatch.cpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "23a6053cb571093161aabb433965053e3d4d87faeb9c4c2bc73c16525f23b5dd",
+        "after": "b11a15e595015119552751726df03db5e95dfe90eb9a4439e1a87aacdfd8342d"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color_yuv.dispatch.cpp']/src:namespace[1]/src:block[1]/src:namespace[1]/src:block[1]/src:function[src:name='cvtBGRtoYUV']/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:function[src:name='ipp_hal_cvtBGRtoYUV']/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Same conversion guards and exact operation sequence extracted into corresponding HAL routine; only success-return adaptation, comments and whitespace differ. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 549,
+      "insert_id": 229,
+      "construct": "if_stmt",
+      "files": {
+        "before": "modules/imgproc/src/color_yuv.dispatch.cpp",
+        "after": "hal/ipp/src/color_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "e175a02854206c0f63c73dc8e409295df20539afc98b9db41791da9400048a79",
+        "after": "ed08ef8695b142d66a8a637b472fa4849ec4025717b888830e35124e5ddb478f"
+      },
+      "before_xpath": "/src:unit[@filename='modules/imgproc/src/color_yuv.dispatch.cpp']/src:namespace[1]/src:block[1]/src:namespace[1]/src:block[1]/src:function[src:name='cvtYUVtoBGR']/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "after_xpath": "/src:unit[@filename='|hal/ipp/src/color_ipp.cpp']/diff:insert[1]/src:function[src:name='ipp_hal_cvtYUVtoBGR']/src:block[1]/src:block_content[1]/src:if_stmt[1]",
+      "identity": "continuing_construct",
+      "source_location": "relocated",
+      "rationale": "Same conversion guards and exact operation sequence extracted into corresponding HAL routine; only success-return adaptation, comments and whitespace differ. Source endpoints occur in frozen revisions.",
+      "diagnostic_location": "relocated",
+      "diagnostic_reason": "different_file",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-9e515caeac",
+      "delete_id": 85,
+      "insert_id": 36,
+      "construct": "class",
+      "files": {
+        "before": "hal/ipp/src/warp_ipp.cpp",
+        "after": "hal/ipp/src/warp_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "3abc0ba14aba8e1c01768855ff8697b008fd3b37ae78534cea2c22eadd87c851",
+        "after": "d1269b9412d24bdab00984d220f78f660040d31829d4d242d3b184d38d447dd5"
+      },
+      "before_xpath": "/src:unit[@filename='hal/ipp/src/warp_ipp.cpp']/diff:delete[2]/src:class[1]",
+      "after_xpath": "/src:unit[@filename='hal/ipp/src/warp_ipp.cpp']/diff:insert[4]/src:class[1]",
+      "identity": "continuing_construct",
+      "source_location": "stationary",
+      "rationale": "Same class or try block remains in its original warp implementation; pointer rename/instrumentation or thread scheduling edits occur in place. No sibling or container displacement in source. srcDiff serializes enclosing constructs exclusively, so mapped context is absent.",
+      "diagnostic_location": "ambiguous",
+      "diagnostic_reason": "insufficient_context",
+      "partner_counts": [
+        1,
+        1
+      ]
+    },
+    {
+      "case": "opencv-9e515caeac",
+      "delete_id": 109,
+      "insert_id": 62,
+      "construct": "try",
+      "files": {
+        "before": "hal/ipp/src/warp_ipp.cpp",
+        "after": "hal/ipp/src/warp_ipp.cpp"
+      },
+      "text_sha256": {
+        "before": "8cdc3b97e34ab81c6ddb092b0c1f37ed0d862fa74913546fd6af75f92eb6abe7",
+        "after": "263083fb130278e77f9c69a456ab852f5c208f162f55341a9159d08662ebb421"
+      },
+      "before_xpath": "/src:unit[@filename='hal/ipp/src/warp_ipp.cpp']/diff:delete[2]/src:function[src:name='ipp_hal_warpAffine']/src:block[1]/src:block_content[1]/src:try[1]",
+      "after_xpath": "/src:unit[@filename='hal/ipp/src/warp_ipp.cpp']/diff:insert[4]/src:function[src:name='ipp_hal_warpAffine']/src:block[1]/src:block_content[1]/src:try[1]",
+      "identity": "continuing_construct",
+      "source_location": "stationary",
+      "rationale": "Same class or try block remains in its original warp implementation; pointer rename/instrumentation or thread scheduling edits occur in place. No sibling or container displacement in source. srcDiff serializes enclosing constructs exclusively, so mapped context is absent.",
+      "diagnostic_location": "ambiguous",
+      "diagnostic_reason": "insufficient_context",
+      "partner_counts": [
+        1,
+        1
+      ]
+    }
+  ],
+  "post_outcome_rejected_identity_review": [
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 373,
+      "insert_id": 91,
+      "identity": "different_roles",
+      "rationale": "Reorder-then-general and general-then-reorder functors both survive at distinct destination definitions; their opposite conversion sequences establish separate continuing identities despite passing similarity and cross-file location.",
+      "diagnostic_location": "relocated",
+      "current_result": "not_move",
+      "similarity": {
+        "delete_candidate_id": 373,
+        "insert_candidate_id": 91,
+        "outcome": "selection_rejected",
+        "common_lines": 16,
+        "maximum_lines": 20,
+        "common_tokens": 203,
+        "maximum_tokens": 222
+      }
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "delete_id": 385,
+      "insert_id": 78,
+      "identity": "different_roles",
+      "rationale": "Reorder-then-general and general-then-reorder functors both survive at distinct destination definitions; their opposite conversion sequences establish separate continuing identities despite passing similarity and cross-file location.",
+      "diagnostic_location": "relocated",
+      "current_result": "not_move",
+      "similarity": {
+        "delete_candidate_id": 385,
+        "insert_candidate_id": 78,
+        "outcome": "selection_rejected",
+        "common_lines": 16,
+        "maximum_lines": 20,
+        "common_tokens": 203,
+        "maximum_tokens": 222
+      }
+    }
+  ],
+  "case_observations": [
+    {
+      "case": "opencv-2c14cc1897",
+      "input_sha256": "e3df22334a3e337b63c56ca7859cd8743b91ea7129cb3f8f1de5284064daf707",
+      "verified_edges": 0,
+      "selected_edges": 0,
+      "cardinalities": {},
+      "locations": {}
+    },
+    {
+      "case": "opencv-b864ee7335",
+      "input_sha256": "defa85ce5a1814e060837ff548a3b0331c68e9a9cf2cae9b6421ad0d2bb6124d",
+      "verified_edges": 471,
+      "selected_edges": 13,
+      "cardinalities": {
+        "one_to_one": 23,
+        "competing_edges": 448
+      },
+      "locations": {
+        "relocated": 471
+      }
+    },
+    {
+      "case": "opencv-1de6e20463",
+      "input_sha256": "e1d3abffdfabf97683ca359e02117ca3cf1bfbbdc3deb66a4d3d1442fa588913",
+      "verified_edges": 0,
+      "selected_edges": 0,
+      "cardinalities": {},
+      "locations": {}
+    },
+    {
+      "case": "opencv-9e515caeac",
+      "input_sha256": "50ffacc61a201c4b5cae4bf78a2f24229f230273b1bd996bca64c60700e7aeae",
+      "verified_edges": 4,
+      "selected_edges": 2,
+      "cardinalities": {
+        "one_to_one": 4
+      },
+      "locations": {
+        "ambiguous": 4
+      }
+    }
+  ],
+  "limits": "Four convenience revisions from one repository; nine source-frozen whole constructs. Selected-edge audit is post-outcome and separate from the target denominator. Other rejected edges have not received exhaustive identity review. No overall recall/precision estimate and no production policy simulation.",
+  "selected_edge_postfilter_tally": {
+    "current_selected": 15,
+    "source_relocations": 13,
+    "source_edits_in_place": 2,
+    "requiring_relocated_keeps": 13,
+    "also_excluding_competing_keeps": 11,
+    "genuine_selected_transfers_excluded_by_competition": 2,
+    "note": "Postselection tally only. Filtering proposals before hierarchy/selection may expose other edges; this does not predict a gated production run."
+  }
+}

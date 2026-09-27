@@ -621,6 +621,121 @@ Replay requires the named local Git objects; it never fetches or changes source
 checkouts. The 191-input comparison also requires the retained generated source,
 policy, and earlier history inputs. VERSION, staging, and commits are unchanged.
 
+## Type-3 eligible-construct historical evaluation
+
+The follow-up to `8378e56` freezes four OpenCV revisions in
+[`type3_eligible_history_sample.json`](type3_eligible_history_sample.json):
+`2c14cc1897` (histogram extraction), `b864ee7335` (color extraction),
+`1de6e20463` (OpenVX FAST transfer), and `9e515caeac` (warp edits in place).
+Commit subjects and source statistics selected the cohort before detector
+execution. All changed C/C++ source/header paths are included: 38 revision-file
+snapshots, including new files. Source diffs and source-only srcML inventories
+established nine non-overlapping whole-construct expectations before srcDiff or
+srcMove ran. Seven are edited transfers and two are whole-function edits in
+place. No case was replaced after outcomes. This is a convenience sample from
+one repository, not held-out or representative accuracy evidence.
+
+The [review report](type3_eligible_history_review.json) keeps the frozen-target
+results separate from a subsequent source audit of selected Type-3 edges.
+Production matching, thresholds, location classification, hierarchy, endpoint
+reservation, and repeated-group policy are unchanged.
+
+### Frozen-target results
+
+| Target | Source expectation | Observed result |
+| --- | --- | --- |
+| `ipp_calcHistParallel` | Edited class transferred to histogram HAL source | Below threshold: token LCS 526/613, line LCS 56/84. |
+| `ipp_calchist` | Edited function transferred to histogram HAL source | Below threshold: tokens 307/391, lines 5/24. |
+| `CvtColorIPPLoop_Invoker` | Class transferred with namespace qualifications | Below threshold: tokens 153/224, lines 6/22. |
+| `IPPReorderGeneralFunctor` | Reorder-then-general functor transferred | Selected Type-3, relocated; two verified partners at each endpoint. |
+| `CvtColorIPPLoop` | Direct loop wrapper transferred | Selected Type-3, relocated; one verified partner at each endpoint. |
+| `CvtColorIPPLoopCopy` | Alias-protecting wrapper transferred | Below threshold: tokens 123/161, lines 4/12. |
+| `openvx_FAST` → `ovx_hal_FAST` | Substantial interface/implementation adaptation during transfer | Below threshold: tokens 170/394, lines 6/41. |
+| `ipp_hal_warpAffine` | Whole function edited in place | Both endpoints exist but are outside both retrieval size windows: 116/190 lines, 668/933 tokens. |
+| `ipp_hal_warpPerspective` | Whole function edited in place | Shared/mixed source construct; no complete deleted/inserted pair. |
+
+Thus two of seven prespecified whole edited transfers are selected; five are
+matching misses under the unchanged verifier. They are not location or selection
+failures. Descendant matches do not count as whole-target detections. The two
+in-place whole functions do not reach Type-3 location classification. These
+results do not justify lowering the similarity threshold.
+
+The raw deletion text of `ipp_hal_warpAffine` contains an opposite-revision
+comment fragment (`HAVE_IPP_IW`). A raw-text-only review adapter initially missed
+that endpoint. The replay now resolves the exact archive XPath and verifies
+revision-filtered text when raw text differs; the source oracle is unchanged.
+A focused test requires this resolution and rejects changed code or a different
+file. This is evaluation-tool repair, not candidate extraction or matcher repair.
+
+### Verified edges and identity competition
+
+The color revision exposes **471** verified Type-3 edges: 448 competing edges
+and 23 degree-one edges. The warp revision exposes four more, all degree one.
+Histogram and FAST expose none. All 471 color edges classify relocated by file
+change; all four warp edges classify ambiguous because mapped context is absent.
+These 475 edges are hypotheses, not 475 established continuing identities.
+
+Both `IPPReorderGeneralFunctor` and `IPPGeneralReorderFunctor` move to separate
+new definitions. Their conversion order distinguishes their identities. All
+four edges in this 2×2 component verify: the continuing pairs score 205/222
+tokens; the wrong cross-pairs score 203/222. All four classify relocated. Current
+selection emits the two correct continuing pairs. This is concrete historical
+evidence that displacement and verified similarity cannot establish identity,
+and that excluding every competing edge would also lose genuine transfers.
+The two-token margin is an observation, not a proposed acceptance threshold.
+
+A **post-outcome** audit checks every selected Type-3 edge against the frozen
+source snapshots, separately from the nine-target denominator. The thirteen
+selected color edges are real transfers: the direct loop helper, both functors,
+and ten conversion conditional regions. For those ten conditionals, exact
+source comparison confirms the same conversion guards and operation sequences,
+with success returns adapted to `CV_HAL_ERROR_OK`, plus formatting/comment edits.
+The two selected warp edges—the `ipp_warpAffineParallel` class and the affine
+function's `try` block—are edited in place and are false move annotations.
+Their diagnostic classifications remain ambiguous, not stationary. Two further
+warp edges are selection losers. Other rejected color edges have not received
+exhaustive identity review; do not derive a full edge-precision or population
+recall estimate from this audit.
+
+On the **already selected** set, requiring relocated diagnostics would retain
+13 genuine transfers and remove the two in-place annotations. Also excluding
+competing edges would retain 11 and lose both genuine functor transfers (one is
+a frozen target). This is a diagnostic postfilter tally, not a production-gate
+trial: changing eligibility before hierarchy selection can expose alternatives.
+The [acceptance proposal](../doc/plans/correspondence.md#proposed-type-3-acceptance-policy)
+therefore remains unadopted pending identity-policy and tradeoff review.
+
+### Verification and reproduction
+
+The full Docker correctness suite passes all 13 steps. The focused suite after
+the replay-adapter test passes 20 unit tests and 21 selection contracts. The
+195-input comparison preserves ordinary JSON, annotated XML, and diagnostics;
+this slice changes no production code. The earlier eight-target history sample
+also replays successfully with the extended adapter.
+
+Ignored evidence is under `build/type3-eligible-history/` (baseline executable,
+receipts, tests, comparison script/report, per-case outputs, source-inventory and
+review scripts, hashes) and `benchmark-results/type3-eligible-history/` (sealed
+selection, source snapshots/inventories, srcDiff XML, outputs, and replay commands).
+From the parent workspace:
+
+```bash
+./bin/srcml-dev-shell python3 srcMove/moveSelectionBench/replay_type3_history.py \
+  --sample /workspace/srcMove/moveSelectionBench/type3_eligible_history_sample.json \
+  --srcdiff /workspace/srcDiff/build/bin/srcdiff \
+  --baseline /workspace/srcMove/build/type3-eligible-history/baseline-srcMove \
+  --candidate /workspace/srcMove/build/srcMove \
+  --output /workspace/srcMove/benchmark-results/type3-eligible-history
+./bin/srcml-dev-shell python3 srcMove/build/type3-eligible-history/compare.py
+./bin/srcml-dev-shell make --no-print-directory -C srcMove test
+```
+
+The replay accepts a frozen sample and explicit per-revision file lists, checks
+source hashes, and preserves the earlier sample as its default. Baseline and
+current use the same production executable here; unchanged outputs establish
+reproducibility, not improved detector accuracy. Type-3 remains observation-only;
+Phase 5, VERSION, staging, and commits are untouched.
+
 ## Retained Notepad++ evaluation
 
 The retained evaluation uses Notepad++ commit
