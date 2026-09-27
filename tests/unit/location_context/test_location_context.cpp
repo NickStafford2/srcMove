@@ -19,6 +19,11 @@ void require(bool condition, const char *message) {
     throw std::runtime_error(message);
 }
 
+bool has_suffix(const std::string &value, const std::string &suffix) {
+  return value.size() >= suffix.size() &&
+         value.compare(value.size() - suffix.size(), suffix.size(), suffix) == 0;
+}
+
 move_candidate candidate(move_candidate::Kind kind, std::string filename) {
   return move_candidate(kind, 1, std::move(filename), "work();", "work();",
                         "work();", {}, {}, false);
@@ -114,6 +119,50 @@ int main(int argc, char **argv) {
                 wrapped_insert->location.ancestor_summary_id) ==
                 (std::vector<std::string>{"block", "if_stmt", "if", "block"}),
             "insert ancestry should retain the added conditional wrapper");
+    require(wrapped_delete->location.anchor_interval_reliable &&
+                wrapped_insert->location.anchor_interval_reliable &&
+                wrapped_delete->location.previous_common_anchor_id ==
+                    wrapped_insert->location.previous_common_anchor_id &&
+                wrapped_delete->location.next_common_anchor_id ==
+                    wrapped_insert->location.next_common_anchor_id,
+            "a wrapper change between common declarations keeps one interval");
+
+    const std::string crossing = "int crossing_value = source_value + 53;";
+    const move_candidate *crossing_delete = find_candidate(
+        collection, move_candidate::Kind::del, crossing, "decl_stmt");
+    const move_candidate *crossing_insert = find_candidate(
+        collection, move_candidate::Kind::insert, crossing, "decl_stmt");
+    require(crossing_delete != nullptr && crossing_insert != nullptr,
+            "expected crossed-anchor declaration candidates");
+    require(crossing_delete->location.semantic_container_id ==
+                crossing_insert->location.semantic_container_id &&
+                crossing_delete->location.anchor_interval_reliable &&
+                crossing_insert->location.anchor_interval_reliable &&
+                crossing_delete->location.next_common_anchor_id ==
+                    crossing_insert->location.previous_common_anchor_id &&
+                crossing_delete->location.previous_common_anchor_id !=
+                    crossing_insert->location.previous_common_anchor_id &&
+                crossing_delete->location.next_common_anchor_id !=
+                    crossing_insert->location.next_common_anchor_id,
+            "crossing a unique common declaration must change the interval");
+
+    const std::string bounded = "int bounded_value = source_value + 67;";
+    const move_candidate *bounded_delete = find_candidate(
+        collection, move_candidate::Kind::del, bounded, "decl_stmt");
+    const move_candidate *bounded_insert = find_candidate(
+        collection, move_candidate::Kind::insert, bounded, "decl_stmt");
+    require(bounded_delete != nullptr && bounded_insert != nullptr,
+            "expected container-bounded declaration candidates");
+    const std::string &bounded_previous =
+        bounded_delete->location.previous_common_anchor_id;
+    const std::string &bounded_next =
+        bounded_delete->location.next_common_anchor_id;
+    require(has_suffix(bounded_previous, ":begin") &&
+                has_suffix(bounded_next, ":end") &&
+                bounded_previous ==
+                    bounded_insert->location.previous_common_anchor_id &&
+                bounded_next == bounded_insert->location.next_common_anchor_id,
+            "repeated and mixed declarations must not become anchors");
 
     const std::string member = "int member() {return 23;}";
     const move_candidate *member_delete = find_candidate(

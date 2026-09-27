@@ -378,6 +378,36 @@ struct ancestor_summary_interner {
   std::unordered_map<std::string, std::size_t> ids;
 };
 
+struct pending_common_anchor {
+  canonical_forms_builder forms;
+  std::string              container_id;
+  std::size_t              start_idx = 0;
+  std::size_t              substantive_common = 0;
+  int                      depth = 0;
+  bool                     mixed = false;
+};
+
+struct common_anchor {
+  std::string container_id;
+  std::string canonical_identity;
+  std::string stable_id;
+  std::size_t start_idx = 0;
+  std::size_t end_idx   = 0;
+};
+
+std::optional<std::size_t> nearest_common_container_index(
+    const std::vector<source_element_frame> &source_elements) {
+  for (std::size_t index = source_elements.size(); index-- > 0;) {
+    const source_element_frame &frame = source_elements[index];
+    if (frame.semantic_container &&
+        frame.membership == revision_membership::both &&
+        !frame.container_label.empty()) {
+      return index;
+    }
+  }
+  return std::nullopt;
+}
+
 endpoint_location_context snapshot_location_context(
     move_candidate::Kind kind, std::string_view filename,
     const std::vector<source_element_frame> &source_elements,
@@ -387,20 +417,15 @@ endpoint_location_context snapshot_location_context(
   context.revision_file = kind == move_candidate::Kind::del
                               ? std::move(revision_files.first)
                               : std::move(revision_files.second);
-  std::optional<std::size_t> mapped_container_index;
-  for (std::size_t index = source_elements.size(); index-- > 0;) {
-    const source_element_frame &frame = source_elements[index];
-    if (!frame.semantic_container ||
-        frame.membership != revision_membership::both ||
-        frame.container_label.empty()) {
-      continue;
-    }
+  const std::optional<std::size_t> mapped_container_index =
+      nearest_common_container_index(source_elements);
+  if (mapped_container_index) {
+    const source_element_frame &frame =
+        source_elements[*mapped_container_index];
     context.semantic_container_id = frame.container_id;
     context.semantic_container_label =
         frame.name + ":" + trim_ws(frame.container_label);
     context.semantic_container_mapped = true;
-    mapped_container_index = index;
-    break;
   }
   if (mapped_container_index) {
     const revision_membership side = membership_for(kind);
@@ -418,6 +443,47 @@ endpoint_location_context snapshot_location_context(
     context.ancestor_summary_reliable = true;
   }
   return context;
+}
+
+void resolve_anchor_intervals(std::vector<move_candidate> &candidates,
+                              const std::vector<common_anchor> &anchors) {
+  std::unordered_map<std::string, std::size_t> identity_counts;
+  for (const common_anchor &anchor : anchors) {
+    std::string key = anchor.container_id;
+    key.push_back('\0');
+    key += anchor.canonical_identity;
+    ++identity_counts[key];
+  }
+
+  for (move_candidate &candidate : candidates) {
+    endpoint_location_context &context = candidate.location;
+    if (!context.semantic_container_mapped) {
+      continue;
+    }
+
+    context.previous_common_anchor_id =
+        context.semantic_container_id + ":begin";
+    context.next_common_anchor_id = context.semantic_container_id + ":end";
+
+    for (const common_anchor &anchor : anchors) {
+      if (anchor.container_id != context.semantic_container_id) {
+        continue;
+      }
+      std::string key = anchor.container_id;
+      key.push_back('\0');
+      key += anchor.canonical_identity;
+      if (identity_counts[key] != 1) {
+        continue;
+      }
+      if (anchor.end_idx < candidate.start_idx) {
+        context.previous_common_anchor_id = anchor.stable_id;
+      } else if (anchor.start_idx > candidate.end_idx) {
+        context.next_common_anchor_id = anchor.stable_id;
+        break;
+      }
+    }
+    context.anchor_interval_reliable = true;
+  }
 }
 
 struct streaming_profile_stats {
@@ -651,6 +717,8 @@ collect_candidates_streaming(srcml_reader                &reader,
   std::vector<revision_membership> revision_states;
   std::vector<source_element_frame> source_elements;
   ancestor_summary_interner ancestor_summaries;
+  std::optional<pending_common_anchor> pending_anchor;
+  std::vector<common_anchor> common_anchors;
   std::size_t ignored_evidence_depth = 0;
   std::vector<std::vector<move_candidate>> candidate_sets;
   regions.reserve(256);
@@ -728,6 +796,30 @@ collect_candidates_streaming(srcml_reader                &reader,
       revision_states.push_back(*state);
     }
 
+    const revision_membership effective =
+        revision_states.empty() ? revision_membership::both
+                                : revision_states.back();
+    if (node.is_start() && node.name == "decl_stmt" && !pending_anchor &&
+        effective == revision_membership::both) {
+      const std::optional<std::size_t> container_index =
+          nearest_common_container_index(source_elements);
+      if (container_index) {
+        pending_anchor.emplace();
+        pending_anchor->container_id =
+            source_elements[*container_index].container_id;
+        pending_anchor->start_idx = node_index;
+      }
+    }
+    if (pending_anchor) {
+      if (node.is_start()) {
+        ++pending_anchor->depth;
+      }
+      pending_anchor->forms.consume(node);
+      if (effective != revision_membership::both) {
+        pending_anchor->mixed = true;
+      }
+    }
+
     const bool source_element = full_name.rfind("diff:", 0) != 0;
     if (node.is_start() && source_element) {
       source_element_frame frame;
@@ -771,6 +863,10 @@ collect_candidates_streaming(srcml_reader                &reader,
     const bool substantive =
         ignored_evidence_depth == 0 && node.is_text() && node.content &&
         any_substantive_text(*node.content);
+    if (pending_anchor && substantive &&
+        effective == revision_membership::both) {
+      ++pending_anchor->substantive_common;
+    }
     if (substantive && !open_regions.empty()) {
       const revision_membership effective =
           revision_states.empty() ? revision_membership::both
@@ -805,6 +901,25 @@ collect_candidates_streaming(srcml_reader                &reader,
       consume_streamed_children(region, node, reader, node_index, effective,
                                 substantive, opt, stats, source_elements,
                                 ancestor_summaries);
+    }
+
+    if (pending_anchor && node.is_end()) {
+      --pending_anchor->depth;
+      if (pending_anchor->depth == 0) {
+        canonical_forms forms = pending_anchor->forms.finish();
+        if (!pending_anchor->mixed &&
+            pending_anchor->substantive_common != 0 && !forms.exact.empty()) {
+          common_anchor anchor;
+          anchor.container_id = std::move(pending_anchor->container_id);
+          anchor.canonical_identity = std::move(forms.exact);
+          anchor.start_idx = pending_anchor->start_idx;
+          anchor.end_idx = node_index;
+          anchor.stable_id = anchor.container_id + ":anchor:" +
+                             std::to_string(anchor.start_idx);
+          common_anchors.push_back(std::move(anchor));
+        }
+        pending_anchor.reset();
+      }
     }
 
     if (closing_id != kNoParent) {
@@ -934,6 +1049,9 @@ collect_candidates_streaming(srcml_reader                &reader,
   if (!source_elements.empty()) {
     throw std::runtime_error("unexpected EOF inside source element");
   }
+  if (pending_anchor) {
+    throw std::runtime_error("unexpected EOF inside common declaration anchor");
+  }
   if (!document_done) {
     throw std::runtime_error("unexpected EOF while reading srcDiff document");
   }
@@ -965,6 +1083,7 @@ collect_candidates_streaming(srcml_reader                &reader,
       }
     }
   }
+  resolve_anchor_intervals(result.candidates, common_anchors);
 
   if (profile != nullptr) {
     profile->add_ms("parse.xpath", profile_storage.xpath_ms);

@@ -39,7 +39,7 @@ wrapper ancestry (including required absence), and carried-parent structure.
 The source-generated `[[nodiscard]]`/unwrap miniature preserves its srcDiff
 delete/insert precondition. Production `moves` remain unchanged.
 
-Phase 1 has started. `src/location_context.hpp` defines an owned endpoint
+Phase 1 context capture is complete. `src/location_context.hpp` defines an owned endpoint
 context, and every candidate now receives the correct revision-side file from
 `old|new`, `old|`, `|new`, or a shared archive filename. The streaming parser
 also maintains a bounded source-element stack and records the nearest named
@@ -50,17 +50,26 @@ deterministically interned, side-filtered meaningful ancestor chain. The
 candidate registry rebases each document-local table into registry-owned
 storage, preserving ID validity after parsing and preventing collisions across
 incremental inputs. Common ancestors and wrappers belonging to the endpoint
-side are retained while opposite-side wrappers are excluded. Anchor fields
-remain deliberately empty/unreliable. `location_context_test` covers filename
-parsing, candidate initialization, common cross-function containers, exclusive
-container fallback, conservative file-root defaults, wrapper differences, and
-registry ownership and rebasing of interned summaries.
+side are retained while opposite-side wrappers are excluded. The same streaming
+pass collects complete substantial common declarations inside mapped
+containers; after EOF it rejects mixed or canonically repeated declarations
+and resolves each mapped endpoint against unique nearest anchors or explicit
+container boundaries. `location_context_test` covers filename parsing,
+candidate initialization, common cross-function containers, exclusive
+container fallback, conservative file-root defaults, wrapper differences,
+registry ownership and rebasing, same intervals, crossed stable siblings, and
+mixed/repeated anchor rejection.
 
-The next implementation session should continue Phase 1 in this order:
+The next implementation session should start the shadow-classifier phase in
+this order:
 
-1. collect complete substantial common declarations within mapped containers,
-   reject mixed or repeated anchors, and resolve nearest anchors after EOF; and
-2. expose focused anchor-interval tests before adding the shadow classifier.
+1. add dedicated classifier result types and ordered conservative rules for
+   different files, different mapped containers, crossed stable anchors, same
+   intervals, meaningful wrapper changes, and insufficient evidence;
+2. harvest unique Type-1 correspondence pairs before local-replacement and
+   hierarchy filtering so stationary evidence is still visible; and
+3. expose shadow diagnostics without changing production `moves` or ordinary
+   XML/JSON output.
 
 Do not derive containers or anchors from raw XPath, names alone, the candidate
 being classified, or a second tree-matching pass. Shadow correspondences must
