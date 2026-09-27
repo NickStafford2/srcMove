@@ -81,8 +81,11 @@ files, different mapped containers, and crossed reliable anchor intervals are
 relocation evidence. Within one reliable interval, equal meaningful ancestry
 is stationary, prefix additions or removals are restructuring, and
 incompatible ancestry is ambiguous. Missing evidence is also ambiguous. The
-classifier is not yet connected to grouping, diagnostics, or production move
-selection; parent-carried relationships remain unsupported.
+refined group builder harvests unique exact Type-1 pairs before local-
+replacement rejection and hierarchy selection, classifies them, and records
+both the shadow interpretation and eventual current-selection result in the
+opt-in diagnostics. This does not alter production move selection.
+Parent-carried relationships remain unsupported.
 
 For performance reasons, candidate construction and canonicalization are part
 of this same pass.
@@ -222,10 +225,13 @@ identifies this contract and is currently `1`. With `--results-only`, srcMove
 materializes that JSON evidence from candidate-owned XPaths and skips the
 second XML pass entirely.
 
-`--diagnostics` is an opt-in results mode for algorithm review. It records the
-retained candidates and Type-3 shortlist decisions, including observed line and
-token LCS evidence for below-threshold pairs and whether a verified edge was
-selected. It requires `--results` and is not emitted during ordinary runs.
+`--diagnostics` is an opt-in results mode for algorithm review. Diagnostics
+schema version `2` records unique Type-1 correspondence classifications and
+endpoint context before selection, retained candidates, and Type-3 shortlist
+decisions, including observed line and token LCS evidence for below-threshold
+pairs and whether a verified edge was selected. Each correspondence also says
+whether current selection emitted it as a move. Diagnostics require `--results`
+and are not emitted during ordinary runs.
 
 ### Results terminology
 

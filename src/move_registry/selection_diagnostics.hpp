@@ -30,9 +30,36 @@ struct type3_pair_diagnostic {
   std::size_t maximum_tokens = 0;
 };
 
+struct endpoint_context_diagnostic {
+  std::string revision_file;
+  std::string semantic_container_id;
+  std::string semantic_container_label;
+  std::string previous_common_anchor_id;
+  std::string next_common_anchor_id;
+  std::vector<std::string> meaningful_ancestors;
+};
+
+struct correspondence_diagnostic {
+  std::size_t delete_candidate_id = 0;
+  std::size_t insert_candidate_id = 0;
+  std::string correspondence_kind;
+  std::string cardinality;
+  std::string current_result;
+  std::string shadow_change;
+  std::string classification_reason;
+  std::string file_observation;
+  std::string semantic_container_observation;
+  std::string anchor_interval_observation;
+  std::string ancestor_observation;
+  bool carried_by_parent = false;
+  endpoint_context_diagnostic before_context;
+  endpoint_context_diagnostic after_context;
+};
+
 struct selection_diagnostics {
   std::vector<candidate_diagnostic> candidates;
   std::vector<type3_pair_diagnostic> type3_pairs;
+  std::vector<correspondence_diagnostic> correspondences;
 };
 
 } // namespace srcmove

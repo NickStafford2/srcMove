@@ -11,6 +11,7 @@
 #include "move_registry/sequence_similarity.hpp"
 #include "move_registry/selection_policy.hpp"
 #include "profile.hpp"
+#include "shadow_classifier.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -211,6 +212,86 @@ build_exact_groups(const candidate_registry &registry) {
   }
 
   return exact_groups;
+}
+
+const std::vector<std::string> &ancestor_summary(
+    const candidate_registry &registry, const move_candidate &candidate) {
+  static const std::vector<std::string> kEmpty;
+  if (!candidate.location.ancestor_summary_reliable ||
+      candidate.location.ancestor_summary_id >=
+          registry.ancestor_summaries().size()) {
+    return kEmpty;
+  }
+  return registry.ancestor_summaries()[candidate.location.ancestor_summary_id];
+}
+
+endpoint_context_diagnostic endpoint_diagnostic(
+    const candidate_registry &registry, const move_candidate &candidate) {
+  const endpoint_location_context &context = candidate.location;
+  return endpoint_context_diagnostic{
+      context.revision_file,
+      context.semantic_container_id,
+      context.semantic_container_label,
+      context.previous_common_anchor_id,
+      context.next_common_anchor_id,
+      ancestor_summary(registry, candidate),
+  };
+}
+
+void collect_unique_type1_correspondences(
+    const candidate_registry &registry,
+    const std::vector<pending_group> &exact_groups,
+    selection_diagnostics &diagnostics) {
+  for (const pending_group &group : exact_groups) {
+    if (group.match != match_kind::type1 || group.del_ids.size() != 1 ||
+        group.ins_ids.size() != 1) {
+      continue;
+    }
+    const candidate_id del_id = group.del_ids.front();
+    const candidate_id ins_id = group.ins_ids.front();
+    const move_candidate &deleted = registry.candidate(del_id);
+    const move_candidate &inserted = registry.candidate(ins_id);
+    const shadow_classification classification = classify_type1_shadow(
+        deleted.location, ancestor_summary(registry, deleted),
+        inserted.location, ancestor_summary(registry, inserted));
+    diagnostics.correspondences.push_back(correspondence_diagnostic{
+        del_id,
+        ins_id,
+        "type1",
+        "one_to_one",
+        "not_move",
+        std::string(to_string(classification.change_kind)),
+        std::string(to_string(classification.reason)),
+        std::string(to_string(classification.observations.file)),
+        std::string(
+            to_string(classification.observations.semantic_container)),
+        std::string(to_string(classification.observations.anchor_interval)),
+        std::string(to_string(classification.observations.ancestor)),
+        classification.carried_by_parent,
+        endpoint_diagnostic(registry, deleted),
+        endpoint_diagnostic(registry, inserted),
+    });
+  }
+}
+
+void update_correspondence_selection_results(
+    const content_groups &groups, selection_diagnostics &diagnostics) {
+  for (correspondence_diagnostic &correspondence :
+       diagnostics.correspondences) {
+    const bool selected = std::any_of(
+        groups.groups().begin(), groups.groups().end(),
+        [&](const content_group &group) {
+          if (group.match != match_kind::type1 || group.del_count() != 1 ||
+              group.ins_count() != 1) {
+            return false;
+          }
+          return groups.delete_ids(group)[0] ==
+                     correspondence.delete_candidate_id &&
+                 groups.insert_ids(group)[0] ==
+                     correspondence.insert_candidate_id;
+        });
+    correspondence.current_result = selected ? "move" : "not_move";
+  }
 }
 
 using normalized_group_map = std::unordered_map<std::string, pending_group>;
@@ -917,6 +998,10 @@ content_groups build_content_groups(const candidate_registry &registry,
     if (stats != nullptr) {
       stats->exact_groups_built = exact_groups.size();
     }
+    if (diagnostics != nullptr) {
+      collect_unique_type1_correspondences(registry, exact_groups,
+                                           *diagnostics);
+    }
   }
 
   std::vector<std::size_t> exact_group_order;
@@ -984,6 +1069,7 @@ content_groups build_content_groups(const candidate_registry &registry,
   }
 
   if (diagnostics != nullptr) {
+    update_correspondence_selection_results(out, *diagnostics);
     for (type3_pair_diagnostic &pair : diagnostics->type3_pairs) {
       if (pair.outcome != "verified_edge") {
         continue;

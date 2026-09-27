@@ -154,8 +154,9 @@ srcMove --version
 - `--min-granularity statement|fragment` selects the minimum move unit.
   `statement` is the default; `fragment` enables low-level diff fragments for
   specialized analysis.
-- `--diagnostics` adds retained-candidate and Type-3 comparison evidence to the
-  results JSON. It requires `--results <file>`.
+- `--diagnostics` adds unique Type-1 shadow correspondences, retained-candidate
+  evidence, and Type-3 comparison evidence to the results JSON. Its nested
+  diagnostics schema is version `2`; it requires `--results <file>`.
 - `--profile` writes coarse `profile.<stage>_ms=<milliseconds>` timings to
   standard error.
 - `-v` and `--verbose` print selected move-match diagnostics to standard output.

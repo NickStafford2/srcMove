@@ -106,7 +106,7 @@ inline void write_move_entry(std::ostream     &out,
 inline void write_selection_diagnostics(std::ostream &out,
                                         const selection_diagnostics &diagnostics) {
   out << "  \"diagnostics\": {\n";
-  out << "    \"schema_version\": 1,\n";
+  out << "    \"schema_version\": 2,\n";
   out << "    \"candidates\": [\n";
   for (std::size_t index = 0; index < diagnostics.candidates.size(); ++index) {
     const candidate_diagnostic &candidate = diagnostics.candidates[index];
@@ -140,6 +140,63 @@ inline void write_selection_diagnostics(std::ostream &out,
     out << "        \"maximum_tokens\": " << pair.maximum_tokens << "\n";
     out << "      }";
     if (index + 1 < diagnostics.type3_pairs.size()) out << ",";
+    out << "\n";
+  }
+  out << "    ],\n";
+  out << "    \"correspondences\": [\n";
+  for (std::size_t index = 0; index < diagnostics.correspondences.size();
+       ++index) {
+    const correspondence_diagnostic &item = diagnostics.correspondences[index];
+    const auto write_context = [&](const endpoint_context_diagnostic &context,
+                                   std::size_t indent) {
+      const std::string pad(indent, ' ');
+      const std::string field_pad(indent + 2, ' ');
+      out << "{\n";
+      out << field_pad << "\"revision_file\": ";
+      write_string(out, context.revision_file); out << ",\n";
+      out << field_pad << "\"semantic_container_id\": ";
+      write_string(out, context.semantic_container_id); out << ",\n";
+      out << field_pad << "\"semantic_container_label\": ";
+      write_string(out, context.semantic_container_label); out << ",\n";
+      out << field_pad << "\"previous_common_anchor_id\": ";
+      write_string(out, context.previous_common_anchor_id); out << ",\n";
+      out << field_pad << "\"next_common_anchor_id\": ";
+      write_string(out, context.next_common_anchor_id); out << ",\n";
+      out << field_pad << "\"meaningful_ancestors\": ";
+      write_string_array(out, context.meaningful_ancestors, indent + 2);
+      out << "\n" << pad << "}";
+    };
+    out << "      {\n";
+    out << "        \"delete_candidate_id\": " << item.delete_candidate_id
+        << ",\n";
+    out << "        \"insert_candidate_id\": " << item.insert_candidate_id
+        << ",\n";
+    out << "        \"correspondence_kind\": ";
+    write_string(out, item.correspondence_kind); out << ",\n";
+    out << "        \"cardinality\": ";
+    write_string(out, item.cardinality); out << ",\n";
+    out << "        \"current_result\": ";
+    write_string(out, item.current_result); out << ",\n";
+    out << "        \"shadow_change\": ";
+    write_string(out, item.shadow_change); out << ",\n";
+    out << "        \"classification_reason\": ";
+    write_string(out, item.classification_reason); out << ",\n";
+    out << "        \"file_observation\": ";
+    write_string(out, item.file_observation); out << ",\n";
+    out << "        \"semantic_container_observation\": ";
+    write_string(out, item.semantic_container_observation); out << ",\n";
+    out << "        \"anchor_interval_observation\": ";
+    write_string(out, item.anchor_interval_observation); out << ",\n";
+    out << "        \"ancestor_observation\": ";
+    write_string(out, item.ancestor_observation); out << ",\n";
+    out << "        \"carried_by_parent\": "
+        << (item.carried_by_parent ? "true" : "false") << ",\n";
+    out << "        \"before_context\": ";
+    write_context(item.before_context, 8); out << ",\n";
+    out << "        \"after_context\": ";
+    write_context(item.after_context, 8); out << "\n";
+    out << "      }";
+    if (index + 1 < diagnostics.correspondences.size()) out << ",";
     out << "\n";
   }
   out << "    ]\n";

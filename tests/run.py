@@ -179,6 +179,29 @@ def test_steps(
         )
         steps.append(
             TestStep(
+                "shadow diagnostics component",
+                [
+                    sys.executable,
+                    str(
+                        REPO_ROOT
+                        / "tests"
+                        / "unit"
+                        / "shadow_classifier"
+                        / "check_shadow_diagnostics.py"
+                    ),
+                    str(REPO_ROOT / "build" / "srcMove"),
+                    str(
+                        REPO_ROOT
+                        / "tests"
+                        / "unit"
+                        / "location_context"
+                        / "semantic_containers.xml"
+                    ),
+                ],
+            )
+        )
+        steps.append(
+            TestStep(
                 "location context component",
                 [
                     str(REPO_ROOT / "build" / "location_context_test"),

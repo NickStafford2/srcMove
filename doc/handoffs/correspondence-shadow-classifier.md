@@ -67,21 +67,30 @@ rules classify different files, different mapped containers, and crossed
 stable anchors as relocated; equal ancestry in one stable interval as
 stationary; meaningful prefix wrapper additions/removals as restructured; and
 missing or incompatible evidence as ambiguous. Parent-carried relationships
-remain deliberately unsupported, and the module is not yet connected to
-grouping, diagnostics, or production output. `shadow_classifier_test` covers
-every branch and conservative counterexamples.
+remain deliberately unsupported. The refined group builder now harvests unique
+Type-1 exact pairs before local-replacement rejection and hierarchy selection,
+classifies them, and exposes their endpoint contexts and eventual current
+selection result in opt-in diagnostics schema version 2. The focused
+end-to-end check proves that selection-rejected stationary evidence survives
+and that enabling diagnostics leaves all ordinary result fields unchanged.
+`shadow_classifier_test` covers every rule branch and conservative
+counterexamples.
 
 The next implementation session should continue in this order:
 
-1. harvest unique Type-1 correspondence pairs before local-replacement and
-   hierarchy filtering so stationary evidence is still visible; and
-2. expose shadow diagnostics without changing production `moves` or ordinary
-   XML/JSON output.
+1. execute the Phase 0 shadow contracts against generated diagnostics, adding
+   an integration adapter that asserts each fixture's intended record rather
+   than treating current output as the oracle;
+2. close context gaps exposed by those contracts, especially unrecognized
+   wrapper incompatibility and the `[[nodiscard]]`/unwrap miniature; and
+3. implement or conservatively defer `carried_by_parent`, run the retained
+   Notepad++ evaluation, then perform the independent review in Step 7.
 
 Do not derive containers or anchors from raw XPath, names alone, the candidate
-being classified, or a second tree-matching pass. Shadow correspondences must
-later be harvested from unique exact groups before local-replacement and
-hierarchy filtering, because final selected groups omit stationary evidence.
+being classified, or a second tree-matching pass. Shadow correspondences are
+harvested from unique exact groups before local-replacement and hierarchy
+filtering because final selected groups omit stationary evidence; preserve that
+ordering.
 
 ## Why this is urgent
 
