@@ -106,7 +106,7 @@ inline void write_move_entry(std::ostream     &out,
 inline void write_selection_diagnostics(std::ostream &out,
                                         const selection_diagnostics &diagnostics) {
   out << "  \"diagnostics\": {\n";
-  out << "    \"schema_version\": 3,\n";
+  out << "    \"schema_version\": 4,\n";
   out << "    \"candidates\": [\n";
   for (std::size_t index = 0; index < diagnostics.candidates.size(); ++index) {
     const candidate_diagnostic &candidate = diagnostics.candidates[index];
@@ -178,6 +178,12 @@ inline void write_selection_diagnostics(std::ostream &out,
     write_string(out, item.correspondence_kind); out << ",\n";
     out << "        \"cardinality\": ";
     write_string(out, item.cardinality); out << ",\n";
+    if (item.correspondence_kind == "type3") {
+      out << "        \"delete_verified_partner_count\": "
+          << item.delete_verified_partner_count << ",\n";
+      out << "        \"insert_verified_partner_count\": "
+          << item.insert_verified_partner_count << ",\n";
+    }
     out << "        \"current_result\": ";
     write_string(out, item.current_result); out << ",\n";
     out << "        \"shadow_change\": ";

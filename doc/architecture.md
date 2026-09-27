@@ -258,16 +258,32 @@ materializes that JSON evidence from candidate-owned XPaths and skips the
 second XML pass entirely.
 
 `--diagnostics` is an opt-in results mode for algorithm review. Diagnostics
-schema version `3` records unique Type-1 and Type-2 correspondence classifications,
+schema version `4` records unique Type-1/Type-2 and verified Type-3 edge classifications,
 endpoint context independent of selection, retained candidates, and Type-3 shortlist
 decisions, including observed line and token LCS evidence for below-threshold
 pairs and whether a verified edge was selected. Each correspondence also says
 whether current selection emitted it as a move. The legacy `shadow_change` field
-names the location outcome for both evidence types. File, mapped-container,
+names the location outcome for all three evidence types. File, mapped-container,
 anchor-interval, relative-order, and ancestor observations are explicit.
 Container-local anchor intervals are `different`, not crossed, when their
 mapped containers differ. Diagnostics require `--results` and are not emitted
 during ordinary runs.
+
+Type-3 location decisions are observation-only, computed once per verified edge
+when diagnostics are requested, after production selection. Selected and rejected
+edges are both retained; below-threshold pairs remain shortlist observations and
+do not become correspondence records. The shared classifier does not infer
+parent carrying for edited Type-3 parents. Ordinary eligibility is unchanged.
+
+Type-3 records add `delete_verified_partner_count` and
+`insert_verified_partner_count`, counting incident verified edges before
+selection. Their `cardinality` is `competing_edges` if either endpoint has more
+than one verified partner; otherwise it is `one_to_one`. These are local edge
+degrees, not equivalence groups or proof of identity. Location and matching
+ambiguity are separate: a competing edge can have `shadow_change: relocated`
+without establishing a unique continuing construct. Connectivity never creates
+additional edges. `current_result` records actual Type-3 selection, independently
+of these observations.
 
 ### Results terminology
 
@@ -345,7 +361,7 @@ performance result for arbitrary projects.
   revision files, mapped semantic containers, or crossed stable anchors. Missing
   context remains ambiguous, not proven stationary. This policy does not
   reconstruct developer intent or resolve repeated NxM groups. Type-3 movement
-  classification is deferred; its existing similarity and selection policy
+  classification is observation-only; its existing similarity and selection policy
   remains active for endpoints without stronger correspondence identity.
 
 Richer structural similarity, contextual scoring, and ambiguous-group

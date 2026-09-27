@@ -8,7 +8,8 @@ classification; Phase 5 addresses repeated groups; Phase 6 evaluates and
 consolidates the system. Phase 4.1 production Type-2 adoption is complete after
 repairing common conditional anchors and reviewing normalization fixtures.
 Matching coverage remains separate from move output. Historical improvement is
-not yet established. Phases 4.2, 5, and 6 are not implemented. This
+not yet established. Phase 4.2 has observation-only diagnostics and an initial
+contract matrix; production Type-3 adoption and Phases 5/6 remain unimplemented. This
 document records rationale, semantics, decision points, and future
 implementation phases rather than the full current behavior. The verified
 implementation remains documented in
@@ -520,7 +521,7 @@ understood and stable.
 
 ### Phase 4: unify movement classification across Type-1/2/3
 
-Status: Phases 4.0 and 4.1 complete; Phase 4.2 has not started. The reviewed
+Status: Phases 4.0 and 4.1 complete; Phase 4.2 observation is implemented. The reviewed
 SQLite reorder survives production adoption after common-conditional context
 repair. See the [adoption evidence](../../moveSelectionBench/README.md#type-2-production-adoption).
 Keep the existing matching representations, hierarchy selection, repeated-group
@@ -559,6 +560,20 @@ revising move-output expectations. Stop and investigate any lost reviewed real
 move rather than relabeling it as a negative.
 
 #### Phase 4.2: migrate verified Type-3 correspondences
+
+Status: observation-only slice implemented. The initial contract matrix separates
+location classification, competing verified partners, and current selection.
+See [Type-3 observation evidence](../../moveSelectionBench/README.md#type-3-observation-baseline)
+for unchanged-output comparisons and two explicit structural-wrapper oracle gaps.
+No Type-3 production eligibility or parent-carrying rule has changed.
+
+Next, review bounded historical Type-3 examples independently of detector output,
+including missed edited moves and edits in place. Resolve the structural-candidate
+wrap/unwrap context gap with justified positive/negative contracts before any
+production gate. Establish an explicit acceptance policy for competing edges;
+neither degree one nor the winning utility rank alone proves correspondence.
+Do not treat the current synthetic operator edits as historical accuracy evidence.
+
 
 Begin with independent contracts and observation-only classification of verified
 Type-3 edges, then evaluate before changing output. Type-3 similarity may yield

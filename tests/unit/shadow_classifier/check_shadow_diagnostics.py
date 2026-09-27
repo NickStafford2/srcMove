@@ -43,7 +43,7 @@ def main() -> int:
     diagnostic_without_evidence = dict(diagnostic)
     evidence = diagnostic_without_evidence.pop("diagnostics")
     assert ordinary == diagnostic_without_evidence
-    assert evidence["schema_version"] == 3
+    assert evidence["schema_version"] == 4
     records = evidence["correspondences"]
     correspondence_ids = [
         (record["delete_candidate_id"], record["insert_candidate_id"])

@@ -260,7 +260,21 @@ struct correspondence_decision {
   movement_classification classification;
   candidate_id parent_delete_candidate_id = 0;
   candidate_id parent_insert_candidate_id = 0;
+  std::size_t delete_verified_partner_count = 1;
+  std::size_t insert_verified_partner_count = 1;
 };
+
+correspondence_decision classify_correspondence(
+    const candidate_registry &registry, candidate_id del_id,
+    candidate_id ins_id, match_kind match) {
+  const move_candidate &deleted = registry.candidate(del_id);
+  const move_candidate &inserted = registry.candidate(ins_id);
+  return correspondence_decision{
+      del_id, ins_id, match,
+      classify_movement(deleted.location, ancestor_summary(registry, deleted),
+                        inserted.location, ancestor_summary(registry, inserted)),
+  };
+}
 
 std::vector<correspondence_decision>
 classify_unique_correspondences(
@@ -273,14 +287,8 @@ classify_unique_correspondences(
     }
     const candidate_id del_id = group.del_ids.front();
     const candidate_id ins_id = group.ins_ids.front();
-    const move_candidate &deleted = registry.candidate(del_id);
-    const move_candidate &inserted = registry.candidate(ins_id);
-    decisions.push_back(correspondence_decision{
-        del_id, ins_id, group.match,
-        classify_movement(
-            deleted.location, ancestor_summary(registry, deleted),
-            inserted.location, ancestor_summary(registry, inserted)),
-    });
+    decisions.push_back(classify_correspondence(
+        registry, del_id, ins_id, group.match));
   }
   return decisions;
 }
@@ -303,8 +311,11 @@ void materialize_correspondence_diagnostics(
     diagnostics.correspondences.push_back(correspondence_diagnostic{
         decision.delete_candidate_id,
         decision.insert_candidate_id,
-        decision.match == match_kind::type1 ? "type1" : "type2",
-        "one_to_one",
+        decision.match == match_kind::type1 ? "type1"
+            : (decision.match == match_kind::type2 ? "type2" : "type3"),
+        decision.delete_verified_partner_count > 1 ||
+                decision.insert_verified_partner_count > 1
+            ? "competing_edges" : "one_to_one",
         "not_move",
         std::string(to_string(classification.change_kind)),
         std::string(to_string(classification.reason)),
@@ -321,6 +332,8 @@ void materialize_correspondence_diagnostics(
             registry, registry.candidate(decision.insert_candidate_id)),
         decision.parent_delete_candidate_id,
         decision.parent_insert_candidate_id,
+        decision.delete_verified_partner_count,
+        decision.insert_verified_partner_count,
     });
   }
 }
@@ -331,7 +344,9 @@ void update_correspondence_selection_results(
        diagnostics.correspondences) {
     const match_kind expected_match =
         correspondence.correspondence_kind == "type1"
-            ? match_kind::type1 : match_kind::type2;
+            ? match_kind::type1
+            : (correspondence.correspondence_kind == "type2"
+                   ? match_kind::type2 : match_kind::type3);
     const bool selected = std::any_of(
         groups.groups().begin(), groups.groups().end(),
         [&](const content_group &group) {
@@ -1230,6 +1245,22 @@ content_groups build_content_groups(const candidate_registry &registry,
   }
 
   if (diagnostics != nullptr) {
+    // Observe every verified edge, including selection losers. Degrees describe
+    // competing partners, not transitive equivalence classes or accepted identity.
+    std::vector<std::size_t> partner_counts(registry.total_record_count(), 0);
+    for (const type3_edge &edge : type3_edges) {
+      ++partner_counts[edge.del_id];
+      ++partner_counts[edge.ins_id];
+    }
+    for (const type3_edge &edge : type3_edges) {
+      auto decision = classify_correspondence(
+          registry, edge.del_id, edge.ins_id, match_kind::type3);
+      decision.delete_verified_partner_count = partner_counts[edge.del_id];
+      decision.insert_verified_partner_count = partner_counts[edge.ins_id];
+      decisions.push_back(std::move(decision));
+    }
+    // Type-3 decisions are observation-only and never infer edited-parent carrying.
+    order_correspondence_decisions(decisions);
     materialize_correspondence_diagnostics(registry, decisions, *diagnostics);
     update_correspondence_selection_results(out, *diagnostics);
     for (type3_pair_diagnostic &pair : diagnostics->type3_pairs) {

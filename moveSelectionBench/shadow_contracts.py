@@ -440,15 +440,15 @@ def validate_srcdiff_precondition(case: dict[str, Any], srcdiff_path: Path) -> d
 def evaluate_shadow_diagnostics(
     case: dict[str, Any], results: dict[str, Any]
 ) -> dict[str, Any]:
-    """Resolve one contract's endpoints in schema-v3 diagnostics.
+    """Resolve one contract's endpoints in schema-v4 diagnostics.
 
     This adapter uses the reviewed element and exact endpoint text from the
     contract. It never derives expected classifications from current output.
     """
 
     diagnostics = results.get("diagnostics")
-    if not isinstance(diagnostics, dict) or diagnostics.get("schema_version") != 3:
-        raise ShadowContractError(f"{case['id']}: expected diagnostics schema 3")
+    if not isinstance(diagnostics, dict) or diagnostics.get("schema_version") != 4:
+        raise ShadowContractError(f"{case['id']}: expected diagnostics schema 4")
     candidates = diagnostics.get("candidates")
     correspondences = diagnostics.get("correspondences")
     if not isinstance(candidates, list) or not isinstance(correspondences, list):

@@ -50,7 +50,9 @@ python3 tests/regression/policy/list.py --catalog contextual
   repeated-group guards, and edited-parent child movement. Type-2 reservation
   controls protect both endpoint directions from alternate Type-3 matching;
   normalization contracts retain ten ambiguous correspondences from nine XML
-  fixtures. Hypotheses remain observational benchmark cases. Run with
+  fixtures. Type-3 contracts check observation-only location decisions, verified
+  partner counts, nontransitive edges, and explicit known oracle gaps without
+  changing production output. Hypotheses remain observational benchmark cases. Run with
   `make test-move-selection`; it is also included by `make test-unit`.
 - `srcmove-history`: focused unit tests under
   `tests/unit/srcmove_history/`; run explicitly with

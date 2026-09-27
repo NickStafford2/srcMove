@@ -58,6 +58,8 @@ struct correspondence_diagnostic {
   endpoint_context_diagnostic after_context;
   std::size_t parent_delete_candidate_id = 0;
   std::size_t parent_insert_candidate_id = 0;
+  std::size_t delete_verified_partner_count = 1;
+  std::size_t insert_verified_partner_count = 1;
 };
 
 struct selection_diagnostics {

@@ -472,6 +472,69 @@ srcDiff artifacts; it does not regenerate or relabel the source-reviewed oracle.
 `git diff --check` also passes. VERSION remains unchanged; no staging or commit
 is part of this adoption.
 
+## Type-3 observation baseline
+
+The first Phase 4.2 slice adds observation-only classification of every verified
+Type-3 edge. The [architecture](../doc/architecture.md) defines diagnostics schema
+4, endpoint partner counts, and their separation from location and selection.
+Production Type-3 eligibility, hierarchy, and repeated-group policy are unchanged.
+
+[`type3_contracts.json`](type3_contracts.json) contains fifteen independently
+specified synthetic scenarios, executed by
+[`tests/test_type3_contracts.py`](tests/test_type3_contracts.py). Exact endpoint
+text and srcDiff revision membership identify the oracle constructs. The matrix
+covers edits in place, cross-file/container edits, same-container reorder,
+missing context, wrapping/unwrapping, a reordered child in a renamed parent,
+a child covered by an edited Type-3 parent, competition in both directions,
+a nontransitive three-edge chain, and a below-threshold cross-file pair.
+The tests also check actual selection disposition and equivalence between
+ordinary, diagnostic, and results-only runs. A degree-one verified edge is not
+independently established semantic identity; these operator-edit examples test
+mechanics, not historical accuracy.
+
+Thirteen scenarios agree with the location oracle. Two structural wrapping
+scenarios retain explicit `known_observation_gap` records: source-level wrapping
+and unwrapping of an edited `if_stmt` should be restructuring, but the existing
+context captures the candidate's own structural tag. The chains are
+`[block, if_stmt]` and `[block, while, block, if_stmt]`, which are incompatible
+under the shared prefix rule. Diagnostics therefore say
+`ambiguous/incompatible_context`. The independent `restructured` expectation is
+retained alongside the gap; passing regression tests must not be reported as
+fifteen successful semantic classifications. Long declaration-statement
+wrap/unwrap controls exercise the supported prefix behavior. No shared location
+rule was changed to hide this limitation.
+
+Baseline comparison against `4b1d0f2` covers 187 inputs: the existing 172-case
+comparison plus fifteen Type-3 scenarios. Every ordinary JSON result and
+annotated XML output is unchanged. After excluding the schema number and new
+Type-3 correspondence records, all prior diagnostics—including Type-1/Type-2
+records and Type-3 shortlist outcomes—are identical. The full Docker correctness
+suite passes all thirteen steps, including 21 selection contracts, 18 Type-2
+oracle cases, and the new Type-3 observation checks with their two known gaps.
+
+All fourteen retained historical outputs remain identical, including the SQLite
+reorder. However, these retained inputs expose **zero verified Type-3 edges**
+under the current identity reservations and default granularity. They establish
+regression compatibility only; they cannot validate Type-3 classification or a
+future production gate. The next bounded historical sample must be chosen and
+reviewed independently for genuine edited moves, edits in place, and missed
+matches. Context repair and competing-edge acceptance remain open in the
+[roadmap](../doc/plans/correspondence.md#phase-42-migrate-verified-type-3-correspondences).
+
+Ignored evidence lives in `build/type3-observation/`: baseline/current build
+receipts, preserved baseline executable, per-case XML/JSON, `comparison.json`,
+`history-observations.json`, test log, change snapshot, and provenance. From the
+parent workspace, reproduce with:
+
+```bash
+./bin/srcml-dev-shell make --no-print-directory -C srcMove test
+./bin/srcml-dev-shell python3 srcMove/build/type3-observation/compare.py
+```
+
+The comparison requires retained generated source/policy inputs and historical
+srcDiff files. It does not relabel source expectations from detector output.
+VERSION remains unchanged.
+
 ## Retained Notepad++ evaluation
 
 The retained evaluation uses Notepad++ commit
