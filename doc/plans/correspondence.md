@@ -577,9 +577,11 @@ transfers, and two selected in-place regions. Its frozen target labels and
 post-outcome selected-edge audit have separate denominators. It is bounded
 convenience evidence, not held-out validation or grounds for immediate adoption.
 
-Next, retain source-generated observation contracts for the historical 2×2
-functor ambiguity and in-place warp cases, then review correspondence acceptance
-and the lost-transfer tradeoff before any isolated eligibility trial. A trial
+The [source-generated historical contracts](../../moveSelectionBench/README.md#historical-type-3-observation-contracts)
+now preserve the full 2×2 functor component and both in-place warp observations,
+with source oracles separate from diagnostic/selection baselines. Next, review
+correspondence acceptance and the lost-transfer tradeoff before any isolated
+eligibility trial. A trial
 must rerun hierarchy selection and audit exposed alternatives, not just filter
 existing selected edges. Keep production Type-3 observation-only; do not treat a
 winning rank, small similarity margin, or degree one as independent identity

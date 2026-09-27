@@ -1,0 +1,168 @@
+{
+  "schema_version": 1,
+  "purpose": "Source-derived observation contracts. Source identity/location oracles are separate from current diagnostics and selection; passing tests do not endorse current false move annotations.",
+  "cases": [
+    {
+      "id": "functor_competition",
+      "source_pair": "type3_history_cases/functor_competition",
+      "provenance": {
+        "repository": "opencv",
+        "commit": "b864ee73356e8aab58b592ccf761ad715ad7d462",
+        "parent": "74a25df87e46d17f6398a6d83e853d12edeeb27b",
+        "derivation": "Exact two complete functors extracted from the reviewed revision snapshots; surrounding cv/anonymous namespace wrappers retained; original source/destination logical paths retained."
+      },
+      "endpoints": [
+        {
+          "id": "reorder_then_general",
+          "construct": "struct",
+          "before_text_sha256": "1cb5d2da40a77de542bb33d9c8090fa5e306c2ed52f134ddc69e61295dce36b4",
+          "after_text_sha256": "fb6cc6c90214cb4ad78c06dd4a023b68328b6f765ca4290a17c9b89b3658dfe9"
+        },
+        {
+          "id": "general_then_reorder",
+          "construct": "struct",
+          "before_text_sha256": "362652486b79416be42682ec7376bfd747b262bc5dee9cb2ee2b42b2af2296ac",
+          "after_text_sha256": "3aace8afc7b30996c2f905b1b132f11182b0845127a708917e459ebc1a6408cf"
+        }
+      ],
+      "edges": [
+        {
+          "before": "reorder_then_general",
+          "after": "reorder_then_general",
+          "source_oracle": {
+            "identity": "continuing_construct",
+            "location": "relocated",
+            "is_move": true,
+            "reason": "Conversion order and function roles distinguish these two surviving identities; displacement does not resolve the cross-pair."
+          },
+          "observation_baseline": {
+            "change": "relocated",
+            "reason": "different_file",
+            "delete_partners": 2,
+            "insert_partners": 2,
+            "current_result": "move"
+          }
+        },
+        {
+          "before": "reorder_then_general",
+          "after": "general_then_reorder",
+          "source_oracle": {
+            "identity": "different_constructs",
+            "location": "not_applicable",
+            "is_move": false,
+            "reason": "Conversion order and function roles distinguish these two surviving identities; displacement does not resolve the cross-pair."
+          },
+          "observation_baseline": {
+            "change": "relocated",
+            "reason": "different_file",
+            "delete_partners": 2,
+            "insert_partners": 2,
+            "current_result": "not_move"
+          }
+        },
+        {
+          "before": "general_then_reorder",
+          "after": "reorder_then_general",
+          "source_oracle": {
+            "identity": "different_constructs",
+            "location": "not_applicable",
+            "is_move": false,
+            "reason": "Conversion order and function roles distinguish these two surviving identities; displacement does not resolve the cross-pair."
+          },
+          "observation_baseline": {
+            "change": "relocated",
+            "reason": "different_file",
+            "delete_partners": 2,
+            "insert_partners": 2,
+            "current_result": "not_move"
+          }
+        },
+        {
+          "before": "general_then_reorder",
+          "after": "general_then_reorder",
+          "source_oracle": {
+            "identity": "continuing_construct",
+            "location": "relocated",
+            "is_move": true,
+            "reason": "Conversion order and function roles distinguish these two surviving identities; displacement does not resolve the cross-pair."
+          },
+          "observation_baseline": {
+            "change": "relocated",
+            "reason": "different_file",
+            "delete_partners": 2,
+            "insert_partners": 2,
+            "current_result": "move"
+          }
+        }
+      ],
+      "source_sha256": {
+        "before/modules/imgproc/src/color.hpp": "2e175d2fac1ec782ae057a6358baf6049e57e69a45a3efc3372bb3eca4c62a95",
+        "after/hal/ipp/src/color_ipp.cpp": "7b8245212dcb5f8158d1ce3a9181bcf25d72408201814f68acc3463cde3dd5e4"
+      }
+    },
+    {
+      "id": "warp_in_place",
+      "source_pair": "type3_history_cases/warp_in_place",
+      "provenance": {
+        "repository": "opencv",
+        "commit": "9e515caeac2e80fe2d04837f6abcacccbe404107",
+        "parent": "0ee9c2796698346e78c640565ec6a0dfb7a95151",
+        "derivation": "Unmodified complete warp_ipp.cpp snapshots. Keep original preprocessor and sibling context because srcDiff alignment determines whether mapped containers survive."
+      },
+      "endpoints": [
+        {
+          "id": "affine_worker",
+          "construct": "class",
+          "before_text_sha256": "df66957dec778b13637d73f6825a59d5487b06182fad3bb41e5ace158b1eb208",
+          "after_text_sha256": "b087ae442c1eb8de4d4b379e56de213bd80786db607790edf560193e43df4c9e"
+        },
+        {
+          "id": "affine_try",
+          "construct": "try",
+          "before_text_sha256": "eb53ea2dd47760da86697f3ca12ca1d202c3c1a16e67171d6ffb83a5774d62e5",
+          "after_text_sha256": "74cdd5e1c5f5a5f809d07764aed39ab3834ff5f3eedcc0ef9e61585dcdc2160b"
+        }
+      ],
+      "edges": [
+        {
+          "before": "affine_worker",
+          "after": "affine_worker",
+          "source_oracle": {
+            "identity": "continuing_construct",
+            "location": "stationary",
+            "is_move": false,
+            "reason": "Same class/try region remains in the same source role; edits change pointer naming, instrumentation or thread scheduling, not location."
+          },
+          "observation_baseline": {
+            "change": "ambiguous",
+            "reason": "insufficient_context",
+            "delete_partners": 1,
+            "insert_partners": 1,
+            "current_result": "move"
+          }
+        },
+        {
+          "before": "affine_try",
+          "after": "affine_try",
+          "source_oracle": {
+            "identity": "continuing_construct",
+            "location": "stationary",
+            "is_move": false,
+            "reason": "Same class/try region remains in the same source role; edits change pointer naming, instrumentation or thread scheduling, not location."
+          },
+          "observation_baseline": {
+            "change": "ambiguous",
+            "reason": "insufficient_context",
+            "delete_partners": 1,
+            "insert_partners": 1,
+            "current_result": "move"
+          }
+        }
+      ],
+      "source_sha256": {
+        "before/hal/ipp/src/warp_ipp.cpp": "f54cbfd79d42ff89e4c2eea00ecc07478552ce769164408c0ff9138294cd6e46",
+        "after/hal/ipp/src/warp_ipp.cpp": "4be093193321073130a1107de6289ae5dd5f5431e44ccaa2c72a228d7e4b909e"
+      }
+    }
+  ]
+}
