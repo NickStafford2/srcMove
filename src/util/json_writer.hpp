@@ -106,7 +106,7 @@ inline void write_move_entry(std::ostream     &out,
 inline void write_selection_diagnostics(std::ostream &out,
                                         const selection_diagnostics &diagnostics) {
   out << "  \"diagnostics\": {\n";
-  out << "    \"schema_version\": 2,\n";
+  out << "    \"schema_version\": 3,\n";
   out << "    \"candidates\": [\n";
   for (std::size_t index = 0; index < diagnostics.candidates.size(); ++index) {
     const candidate_diagnostic &candidate = diagnostics.candidates[index];

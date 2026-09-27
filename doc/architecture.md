@@ -77,8 +77,9 @@ This distinction permits a deletion in one archive unit to match an insertion
 in another without mistaking a combined srcDiff filename for one revision's
 file identity.
 
-[`src/shadow_classifier.cpp`](../src/shadow_classifier.cpp) contains a pure,
-ordered classifier for one unique Type-1 correspondence. Different revision
+[`src/movement_classifier.cpp`](../src/movement_classifier.cpp) contains a pure,
+ordered location classifier shared by unique Type-1 and Type-2 correspondences.
+Different revision
 files, different mapped containers, and crossed reliable anchor intervals are
 relocation evidence. Within one reliable interval, equal meaningful ancestry
 is stationary, prefix additions or removals are restructuring, and
@@ -89,6 +90,11 @@ relocations become Type-1 proposals; stationary, restructured, ambiguous, and
 parent-carried correspondences remain diagnostic-only. The same compact
 decision records materialize the opt-in diagnostics, so production eligibility
 and diagnostic interpretation cannot diverge.
+Unique Type-2 groups use the same compact decision type and location classifier
+only when diagnostics are requested. Their observations do not control output:
+the existing Type-2 local-replacement and selection policy remains active.
+Type-2 decisions do not participate in exact-parent carrying, since containment
+inside an edited parent does not establish stable relative position.
 The Phase 0 contract adapter resolves endpoints by the reviewed construct and
 exact text rather than using current classifications as its oracle. With
 fragment granularity, all twelve contracts match, including
@@ -242,11 +248,12 @@ materializes that JSON evidence from candidate-owned XPaths and skips the
 second XML pass entirely.
 
 `--diagnostics` is an opt-in results mode for algorithm review. Diagnostics
-schema version `2` records unique Type-1 correspondence classifications and
-endpoint context before selection, retained candidates, and Type-3 shortlist
+schema version `3` records unique Type-1 and Type-2 correspondence classifications,
+endpoint context independent of selection, retained candidates, and Type-3 shortlist
 decisions, including observed line and token LCS evidence for below-threshold
 pairs and whether a verified edge was selected. Each correspondence also says
-whether current selection emitted it as a move. File, mapped-container,
+whether current selection emitted it as a move. The legacy `shadow_change` field
+names the location outcome for both evidence types. File, mapped-container,
 anchor-interval, relative-order, and ancestor observations are explicit.
 Container-local anchor intervals are `different`, not crossed, when their
 mapped containers differ. Diagnostics require `--results` and are not emitted

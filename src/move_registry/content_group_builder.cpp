@@ -11,7 +11,7 @@
 #include "move_registry/sequence_similarity.hpp"
 #include "move_registry/selection_policy.hpp"
 #include "profile.hpp"
-#include "shadow_classifier.hpp"
+#include "movement_classifier.hpp"
 
 #include <algorithm>
 #include <cassert>
@@ -254,31 +254,31 @@ std::string_view relative_order_observation(
   return "unknown";
 }
 
-struct type1_correspondence_decision {
+struct correspondence_decision {
   candidate_id delete_candidate_id = 0;
   candidate_id insert_candidate_id = 0;
-  shadow_classification classification;
+  match_kind match = match_kind::unmatched;
+  movement_classification classification;
   candidate_id parent_delete_candidate_id = 0;
   candidate_id parent_insert_candidate_id = 0;
 };
 
-std::vector<type1_correspondence_decision>
-classify_unique_type1_correspondences(
+std::vector<correspondence_decision>
+classify_unique_correspondences(
     const candidate_registry &registry,
-    const std::vector<pending_group> &exact_groups) {
-  std::vector<type1_correspondence_decision> decisions;
-  for (const pending_group &group : exact_groups) {
-    if (group.match != match_kind::type1 || group.del_ids.size() != 1 ||
-        group.ins_ids.size() != 1) {
+    const std::vector<pending_group> &groups) {
+  std::vector<correspondence_decision> decisions;
+  for (const pending_group &group : groups) {
+    if (group.del_ids.size() != 1 || group.ins_ids.size() != 1) {
       continue;
     }
     const candidate_id del_id = group.del_ids.front();
     const candidate_id ins_id = group.ins_ids.front();
     const move_candidate &deleted = registry.candidate(del_id);
     const move_candidate &inserted = registry.candidate(ins_id);
-    decisions.push_back(type1_correspondence_decision{
-        del_id, ins_id,
-        classify_type1_shadow(
+    decisions.push_back(correspondence_decision{
+        del_id, ins_id, group.match,
+        classify_movement(
             deleted.location, ancestor_summary(registry, deleted),
             inserted.location, ancestor_summary(registry, inserted)),
     });
@@ -288,11 +288,11 @@ classify_unique_type1_correspondences(
 
 void materialize_correspondence_diagnostics(
     const candidate_registry &registry,
-    const std::vector<type1_correspondence_decision> &decisions,
+    const std::vector<correspondence_decision> &decisions,
     selection_diagnostics &diagnostics) {
   diagnostics.correspondences.reserve(decisions.size());
-  for (const type1_correspondence_decision &decision : decisions) {
-    const shadow_classification &classification = decision.classification;
+  for (const correspondence_decision &decision : decisions) {
+    const movement_classification &classification = decision.classification;
     std::string anchor_interval =
         std::string(to_string(classification.observations.anchor_interval));
     std::string relative_order = std::string(relative_order_observation(
@@ -304,7 +304,7 @@ void materialize_correspondence_diagnostics(
     diagnostics.correspondences.push_back(correspondence_diagnostic{
         decision.delete_candidate_id,
         decision.insert_candidate_id,
-        "type1",
+        decision.match == match_kind::type1 ? "type1" : "type2",
         "one_to_one",
         "not_move",
         std::string(to_string(classification.change_kind)),
@@ -330,10 +330,13 @@ void update_correspondence_selection_results(
     const content_groups &groups, selection_diagnostics &diagnostics) {
   for (correspondence_diagnostic &correspondence :
        diagnostics.correspondences) {
+    const match_kind expected_match =
+        correspondence.correspondence_kind == "type1"
+            ? match_kind::type1 : match_kind::type2;
     const bool selected = std::any_of(
         groups.groups().begin(), groups.groups().end(),
         [&](const content_group &group) {
-          if (group.match != match_kind::type1 || group.del_count() != 1 ||
+          if (group.match != expected_match || group.del_count() != 1 ||
               group.ins_count() != 1) {
             return false;
           }
@@ -644,13 +647,13 @@ std::vector<match_proposal> build_match_proposals(
   return proposals;
 }
 
-const type1_correspondence_decision *find_type1_decision(
-    const std::vector<type1_correspondence_decision> &decisions,
+const correspondence_decision *find_correspondence_decision(
+    const std::vector<correspondence_decision> &decisions,
     candidate_id delete_id, candidate_id insert_id) {
   const auto key = std::pair{delete_id, insert_id};
   const auto found = std::lower_bound(
       decisions.begin(), decisions.end(), key,
-      [](const type1_correspondence_decision &decision,
+      [](const correspondence_decision &decision,
          const std::pair<candidate_id, candidate_id> &wanted) {
         return std::pair{decision.delete_candidate_id,
                          decision.insert_candidate_id} < wanted;
@@ -664,7 +667,7 @@ const type1_correspondence_decision *find_type1_decision(
 
 void apply_type1_output_policy(
     std::vector<match_proposal> &proposals,
-    const std::vector<type1_correspondence_decision> &decisions,
+    const std::vector<correspondence_decision> &decisions,
     grouping_profile_stats *stats) {
   for (match_proposal &proposal : proposals) {
     if (proposal.group.match != match_kind::type1 ||
@@ -672,12 +675,12 @@ void apply_type1_output_policy(
         proposal.group.ins_ids.size() != 1) {
       continue;
     }
-    const type1_correspondence_decision *decision = find_type1_decision(
+    const correspondence_decision *decision = find_correspondence_decision(
         decisions, proposal.group.del_ids.front(),
         proposal.group.ins_ids.front());
     assert(decision != nullptr);
     if (decision != nullptr &&
-        !type1_move_eligible(decision->classification)) {
+        !move_eligible(decision->classification)) {
       proposal.disabled = true;
       if (stats != nullptr) {
         ++stats->type1_policy_rejected;
@@ -733,20 +736,23 @@ bool candidate_strictly_contains(const move_candidate &outer,
 
 void classify_parent_carried_correspondences(
     const candidate_registry &registry,
-    std::vector<type1_correspondence_decision> &decisions) {
+    std::vector<correspondence_decision> &decisions) {
   const std::vector<bool> independently_relocated = [&decisions] {
     std::vector<bool> result;
     result.reserve(decisions.size());
-    for (const type1_correspondence_decision &item : decisions) {
-      result.push_back(item.classification.change_kind ==
-                       shadow_change_kind::relocated);
+    for (const correspondence_decision &item : decisions) {
+      result.push_back(item.match == match_kind::type1 &&
+                       item.classification.change_kind == movement_kind::relocated);
     }
     return result;
   }();
 
   for (std::size_t child_index = 0; child_index < decisions.size();
        ++child_index) {
-    type1_correspondence_decision &child = decisions[child_index];
+    correspondence_decision &child = decisions[child_index];
+    if (child.match != match_kind::type1) {
+      continue;
+    }
     const move_candidate &child_del =
         registry.candidate(child.delete_candidate_id);
     const move_candidate &child_ins =
@@ -764,7 +770,7 @@ void classify_parent_carried_correspondences(
           !independently_relocated[parent_index]) {
         continue;
       }
-      const type1_correspondence_decision &parent = decisions[parent_index];
+      const correspondence_decision &parent = decisions[parent_index];
       const move_candidate &parent_del =
           registry.candidate(parent.delete_candidate_id);
       const move_candidate &parent_ins =
@@ -792,22 +798,22 @@ void classify_parent_carried_correspondences(
     if (best_parent == decisions.size()) {
       continue;
     }
-    const type1_correspondence_decision &parent = decisions[best_parent];
-    child.classification.change_kind = shadow_change_kind::stationary;
+    const correspondence_decision &parent = decisions[best_parent];
+    child.classification.change_kind = movement_kind::stationary;
     child.classification.reason =
-        shadow_classification_reason::stable_relative_to_relocated_parent;
+        movement_classification_reason::stable_relative_to_relocated_parent;
     child.classification.carried_by_parent = true;
     child.parent_delete_candidate_id = parent.delete_candidate_id;
     child.parent_insert_candidate_id = parent.insert_candidate_id;
   }
 }
 
-void order_type1_decisions(
-    std::vector<type1_correspondence_decision> &decisions) {
+void order_correspondence_decisions(
+    std::vector<correspondence_decision> &decisions) {
   std::sort(
       decisions.begin(), decisions.end(),
-      [](const type1_correspondence_decision &lhs,
-         const type1_correspondence_decision &rhs) {
+      [](const correspondence_decision &lhs,
+         const correspondence_decision &rhs) {
         return std::pair{lhs.delete_candidate_id, lhs.insert_candidate_id} <
                std::pair{rhs.delete_candidate_id, rhs.insert_candidate_id};
       });
@@ -1167,17 +1173,17 @@ content_groups build_content_groups(const candidate_registry &registry,
   }
 
   std::vector<pending_group> exact_groups;
-  std::vector<type1_correspondence_decision> type1_decisions;
+  std::vector<correspondence_decision> decisions;
   {
     scoped_profile_timer timer(profile, "content_groups.exact_build");
     exact_groups = build_exact_groups(registry);
     if (stats != nullptr) {
       stats->exact_groups_built = exact_groups.size();
     }
-    type1_decisions =
-        classify_unique_type1_correspondences(registry, exact_groups);
-    classify_parent_carried_correspondences(registry, type1_decisions);
-    order_type1_decisions(type1_decisions);
+    decisions =
+        classify_unique_correspondences(registry, exact_groups);
+    classify_parent_carried_correspondences(registry, decisions);
+    order_correspondence_decisions(decisions);
   }
 
   std::vector<std::size_t> exact_group_order;
@@ -1210,7 +1216,7 @@ content_groups build_content_groups(const candidate_registry &registry,
     scoped_profile_timer timer(profile, "content_groups.unified_select");
     std::vector<match_proposal> proposals = build_match_proposals(
         registry, exact_groups, type2_groups, type3_edges);
-    apply_type1_output_policy(proposals, type1_decisions, stats);
+    apply_type1_output_policy(proposals, decisions, stats);
     reject_local_replacement_proposals(proposals, registry, stats);
     prefer_stronger_descendant_bundles(proposals, registry);
     for (const match_proposal &proposal : proposals) {
@@ -1246,8 +1252,13 @@ content_groups build_content_groups(const candidate_registry &registry,
   }
 
   if (diagnostics != nullptr) {
-    materialize_correspondence_diagnostics(registry, type1_decisions,
-                                           *diagnostics);
+    // Type-2 classification is observation-only until its adoption has been
+    // evaluated. Do not extend exact-parent carrying to edited parents.
+    auto type2_decisions = classify_unique_correspondences(registry, type2_groups);
+    decisions.insert(decisions.end(), type2_decisions.begin(),
+                     type2_decisions.end());
+    order_correspondence_decisions(decisions);
+    materialize_correspondence_diagnostics(registry, decisions, *diagnostics);
     update_correspondence_selection_results(out, *diagnostics);
     for (type3_pair_diagnostic &pair : diagnostics->type3_pairs) {
       if (pair.outcome != "verified_edge") {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-only
-#include "shadow_classifier.hpp"
+#include "movement_classifier.hpp"
 
 #include <algorithm>
 
@@ -12,12 +12,12 @@ bool is_prefix(const std::vector<T> &prefix, const std::vector<T> &value) {
          std::equal(prefix.begin(), prefix.end(), value.begin());
 }
 
-shadow_observations observe(
+movement_observations observe(
     const endpoint_location_context &before,
     const std::vector<std::string> &before_ancestors,
     const endpoint_location_context &after,
     const std::vector<std::string> &after_ancestors) {
-  shadow_observations result;
+  movement_observations result;
 
   if (!before.revision_file.empty() && !after.revision_file.empty()) {
     result.file = before.revision_file == after.revision_file
@@ -66,79 +66,79 @@ shadow_observations observe(
   return result;
 }
 
-shadow_classification classified(shadow_change_kind change_kind,
-                                 shadow_classification_reason reason,
-                                 shadow_observations observations) {
-  return shadow_classification{change_kind, reason, observations, false};
+movement_classification classified(movement_kind change_kind,
+                                 movement_classification_reason reason,
+                                 movement_observations observations) {
+  return movement_classification{change_kind, reason, observations, false};
 }
 
 } // namespace
 
-shadow_classification classify_type1_shadow(
+movement_classification classify_movement(
     const endpoint_location_context &before,
     const std::vector<std::string> &before_ancestors,
     const endpoint_location_context &after,
     const std::vector<std::string> &after_ancestors) {
-  const shadow_observations observations =
+  const movement_observations observations =
       observe(before, before_ancestors, after, after_ancestors);
 
   if (observations.file == file_observation::different) {
-    return classified(shadow_change_kind::relocated,
-                      shadow_classification_reason::different_file,
+    return classified(movement_kind::relocated,
+                      movement_classification_reason::different_file,
                       observations);
   }
   if (observations.file == file_observation::unknown) {
-    return classified(shadow_change_kind::ambiguous,
-                      shadow_classification_reason::insufficient_context,
+    return classified(movement_kind::ambiguous,
+                      movement_classification_reason::insufficient_context,
                       observations);
   }
   if (observations.semantic_container ==
       semantic_container_observation::different_mapped) {
     return classified(
-        shadow_change_kind::relocated,
-        shadow_classification_reason::different_semantic_container,
+        movement_kind::relocated,
+        movement_classification_reason::different_semantic_container,
         observations);
   }
   if (observations.semantic_container ==
       semantic_container_observation::unknown) {
-    return classified(shadow_change_kind::ambiguous,
-                      shadow_classification_reason::insufficient_context,
+    return classified(movement_kind::ambiguous,
+                      movement_classification_reason::insufficient_context,
                       observations);
   }
   if (observations.anchor_interval == anchor_interval_observation::crossed) {
-    return classified(shadow_change_kind::relocated,
-                      shadow_classification_reason::crossed_stable_sibling,
+    return classified(movement_kind::relocated,
+                      movement_classification_reason::crossed_stable_sibling,
                       observations);
   }
   if (observations.anchor_interval == anchor_interval_observation::unknown ||
       observations.ancestor == ancestor_observation::unknown) {
-    return classified(shadow_change_kind::ambiguous,
-                      shadow_classification_reason::insufficient_context,
+    return classified(movement_kind::ambiguous,
+                      movement_classification_reason::insufficient_context,
                       observations);
   }
   if (observations.ancestor == ancestor_observation::same) {
-    return classified(shadow_change_kind::stationary,
-                      shadow_classification_reason::same_anchor_interval,
+    return classified(movement_kind::stationary,
+                      movement_classification_reason::same_anchor_interval,
                       observations);
   }
   if (observations.ancestor == ancestor_observation::wrapped) {
-    return classified(shadow_change_kind::restructured,
-                      shadow_classification_reason::ancestor_wrapped,
+    return classified(movement_kind::restructured,
+                      movement_classification_reason::ancestor_wrapped,
                       observations);
   }
   if (observations.ancestor == ancestor_observation::unwrapped) {
-    return classified(shadow_change_kind::restructured,
-                      shadow_classification_reason::ancestor_unwrapped,
+    return classified(movement_kind::restructured,
+                      movement_classification_reason::ancestor_unwrapped,
                       observations);
   }
-  return classified(shadow_change_kind::ambiguous,
-                    shadow_classification_reason::incompatible_context,
+  return classified(movement_kind::ambiguous,
+                    movement_classification_reason::incompatible_context,
                     observations);
 }
 
-bool type1_move_eligible(
-    const shadow_classification &classification) noexcept {
-  return classification.change_kind == shadow_change_kind::relocated &&
+bool move_eligible(
+    const movement_classification &classification) noexcept {
+  return classification.change_kind == movement_kind::relocated &&
          !classification.carried_by_parent;
 }
 
@@ -146,41 +146,41 @@ bool type1_move_eligible(
   case value:                                                                  \
     return text
 
-std::string_view to_string(shadow_change_kind value) noexcept {
+std::string_view to_string(movement_kind value) noexcept {
   switch (value) {
-    SRCMOVE_ENUM_STRING_CASE(shadow_change_kind::stationary, "stationary");
-    SRCMOVE_ENUM_STRING_CASE(shadow_change_kind::relocated, "relocated");
-    SRCMOVE_ENUM_STRING_CASE(shadow_change_kind::restructured, "restructured");
-    SRCMOVE_ENUM_STRING_CASE(shadow_change_kind::ambiguous, "ambiguous");
+    SRCMOVE_ENUM_STRING_CASE(movement_kind::stationary, "stationary");
+    SRCMOVE_ENUM_STRING_CASE(movement_kind::relocated, "relocated");
+    SRCMOVE_ENUM_STRING_CASE(movement_kind::restructured, "restructured");
+    SRCMOVE_ENUM_STRING_CASE(movement_kind::ambiguous, "ambiguous");
   }
   return "unknown";
 }
 
-std::string_view to_string(shadow_classification_reason value) noexcept {
+std::string_view to_string(movement_classification_reason value) noexcept {
   switch (value) {
     SRCMOVE_ENUM_STRING_CASE(
-        shadow_classification_reason::same_anchor_interval,
+        movement_classification_reason::same_anchor_interval,
         "same_anchor_interval");
-    SRCMOVE_ENUM_STRING_CASE(shadow_classification_reason::different_file,
+    SRCMOVE_ENUM_STRING_CASE(movement_classification_reason::different_file,
                              "different_file");
     SRCMOVE_ENUM_STRING_CASE(
-        shadow_classification_reason::different_semantic_container,
+        movement_classification_reason::different_semantic_container,
         "different_semantic_container");
     SRCMOVE_ENUM_STRING_CASE(
-        shadow_classification_reason::crossed_stable_sibling,
+        movement_classification_reason::crossed_stable_sibling,
         "crossed_stable_sibling");
-    SRCMOVE_ENUM_STRING_CASE(shadow_classification_reason::ancestor_wrapped,
+    SRCMOVE_ENUM_STRING_CASE(movement_classification_reason::ancestor_wrapped,
                              "ancestor_wrapped");
-    SRCMOVE_ENUM_STRING_CASE(shadow_classification_reason::ancestor_unwrapped,
+    SRCMOVE_ENUM_STRING_CASE(movement_classification_reason::ancestor_unwrapped,
                              "ancestor_unwrapped");
     SRCMOVE_ENUM_STRING_CASE(
-        shadow_classification_reason::stable_relative_to_relocated_parent,
+        movement_classification_reason::stable_relative_to_relocated_parent,
         "stable_relative_to_relocated_parent");
     SRCMOVE_ENUM_STRING_CASE(
-        shadow_classification_reason::incompatible_context,
+        movement_classification_reason::incompatible_context,
         "incompatible_context");
     SRCMOVE_ENUM_STRING_CASE(
-        shadow_classification_reason::insufficient_context,
+        movement_classification_reason::insufficient_context,
         "insufficient_context");
   }
   return "unknown";

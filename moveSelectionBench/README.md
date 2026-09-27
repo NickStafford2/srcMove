@@ -133,6 +133,102 @@ under test unchanged. It applies to `nested_exact_parent_over_child`,
 `shared_delete_stronger_edge`, and
 `coherent_type3_parent_over_partition`.
 
+## Type-2 observation baseline
+
+Phase 4.0 uses `type2_contracts.json` and `type2_cases/` as an independent
+location oracle. The twelve contracts cover cross-file/container movement,
+reordering, identifier/literal edits in place, wrapping, missing context,
+repeated normalized groups, and movement inside edited parents. A selected
+parent can explain a relocated child without selecting that child separately.
+The tests check actual selection against output, deterministic diagnostic order,
+and normal/results-only equivalence. Future production expectations are not
+inferred from current results. Type-2 classification remains observation-only.
+
+The preserved baseline executable is the clean Phase 3 build from `1cb7b81`,
+SHA-256 `c0f92dc3d31be954f98418d5914970af1190d44fa691661319bdf47c0c78e491`.
+The Phase 4.0 candidate is an uncommitted working-tree build based on `6538ed7`;
+its executable SHA-256 is
+`fd33b41a1dd875b9856d88ced97cf410fbeae4825f64663396879312c06aa8f1`.
+Its receipt and the audit record identify the executable and source state.
+Ignored `build/phase4-baseline/` retains the baseline executable/receipt,
+`audit.py`, `audit-report.json`, and per-case outputs. The final candidate receipt,
+working-tree patch/new-file snapshot, and verification record are retained there
+as well. The full 13-step Docker `make test` passed; the focused move-selection
+suite passed again after strengthening the selected-parent assertion.
+
+All 157 currently discovered fixtures were compared: 41 XML, 21 source, 75
+policy, and 20 move-selection cases. Generated source/policy inputs were used
+only for currently discovered cases. Normal JSON and annotated XML were
+byte-identical between baseline and candidate. Opt-in diagnostics preserved
+ordinary results, Type-1 records and ordering, and all other existing diagnostic
+evidence; normal and results-only ordinary results agreed. Every correspondence's
+`current_result` agreed with its selected match kind and endpoint pair.
+
+The inventory has 24 unique Type-2 observations: 13 ambiguous for insufficient
+context, nine relocated across files, one relocated across a stable sibling,
+and one stationary in its anchor interval. Of the 18 currently selected Type-2
+pairs, six have positive relocation evidence and twelve are ambiguous:
+
+| Existing selection | Count | Observation and review |
+| --- | ---: | --- |
+| Four policy transfers | 4 | Cross-file relocations remain supported |
+| Source `reorder_function_specifiers` | 1 | Same-file crossed-sibling relocation remains supported |
+| `coherent_type3_parent_over_partition` | 1 | Explicit cross-file relocation remains supported |
+| XML positives listed in the Type-2 handoff | 10 | Insufficient location context; normalization/mechanics examples, not independently established historical moves or false moves |
+| `unique_parent_over_repeated_children`, `coherent_type2_parent_over_partition` | 2 | Hierarchy mechanics without positive location context |
+
+The twelve ambiguous selections would become ineligible under the proposed
+gate; that is a policy-impact estimate, not a measured accuracy gain. Four
+additional relocated Type-2 child observations lose selection to containing
+Type-2 functions and are not four missed historical moves. The adjacent local
+replacement guard is stationary. The six XML Type-2 guards remain zero-move
+cases with no unique Type-2 observations.
+
+### Historical coverage and remaining acceptance gap
+
+Before inspecting detector output, a bounded convenience sample was reviewed
+from local Notepad++ history. It is exploratory and not a representative or
+held-out precision/recall benchmark:
+
+- `c5094fee8b08e306fb030c14b265edee5c2beff4` (parent
+  `d9c24ad78f17adc6b16d30111b126b2e7513d8fa`): fourteen renamed switch handlers
+  transfer between `NppCommands.cpp` and `NppBigSwitch.cpp`; two reviewed
+  `TabBar.cpp` call edits remain in place. All fourteen handlers have selected
+  body representatives; no selected move touches those TabBar edits. The 31
+  Type-1 output groups are fragments/groups, not 31 independent history events.
+- `c9003fa603292f9ba6f463ac103e69a6de3dcfdc` (parent
+  `7b7e6213a71757bfaba6a0f460b166b0b865a438`): identifier changes in `focusClient`
+  and `toggleTb`/`toggleWidget` remain in place. Two repeated Type-1 groups contain
+  return/type-name tokens with mixed or unresolved context. They do not justify
+  an invented group-level false-positive count.
+
+Both comparisons preserve ordinary baseline output. Crucially, neither exposes
+any unique Type-2 correspondence: handler bodies are exact, case labels are
+outside Type-2 eligibility, and srcDiff exposes finer changes for the renamed
+methods. **Historical Type-2 positive and negative classification coverage is
+still missing. Phase 4.0 acceptance is incomplete and Phase 4.1 production
+adoption is not justified by these samples.** Find source-reviewed history
+pairs that actually expose eligible normalized correspondences, retaining
+upstream exposure failures as limitations rather than changing the oracle.
+
+Ignored `benchmark-results/correspondence-phase4-history/` retains
+`source-review.json`, source snapshots/diffs, `evaluate.py`, `manifest.json`,
+`summary.json`, srcDiff XML, and both detector outputs. The manifest records
+revision/file hashes, commands, and executable hashes. These exploratory runs
+use fragment granularity; product-default historical validation remains needed.
+Snapshots use matching relative filenames beneath separate revision roots.
+
+With the retained baseline and local repository available, repeat the audits
+from the parent workspace using:
+
+```bash
+./bin/srcml-dev-shell python3 /workspace/srcMove/build/phase4-baseline/audit.py
+./bin/srcml-dev-shell python3 /workspace/srcMove/benchmark-results/correspondence-phase4-history/evaluate.py
+```
+
+The scripts regenerate raw reports/outputs; source review and interpretation
+remain independent human-readable evidence, not labels regenerated from output.
+
 ## Retained Notepad++ evaluation
 
 The retained evaluation uses Notepad++ commit

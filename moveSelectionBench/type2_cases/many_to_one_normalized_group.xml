@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" language="C++" filename="repeated.cpp">
+  <function><type><name>void</name></type> <name>update</name><parameter_list>()</parameter_list> <block>{<block_content>
+    <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>old_count</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
+    <diff:delete><decl_stmt><decl><type><name>int</name></type> <name>old_count</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
+    <diff:insert><decl_stmt><decl><type><name>int</name></type> <name>new_count</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
+  </block_content>}</block></function>
+</unit>

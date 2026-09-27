@@ -5,7 +5,9 @@ is complete in srcMove 0.4.0, and Phase 3 unique Type-1 production adoption is
 complete in srcMove 0.5.0, including source-input normalization (3.2) and
 retained real-history evaluation (3.3). Phase 4 unifies Type-1/2/3 movement
 classification; Phase 5 addresses repeated groups; Phase 6 evaluates and
-consolidates the system. These phases are planned, not implemented. This
+consolidates the system. Phase 4.0 has shared-classifier code, Type-2 observation
+contracts, and fixture baseline evidence; historical Type-2 acceptance coverage
+remains incomplete. Production adoption and Phases 5/6 are not implemented. This
 document records rationale, semantics, decision points, and future
 implementation phases rather than the full current behavior. The verified
 implementation remains documented in
@@ -526,7 +528,8 @@ understood and stable.
 
 ### Phase 4: unify movement classification across Type-1/2/3
 
-Status: next. Use one location classifier and one eligibility/selection path.
+Status: Phase 4.0 in progress; production adoption has not started. Use one
+location classifier and one eligibility/selection path.
 Keep the existing matching representations and Type-3 verification rule.
 The active [Type-2 adoption handoff](../handoffs/correspondence-type2-adoption.md)
 covers the immediate Phase 4.0/4.1 work only.

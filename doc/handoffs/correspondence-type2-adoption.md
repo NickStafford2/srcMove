@@ -21,8 +21,18 @@ does not demonstrate improvement. Audit missed real moves alongside false moves.
 
 ## Starting point
 
-Start from commit `fc68da9` (`Correspondence phase 3.2.5`) or its descendant.
-srcMove is version `0.5.0`. Phase 3 is complete:
+The Phase 4.0 working tree is based on `6538ed7`. It generalizes the location
+classifier into `src/movement_classifier.*`, adds observation-only Type-2
+diagnostics (schema 3), and adds an independent Type-2 contract catalog. Normal
+production behavior remains unchanged. The fixture baseline is audited; the
+historical sample does not yet establish unique Type-2 positive/negative
+classification coverage. Finish that evidence before Phase 4.1 adoption.
+
+Current evidence and reproduction details belong in
+[`moveSelectionBench/README.md`](../../moveSelectionBench/README.md#type-2-observation-baseline).
+Do not repeat the completed refactor or regenerate expected labels from output.
+
+srcMove remains version `0.5.0`. Phase 3 is complete:
 
 - unique Type-1 output requires positive `relocated` classification;
 - normalized source regressions no longer manufacture rename evidence;
@@ -95,6 +105,10 @@ mechanics contracts, add explicit faithful relocation context as Phase 3 did;
 do not weaken the classifier to preserve them.
 
 ## Required Phase 4.0: shared decisions, oracle, and observation-only diagnostics
+
+Implementation and fixture-contract work below is present in the working tree;
+the historical acceptance requirement (item 6) remains open. The baseline audit
+does not establish that suppressing all ambiguous Type-2 pairs improves accuracy.
 
 Before changing normal output:
 

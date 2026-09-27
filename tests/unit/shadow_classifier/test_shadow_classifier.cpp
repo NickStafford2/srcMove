@@ -1,4 +1,4 @@
-#include "shadow_classifier.hpp"
+#include "movement_classifier.hpp"
 
 #include <iostream>
 #include <stdexcept>
@@ -35,8 +35,8 @@ struct classifier_case {
   std::vector<std::string> before_ancestors;
   endpoint_location_context after;
   std::vector<std::string> after_ancestors;
-  shadow_change_kind expected_kind;
-  shadow_classification_reason expected_reason;
+  movement_kind expected_kind;
+  movement_classification_reason expected_reason;
 };
 
 } // namespace
@@ -76,47 +76,47 @@ int main() {
 
     const std::vector<classifier_case> cases{
         {"same stable interval", baseline, {"block"}, baseline, {"block"},
-         shadow_change_kind::stationary,
-         shadow_classification_reason::same_anchor_interval},
+         movement_kind::stationary,
+         movement_classification_reason::same_anchor_interval},
         {"different file overrides absent local evidence", baseline, {"block"},
-         different_file, {"block"}, shadow_change_kind::relocated,
-         shadow_classification_reason::different_file},
+         different_file, {"block"}, movement_kind::relocated,
+         movement_classification_reason::different_file},
         {"different mapped container", baseline, {"block"},
-         different_container, {"block"}, shadow_change_kind::relocated,
-         shadow_classification_reason::different_semantic_container},
+         different_container, {"block"}, movement_kind::relocated,
+         movement_classification_reason::different_semantic_container},
         {"crossed stable anchor", baseline, {"block"}, crossed, {"block"},
-         shadow_change_kind::relocated,
-         shadow_classification_reason::crossed_stable_sibling},
+         movement_kind::relocated,
+         movement_classification_reason::crossed_stable_sibling},
         {"meaningful wrapper added", baseline, {"block"}, baseline,
          {"block", "if_stmt", "if", "block"},
-         shadow_change_kind::restructured,
-         shadow_classification_reason::ancestor_wrapped},
+         movement_kind::restructured,
+         movement_classification_reason::ancestor_wrapped},
         {"meaningful wrapper removed", baseline,
          {"block", "if_stmt", "if", "block"}, baseline, {"block"},
-         shadow_change_kind::restructured,
-         shadow_classification_reason::ancestor_unwrapped},
+         movement_kind::restructured,
+         movement_classification_reason::ancestor_unwrapped},
         {"incompatible ancestry", baseline, {"block", "if_stmt"}, baseline,
-         {"block", "while"}, shadow_change_kind::ambiguous,
-         shadow_classification_reason::incompatible_context},
+         {"block", "while"}, movement_kind::ambiguous,
+         movement_classification_reason::incompatible_context},
         {"missing anchor evidence", baseline, {"block"}, missing_anchor,
-         {"block"}, shadow_change_kind::ambiguous,
-         shadow_classification_reason::insufficient_context},
+         {"block"}, movement_kind::ambiguous,
+         movement_classification_reason::insufficient_context},
         {"unmapped endpoint", baseline, {"block"}, unmapped, {"block"},
-         shadow_change_kind::ambiguous,
-         shadow_classification_reason::insufficient_context},
+         movement_kind::ambiguous,
+         movement_classification_reason::insufficient_context},
         {"unknown revision file", baseline, {"block"}, unknown_file,
-         {"block"}, shadow_change_kind::ambiguous,
-         shadow_classification_reason::insufficient_context},
+         {"block"}, movement_kind::ambiguous,
+         movement_classification_reason::insufficient_context},
         {"unknown ancestor evidence", baseline, {"block"}, unknown_ancestor,
-         {}, shadow_change_kind::ambiguous,
-         shadow_classification_reason::insufficient_context},
+         {}, movement_kind::ambiguous,
+         movement_classification_reason::insufficient_context},
         {"uninterpretable ancestor", uninterpretable_ancestor, {"block"},
-         baseline, {"block"}, shadow_change_kind::ambiguous,
-         shadow_classification_reason::incompatible_context},
+         baseline, {"block"}, movement_kind::ambiguous,
+         movement_classification_reason::incompatible_context},
     };
 
     for (const classifier_case &test : cases) {
-      const shadow_classification result = classify_type1_shadow(
+      const movement_classification result = classify_movement(
           test.before, test.before_ancestors, test.after, test.after_ancestors);
       require(result.change_kind == test.expected_kind,
               std::string(test.name) + ": unexpected change kind");
@@ -132,13 +132,13 @@ int main() {
                   ": the pure classifier must not infer hierarchy evidence");
     }
 
-    require(to_string(shadow_change_kind::stationary) == "stationary",
+    require(to_string(movement_kind::stationary) == "stationary",
             "change-kind strings are part of the diagnostic contract");
-    require(to_string(shadow_classification_reason::same_anchor_interval) ==
+    require(to_string(movement_classification_reason::same_anchor_interval) ==
                 "same_anchor_interval",
             "reason strings are part of the diagnostic contract");
     require(to_string(
-                shadow_classification_reason::
+                movement_classification_reason::
                     stable_relative_to_relocated_parent) ==
                 "stable_relative_to_relocated_parent",
             "parent-carried reason must remain stable");
@@ -148,20 +148,20 @@ int main() {
     require(to_string(anchor_interval_observation::different) == "different",
             "incomparable interval strings must remain stable");
 
-    for (shadow_change_kind kind : {shadow_change_kind::stationary,
-                                    shadow_change_kind::restructured,
-                                    shadow_change_kind::ambiguous}) {
-      shadow_classification classification;
+    for (movement_kind kind : {movement_kind::stationary,
+                                    movement_kind::restructured,
+                                    movement_kind::ambiguous}) {
+      movement_classification classification;
       classification.change_kind = kind;
-      require(!type1_move_eligible(classification),
+      require(!move_eligible(classification),
               "only positive relocation evidence may emit a Type-1 move");
     }
-    shadow_classification relocated;
-    relocated.change_kind = shadow_change_kind::relocated;
-    require(type1_move_eligible(relocated),
+    movement_classification relocated;
+    relocated.change_kind = movement_kind::relocated;
+    require(move_eligible(relocated),
             "an independent relocation must remain output-eligible");
     relocated.carried_by_parent = true;
-    require(!type1_move_eligible(relocated),
+    require(!move_eligible(relocated),
             "a parent-carried child must not emit an independent move");
 
     std::cout << "PASS shadow classifier tests\n";

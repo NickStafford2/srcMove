@@ -7,9 +7,9 @@ system.
 Active handoff:
 
 - [Adopt correspondence classification for unique Type-2 output](correspondence-type2-adoption.md):
-  build a reviewer-owned Type-2 oracle and observation-only diagnostics before
-  allowing the shared classifier to control unique normalized matches (Phases
-  4.0/4.1), with false-move and missed-move evaluation before adoption.
+  shared decisions, an independent Type-2 oracle, and observation-only diagnostics
+  are implemented; finish historical Type-2 coverage and false/missed-move review
+  before production adoption (Phases 4.0/4.1).
 
 When adding one, give it a specific objective and link it from the issue,
 backlog item, or user request that makes it relevant. Include current evidence,

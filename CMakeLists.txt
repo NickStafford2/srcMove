@@ -107,7 +107,7 @@ target_include_directories(sequence_similarity_test PRIVATE
 
 add_executable(shadow_classifier_test
   tests/unit/shadow_classifier/test_shadow_classifier.cpp
-  src/shadow_classifier.cpp
+  src/movement_classifier.cpp
 )
 target_include_directories(shadow_classifier_test PRIVATE
   "${CMAKE_CURRENT_SOURCE_DIR}/src"

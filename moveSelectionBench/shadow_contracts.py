@@ -80,7 +80,9 @@ def _safe_file(root: Path, value: Any, context: str) -> Path:
     return resolved
 
 
-def load_shadow_contracts(path: Path) -> list[dict[str, Any]]:
+def load_shadow_contracts(path: Path, correspondence_kind: str = "type1") -> list[dict[str, Any]]:
+    if correspondence_kind not in {"type1", "type2"}:
+        raise ShadowContractError("unsupported contract correspondence kind")
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
@@ -132,16 +134,19 @@ def load_shadow_contracts(path: Path) -> list[dict[str, Any]]:
         for field in ("before_count", "after_count"):
             if not isinstance(precondition.get(field), int) or precondition[field] < 1:
                 raise ShadowContractError(f"{case_id}: {field} must be a positive integer")
-        if precondition.get("correspondence_kind") != "type1":
-            raise ShadowContractError(f"{case_id}: Phase 0 contracts must use Type-1 evidence")
+        if precondition.get("correspondence_kind") != correspondence_kind:
+            raise ShadowContractError(f"{case_id}: expected {correspondence_kind} evidence")
         cardinality = precondition.get("cardinality")
-        if cardinality not in {"one_to_one", "many_to_many"}:
+        if cardinality not in {"one_to_one", "many_to_many", "many_to_one"}:
             raise ShadowContractError(f"{case_id}: unsupported cardinality")
         counts = (precondition["before_count"], precondition["after_count"])
         if cardinality == "one_to_one" and counts != (1, 1):
             raise ShadowContractError(f"{case_id}: one_to_one requires one endpoint per side")
         if cardinality == "many_to_many" and min(counts) < 2:
             raise ShadowContractError(f"{case_id}: many_to_many requires repeated endpoints")
+
+        if cardinality == "many_to_one" and not (counts[0] > 1 and counts[1] == 1):
+            raise ShadowContractError(f"{case_id}: many_to_one requires repeated originals")
 
         observations = raw_case.get("observed_context")
         if not isinstance(observations, dict) or set(observations) != REQUIRED_CONTEXT_DIMENSIONS:
@@ -192,8 +197,8 @@ def load_shadow_contracts(path: Path) -> list[dict[str, Any]]:
         if not isinstance(carried, bool):
             raise ShadowContractError(f"{case_id}: carried_by_parent must be boolean")
 
-        expected_output = raw_case.get("expected_type1_output")
-        if cardinality == "many_to_many":
+        expected_output = raw_case.get(f"expected_{correspondence_kind}_output")
+        if cardinality != "one_to_one":
             if expected_output != "unchanged_group_policy":
                 raise ShadowContractError(
                     f"{case_id}: non-1x1 correspondence must retain group policy"
@@ -202,9 +207,18 @@ def load_shadow_contracts(path: Path) -> list[dict[str, Any]]:
             policy_output = (
                 "move" if change_kind == "relocated" and not carried else "not_move"
             )
-            if expected_output != policy_output:
+            # Type-2's observation-only oracle also covers a relocated child
+            # losing to a selected normalized parent. Eligibility is not final
+            # output; Type-1's adopted contract remains unchanged.
+            selection_loser = (
+                correspondence_kind == "type2"
+                and policy_output == "move"
+                and expected_output == "not_move"
+                and raw_case.get("expected_selection") == "covered_by_selected_parent"
+            )
+            if expected_output != policy_output and not selection_loser:
                 raise ShadowContractError(
-                    f"{case_id}: Type-1 output {expected_output!r}, "
+                    f"{case_id}: {correspondence_kind} output {expected_output!r}, "
                     f"expected {policy_output!r} from the adopted policy"
                 )
 
@@ -421,15 +435,15 @@ def validate_srcdiff_precondition(case: dict[str, Any], srcdiff_path: Path) -> d
 def evaluate_shadow_diagnostics(
     case: dict[str, Any], results: dict[str, Any]
 ) -> dict[str, Any]:
-    """Resolve one contract's endpoints in schema-v2 diagnostics.
+    """Resolve one contract's endpoints in schema-v3 diagnostics.
 
     This adapter uses the reviewed element and exact endpoint text from the
     contract. It never derives expected classifications from current output.
     """
 
     diagnostics = results.get("diagnostics")
-    if not isinstance(diagnostics, dict) or diagnostics.get("schema_version") != 2:
-        raise ShadowContractError(f"{case['id']}: expected diagnostics schema 2")
+    if not isinstance(diagnostics, dict) or diagnostics.get("schema_version") != 3:
+        raise ShadowContractError(f"{case['id']}: expected diagnostics schema 3")
     candidates = diagnostics.get("candidates")
     correspondences = diagnostics.get("correspondences")
     if not isinstance(candidates, list) or not isinstance(correspondences, list):
@@ -470,7 +484,7 @@ def evaluate_shadow_diagnostics(
         and item.get("delete_candidate_id") in endpoint_ids["delete"]
         and item.get("insert_candidate_id") in endpoint_ids["insert"]
     ]
-    if precondition["cardinality"] == "many_to_many":
+    if precondition["cardinality"] != "one_to_one":
         if matching:
             raise ShadowContractError(
                 f"{case['id']}: non-unique endpoints were manufactured into pairs"
@@ -486,6 +500,8 @@ def evaluate_shadow_diagnostics(
             f"{case['id']}: resolved {len(matching)} unique diagnostic records"
         )
     record = matching[0]
+    if record.get("correspondence_kind") != precondition["correspondence_kind"]:
+        raise ShadowContractError(f"{case['id']}: incorrect correspondence kind")
     anchor_interval = record.get("anchor_interval_observation")
     ancestor_change = {
         "same": "none",

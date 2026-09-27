@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
-#ifndef INCLUDED_SHADOW_CLASSIFIER_HPP
-#define INCLUDED_SHADOW_CLASSIFIER_HPP
+#ifndef INCLUDED_MOVEMENT_CLASSIFIER_HPP
+#define INCLUDED_MOVEMENT_CLASSIFIER_HPP
 
 #include <string_view>
 #include <vector>
@@ -9,9 +9,9 @@
 
 namespace srcmove {
 
-enum class shadow_change_kind { stationary, relocated, restructured, ambiguous };
+enum class movement_kind { stationary, relocated, restructured, ambiguous };
 
-enum class shadow_classification_reason {
+enum class movement_classification_reason {
   same_anchor_interval,
   different_file,
   different_semantic_container,
@@ -38,7 +38,7 @@ enum class ancestor_observation {
   unknown,
 };
 
-struct shadow_observations {
+struct movement_observations {
   file_observation file = file_observation::unknown;
   semantic_container_observation semantic_container =
       semantic_container_observation::unknown;
@@ -47,24 +47,26 @@ struct shadow_observations {
   ancestor_observation ancestor = ancestor_observation::unknown;
 };
 
-struct shadow_classification {
-  shadow_change_kind change_kind = shadow_change_kind::ambiguous;
-  shadow_classification_reason reason =
-      shadow_classification_reason::insufficient_context;
-  shadow_observations observations;
+struct movement_classification {
+  movement_kind change_kind = movement_kind::ambiguous;
+  movement_classification_reason reason =
+      movement_classification_reason::insufficient_context;
+  movement_observations observations;
   bool carried_by_parent = false;
 };
 
-shadow_classification classify_type1_shadow(
+// Classify endpoint location only. Matching strength, competing endpoints, and
+// parent carrying are established by the caller, not inferred from location.
+movement_classification classify_movement(
     const endpoint_location_context &before,
     const std::vector<std::string> &before_ancestors,
     const endpoint_location_context &after,
     const std::vector<std::string> &after_ancestors);
 
-bool type1_move_eligible(const shadow_classification &classification) noexcept;
+bool move_eligible(const movement_classification &classification) noexcept;
 
-std::string_view to_string(shadow_change_kind value) noexcept;
-std::string_view to_string(shadow_classification_reason value) noexcept;
+std::string_view to_string(movement_kind value) noexcept;
+std::string_view to_string(movement_classification_reason value) noexcept;
 std::string_view to_string(file_observation value) noexcept;
 std::string_view to_string(semantic_container_observation value) noexcept;
 std::string_view to_string(anchor_interval_observation value) noexcept;

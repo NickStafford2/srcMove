@@ -45,7 +45,10 @@ python3 tests/regression/policy/list.py --catalog contextual
   opt-in diagnostics, including every fixture's srcDiff membership, endpoint
   cardinality, context observations, classification, stable reason, and Type-1
   production disposition. Unique Type-1 output uses this oracle: only supported
-  relocations are moves. Hypotheses remain observational benchmark cases. Run with `make
+  relocations are moves. A separate Type-2 catalog checks observation-only
+  classifications, actual selection disposition, unchanged annotated output,
+  repeated-group guards, and edited-parent child movement. Type-2 observations
+  do not yet control production output. Hypotheses remain observational benchmark cases. Run with `make
   test-move-selection`; it is also included by `make test-unit`.
 - `srcmove-history`: focused unit tests under
   `tests/unit/srcmove_history/`; run explicitly with
