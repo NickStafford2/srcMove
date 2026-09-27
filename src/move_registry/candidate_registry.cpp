@@ -7,6 +7,8 @@
 #include "move_candidate.hpp"
 #include "move_registry/move_buckets.hpp"
 
+#include <iterator>
+#include <stdexcept>
 #include <utility>
 #include <vector>
 
@@ -25,6 +27,7 @@ void candidate_registry::reserve(std::size_t expected_candidates,
 
 void candidate_registry::clear() {
   records_.clear();
+  ancestor_summaries_.assign(1, {});
   file_to_candidate_ids_.clear();
   hash_buckets_.clear();
   active_count_ = 0;
@@ -49,6 +52,39 @@ candidate_registry::file_candidate_ids(const file_key &file) const {
 
 void candidate_registry::add_candidates_for_file(
     const file_key &file, std::vector<move_candidate> candidates) {
+
+  add_candidates_for_file(file, std::move(candidates), {{}});
+}
+
+void candidate_registry::add_candidates_for_file(
+    const file_key &file, std::vector<move_candidate> candidates,
+    std::vector<std::vector<std::string>> ancestor_summaries) {
+
+  if (ancestor_summaries.empty() || !ancestor_summaries.front().empty()) {
+    throw std::invalid_argument(
+        "ancestor summary entry zero must be the empty chain");
+  }
+
+  for (const move_candidate &candidate : candidates) {
+    if (candidate.location.ancestor_summary_reliable &&
+        candidate.location.ancestor_summary_id >= ancestor_summaries.size()) {
+      throw std::invalid_argument(
+          "candidate references an unknown ancestor summary");
+    }
+  }
+
+  const std::size_t summary_id_offset = ancestor_summaries_.size() - 1;
+  ancestor_summaries_.insert(
+      ancestor_summaries_.end(),
+      std::make_move_iterator(ancestor_summaries.begin() + 1),
+      std::make_move_iterator(ancestor_summaries.end()));
+
+  for (move_candidate &candidate : candidates) {
+    if (candidate.location.ancestor_summary_reliable &&
+        candidate.location.ancestor_summary_id != 0) {
+      candidate.location.ancestor_summary_id += summary_id_offset;
+    }
+  }
 
   std::vector<unsigned int> &ids = file_to_candidate_ids_[file];
   ids.reserve(ids.size() + candidates.size());

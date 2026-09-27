@@ -109,6 +109,7 @@ add_executable(location_context_test
   tests/unit/location_context/test_location_context.cpp
   src/location_context.cpp
   src/move_candidate.cpp
+  src/move_registry/candidate_registry.cpp
   src/region_filter.cpp
   src/parse/canonical_subtree.cpp
   src/parse/diff_region.cpp

@@ -1,5 +1,6 @@
 #include "location_context.hpp"
 #include "move_candidate.hpp"
+#include "move_registry/candidate_registry.hpp"
 #include "region_filter.hpp"
 #include "srcml_reader.hpp"
 
@@ -87,6 +88,32 @@ int main(int argc, char **argv) {
     require(moved_delete->location.semantic_container_id !=
                 moved_insert->location.semantic_container_id,
             "distinct physical common functions need distinct stable ids");
+    require(moved_delete->location.ancestor_summary_reliable &&
+                moved_insert->location.ancestor_summary_reliable &&
+                moved_delete->location.ancestor_summary_id ==
+                    moved_insert->location.ancestor_summary_id,
+            "equivalent side-filtered ancestry must reuse one summary id");
+
+    const std::string wrapped = "int wrapped_value = source_value + 41;";
+    const move_candidate *wrapped_delete = find_candidate(
+        collection, move_candidate::Kind::del, wrapped, "decl_stmt");
+    const move_candidate *wrapped_insert = find_candidate(
+        collection, move_candidate::Kind::insert, wrapped, "decl_stmt");
+    require(wrapped_delete != nullptr && wrapped_insert != nullptr,
+            "expected wrapper-change declaration candidates");
+    require(wrapped_delete->location.semantic_container_id ==
+                wrapped_insert->location.semantic_container_id &&
+                wrapped_delete->location.ancestor_summary_id !=
+                    wrapped_insert->location.ancestor_summary_id,
+            "one mapped container must retain a side-specific wrapper change");
+    require(collection.ancestor_summaries.at(
+                wrapped_delete->location.ancestor_summary_id) ==
+                std::vector<std::string>{"block"},
+            "delete ancestry should contain only the common function block");
+    require(collection.ancestor_summaries.at(
+                wrapped_insert->location.ancestor_summary_id) ==
+                (std::vector<std::string>{"block", "if_stmt", "if", "block"}),
+            "insert ancestry should retain the added conditional wrapper");
 
     const std::string member = "int member() {return 23;}";
     const move_candidate *member_delete = find_candidate(
@@ -109,8 +136,34 @@ int main(int argc, char **argv) {
     require(unmapped_delete != nullptr && unmapped_insert != nullptr,
             "expected file-root declaration candidates");
     require(!unmapped_delete->location.semantic_container_mapped &&
-                !unmapped_insert->location.semantic_container_mapped,
+                !unmapped_insert->location.semantic_container_mapped &&
+                !unmapped_delete->location.ancestor_summary_reliable &&
+                !unmapped_insert->location.ancestor_summary_reliable,
             "file-root candidates must not manufacture a mapped container");
+
+    const std::size_t wrapped_insert_summary_id =
+        wrapped_insert->location.ancestor_summary_id;
+    candidate_registry registry;
+    registry.add_candidates_for_file(argv[1], std::move(collection.candidates),
+                                     std::move(collection.ancestor_summaries));
+    require(registry.ancestor_summaries().at(wrapped_insert_summary_id) ==
+                (std::vector<std::string>{"block", "if_stmt", "if", "block"}),
+            "registry must preserve summaries after parse storage is released");
+
+    move_candidate later =
+        candidate(move_candidate::Kind::del, "later-old.cpp|later-new.cpp");
+    later.location.ancestor_summary_reliable = true;
+    later.location.ancestor_summary_id = 1;
+    const std::size_t later_id = registry.total_record_count();
+    registry.add_candidates_for_file(
+        "later.xml", std::vector<move_candidate>{std::move(later)},
+        std::vector<std::vector<std::string>>{{}, {"while"}});
+    const std::size_t rebased_id =
+        registry.candidate(later_id).location.ancestor_summary_id;
+    require(rebased_id != 1 &&
+                registry.ancestor_summaries().at(rebased_id) ==
+                    std::vector<std::string>{"while"},
+            "independent document summary ids must not collide");
 
     std::cout << "PASS location context tests\n";
     return 0;

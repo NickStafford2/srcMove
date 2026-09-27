@@ -57,6 +57,11 @@ public:
   // Drop all registry state.
   void clear();
 
+  const std::vector<std::vector<std::string>> &
+  ancestor_summaries() const noexcept {
+    return ancestor_summaries_;
+  }
+
   /**
    * Add candidates produced from parsing one file.
    *
@@ -65,6 +70,15 @@ public:
    */
   void add_candidates_for_file(const file_key             &file,
                                std::vector<move_candidate> candidates);
+
+  /**
+   * Add candidates plus their document-local ancestor-summary table.
+   * Reliable nonzero summary ids are rebased into registry-owned storage so
+   * ids from independently parsed files cannot collide.
+   */
+  void add_candidates_for_file(
+      const file_key &file, std::vector<move_candidate> candidates,
+      std::vector<std::vector<std::string>> ancestor_summaries);
 
   /**
    * Remove all candidates that originated from a specific file.
@@ -137,6 +151,10 @@ private:
   void rebuild_hash_buckets();
 
   std::vector<candidate_record> records_;
+
+  // Registry-owned side table referenced by candidate location contexts.
+  // Incoming document-local ids are rebased; entry 0 is the empty chain.
+  std::vector<std::vector<std::string>> ancestor_summaries_{{}};
 
   // Which candidates came from which file.
   std::unordered_map<file_key, std::vector<id_t>> file_to_candidate_ids_;

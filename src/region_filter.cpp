@@ -10,6 +10,7 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
+#include <unordered_map>
 #include <unordered_set>
 #include <utility>
 #include <vector>
@@ -340,26 +341,81 @@ bool is_semantic_container_name(std::string_view name) {
          name == "struct" || name == "interface" || name == "namespace";
 }
 
+bool is_meaningful_ancestor_name(std::string_view name) {
+  return is_semantic_container_name(name) || name == "block" ||
+         name == "if_stmt" || name == "if" || name == "else" ||
+         name == "for" || name == "foreach" || name == "while" ||
+         name == "do" || name == "switch" || name == "case" ||
+         name == "default" || name == "try" || name == "catch" ||
+         name == "finally" || name == "lambda";
+}
+
+struct ancestor_summary_interner {
+  ancestor_summary_interner() {
+    entries.emplace_back();
+    ids.emplace(std::string(), 0);
+  }
+
+  std::size_t intern(const std::vector<std::string> &chain) {
+    std::string key;
+    for (const std::string &name : chain) {
+      key += std::to_string(name.size());
+      key.push_back(':');
+      key += name;
+      key.push_back(';');
+    }
+    auto found = ids.find(key);
+    if (found != ids.end()) {
+      return found->second;
+    }
+    const std::size_t id = entries.size();
+    entries.push_back(chain);
+    ids.emplace(std::move(key), id);
+    return id;
+  }
+
+  std::vector<std::vector<std::string>> entries;
+  std::unordered_map<std::string, std::size_t> ids;
+};
+
 endpoint_location_context snapshot_location_context(
     move_candidate::Kind kind, std::string_view filename,
-    const std::vector<source_element_frame> &source_elements) {
+    const std::vector<source_element_frame> &source_elements,
+    ancestor_summary_interner &ancestor_summaries) {
   endpoint_location_context context;
   auto revision_files = split_revision_filename(filename);
   context.revision_file = kind == move_candidate::Kind::del
                               ? std::move(revision_files.first)
                               : std::move(revision_files.second);
-  for (auto frame = source_elements.rbegin(); frame != source_elements.rend();
-       ++frame) {
-    if (!frame->semantic_container ||
-        frame->membership != revision_membership::both ||
-        frame->container_label.empty()) {
+  std::optional<std::size_t> mapped_container_index;
+  for (std::size_t index = source_elements.size(); index-- > 0;) {
+    const source_element_frame &frame = source_elements[index];
+    if (!frame.semantic_container ||
+        frame.membership != revision_membership::both ||
+        frame.container_label.empty()) {
       continue;
     }
-    context.semantic_container_id = frame->container_id;
+    context.semantic_container_id = frame.container_id;
     context.semantic_container_label =
-        frame->name + ":" + trim_ws(frame->container_label);
+        frame.name + ":" + trim_ws(frame.container_label);
     context.semantic_container_mapped = true;
+    mapped_container_index = index;
     break;
+  }
+  if (mapped_container_index) {
+    const revision_membership side = membership_for(kind);
+    std::vector<std::string> chain;
+    for (std::size_t index = *mapped_container_index + 1;
+         index < source_elements.size(); ++index) {
+      const source_element_frame &frame = source_elements[index];
+      if ((frame.membership == revision_membership::both ||
+           frame.membership == side) &&
+          is_meaningful_ancestor_name(frame.name)) {
+        chain.push_back(frame.name);
+      }
+    }
+    context.ancestor_summary_id = ancestor_summaries.intern(chain);
+    context.ancestor_summary_reliable = true;
   }
   return context;
 }
@@ -470,7 +526,8 @@ void consume_streamed_children(
     std::size_t node_index, revision_membership effective,
     bool substantive, const region_filter_options &opt,
     streaming_profile_stats *stats,
-    const std::vector<source_element_frame> &source_elements) {
+    const std::vector<source_element_frame> &source_elements,
+    ancestor_summary_interner &ancestor_summaries) {
   if (!opt.expand_structural_children) {
     return;
   }
@@ -506,8 +563,8 @@ void consume_streamed_children(
     child.start_idx      = node_index;
     child.depth          = 1;
     child.type2_eligible = is_type2_eligible_name(node.name);
-    child.location =
-        snapshot_location_context(region.kind, region.filename, source_elements);
+    child.location = snapshot_location_context(
+        region.kind, region.filename, source_elements, ancestor_summaries);
     child.forms.consume(node);
     region.children.push_back(std::move(child));
     if (stats != nullptr) {
@@ -593,6 +650,7 @@ collect_candidates_streaming(srcml_reader                &reader,
   std::vector<std::size_t> open_regions;
   std::vector<revision_membership> revision_states;
   std::vector<source_element_frame> source_elements;
+  ancestor_summary_interner ancestor_summaries;
   std::size_t ignored_evidence_depth = 0;
   std::vector<std::vector<move_candidate>> candidate_sets;
   regions.reserve(256);
@@ -632,7 +690,8 @@ collect_candidates_streaming(srcml_reader                &reader,
     region.start_idx   = node_index;
     region.parent_id   = parent_id;
     region.start_xpath = streaming_xpath(reader, stats);
-    region.location = snapshot_location_context(kind, filename, source_elements);
+    region.location = snapshot_location_context(
+        kind, filename, source_elements, ancestor_summaries);
     region.forms.emplace();
     region.pre_marked  = node.get_attribute_value("move") != nullptr;
 
@@ -744,7 +803,8 @@ collect_candidates_streaming(srcml_reader                &reader,
           revision_states.empty() ? revision_membership::both
                                   : revision_states.back();
       consume_streamed_children(region, node, reader, node_index, effective,
-                                substantive, opt, stats, source_elements);
+                                substantive, opt, stats, source_elements,
+                                ancestor_summaries);
     }
 
     if (closing_id != kNoParent) {
@@ -879,6 +939,7 @@ collect_candidates_streaming(srcml_reader                &reader,
   }
 
   candidate_collection result;
+  result.ancestor_summaries = std::move(ancestor_summaries.entries);
   result.regions_total = regions.size();
   std::unordered_set<std::string> seen_candidates;
   for (auto &set : candidate_sets) {

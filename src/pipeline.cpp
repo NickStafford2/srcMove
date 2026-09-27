@@ -164,6 +164,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   scoped_profile_timer total_timer(profile, "pipeline.total");
 
   std::vector<move_candidate> candidates;
+  std::vector<std::vector<std::string>> ancestor_summaries;
   std::size_t                 regions_total = 0;
   {
     scoped_profile_timer  timer(profile, "pipeline.parse_regions");
@@ -173,6 +174,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     candidate_collection collection =
         collect_candidates_streaming(reader, filter_options, profile);
     candidates = std::move(collection.candidates);
+    ancestor_summaries = std::move(collection.ancestor_summaries);
     regions_total = collection.regions_total;
   }
 
@@ -182,7 +184,8 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     registry.reserve(candidates.size());
     // O(candidates), with expected O(1) hash-bucket insertion per candidate.
     registry.add_candidates_for_file(srcdiff_in_filename,
-                                     std::move(candidates));
+                                     std::move(candidates),
+                                     std::move(ancestor_summaries));
   }
 
   content_groups groups;

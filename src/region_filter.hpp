@@ -48,6 +48,9 @@ region_filter_options get_default_filter_options();
 
 struct candidate_collection {
   std::vector<move_candidate> candidates;
+  // Document-local, deterministic intern table referenced by
+  // endpoint_location_context::ancestor_summary_id. Entry 0 is the empty chain.
+  std::vector<std::vector<std::string>> ancestor_summaries;
   std::size_t                 regions_total = 0;
 };
 

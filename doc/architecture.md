@@ -57,7 +57,14 @@ namespace as one physical construct belonging to both revisions. Exclusive or
 unnamed containers are not paired by name or XPath; the candidate falls back
 to a mapped enclosing container or remains unmapped. Anchor and ancestor
 fields stay explicitly unreliable until the streaming parser has positive
-structural evidence. Current selection does not consume any location context.
+structural evidence. For a mapped endpoint, the parser records its
+revision-filtered meaningful ancestor chain as a deterministic integer ID.
+The parser emits a document-local intern table; the candidate registry rebases
+incoming IDs into registry-owned storage so they remain resolvable throughout
+grouping and classification, including incremental multi-file use. Common
+elements and elements belonging only to the endpoint revision are included;
+elements exclusive to the opposite revision are not. Anchor intervals remain
+unreliable. Current selection does not consume any location context.
 
 This distinction permits a deletion in one archive unit to match an insertion
 in another without mistaking a combined srcDiff filename for one revision's

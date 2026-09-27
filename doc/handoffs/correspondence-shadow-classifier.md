@@ -45,17 +45,22 @@ context, and every candidate now receives the correct revision-side file from
 also maintains a bounded source-element stack and records the nearest named
 semantic container only when it is one physical construct with common revision
 membership. Exclusive functions can inherit a physical common enclosing type;
-file-root candidates remain unmapped. Anchor and wrapper fields are still
-deliberately empty/unreliable. `location_context_test` covers filename parsing,
-candidate initialization, common cross-function containers, exclusive
-container fallback, and conservative file-root defaults.
+file-root candidates remain unmapped. Mapped candidates now also reference a
+deterministically interned, side-filtered meaningful ancestor chain. The
+candidate registry rebases each document-local table into registry-owned
+storage, preserving ID validity after parsing and preventing collisions across
+incremental inputs. Common ancestors and wrappers belonging to the endpoint
+side are retained while opposite-side wrappers are excluded. Anchor fields
+remain deliberately empty/unreliable. `location_context_test` covers filename
+parsing, candidate initialization, common cross-function containers, exclusive
+container fallback, conservative file-root defaults, wrapper differences, and
+registry ownership and rebasing of interned summaries.
 
 The next implementation session should continue Phase 1 in this order:
 
-1. capture side-filtered meaningful wrapper summaries by stable integer ID;
-2. collect complete substantial common declarations within mapped containers,
+1. collect complete substantial common declarations within mapped containers,
    reject mixed or repeated anchors, and resolve nearest anchors after EOF; and
-3. expose focused anchor/wrapper tests before adding the shadow classifier.
+2. expose focused anchor-interval tests before adding the shadow classifier.
 
 Do not derive containers or anchors from raw XPath, names alone, the candidate
 being classified, or a second tree-matching pass. Shadow correspondences must

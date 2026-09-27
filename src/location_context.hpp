@@ -2,10 +2,10 @@
 #ifndef INCLUDED_LOCATION_CONTEXT_HPP
 #define INCLUDED_LOCATION_CONTEXT_HPP
 
+#include <cstddef>
 #include <string>
 #include <string_view>
 #include <utility>
-#include <vector>
 
 namespace srcmove {
 
@@ -18,8 +18,9 @@ struct endpoint_location_context {
   std::string semantic_container_label;
   std::string previous_common_anchor_id;
   std::string next_common_anchor_id;
-  std::vector<std::string> meaningful_ancestors;
+  std::size_t ancestor_summary_id = 0;
   bool semantic_container_mapped = false;
+  bool ancestor_summary_reliable = false;
   bool anchor_interval_reliable = false;
 };
 
