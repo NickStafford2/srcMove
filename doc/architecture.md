@@ -206,9 +206,10 @@ identifiers, literals, keywords, operators, and srcML structure. The Type-2
 identity is a compact lexical form: it consistently numbers direct srcML
 `<name>` tokens by first occurrence, replaces literals with their category
 (`integer`, `floating`, `string`, `character`, `boolean`, or `null`), and
-ignores empty statements as well as comments and formatting. Other source
-tokens and operators remain unchanged. Group keys also include the candidate's
-srcML element kind, so lexically identical constructs of different kinds do not
+ignores comments and formatting. Empty statements remain in the lexical form:
+adding or removing one requires Type-3 similarity assessment rather than Type-2
+equality. Other source tokens and operators remain unchanged. Group keys also
+include the candidate's srcML element kind, so lexically identical constructs of different kinds do not
 collapse into one group.
 
 Candidates are bucketed with 64-bit FNV-1a hashes of that canonical form. A hash

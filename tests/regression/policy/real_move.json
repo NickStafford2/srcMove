@@ -157,6 +157,51 @@
       "expected_match_kind": "type1",
       "expected_from_lines": ["return left - right;"],
       "expected_to_lines": ["return left - right;"]
+    },
+    {
+      "id": "classification_type3_java_method_added_empty_statement", "language": "Java", "extension": ".java", "scenario": "archive",
+      "rationale": "Adding an empty statement changes syntax beyond Type-2 substitutions; the otherwise retained moved method meets the Type-3 threshold.",
+      "original_files": {
+        "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    int shifted = doubled + 3;", "    int adjusted = shifted - value;", "    int result = adjusted * 4;", "    return result;", "  }", "}"],
+        "Destination.java": ["class Destination {}"]
+      },
+      "modified_files": {
+        "Source.java": ["class Source {}"],
+        "Destination.java": ["class Destination {", "  int calculate(int value) {", "    int doubled = value * 2;", "    ;", "    int shifted = doubled + 3;", "    int adjusted = shifted - value;", "    int result = adjusted * 4;", "    return result;", "  }", "}"]
+      },
+      "expected_match_kind": "type3",
+      "expected_from_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    int shifted = doubled + 3;", "    int adjusted = shifted - value;", "    int result = adjusted * 4;", "    return result;", "  }"],
+      "expected_to_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    ;", "    int shifted = doubled + 3;", "    int adjusted = shifted - value;", "    int result = adjusted * 4;", "    return result;", "  }"]
+    },
+    {
+      "id": "classification_type3_java_method_removed_empty_statement", "language": "Java", "extension": ".java", "scenario": "archive",
+      "rationale": "Removing an empty statement changes syntax beyond Type-2 substitutions; the otherwise retained moved method meets the Type-3 threshold.",
+      "original_files": {
+        "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    ;", "    int shifted = doubled + 3;", "    int adjusted = shifted - value;", "    int result = adjusted * 4;", "    return result;", "  }", "}"],
+        "Destination.java": ["class Destination {}"]
+      },
+      "modified_files": {
+        "Source.java": ["class Source {}"],
+        "Destination.java": ["class Destination {", "  int calculate(int value) {", "    int doubled = value * 2;", "    int shifted = doubled + 3;", "    int adjusted = shifted - value;", "    int result = adjusted * 4;", "    return result;", "  }", "}"]
+      },
+      "expected_match_kind": "type3",
+      "expected_from_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    ;", "    int shifted = doubled + 3;", "    int adjusted = shifted - value;", "    int result = adjusted * 4;", "    return result;", "  }"],
+      "expected_to_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    int shifted = doubled + 3;", "    int adjusted = shifted - value;", "    int result = adjusted * 4;", "    return result;", "  }"]
+    },
+    {
+      "id": "classification_type2_java_method_retained_empty_statement", "language": "Java", "extension": ".java", "scenario": "archive",
+      "rationale": "An empty statement retained in both moved methods does not prevent consistent identifier renaming from matching as Type-2.",
+      "original_files": {
+        "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    ;", "    int shifted = doubled + 3;", "    int adjusted = shifted - value;", "    int result = adjusted * 4;", "    return result;", "  }", "}"],
+        "Destination.java": ["class Destination {}"]
+      },
+      "modified_files": {
+        "Source.java": ["class Source {}"],
+        "Destination.java": ["class Destination {", "  int compute(int number) {", "    int scaled = number * 2;", "    ;", "    int offset = scaled + 3;", "    int reduced = offset - number;", "    int answer = reduced * 4;", "    return answer;", "  }", "}"]
+      },
+      "expected_match_kind": "type2",
+      "expected_from_lines": ["int calculate(int value) {", "    int doubled = value * 2;", "    ;", "    int shifted = doubled + 3;", "    int adjusted = shifted - value;", "    int result = adjusted * 4;", "    return result;", "  }"],
+      "expected_to_lines": ["int compute(int number) {", "    int scaled = number * 2;", "    ;", "    int offset = scaled + 3;", "    int reduced = offset - number;", "    int answer = reduced * 4;", "    return answer;", "  }"]
     }
   ]
 }

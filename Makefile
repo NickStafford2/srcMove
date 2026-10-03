@@ -79,6 +79,9 @@ test-classification: build
 		--case classification_type2_java_method_identifiers \
 		--case classification_type2_java_method_literal \
 		--case classification_type2_java_method_identifiers_and_literal \
+		--case classification_type2_java_method_retained_empty_statement \
+		--case classification_type3_java_method_added_empty_statement \
+		--case classification_type3_java_method_removed_empty_statement \
 		--case classification_conservative_type3_java_method_added_statement \
 		--case classification_conservative_type3_java_method_removed_statement \
 		--case classification_type3_java_method_modified_statement \

@@ -20,7 +20,6 @@ struct canonical_options {
   bool ignore_whitespace_only_text = true;
   bool ignore_outer_diff_wrapper   = true;
   bool ignore_comments             = true;
-  bool                     ignore_empty_statements = false;
   bool                     include_structure       = true;
   identifier_normalization identifiers = identifier_normalization::none;
   bool                     normalize_literals      = false;

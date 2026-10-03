@@ -163,21 +163,6 @@ public:
   }
 
   void consume(const srcml_node &node, const std::string &full_name) {
-    if (ignored_empty_depth > 0) {
-      if (node.is_start()) {
-        ++ignored_empty_depth;
-      } else if (node.is_end()) {
-        --ignored_empty_depth;
-      }
-      return;
-    }
-
-    if (opt.ignore_empty_statements && node.is_start() &&
-        node.name == "empty_stmt") {
-      ignored_empty_depth = 1;
-      return;
-    }
-
     if (comment_depth > 0) {
       if (node.is_start() && node.name == "comment") {
         ++comment_depth;
@@ -309,7 +294,6 @@ private:
   std::string                 out;
   std::string                 normalized_line;
   int         comment_depth         = 0;
-  int         ignored_empty_depth   = 0;
   int         literal_depth         = 0;
   bool        literal_value_emitted = false;
   std::string current_literal_category;
@@ -335,7 +319,8 @@ struct canonical_forms_builder::implementation {
 
   static canonical_options lexical_options() {
     canonical_options options = normalized_options();
-    options.ignore_empty_statements = true;
+    // Empty statements are syntax: adding or removing one must not match
+    // through Type-2 identifier and literal normalization.
     options.include_structure       = false;
     return options;
   }

@@ -78,8 +78,19 @@ source; questionable labels,
 unsupported variations, extraction problems, or conversion artifacts discovered
 in the failure set should be analyzed and reported rather than silently removed.
 
+Keep a reviewed content classification separate from the inherited label. For
+example, a supplied Type-2 pair may also add or remove an empty statement, which
+exceeds srcMove's Type-2 identifier/literal substitutions. Detecting the whole
+fragment as Type-3 remains a strict label disagreement even when review accepts
+that interpretation. Record the case identity, original label, reviewed label,
+reason, and source evidence; do not silently drop the case or rewrite the source
+catalog. Any review-adjusted summary must declare its cases and denominator
+alongside the original-label result. A srcMove similarity value does not assign
+a BigCloneBench Type-3 strength band.
+
 This converts clone similarity into move similarity. Type-1 and Type-2 clone
-pairs align with srcMove's strict Type-1 and Type-2 match categories. Type-3
+labels supply the expected match categories, subject to the reviewed-definition
+limits above. Type-3
 matching is also implemented, but srcMove accepts only high-similarity candidates:
 either the normalized statement/block sequence or normalized token sequence must
 satisfy its symmetric `0.90` bounded-LCS rule. BigMoveBench evaluates Type-3 as
