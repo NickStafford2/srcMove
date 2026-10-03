@@ -30,6 +30,8 @@ machine-facing pair-set identifiers use `type1`, `type2`, `type3`, and
 - `paths.py` owns the default BigMoveBench cache location.
 - `progress.py` provides terminal-aware progress reporting for these commands.
 - `oracle.py` defines scoring; `evaluate.py` applies it to completed runs.
+- `reviewed_label_corrections.json` records reviewed content-label corrections;
+  matching and reporting rules are in the [methodology](docs/methodology.md#conversion-model).
 - `suite.py` is the benchmark entry point.
 - `tests/` and `docs/` contain BigMoveBench-specific verification and
   documentation. Generic execution, provenance, identity, and serialization
@@ -41,9 +43,13 @@ under `benchmark-results/bigMoveBench/`.
 For each positive pair set, BigMoveBench reports a strict synthetic
 detection-and-classification outcome rate: Type-1 must report `type1`, Type-2
 must report `type2`, Type-3 must report `type3`, and the position/text oracle
-must pass. Type-1 and Type-2 are required pass/fail categories. Type-3 recall is
-observational: misses remain measurements rather than operational suite
-failures. These rates are not general accuracy, recall, or precision.
+must pass. A separately reported reviewed score applies explicit corrections
+for reviewed source-label disagreements. Type-1 and Type-2 are required
+pass/fail categories under those reviewed expectations; the original-label
+outcomes remain visible. Corrections do not skip cases or relax whole-fragment
+detection. Type-3 recall is observational: misses remain measurements rather
+than operational suite failures. These rates are not general accuracy, recall,
+or precision.
 Known-false-positive results use a separate whole-fragment rejection metric and
 are never combined with the positive rates. See the
 [conversion methodology](docs/methodology.md).

@@ -45,8 +45,10 @@ from bigMoveBench.evaluate import (
     SCORING_ORACLE_VERSION,
     _score_completed_case,
     diagnostic_stage,
+    pair_set_passes,
     validate_results_output,
 )
+from bigMoveBench.label_corrections import LabelCorrections
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from bigMoveBench.progress import ProgressDisplay
 from bigMoveBench.review import write_type3_review
@@ -70,6 +72,11 @@ CASE_CSV_FIELDS = (
     "case_id",
     "ordinal",
     "outcome",
+    "reviewed_outcome",
+    "reviewed_expected_match_kind",
+    "label_correction_id",
+    "label_correction_reason",
+    "reviewed_failures",
     "diagnostic_stage",
     "case_kind",
     "clone_type",
@@ -461,6 +468,11 @@ ORDER BY c.ordinal
                             "case_id": row["case_id"],
                             "ordinal": row["ordinal"],
                             "outcome": row["outcome"],
+                            "reviewed_outcome": results.get("_oracle_reviewed_outcome", row["outcome"]),
+                            "reviewed_expected_match_kind": results.get("_oracle_label_correction", {}).get("reviewed_match_kind", row["expected_match_kind"]),
+                            "label_correction_id": results.get("_oracle_label_correction", {}).get("id", ""),
+                            "label_correction_reason": results.get("_oracle_label_correction", {}).get("reason", ""),
+                            "reviewed_failures": " | ".join(results.get("_oracle_reviewed_failures", json.loads(row["oracle_failures_json"] or "[]"))),
                             "diagnostic_stage": results.get(
                                 "_oracle_diagnostic_stage",
                                 diagnostic_stage(str(row["outcome"]), results),
@@ -536,6 +548,8 @@ ORDER BY c.ordinal
         benchmark_cases_database: Path,
     ) -> dict[str, Any]:
         counts = {outcome: 0 for outcome in OUTCOMES}
+        reviewed_counts = {outcome: 0 for outcome in OUTCOMES}
+        correction_counts: dict[str, int] = {}
         strict_passes = tolerant_passes = 0
         negative_zero_move_passes = negative_incidental_move_passes = 0
         srcdiff_process_seconds = srcmove_process_seconds = 0.0
@@ -564,6 +578,10 @@ ORDER BY c.ordinal
                 counts[outcome] += 1
                 validation = json.loads(row["text_validation_json"] or "{}")
                 results = json.loads(row["oracle_results_json"] or "{}")
+                reviewed_counts[results.get("_oracle_reviewed_outcome", outcome)] += 1
+                correction = results.get("_oracle_label_correction")
+                if correction:
+                    correction_counts[correction["id"]] = correction_counts.get(correction["id"], 0) + 1
                 diagnostic = str(
                     results.get(
                         "_oracle_diagnostic_stage",
@@ -722,6 +740,16 @@ ORDER BY c.ordinal
                 **negative_counts,
             },
             "rates": rates,
+            "reviewed_counts": {"selected": selected, "eligible": eligible, **reviewed_counts},
+            "reviewed_rates": {
+                "end_to_end_detection_and_classification": reviewed_counts["oracle_pass"] / selected if selected else None,
+                "conditional_srcmove_detection_and_classification": reviewed_counts["oracle_pass"] / eligible if eligible else None,
+            } if pair_set != "known-false-positive" else {},
+            "label_corrections": {
+                "registry": json.loads(metadata["provenance_json"]).get("label_corrections"),
+                "applied": sum(correction_counts.values()),
+                "by_id": correction_counts,
+            },
             "journal": {
                 "path": self.path.name,
                 "attempts": attempts,
@@ -770,6 +798,7 @@ class SerialBenchmarkExecutionRunner:
         runner_profile_path: Path | None = None,
         diagnostics_enabled: bool = False,
         type3_review: bool = False,
+        label_corrections: LabelCorrections | None = None,
     ) -> None:
         self.benchmark_cases = benchmark_cases
         self.run_dir = run_dir.expanduser().resolve()
@@ -821,7 +850,9 @@ class SerialBenchmarkExecutionRunner:
                 ),
             },
         }
+        self.label_corrections = label_corrections or LabelCorrections()
         self.provenance = {
+            "label_corrections": dict(self.label_corrections.identity),
             "benchmark_cases": {
                 "id": benchmark_cases.benchmark_cases_id,
                 "manifest_sha256": benchmark_cases.manifest_sha256,
@@ -1012,6 +1043,9 @@ class SerialBenchmarkExecutionRunner:
             "text_validation": {"from": "not_checked", "to": "not_checked"},
             "oracle_results": {},
         }
+        correction = self.label_corrections.match(case.metadata)
+        if correction is not None:
+            result["oracle_results"]["_oracle_label_correction"] = correction
         if not srcdiff_record["admitted"]:
             return result
 
@@ -1107,7 +1141,10 @@ class SerialBenchmarkExecutionRunner:
             metadata=dict(case.metadata),
             results_path=results_path,
             srcdiff_xml=srcdiff_dir / "srcdiff.xml",
+            label_corrections=self.label_corrections,
         )
+        if correction is not None:
+            oracle_results.setdefault("_oracle_label_correction", correction)
         oracle_results["_oracle_diagnostic_stage"] = diagnostic_stage(
             outcome, oracle_results
         )
@@ -1360,7 +1397,9 @@ def main() -> int:
         print(f"directory={run_dir}")
         print(
             f"selected={summary['counts']['selected']} "
-            f"oracle_pass={summary['counts']['oracle_pass']}"
+            f"original_label_pass={summary['counts']['oracle_pass']} "
+            f"reviewed_pass={summary['reviewed_counts']['oracle_pass']} "
+            f"corrections={summary['label_corrections']['applied']}"
         )
         cache = summary["development_srcdiff_cache"]
         if cache["enabled"]:
@@ -1369,7 +1408,9 @@ def main() -> int:
                 "this run is unsuitable for thesis results"
             )
             print(f"srcdiff_cache_hits={cache['hits']} misses={cache['misses']}")
-        return 0
+        return 0 if pair_set_passes(
+            benchmark_cases.manifest["selection"]["pair_set"], summary["reviewed_counts"]
+        ) else 1
     except (OSError, ValueError, sqlite3.Error, json.JSONDecodeError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

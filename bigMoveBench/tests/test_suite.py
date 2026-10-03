@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import copy
 import tempfile
 import unittest
 from contextlib import redirect_stderr, redirect_stdout
@@ -190,14 +191,14 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 "(2/4 pair sets operationally complete)",
                 report,
             )
-            self.assertIn("Type 1                 FAIL  passed 0/1 (0.0%)", report)
-            self.assertIn("Type 2                 FAIL  passed 0/1 (0.0%)", report)
+            self.assertIn("Type 1                 FAIL  reviewed passed 0/1 (0.0%)", report)
+            self.assertIn("Type 2                 FAIL  reviewed passed 0/1 (0.0%)", report)
             self.assertIn(
                 "Type 3                 OBS   observational census; 1 selected",
                 report,
             )
             self.assertIn(
-                "Known false positives  PASS  passed 1/1 (100.0%)", report
+                "Known false positives  PASS  reviewed passed 1/1 (100.0%)", report
             )
             self.assertIn("whole-fragment detections 0/1", report)
             self.assertIn("expected class type1", report)
@@ -213,6 +214,30 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             self.assertIn("Known false positives", report)
             self.assertIn("selected cases 4", report)
             self.assertNotIn("unsuitable for thesis", report)
+
+            reviewed_suite = copy.deepcopy(first)
+            reviewed_pair = next(
+                item for item in reviewed_suite["pair_sets"]
+                if item["pair_set"] == "type2"
+            )
+            reviewed_pair["reviewed_counts"]["oracle_pass"] = 1
+            reviewed_pair["reviewed_counts"]["srcmove_miss"] = 0
+            reviewed_pair["label_corrections"]["applied"] = 1
+            reviewed_output = StringIO()
+            with redirect_stdout(reviewed_output):
+                _print_report(first_dir, reviewed_suite)
+            self.assertIn(
+                "Type 2                 PASS  reviewed passed 1/1 (100.0%)",
+                reviewed_output.getvalue(),
+            )
+            self.assertIn(
+                "original-label 0/1; reviewed 1/1; corrections 1",
+                reviewed_output.getvalue(),
+            )
+            self.assertTrue(all(
+                item["label_corrections"]["registry"] == first["label_corrections"]
+                for item in first["pair_sets"]
+            ))
 
             first["request"]["development_srcdiff_cache"] = {
                 "enabled": True,

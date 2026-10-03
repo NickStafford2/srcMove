@@ -5,10 +5,11 @@ from __future__ import annotations
 import json
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any
+from typing import Any, Mapping
 
 from benchmarking.contracts import XmlStatus
 from benchmarking.provenance import observe_file
+from bigMoveBench.label_corrections import LabelCorrections
 from bigMoveBench.oracle import (
     _validate_results_schema,
     assess_positive_case,
@@ -17,7 +18,13 @@ from bigMoveBench.oracle import (
 )
 
 
-SCORING_ORACLE_VERSION = 6
+SCORING_ORACLE_VERSION = 7
+OPERATIONAL_FAILURES = (
+    "upstream_failure",
+    "srcdiff_semantic_ineligible",
+    "srcmove_tool_failure",
+    "oracle_failure",
+)
 OUTCOMES = (
     "upstream_failure",
     "srcdiff_semantic_ineligible",
@@ -28,6 +35,13 @@ OUTCOMES = (
     "oracle_failure",
     "oracle_pass",
 )
+
+
+def pair_set_passes(pair_set: str, counts: Mapping[str, int]) -> bool:
+    """Apply required expectations without making Type-3 recall a gate."""
+    if pair_set == "type3":
+        return all(counts[name] == 0 for name in OPERATIONAL_FAILURES)
+    return counts["oracle_pass"] == counts["selected"]
 
 
 def diagnostic_stage(outcome: str, results: dict[str, Any]) -> str:
@@ -94,6 +108,7 @@ def _score_completed_case(
     results_path: Path,
     srcmove_xml: Path | None = None,
     srcdiff_xml: Path | None = None,
+    label_corrections: LabelCorrections | None = None,
 ) -> tuple[str, list[str], dict[str, str], dict[str, Any]]:
     try:
         results = _read_json(results_path)
@@ -190,6 +205,25 @@ def _score_completed_case(
         srcmove_xml=srcmove_xml,
         srcdiff_xml=srcdiff_xml,
     )
+    try:
+        correction = (label_corrections or LabelCorrections()).match(metadata)
+    except ValueError as error:
+        return "oracle_failure", [str(error)], assessment.text_validation, results
+    if correction is not None:
+        reviewed = assess_positive_case(
+            metadata=metadata, results=results, syntactic_type=syntactic_type,
+            srcmove_xml=srcmove_xml, srcdiff_xml=srcdiff_xml,
+            expected_match_kind_override=correction["reviewed_match_kind"],
+        )
+        results["_oracle_label_correction"] = correction
+        results["_oracle_reviewed_outcome"] = (
+            "oracle_failure" if reviewed.operational_failures else
+            "srcmove_miss" if not reviewed.detected else
+            "wrong_classification" if not reviewed.correctly_classified else "oracle_pass"
+        )
+        results["_oracle_reviewed_failures"] = (
+            reviewed.operational_failures + reviewed.detection_failures + reviewed.classification_failures
+        )
     if assessment.detected_move_id is not None:
         results["_oracle_detected_move_id"] = assessment.detected_move_id
         results["_oracle_observed_match_kind"] = assessment.observed_match_kind

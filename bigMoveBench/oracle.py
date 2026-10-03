@@ -351,6 +351,7 @@ def assess_positive_case(
     syntactic_type: int,
     srcmove_xml: Path | None = None,
     srcdiff_xml: Path | None = None,
+    expected_match_kind_override: str | None = None,
 ) -> PositiveOracleAssessment:
     operational_failures = _validate_results_schema(results)
     detection_failures: list[str] = []
@@ -359,7 +360,7 @@ def assess_positive_case(
     expected_match_kinds = {1: "type1", 2: "type2", 3: "type3"}
     if syntactic_type not in expected_match_kinds:
         raise ValueError(f"unsupported BigCloneBench syntactic type: {syntactic_type}")
-    expected_match_kind = expected_match_kinds[syntactic_type]
+    expected_match_kind = expected_match_kind_override or expected_match_kinds[syntactic_type]
 
     if metadata.get("syntactic_type") != syntactic_type:
         operational_failures.append(

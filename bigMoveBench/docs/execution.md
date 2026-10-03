@@ -63,6 +63,11 @@ attempts are recorded as interrupted rather than silently lost.
    executed once per declared direction.
 6. Retries create new attempts; they do not overwrite evidence.
 7. Case collections and results are streamed in bounded batches.
+8. Reviewed label corrections are loaded as a fixed registry snapshot for a run.
+   Its digest participates in restart compatibility. Original-label outcomes
+   remain in the journal and reports alongside reviewed outcomes; a correction
+   changes the expected content type without bypassing detection or position
+   checks. See the [scoring methodology](methodology.md#conversion-model).
 
 BigMoveBench retains `results.json`, not annotated srcMove XML. The JSON
 contains the move identity, classification, text, and source/destination

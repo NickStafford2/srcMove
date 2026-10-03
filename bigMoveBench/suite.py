@@ -19,7 +19,12 @@ if str(REPO_ROOT) not in sys.path:
 
 from bigMoveBench.benchmark_cases import publish_benchmark_cases
 from bigMoveBench.compile import ensure_compiled_dataset
-from bigMoveBench.evaluate import SCORING_ORACLE_VERSION
+from bigMoveBench.evaluate import (
+    OPERATIONAL_FAILURES,
+    SCORING_ORACLE_VERSION,
+    pair_set_passes,
+)
+from bigMoveBench.label_corrections import LabelCorrections
 from bigMoveBench.frozen_profiles import create_frozen_selection
 from bigMoveBench.installation import BCE_DIR
 from bigMoveBench.normalized_execution import SerialBenchmarkExecutionRunner
@@ -40,12 +45,6 @@ PAIR_SETS = (
     ("known-false-positive", "Known false positives"),
 )
 PAIR_SET_LABELS = dict(PAIR_SETS)
-OPERATIONAL_FAILURES = (
-    "upstream_failure",
-    "srcdiff_semantic_ineligible",
-    "srcmove_tool_failure",
-    "oracle_failure",
-)
 
 
 def parse_args() -> argparse.Namespace:
@@ -111,9 +110,7 @@ def _operational_failures(counts: Mapping[str, int]) -> int:
 def _pair_set_operational_pass(
     pair_set: str, counts: Mapping[str, int]
 ) -> bool:
-    if pair_set == "type3":
-        return _operational_failures(counts) == 0
-    return counts["oracle_pass"] == counts["selected"]
+    return pair_set_passes(pair_set, counts)
 
 
 def _pair_result(
@@ -133,7 +130,8 @@ def _pair_result(
     operational_failures = _operational_failures(counts)
     observational = pair_set == "type3"
     type3_strength = summary.get("strata", {}).get("type3_strength", {})
-    operational_pass = _pair_set_operational_pass(pair_set, counts)
+    reviewed_counts = summary.get("reviewed_counts", counts)
+    operational_pass = _pair_set_operational_pass(pair_set, reviewed_counts)
     return {
         "pair_set": pair_set,
         "label": label,
@@ -144,6 +142,9 @@ def _pair_result(
         "run_id": summary["run_id"],
         "run_directory": str(run_dir),
         "counts": dict(counts),
+        "reviewed_counts": dict(reviewed_counts),
+        "reviewed_rates": dict(summary.get("reviewed_rates", {})),
+        "label_corrections": dict(summary.get("label_corrections", {})),
         "assessment": {
             "mode": "observational" if observational else "strict",
             "sample_interpretation": (
@@ -187,6 +188,7 @@ def _pair_result(
 
 
 def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
+    label_corrections = LabelCorrections()
     selected_pair_set = getattr(args, "pair_set", None)
     profile = getattr(args, "profile", "full")
     cache_root = args.cache_root.expanduser().resolve()
@@ -280,6 +282,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                 srcmove_timeout_seconds=args.srcmove_timeout,
                 srcdiff_observation=srcdiff_observation,
                 srcmove_observation=srcmove_observation,
+                label_corrections=label_corrections,
                 srcdiff_cache=srcdiff_cache,
                 refresh_srcdiff_cache=refresh_cache,
                 runner_profile_path=runner_profile_path,
@@ -332,6 +335,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
             "seconds": compile_seconds,
         },
         "scoring_oracle_version": SCORING_ORACLE_VERSION,
+        "label_corrections": label_corrections.identity,
         "tool_observation_seconds": {
             "srcdiff": srcdiff_observation_seconds,
             "srcmove": srcmove_observation_seconds,
@@ -396,7 +400,8 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
         metrics = result["metrics"]
         elapsed = result["timings"]["process_seconds"]
         selected = counts["selected"]
-        passed = counts["oracle_pass"]
+        reviewed_counts = result.get("reviewed_counts", counts)
+        passed = reviewed_counts["oracle_pass"]
         pass_rate = passed / selected if selected else 0.0
         observational = result["assessment"]["mode"] == "observational"
         status = (
@@ -421,7 +426,7 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
             )
         else:
             print(
-                f"  {result['label']:<22} {status:<4}  passed "
+                f"  {result['label']:<22} {status:<4}  reviewed passed "
                 f"{passed:,}/{selected:,} ({pass_rate:.1%})   "
                 f"srcMove {_seconds(elapsed)}"
             )
@@ -460,6 +465,12 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
                 f"{selected:,}; expected class {expected_kind}; "
                 f"wrong class {counts['wrong_classification']:,}; "
                 f"misses {counts['srcmove_miss']:,}; errors {errors:,}"
+            )
+            reviewed = result.get("reviewed_counts", counts)
+            diagnostic += (
+                f"; original-label {counts['oracle_pass']:,}/{selected:,}"
+                f"; reviewed {reviewed['oracle_pass']:,}/{selected:,}"
+                f"; corrections {result.get('label_corrections', {}).get('applied', 0):,}"
             )
             if observational:
                 diagnostic += "; observational results (misses do not fail suite)"

@@ -251,7 +251,7 @@ class NormalizedExecutionTests(unittest.TestCase):
             ).splitlines()
             self.assertEqual(len(csv_lines), 3)
             self.assertIn(
-                "case_id,ordinal,outcome,diagnostic_stage", csv_lines[0]
+                "case_id,ordinal,outcome,reviewed_outcome", csv_lines[0]
             )
             self.assertEqual(
                 summary["cases_csv"]["path"], "cases.csv"

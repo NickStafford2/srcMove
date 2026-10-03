@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "pair_policy": "unordered_exact_utf8_sha256",
+  "corrections": [
+    {
+      "id": "bcb-69322-96077-empty-statement",
+      "function_ids": [69322, 96077],
+      "fragment_sha256": [
+        "2054aab2e071a52377909184a0fe46bf0789bd8ea07c43662697334f1480ced5",
+        "44fdffeb341c31d437565cc492b2ed72180c58535467cf63df26ed221d607a63"
+      ],
+      "original_match_kind": "type2",
+      "reviewed_match_kind": "type3",
+      "reviewed_description": "High-similarity Type-3; no BigCloneBench Type-3 strength band assigned",
+      "reason": "Consistent identifier and literal substitutions accompany removal of a standalone empty statement after a while block. Statement addition or removal exceeds the thesis Type-2 definition.",
+      "reviewer": "Nicholas Stafford",
+      "review_status": "author_reviewed"
+    }
+  ]
+}

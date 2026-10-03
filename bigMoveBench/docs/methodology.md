@@ -66,7 +66,7 @@ compares the stable destination file and exposes the inserted payload there.
 The two distinct container classes prevent the wrappers themselves from looking
 like a cross-file move.
 
-The current evaluation uses a strict detection-and-classification oracle:
+The original-label evaluation uses a strict detection-and-classification oracle:
 Type-1 cases must classify the intended whole-fragment move as `type1`, Type-2
 as `type2`, and Type-3 as `type3`. Position and per-side text validation are
 correlated to the same JSON result; the result's XPaths supply its position
@@ -87,6 +87,40 @@ reason, and source evidence; do not silently drop the case or rewrite the source
 catalog. Any review-adjusted summary must declare its cases and denominator
 alongside the original-label result. A srcMove similarity value does not assign
 a BigCloneBench Type-3 strength band.
+
+Reviewed expectations determine the suite's pass/fail result for required
+Type-1 and Type-2 strata. The reviewed result equals the original-label result
+unless an explicit content-pair correction applies. A correction changes only
+the expected content type: the same whole-fragment, source-position, output
+schema, and execution checks remain required. A missing move still fails, and
+reporting the inherited type instead of the reviewed type also fails the
+reviewed expectation.
+
+The checked-in [correction registry](../reviewed_label_corrections.json) records
+each review. Each correction identifies the two exact fragment hashes, original and reviewed
+types, source function IDs, and the reason for review. The unordered hash pair
+supports either comparison direction; a modified fragment does not inherit the
+correction. Function IDs provide provenance rather than overriding content
+identity. The source catalog and generated case definitions remain unchanged.
+The registry snapshot and its digest are recorded with run provenance so a run
+cannot resume under changed review decisions.
+
+A corrected case remains in its original sample and denominator. For example,
+one reviewed Type-3 case in a 100-case Type-2-labeled sample can yield original
+label agreement of 99/100 and reviewed success of 100/100. It is not transferred
+into the separate Type-3 sample or assigned a BigCloneBench strength band.
+Per-case reports retain the original outcome, reviewed outcome, and correction
+identity; summary reports show both scores and the number of corrections.
+The existing `outcome`, `counts`, and `rates` fields retain original-label
+meaning. `reviewed_outcome`, `reviewed_counts`, and `reviewed_rates` record the
+reviewed interpretation. A displayed reviewed pass therefore does not change
+the original-label failure stored for a corrected case.
+
+The initial correction, `bcb-69322-96077-empty-statement`, covers functions
+69322 and 96077. The supplied label is Type-2, but the fragments also differ by
+a standalone empty statement after a `while` block. The reviewed expectation is
+Type-3. Registry hashes refer to the exact extracted source fragments, before
+the synthetic wrapper adds indentation or surrounding code.
 
 This converts clone similarity into move similarity. Type-1 and Type-2 clone
 labels supply the expected match categories, subject to the reviewed-definition
