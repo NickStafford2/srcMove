@@ -154,16 +154,18 @@ The construct remains in the same logical source interval, but its ancestor
 structure changes. Wrapping existing statements in a new `if`, adding a
 `try`, or removing a redundant block are representative cases.
 
-This category avoids calling every parent change a relocation. A future policy
+This category reflects the proposed location policy; wrapping may still be a
+move under an AST-parent model. It avoids calling every parent change a relocation. A future policy
 must explicitly decide which ancestor changes are merely restructuring and
 which move code into a genuinely different semantic container.
 
 #### Ambiguous
 
-The system finds correspondence evidence but cannot justify a unique or
-reliable change classification. Causes include repeated code, conflicting
-endpoints, missing anchors, inconsistent srcDiff structure, and insufficient
-context.
+The location classifier cannot justify a supported location outcome because
+required context is missing or incompatible. Repeated code and competing
+endpoints instead create matching ambiguity: a particular pair can have a clear
+location classification while its correspondence remains unresolved. See the
+[current location vocabulary](../architecture.md#location-classification-vocabulary).
 
 Ambiguity must not be resolved merely to force an output. It should remain
 available in diagnostics and evaluation even if normal annotated XML reports

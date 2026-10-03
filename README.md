@@ -195,9 +195,10 @@ establishes a match. The normalization rules, 0.90 similarity formula,
 ambiguity policy, and performance safeguards have one canonical description in
 [Architecture](doc/architecture.md#matching-and-group-semantics).
 
-In srcMove documentation, a reported *move* is a selected correspondence
-between deleted and inserted candidates. It is evidence of relocation in the
-srcDiff representation, not proof of developer intent or semantic equivalence.
+In srcMove documentation, a reported *move* is a selected pair or group of
+deleted and inserted candidates, not proof of a historical move or semantic
+equivalence. Location evidence and selection requirements differ by match kind;
+see [location classification vocabulary](doc/architecture.md#location-classification-vocabulary).
 
 ## Documentation and evaluation
 

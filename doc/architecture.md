@@ -9,10 +9,15 @@ boundaries, with Type-1, Type-2, and Type-3 correspondence evidence.
 
 srcDiff represents source present only in the original revision with
 `diff:delete` and source present only in the modified revision with
-`diff:insert`. srcMove calls one selected deletion/insertion correspondence a
-*move*. This is an operational detector result, not proof of developer intent
-or semantic equivalence. Type-1, Type-2, and Type-3 describe the correspondence
-evidence; group kind separately describes endpoint cardinality and ambiguity.
+`diff:insert`. A *reported move* is a selected pair or group of deleted and inserted
+candidates. It is an operational detector result, not proof of a historical
+move, developer intent, or semantic equivalence. A content match supports a
+proposed correspondence; it does not establish continuing identity by itself.
+Type-1, Type-2, and Type-3 describe content evidence; group kind separately
+describes endpoint cardinality and ambiguity. Reported moves are broader than
+classifier-confirmed relocation: unique Type-1 and Type-2 pairs require positive
+location evidence, whereas Type-3 selection and repeated exact groups follow
+their separate policies described below.
 
 ## Implementation
 
@@ -51,8 +56,10 @@ over the input. It:
 Each candidate retains both the srcDiff unit filename used by existing
 selection and an owned endpoint-location context. The context resolves
 `old|new`, `old|`, `|new`, and shared archive filenames to the path belonging
-to that candidate's revision. It also records the nearest named semantic
-container only when srcDiff represents that function, constructor, type, or
+to that candidate's revision. The code and diagnostic fields use
+`semantic_container` for a mapped named enclosing construct; this is structural
+context, not analysis of program behavior or name binding. The collector records
+the nearest qualifying construct only when srcDiff represents that function, constructor, type, or
 namespace as one physical construct belonging to both revisions. Exclusive or
 unnamed containers are not paired by name or XPath; the candidate falls back
 to a mapped enclosing container or remains unmapped. Anchor and ancestor
@@ -89,16 +96,37 @@ This distinction permits a deletion in one archive unit to match an insertion
 in another without mistaking a combined srcDiff filename for one revision's
 file identity.
 
+### Location classification vocabulary
+
 [`src/movement_classifier.cpp`](../src/movement_classifier.cpp) contains a pure,
-ordered location classifier shared by unique Type-1 and Type-2 correspondences.
-Different revision
-files, different mapped containers, and crossed reliable anchor intervals are
-relocation evidence. Within one reliable interval, equal meaningful ancestry
-is stationary, prefix additions or removals are restructuring, and
-incompatible ancestry is ambiguous. Missing evidence is also ambiguous. The
-refined group builder harvests unique exact Type-1 pairs before hierarchy
+ordered location classifier. Its outcomes describe the implemented location
+model, not universal categories of source-code changes.
+
+| Implementation label | Meaning under the current policy |
+| --- | --- |
+| `relocated` | Different revision-specific file paths, different mapped enclosing constructs, or a crossed reliable anchor interval provide relocation evidence. |
+| `stationary` | Within the same file and mapped container, reliable anchor intervals and interpretable ancestor summaries agree. A later carrying check also uses this label for a child stable relative to a relocated parent. |
+| `restructured` | Within the same file, mapped container, and reliable anchor interval, an interpretable ancestor summary is a strict prefix of the other, indicating the supported wrapping or unwrapping pattern. |
+| `ambiguous` | Evidence required by the reached classification rule is missing, or the ancestry cannot be interpreted as one of the supported relationships. This is location uncertainty, not uncertainty about which candidates correspond. |
+
+The rules are ordered: a changed file path establishes `relocated` before
+container or ancestry checks. Missing parent context therefore does not make
+every cross-file pair ambiguous. File comparison uses paths, not inferred
+continuing file identity, so a file rename can supply this evidence.
+
+`restructured` is a policy choice for wrapping within a stable interval. An
+AST-parent model can describe the same change as a move. Similarly, `stationary`
+does not rule out historical moves away and back between the compared revisions.
+The classifier does not reconstruct editing actions.
+
+Matching ambiguity is separate: repeated content or competing partners can leave
+pairing unresolved even when a particular pair has clear location evidence.
+The legacy diagnostic field `shadow_change` exposes the location outcome;
+`cardinality` and partner counts describe separate matching relationships.
+
+The refined group builder harvests unique exact Type-1 pairs before hierarchy
 selection and classifies them once. Only positively classified independent
-relocations become Type-1 proposals; stationary, restructured, ambiguous, and
+relocations remain eligible as unique Type-1 proposals; stationary, restructured, ambiguous, and
 parent-carried correspondences remain diagnostic-only. The same compact
 decision records materialize the opt-in diagnostics, so production eligibility
 and diagnostic interpretation cannot diverge.
@@ -114,12 +142,17 @@ The Phase 0 contract adapter resolves endpoints by the reviewed construct and
 exact text rather than using current classifications as its oracle. With
 fragment granularity, all twelve contracts match, including
 the source-generated `[[nodiscard]]` unwrap. Macro ancestry is explicitly
-marked non-interpretable and therefore yields ambiguous incompatible context
-rather than a stationary inference. A child is marked parent-carried only when
+marked non-interpretable; when classification reaches the ancestry comparison,
+it yields `ambiguous` with `incompatible_context` rather than supporting
+stationarity. A child is marked parent-carried only when
 a unique exact structural-parent correspondence strictly contains it on both
 revisions and that parent is independently classified as relocated. The
 nearest such structural parent is recorded by candidate ID; diff wrappers and
-document-order pairing are not accepted as evidence.
+document-order pairing are not accepted as evidence. The carrying check sets
+`stationary` with reason `stable_relative_to_relocated_parent` and the separate
+`carried_by_parent` flag. Here stationary means relative to that parent, not
+unchanged file location. This check precedes selection and does not require
+the parent to be selected for output.
 
 For performance reasons, candidate construction and canonicalization are part
 of this same pass.
@@ -298,7 +331,8 @@ degrees, not equivalence groups or proof of identity. Location and matching
 ambiguity are separate: a competing edge can have `shadow_change: relocated`
 without establishing a unique continuing construct. Connectivity never creates
 additional edges. `current_result` records actual Type-3 selection, independently
-of these observations.
+of these observations. A `current_result` of `not_move` means the edge was
+not selected, not that it was established as stationary.
 
 ### Results terminology
 
@@ -308,8 +342,9 @@ The JSON contract distinguishes evidence, endpoint cardinality, and counts:
   corresponds.
 - `group_kinds` classifies endpoint cardinality: `move_1_to_1` is one deletion
   and one insertion, `moves_many` has equal counts greater than one, and
-  `copy_or_repeat` has unequal nonzero counts. `delete_only`, `insert_only`, and
-  `ambiguous` describe unmatched groups.
+  `copy_or_repeat` has unequal nonzero counts. `delete_only` and `insert_only`
+  describe one-sided groups. The count classifier uses `ambiguous` for zero
+  endpoints on both sides; this label is distinct from location ambiguity.
 - `move_group_count` counts selected groups. The legacy `move_count` field is an
   alias for the same value; it does not count endpoint pairs.
 - `move_pair_count` sums `min(deletions, insertions)` over selected groups. For

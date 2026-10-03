@@ -9,6 +9,8 @@
 
 namespace srcmove {
 
+// Outcomes under the implemented location policy, not historical edit events.
+// Restructured wrapping can still be a move under an AST-parent model.
 enum class movement_kind { stationary, relocated, restructured, ambiguous };
 
 enum class movement_classification_reason {
@@ -52,6 +54,8 @@ struct movement_classification {
   movement_classification_reason reason =
       movement_classification_reason::insufficient_context;
   movement_observations observations;
+  // Caller may set stationary relative to a relocated parent plus this flag.
+  // This is not a claim that the child retained its file location.
   bool carried_by_parent = false;
 };
 
@@ -63,6 +67,8 @@ movement_classification classify_movement(
     const endpoint_location_context &after,
     const std::vector<std::string> &after_ancestors);
 
+// Eligibility predicate for the callers that gate unique Type-1/Type-2 pairs;
+// it is not the universal selection rule for all reported move groups.
 bool move_eligible(const movement_classification &classification) noexcept;
 
 std::string_view to_string(movement_kind value) noexcept;

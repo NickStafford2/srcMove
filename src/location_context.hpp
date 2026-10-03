@@ -14,6 +14,8 @@ namespace srcmove {
 // consumers must not infer location from XPath, line distance, or document order.
 struct endpoint_location_context {
   std::string revision_file;
+  // Legacy name for a structurally mapped named enclosing construct;
+  // this does not imply behavioral or binding analysis.
   std::string semantic_container_id;
   std::string semantic_container_label;
   std::string previous_common_anchor_id;
