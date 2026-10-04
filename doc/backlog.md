@@ -6,6 +6,33 @@ settled.
 
 ## Next
 
+- Require positive relocation evidence for repeated exact content groups while
+  preserving unresolved endpoint pairings. The current exception is a known
+  limitation; see [location classification](architecture.md#location-classification-vocabulary)
+  and `apply_correspondence_output_policy` in
+  `src/move_registry/content_group_builder.cpp`.
+  Define whether group eligibility requires evidence for every possible pair,
+  at least one pair, or a compatible set of pairs without endpoint reuse; do not
+  select pairings by document order alone. Test stationary repeats, relocated
+  repeats, mixed stationary/relocated possibilities, unequal endpoint counts,
+  missing context, carrying, and containment conflicts. Check group membership,
+  counts, and XML/JSON agreement. Compare affected evaluation results before
+  adoption; if changed before thesis submission, rerun affected experiments or
+  explicitly identify results produced by the earlier implementation.
+- Investigate missed same-file Type-1/Type-2 moves when no named reference
+  container is available. Top-level functions outside named containers and
+  constructs inside unnamed containers can lack usable container evidence;
+  unresolved same-file location then blocks one-to-one reports. See
+  `nearest_common_container_index` in `src/region_filter.cpp` and
+  `classify_movement` in `src/movement_classifier.cpp`.
+  Evaluate file-level reference containers with suitable common anchors
+  (including retained functions), and structural correspondence for unnamed
+  containers. Preserve the positive-relocation requirement rather than allowing
+  unresolved pairs through. Test actual reordering, insertion-only line shifts,
+  edits and renames in place, repeated constructs, and nesting; measure recovered
+  moves and false reports before adoption. The coverage limitation follows from
+  the implementation, but its frequency and the benefit of these extensions
+  remain unmeasured.
 - Add `--offset` to BigCloneBench generation for deterministic benchmark slices
   such as rows 1-1000, 1001-2000, etc.
 - Add the local school repository containing thesis documents once its location
