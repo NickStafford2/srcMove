@@ -6,6 +6,18 @@ settled.
 
 ## Next
 
+- Fix the two failing historical Type-3 reporting checks. In
+  [the historical Type-3 test](../moveSelectionBench/tests/test_type3_historical_contracts.py),
+  `test_reported_moves_match_source_oracles` now requires srcMove not to report
+  the `warp_in_place` constructs (`affine_worker` and `affine_try`) as moves,
+  following their [source judgments](../moveSelectionBench/type3_history_contracts.json).
+  Both checks fail as of October 4, 2026. Retain the source fixtures and judgments;
+  do not change expectations to accept the incorrect reports. Address the
+  underlying Type-3 policy, which currently permits selection without positive
+  relocation evidence. Check genuine relocated Type-3 cases as well as edits
+  in place and missing context; unresolved location is not proof of stationary
+  code. Preserve historical run records, and rerun affected evaluations when
+  reporting behavior changes.
 - Require positive relocation evidence for repeated exact content groups while
   preserving unresolved endpoint pairings. The current exception is a known
   limitation; see [location classification](architecture.md#location-classification-vocabulary)

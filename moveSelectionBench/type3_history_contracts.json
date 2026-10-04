@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "purpose": "Source-derived observation contracts. Source identity/location oracles are separate from current diagnostics and selection; passing tests do not endorse current false move annotations.",
+  "purpose": "Reviewed source identity/location judgments define which moves srcMove should report. observation_baseline fields preserve historical output only; they are not test expectations. Known incorrect reports fail the correctness test.",
   "cases": [
     {
       "id": "functor_competition",

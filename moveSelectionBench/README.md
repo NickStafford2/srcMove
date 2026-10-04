@@ -750,7 +750,9 @@ current use the same production executable here; unchanged outputs establish
 reproducibility, not improved detector accuracy. Type-3 remains observation-only;
 Phase 5, VERSION, staging, and commits are untouched.
 
-## Historical Type-3 observation contracts
+<a id="historical-type-3-observation-contracts"></a>
+
+## Historical Type-3 reporting checks
 
 [`type3_history_contracts.json`](type3_history_contracts.json) preserves six
 reviewed edge observations from the historical evaluation in two source pairs.
@@ -761,7 +763,7 @@ No downloaded repositories or ignored history artifacts are needed to run them.
 
 The functor pair extracts both complete OpenCV structs and retains their logical
 source/destination files. It requires the full 2×2 verified subgraph: both
-continuing identities and both wrong cross-pairs, with partner counts of two.
+continuing identities and both wrong cross-pairs, without treating every content match as a continuing identity.
 The source oracle accepts only the same-role continuing pairs; the observation
 baseline records all four as relocated and only the two continuing pairs as
 selected. Passing this contract must not be described as four valid identities.
@@ -769,14 +771,18 @@ selected. Passing this contract must not be described as four valid identities.
 The warp pair retains the unmodified 488-line/578-line source snapshots so
 srcDiff preserves the historical alignment. Its two source oracles require
 stationary continuing constructs: the affine worker class and the affine
-function's `try` region. Their separate observation baselines require
-`ambiguous/insufficient_context`, degree one, no inferred parent carrying, and
-current move annotations. The test explicitly counts these as **two known false
-move observations**. Missing mapped context is not proof of stationarity, and
-the baseline is not an approved production acceptance policy.
+function's `try` region. srcMove should not report either as a move. Since
+October 4, 2026, the test asserts selection against each source judgment and
+reports an ordinary failure for each incorrect report. These failures must be
+fixed in the detector, not accepted by changing expectations to current output.
+The catalog's `observation_baseline` fields preserve historical observations
+only; the test no longer requires their diagnostic classifications or selected
+output. Missing mapped context is not proof of stationarity; the expected
+outcome comes from the source review.
 
-The focused suite passes 21 unit tests and 21 existing selection contracts.
-The full Docker suite passes all 13 steps. All 197 comparison inputs (the prior
+Before this change, the recorded focused suite passed 21 unit tests and 21
+existing selection contracts, and the full Docker suite passed all 13 steps.
+Those historical passes included assertions requiring the two incorrect reports. All 197 comparison inputs (the prior
 195 plus these two generated inputs) preserve ordinary JSON, annotated XML, and
 diagnostics against `4641111`. No production code or thresholds change. Ignored
 receipts, test logs, generated inputs, comparison outputs and hashes are retained

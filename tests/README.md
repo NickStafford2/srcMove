@@ -52,7 +52,10 @@ python3 tests/regression/policy/list.py --catalog contextual
   normalization contracts retain ten ambiguous correspondences from nine XML
   fixtures. Type-3 contracts check observation-only location decisions, verified
   partner counts, nontransitive edges, and explicit known oracle gaps without
-  changing production output. Hypotheses remain observational benchmark cases. Run with
+  changing production output. The historical Type-3 source checks instead
+  require reporting to agree with source review; known incorrect reports are
+  ordinary failures. See [the reporting checks](../moveSelectionBench/README.md#historical-type-3-reporting-checks).
+  Hypotheses remain observational benchmark cases. Run with
   `make test-move-selection`; it is also included by `make test-unit`.
 - `srcmove-history`: focused unit tests under
   `tests/unit/srcmove_history/`; run explicitly with

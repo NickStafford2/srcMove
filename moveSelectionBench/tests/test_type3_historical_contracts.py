@@ -1,4 +1,4 @@
-"""Source-derived identity/location oracles, separate from observed behavior."""
+"""Check reported moves against reviewed source identity and location."""
 import hashlib
 import json
 from pathlib import Path
@@ -21,14 +21,13 @@ def text_hash(text):
 
 
 class HistoricalType3ContractTests(unittest.TestCase):
-    def test_source_oracles_and_observation_baselines(self):
+    def test_reported_moves_match_source_oracles(self):
         catalog = json.loads((SUITE / 'type3_history_contracts.json').read_text())
         self.assertEqual([c['id'] for c in catalog['cases']],
                          ['functor_competition', 'warp_in_place'])
         srcdiff, srcmove = find_srcdiff(ROOT), find_srcmove(ROOT)
         self.assertIsNotNone(srcdiff)
         self.assertIsNotNone(srcmove)
-        false_move_observations = []
         with tempfile.TemporaryDirectory() as directory:
             temp = Path(directory)
             for case in catalog['cases']:
@@ -82,13 +81,7 @@ class HistoricalType3ContractTests(unittest.TestCase):
                         matches = [r for r in records if (r['delete_candidate_id'], r['insert_candidate_id']) == key]
                         self.assertEqual(len(matches), 1)
                         record = matches[0]
-                        baseline, oracle = edge['observation_baseline'], edge['source_oracle']
-                        self.assertEqual(record['shadow_change'], baseline['change'])
-                        self.assertEqual(record['classification_reason'], baseline['reason'])
-                        self.assertEqual(record['current_result'], baseline['current_result'])
-                        self.assertEqual(record['delete_verified_partner_count'], baseline['delete_partners'])
-                        self.assertEqual(record['insert_verified_partner_count'], baseline['insert_partners'])
-                        self.assertFalse(record['carried_by_parent'])
+                        oracle = edge['source_oracle']
                         selected = any(m['match_kind'] == 'type3' and m['from_xpaths'] == [before['xpath']]
                                        and m['to_xpaths'] == [after['xpath']] for m in docs[0]['moves'])
                         self.assertEqual(selected, record['current_result'] == 'move')
@@ -103,15 +96,16 @@ class HistoricalType3ContractTests(unittest.TestCase):
                             self.assertEqual(oracle['location'], 'stationary')
                             self.assertFalse(oracle['is_move'])
                             self.assertEqual(record['cardinality'], 'one_to_one')
-                            self.assertEqual(record['semantic_container_observation'], 'unknown')
-                            self.assertEqual(record['shadow_change'], 'ambiguous')
-                        if selected and not oracle['is_move']:
-                            false_move_observations.append((case['id'], edge['before']))
+                        # A recorded error must fail, rather than become required output.
+                        with self.subTest(case=case['id'], before=edge['before'], after=edge['after']):
+                            self.assertEqual(
+                                selected, oracle['is_move'],
+                                f"{case['id']}: {edge['before']} -> {edge['after']}: "
+                                + ('srcMove should report this move' if oracle['is_move']
+                                   else 'srcMove should not report this as a move')
+                                + f"; source review: {oracle['reason']}")
                     # Protect the full 2x2 subgraph, including selection losers.
                     old_ids = {c['candidate_id'] for (name, side), c in endpoints.items() if side == 'before'}
                     new_ids = {c['candidate_id'] for (name, side), c in endpoints.items() if side == 'after'}
                     self.assertEqual(reviewed_ids, {(r['delete_candidate_id'], r['insert_candidate_id']) for r in records
                                                    if r['delete_candidate_id'] in old_ids and r['insert_candidate_id'] in new_ids})
-        # These are known production errors, not expected source-level moves.
-        self.assertEqual(false_move_observations,
-                         [('warp_in_place', 'affine_worker'), ('warp_in_place', 'affine_try')])
