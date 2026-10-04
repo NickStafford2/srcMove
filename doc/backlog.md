@@ -44,6 +44,18 @@ settled.
 
 ## Later
 
+- Review greedy proposal selection, which can retain one proposal that blocks
+  several compatible proposals with a larger combined ranking score. See
+  `build_content_groups` in `src/move_registry/content_group_builder.cpp` and
+  `proposal_rank_better` in `src/move_registry/selection_policy.cpp`.
+  Retain concrete competing-proposal examples and compare bounded local
+  reconsideration with the current policy. Review the inactive descendant-bundle
+  rule and interactions with repeated-group membership and relocation evidence.
+  Preserve candidate-reuse and containment constraints. Evaluate historical
+  correspondence quality, reported granularity, and runtime, not just total
+  score: maximizing the current heuristic can also favor excessive fragmentation.
+  The limitation is established by the procedure; its frequency and the benefit
+  of a replacement remain unmeasured.
 - Rename the report JSON field `match_kinds` to `match_types` for the Type-1,
   Type-2, and Type-3 group counts. Coordinate the rename with JSON consumers,
   tests, and documentation, and decide how to handle schema compatibility.
