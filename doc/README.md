@@ -50,6 +50,8 @@ summaries or diagrams disagree with current behavior.
 
 ## Research notes and planned work
 
+- [History analysis engine](plans/history_analysis_engine.md): proposed reproducible
+  metrics, evidence contracts, implementation gates, and adversarial review
 - [Adjacent moved sequences](plans/adjacent_move_sequences.md): proposed ordered
   aggregation, bounded sequence matching, regression cases, and evaluation gates
 - [Correspondence before change classification](plans/correspondence.md):
