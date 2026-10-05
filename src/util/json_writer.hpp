@@ -255,6 +255,41 @@ inline void write_selection_diagnostics(std::ostream &out,
   out << "  }\n";
 }
 
+inline void write_sequence_endpoint(std::ostream &out,
+                                    const move_sequence_endpoint &endpoint,
+                                    std::size_t indent) {
+  const std::string pad(indent, ' ');
+  const std::string field_pad(indent + 2, ' ');
+  out << "{\n" << field_pad << "\"revision_file\": ";
+  write_string(out, endpoint.revision_file);
+  out << ",\n" << field_pad << "\"parent_id\": ";
+  write_string(out, endpoint.parent_id);
+  out << ",\n" << field_pad << "\"first_child_ordinal\": "
+      << endpoint.first_child_ordinal;
+  out << ",\n" << field_pad << "\"last_child_ordinal\": "
+      << endpoint.last_child_ordinal;
+  out << ",\n" << field_pad << "\"member_xpaths\": ";
+  write_string_array(out, endpoint.member_xpaths, indent + 2);
+  out << "\n" << pad << "}";
+}
+
+inline void write_move_sequence(std::ostream &out, const move_sequence &sequence,
+                                std::size_t indent = 4) {
+  const std::string pad(indent, ' ');
+  const std::string field_pad(indent + 2, ' ');
+  out << pad << "{\n" << field_pad << "\"sequence_id\": ";
+  write_string(out, sequence.sequence_id);
+  out << ",\n" << field_pad << "\"content_relationship\": \"type1\",\n";
+  out << field_pad << "\"policy\": \"ordered_adjacent_v1\",\n";
+  out << field_pad << "\"member_move_ids\": ";
+  write_string_array(out, sequence.member_move_ids, indent + 2);
+  out << ",\n" << field_pad << "\"from\": ";
+  write_sequence_endpoint(out, sequence.from, indent + 2);
+  out << ",\n" << field_pad << "\"to\": ";
+  write_sequence_endpoint(out, sequence.to, indent + 2);
+  out << "\n" << pad << "}";
+}
+
 inline void write_summary(std::ostream &out, const summary &summ) {
   out << "{\n";
   out << "  \"results_schema_version\": " << results_schema_version << ",\n";
@@ -270,6 +305,16 @@ inline void write_summary(std::ostream &out, const summary &summ) {
     out << "\n";
   }
 
+  out << "  ],\n";
+  out << "  \"sequence_cluster_count\": " << summ.sequence_cluster_count << ",\n";
+  out << "  \"sequence_reporting_unit_count\": "
+      << summ.sequence_reporting_unit_count << ",\n";
+  out << "  \"move_sequences\": [\n";
+  for (std::size_t i = 0; i < summ.move_sequences.size(); ++i) {
+    write_move_sequence(out, summ.move_sequences[i]);
+    if (i + 1 < summ.move_sequences.size()) out << ",";
+    out << "\n";
+  }
   out << "  ],\n";
   out << "  \"annotated_regions\": " << summ.annotated_regions << ",\n";
   out << "  \"annotated_region_count\": " << summ.annotated_region_count

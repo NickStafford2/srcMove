@@ -289,6 +289,12 @@ namespace {
 
 using stream_clock = std::chrono::steady_clock;
 
+struct sequence_child_context {
+  std::string parent_id;
+  std::size_t ordinal = 0;
+  bool reliable = false;
+};
+
 // The pipeline path below builds candidates while srcReader advances. It keeps
 // only canonicalization state and completed candidates; the region-based path
 // remains available for focused tests and callers that need captured XML.
@@ -306,6 +312,7 @@ struct streamed_child {
   std::size_t substantive_common = 0;
   std::size_t substantive_opposite = 0;
   endpoint_location_context location;
+  sequence_child_context sequence_context;
 };
 
 struct streamed_region {
@@ -330,6 +337,11 @@ struct streamed_region {
 struct source_element_frame {
   std::string name;
   revision_membership membership = revision_membership::both;
+  std::size_t start_idx = 0;
+  std::size_t sequence_child_counts[2] = {0, 0};
+  bool sequence_present[2] = {false, false};
+  bool sequence_allowed[2] = {false, false};
+  sequence_child_context sequence_context[2];
   bool semantic_container = false;
   std::string container_id;
   std::string container_label;
@@ -607,6 +619,9 @@ void finish_streamed_child(streamed_region             &region,
   candidate.end_idx   = end_idx;
   candidate.role      = move_candidate::Role::structural_child;
   candidate.location  = std::move(child.location);
+  candidate.sequence_parent_id = std::move(child.sequence_context.parent_id);
+  candidate.sequence_sibling_ordinal = child.sequence_context.ordinal;
+  candidate.sequence_context_reliable = child.sequence_context.reliable;
   region.preferred_candidates.push_back(std::move(candidate));
 }
 
@@ -621,7 +636,18 @@ void consume_streamed_children(
     return;
   }
 
+  const std::string full_name = node.full_name();
+  const auto state = revision_membership_from_full_name(full_name);
+  const bool sequence_barrier = node.is_start() &&
+      (full_name.rfind("cpp:", 0) == 0 ||
+       (state && effective != revision_membership::both &&
+        effective != membership_for(region.kind)));
   for (streamed_child &child : region.children) {
+    // Even empty opposite-revision wrappers and preprocessor constructs make
+    // the projected child unsuitable for conservative sequence aggregation.
+    if (sequence_barrier) {
+      child.sequence_context.reliable = false;
+    }
     child.forms.consume(node);
     if (node.is_text() && node.content) {
       child.raw_text += *node.content;
@@ -655,6 +681,10 @@ void consume_streamed_children(
     child.type2_eligible = is_type2_eligible_name(node.name);
     child.location = snapshot_location_context(
         region.kind, region.filename, source_elements, ancestor_summaries, true);
+    if (!source_elements.empty()) {
+      const std::size_t side = region.kind == move_candidate::Kind::del ? 0 : 1;
+      child.sequence_context = source_elements.back().sequence_context[side];
+    }
     child.forms.consume(node);
     region.children.push_back(std::move(child));
     if (stats != nullptr) {
@@ -739,7 +769,10 @@ collect_candidates_streaming(srcml_reader                &reader,
   std::vector<streamed_region> regions;
   std::vector<std::size_t> open_regions;
   std::vector<revision_membership> revision_states;
+  std::size_t sequence_exclusive_depths[2] = {0, 0};
   std::vector<source_element_frame> source_elements;
+  std::size_t sequence_root_child_counts[2] = {0, 0};
+  std::size_t sequence_file_unit_id = 0;
   ancestor_summary_interner ancestor_summaries;
   // Independent collectors preserve declaration anchors inside mixed conditionals.
   // Restarting conditional capture at nested ifs bounds canonicalization work.
@@ -820,6 +853,10 @@ collect_candidates_streaming(srcml_reader                &reader,
     }
     if (node.is_start() && state) {
       revision_states.push_back(*state);
+      if (*state != revision_membership::both) {
+        ++sequence_exclusive_depths[*state == revision_membership::original_only
+                                        ? 0 : 1];
+      }
     }
 
     const revision_membership effective =
@@ -856,8 +893,42 @@ collect_candidates_streaming(srcml_reader                &reader,
     if (node.is_start() && source_element) {
       source_element_frame frame;
       frame.name = node.name;
+      frame.start_idx = node_index;
       frame.membership = revision_states.empty() ? revision_membership::both
                                                   : revision_states.back();
+      const bool cpp_element = full_name.rfind("cpp:", 0) == 0;
+      for (std::size_t side = 0; side < 2; ++side) {
+        const auto revision = side == 0 ? revision_membership::original_only
+                                        : revision_membership::modified_only;
+        const bool parent_present = source_elements.empty() ||
+                                    source_elements.back().sequence_present[side];
+        const bool parent_allowed = source_elements.empty() ||
+                                    source_elements.back().sequence_allowed[side];
+        frame.sequence_present[side] = parent_present &&
+            (effective == revision_membership::both || effective == revision);
+        frame.sequence_allowed[side] = frame.sequence_present[side] &&
+            parent_allowed && sequence_exclusive_depths[1 - side] == 0 &&
+            ignored_evidence_depth == 0 && !cpp_element;
+        if (frame.sequence_present[side] && ignored_evidence_depth == 0) {
+          auto &count = source_elements.empty()
+                            ? sequence_root_child_counts[side]
+                            : source_elements.back().sequence_child_counts[side];
+          // Every direct source element counts, even when it is common,
+          // filtered, or a directive. Only comments/whitespace disappear.
+          frame.sequence_context[side].ordinal = ++count;
+          if (frame.sequence_allowed[side] &&
+              is_preferred_child_candidate_name(node.name)) {
+            const auto parent_start = source_elements.empty()
+                                          ? sequence_file_unit_id
+                                          : source_elements.back().start_idx;
+            frame.sequence_context[side].parent_id = filename + ":" +
+                (side == 0 ? "original:" : "modified:") +
+                (source_elements.empty() ? "unit:" : "element:") +
+                std::to_string(parent_start);
+            frame.sequence_context[side].reliable = true;
+          }
+        }
+      }
       frame.semantic_container = is_semantic_container_name(node.name);
       if (frame.semantic_container) {
         frame.container_id = filename + ":" + std::to_string(node_index) +
@@ -872,6 +943,23 @@ collect_candidates_streaming(srcml_reader                &reader,
         }
       }
       source_elements.push_back(std::move(frame));
+    }
+    if (node.is_text() && node.content && ignored_evidence_depth == 0 &&
+        any_non_ws(*node.content)) {
+      // Unstructured source text between XML children is a barrier too;
+      // filtered macro text must not make two reported statements adjacent.
+      for (std::size_t side = 0; side < 2; ++side) {
+        const auto revision = side == 0 ? revision_membership::original_only
+                                        : revision_membership::modified_only;
+        if ((effective == revision_membership::both || effective == revision) &&
+            (source_elements.empty() ||
+             source_elements.back().sequence_present[side])) {
+          auto &count = source_elements.empty()
+                            ? sequence_root_child_counts[side]
+                            : source_elements.back().sequence_child_counts[side];
+          ++count;
+        }
+      }
     }
     if (node.is_text() && node.content && !source_elements.empty() &&
         source_elements.back().label_target) {
@@ -977,6 +1065,10 @@ collect_candidates_streaming(srcml_reader                &reader,
       source_elements.pop_back();
     }
     if (node.is_end() && state) {
+      if (*state != revision_membership::both) {
+        --sequence_exclusive_depths[*state == revision_membership::original_only
+                                        ? 0 : 1];
+      }
       revision_states.pop_back();
     }
     if (node.is_end() && ignored_evidence_container) {
@@ -1028,6 +1120,7 @@ collect_candidates_streaming(srcml_reader                &reader,
               "archive child file unit: expected unit@filename");
         }
         filename = *value;
+        sequence_file_unit_id = node_index;
         in_file = true;
       } else if (node.is_end()) {
         if (node.name != "unit") {
@@ -1062,6 +1155,8 @@ collect_candidates_streaming(srcml_reader                &reader,
             filename);
       }
       in_file = false;
+      sequence_root_child_counts[0] = 0;
+      sequence_root_child_counts[1] = 0;
       filename.clear();
       if (!archive) {
         document_done = true;

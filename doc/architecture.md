@@ -306,6 +306,46 @@ identifies this contract and is currently `2`. With `--results-only`, srcMove
 materializes that JSON evidence from candidate-owned XPaths and skips the
 second XML pass entirely.
 
+### Ordered move sequences
+
+After selection, [`move_sequences.cpp`](../src/move_sequences.cpp) aggregates
+selected unique one-to-one Type-1 structural-child reports into maximal ordered
+runs. Each run requires a fixed source file/parent and destination file/parent,
+immediate sibling adjacency in both revisions, and disjoint endpoint spans.
+The streaming collector counts all meaningful direct children, including common
+and filtered children. Diff wrappers, comments, and whitespace are transparent;
+preprocessor constructs, unstructured substantive text, and unreliable nested
+revision ownership prevent grouping. The metadata does not supply new
+relocation evidence.
+
+Results schema 2 adds `move_sequences` alongside `moves`. Each sequence records
+`policy: ordered_adjacent_v1`, `content_relationship: type1`, ordered
+`member_move_ids`, and `from`/`to` endpoint objects. Endpoints record
+`revision_file`, comparison-local `parent_id`, first/last child ordinals, and
+ordered `member_xpaths`. Sequence IDs use `sequence:` followed by the first
+member's move ID and have the same comparison-local scope as those IDs.
+The original move records, XML annotations, and summary count meanings are
+unchanged. `sequence_cluster_count` counts runs with at least two members;
+`sequence_reporting_unit_count` is the original group count minus
+the sum of `(member count - 1)` over those runs. Residual ambiguous groups each
+remain one reporting unit, without resolving their pairings. Neither count
+establishes the number of developer editing actions.
+
+Aggregation sorts and scans eligible selected links, with expected
+O(G + M log M) extra work for G result groups and M selected links, and O(M)
+index/output storage. It adds no similarity comparisons. The collector adds
+per-revision counters to its existing source stack and context to retained
+candidates. Key-string storage/comparison costs also depend on their lengths.
+This reporting stage cannot recover an unmatched edited statement or detect
+an entire method from a run of its interior statements. The History compact
+records and srcDiffVisual interface currently continue to use atomic groups;
+the new sequences are available in raw results JSON. See the
+[sequence plan](plans/adjacent_move_sequences.md) for proposed changed-sequence
+matching and the [semantic tests](../tests/unit/test_move_sequences.py) for
+implemented boundary checks.
+
+### Diagnostics
+
 `--diagnostics` is an opt-in results mode for algorithm review. Diagnostics
 schema version `4` records unique Type-1/Type-2c and verified Type-3 edge classifications,
 endpoint context independent of selection, retained candidates, and Type-3 shortlist

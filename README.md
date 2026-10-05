@@ -151,6 +151,10 @@ srcMove --version
   See [the reporting contract](doc/architecture.md#results-terminology) for
   classification limits and regeneration requirements. The top-level
   `results_schema_version` is currently `2`.
+  Additive `move_sequences` records group adjacent unique Type-1 moves that
+  preserve order on both sides. Existing move counts retain their meanings;
+  `sequence_reporting_unit_count` reports the grouped granularity. See
+  [ordered move sequences](doc/architecture.md#ordered-move-sequences).
 - `--results-only` writes the JSON result without reparsing and writing annotated
   XML. It requires `--results <file>` and does not accept an output XML path.
 - `--min-granularity statement|fragment` selects the minimum move unit.

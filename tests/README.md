@@ -34,6 +34,10 @@ python3 tests/regression/policy/list.py --catalog contextual
 
 ## Suites
 
+- [Ordered move sequence contracts](unit/test_move_sequences.py) run in the
+  `unit` suite. They check adjacency, reordering, filtered/common gaps,
+  preprocessor and revision-ownership barriers, explicit member links, and
+  ordinary/diagnostic/results-only agreement while preserving atomic annotations.
 - `unit`: core Python unit tests.
 - `bigmovebench`: focused tests under `bigMoveBench/tests/`; run explicitly
   with `make test-bigmovebench` and included by `make test-unit`.

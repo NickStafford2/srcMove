@@ -1,7 +1,8 @@
 # Adjacent moved sequences
 
-Status: proposed, October 5, 2026. No detector changes or experimental results
-are established by this plan. Code inspected at srcMove
+Status: Stage 1 implemented and verified, October 5, 2026, with the two known
+Type-3 edits-in-place failures retained.
+Stages 2a/2b remain proposed. The initial code inspection used srcMove
 `e04186d1946088ed682680346c5f5329cfe60d8f` (clean working tree at inspection).
 
 ## Objective and recommendation
@@ -174,13 +175,13 @@ the candidate registry.
 
 ### Output contract
 
-Use a separate sequence record, proposed shape:
+Implemented Stage 1 uses a separate sequence record:
 
 ```text
 sequence_id
 member_move_ids: [p, q, ...]       # explicit selected 1:1 links, in order
-from: {file, parent, members: [...ordered endpoints...]}
-to:   {file, parent, members: [...ordered endpoints...]}
+from: {revision_file, parent_id, first_child_ordinal, last_child_ordinal, member_xpaths}
+to:   {revision_file, parent_id, first_child_ordinal, last_child_ordinal, member_xpaths}
 content_relationship: type1
 policy: ordered_adjacent_v1
 ```
@@ -319,8 +320,9 @@ their separate policy fix; do not change their oracles to make checks green.
 Build/test in the Docker workspace using the parent wrapper and existing
 Makefile targets, e.g. `./bin/srcml-dev-shell make -C srcMove test-source` and
 `./bin/srcml-dev-shell make -C srcMove test-move-selection`; follow with the
-appropriate full checks after code changes. No build/tests were needed for
-this planning-only document.
+appropriate full checks after code changes. Current verification is recorded
+below; this document's proposed stages are not implemented merely because they
+appear in the plan.
 
 Measure baseline/candidate runtime and peak memory with the existing
 [performance runner](../../performance/README.md) over identical fixed XML.
@@ -373,8 +375,63 @@ inheriting Type-2c from member labels; unrestricted all-subrange/all-pair LCS;
 beam search before simpler windows have been evaluated; reducing counts as
 the success criterion.
 
-The next implementation task is Stage 1 only: establish the source/XML test
-oracles, add revision-specific direct-child metadata, implement strict chaining,
-then finalize additive sequence output and verify original report preservation.
-Stage 2 is a separate decision after those results, with caps and relocation
-policy made concrete before coding. User handles all Git staging/commits.
+Stage 1 adds revision-specific direct-child metadata and strict chaining after
+selection. The canonical implemented contract is now in
+[architecture](../architecture.md#ordered-move-sequences); existing History
+compact records and the browser do not display these sequences yet.
+Stage 2 remains a separate decision, with caps and relocation policy made
+concrete before coding. User handles all Git staging/commits.
+
+## Stage 1 verification record
+
+Implementation started from checkout `f48236f` on the user's current branch.
+A Docker baseline build produced executable SHA-256
+`4716608701992a1104a34c6dc1280cb290dea6aea9287aff714147296aad2561`.
+The baseline and candidate were run on all 41 existing XML fixtures and the
+saved OpenCV comparison 5 XML. All 42 original JSON payloads (excluding the
+three new top-level sequence fields) and annotated XML bytes were identical.
+The real five-declaration run formed one sequence with the exact ordered member
+IDs recorded in the source ledger. The comparison retains 71 atomic groups;
+its additive output contains 13 sequences and 40 sequence reporting units.
+Those are implementation observations, not revised historical ground truth.
+
+Fifteen new semantic tests pass in Docker, covering grouping, reordering, gaps,
+comments/whitespace, directives, raw text, nested opposite ownership, distinct
+parents/files, repeated groups, member identity, and output-mode agreement.
+Generated baseline/candidate artifacts, receipts, the preservation script and
+`preservation.json` are retained locally under the ignored
+`benchmark-results/adjacent-sequence-slice1-20261005/` directory. The original
+History snapshots and reviewed study were not changed.
+
+The standard `make test` run passed existing XML, source, and policy regressions,
+the C++ component checks, 134 BigMoveBench unit tests, 21 selection contracts,
+and nine performance-runner unit tests. It exposed an existing snapshot-test
+import error, fixed by using its package-qualified helper import. The complete
+core Python unit suite then passed all 231 tests. The move-selection unit suite
+retains its two documented `warp_in_place` failures (`affine_worker` and
+`affine_try`); their source oracles were not changed. The full suite therefore
+is not claimed to be entirely green.
+
+Four synthetic stress workloads (128/1,024 ordered and reversed declarations)
+preserved all atomic JSON/XML output. Ordered workloads formed one sequence;
+reversed workloads formed none. `stress-correctness.json` retains those checks.
+The existing performance runner compared the captured baseline and candidate
+with one warmup and six interleaved measured repetitions per workload, seed
+20261005, declared warm OS cache, annotated XML plus JSON and profiling enabled.
+The isolated development run produced these medians:
+
+| Workload | Baseline time (s) | Sequence time (s) | Baseline peak RSS (MiB) | Sequence peak RSS (MiB) |
+| --- | ---: | ---: | ---: | ---: |
+| OpenCV comparison 5 | 0.6961 | 0.6958 | 34.22 | 34.13 |
+| Ordered 128 declarations | 0.0613 | 0.0606 | 8.90 | 9.25 |
+| Ordered 1,024 declarations | 0.4341 | 0.4519 | 18.88 | 19.19 |
+| Reversed 1,024 declarations | 0.4650 | 0.4643 | 18.81 | 19.04 |
+
+All 48 measured attempts succeeded. These small development workloads do not
+establish general scaling or population performance. The isolated run is at
+`performance/performance/runs/isolated-baseline-v-sequence/` under the local
+verification directory above; its manifest, raw attempts, and summary identify
+binary hashes, schedules, resource measurements, and environment. An earlier
+run (`baseline-v-sequence`) overlapped correctness checks and is not the basis
+for this table. Candidate executable SHA-256 is
+`b7aa1d160210e64f9ff2d0f34a038b243e0d3dbd240ddbe37879d25204df8fbf`.

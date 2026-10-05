@@ -8,7 +8,7 @@ import shutil
 import unittest
 import zipfile
 
-from test_srcmove_history_analysis import AnalyzeRepositoryTests, executable
+from tests.unit.srcmove_history.test_srcmove_history_analysis import AnalyzeRepositoryTests, executable
 from srcmove_history.analysis import AnalysisTarget, analyze_repository
 from srcmove_history.configuration import HistoryConfiguration, create_history_configuration
 from srcmove_history.inputs import AnalysisConfiguration

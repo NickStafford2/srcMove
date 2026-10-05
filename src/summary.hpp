@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "move_registry/selection_diagnostics.hpp"
+#include "move_sequences.hpp"
 
 namespace srcmove {
 
@@ -45,6 +46,10 @@ struct summary {
   std::size_t             move_group_count = 0;
   std::size_t             move_pair_count = 0;
   std::vector<move_entry> moves;
+  // Additive sequence reporting; original moves/counts retain their meanings.
+  std::vector<move_sequence> move_sequences;
+  std::size_t sequence_cluster_count = 0;
+  std::size_t sequence_reporting_unit_count = 0;
 
   std::size_t annotated_regions = 0; // Backward-compatible alias for annotated_region_count.
   std::size_t annotated_region_count = 0;

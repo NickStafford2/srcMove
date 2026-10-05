@@ -55,6 +55,12 @@ public:
   std::size_t diff_region_end_idx;
   std::string structural_parent_key;
   std::size_t structural_parent_depth = 0;
+  // Revision-projected direct source siblings, independent of candidate
+  // filtering. Diff wrappers, comments, and whitespace are transparent;
+  // preprocessor children consume ordinals as sequence barriers.
+  std::string sequence_parent_id;
+  std::size_t sequence_sibling_ordinal = 0;
+  bool sequence_context_reliable = false;
   endpoint_location_context location;
   std::string raw_text;             // exact region inner text, for debug
   std::string canonical_text;       // normalized subtree identity, for matching

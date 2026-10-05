@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "move_candidate.hpp"
+#include "move_sequences.hpp"
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/content_group_builder.hpp"
 #include "move_registry/content_groups.hpp"
@@ -223,6 +224,12 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     result.moves                  = std::move(moves);
     result.move_group_count       = result.moves.size();
     result.move_count             = result.move_group_count;
+    result.move_sequences = build_move_sequences(registry, groups, result.moves);
+    result.sequence_cluster_count = result.move_sequences.size();
+    result.sequence_reporting_unit_count = result.move_group_count;
+    for (const move_sequence &sequence : result.move_sequences) {
+      result.sequence_reporting_unit_count -= sequence.member_move_ids.size() - 1;
+    }
     result.move_pair_count        = estimate_move_pairs(result.moves);
     result.annotated_region_count = count_annotated_regions(result.moves);
     result.annotated_regions      = result.annotated_region_count;
