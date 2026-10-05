@@ -1110,6 +1110,61 @@ build_type3_edges(const candidate_registry         &registry,
   return edges;
 }
 
+void collect_type2b_diagnostics(const candidate_registry &registry,
+                               selection_diagnostics &diagnostics) {
+  struct blind_group {
+    type2b_group_diagnostic observation;
+    // Count stronger consistent identities without expanding a Cartesian product.
+    std::unordered_map<std::string, std::pair<std::size_t, std::size_t>> consistent;
+  };
+  std::unordered_map<std::string, blind_group> buckets;
+  for (candidate_id id = 0; id < registry.total_record_count(); ++id) {
+    if (!registry.is_active(id)) continue;
+    const auto &candidate = registry.candidate(id);
+    if (!candidate.type2_eligible || candidate.type2b_canonical_text.empty()) continue;
+    std::string key = candidate.full_name;
+    key.push_back('\0');
+    key += candidate.type2b_canonical_text;
+    auto &group = buckets[key];
+    auto &counts = group.consistent[candidate.type2_canonical_text];
+    if (candidate.kind == move_candidate::Kind::del) {
+      group.observation.delete_candidate_ids.push_back(id);
+      ++counts.first;
+    } else {
+      group.observation.insert_candidate_ids.push_back(id);
+      ++counts.second;
+    }
+  }
+  for (auto &entry : buckets) {
+    auto &group = entry.second;
+    auto &observation = group.observation;
+    const auto inserts = observation.insert_candidate_ids.size();
+    if (observation.delete_candidate_ids.empty() || inserts == 0) continue;
+    for (const auto &identity : group.consistent) {
+      observation.blind_only_pair_count +=
+          identity.second.first * (inserts - identity.second.second);
+    }
+    // Pure exact/consistent groups add no blind-only correspondence evidence.
+    if (observation.blind_only_pair_count == 0) continue;
+    if (observation.delete_candidate_ids.size() == 1 && inserts == 1) {
+      const auto &deleted = registry.candidate(observation.delete_candidate_ids[0]);
+      const auto &inserted = registry.candidate(observation.insert_candidate_ids[0]);
+      const auto classification = classify_movement(
+          deleted.location, ancestor_summary(registry, deleted),
+          inserted.location, ancestor_summary(registry, inserted));
+      observation.location_change = std::string(to_string(classification.change_kind));
+      observation.location_reason = std::string(to_string(classification.reason));
+    }
+    diagnostics.type2b_groups.push_back(std::move(observation));
+  }
+  std::sort(diagnostics.type2b_groups.begin(), diagnostics.type2b_groups.end(),
+            [](const auto &a, const auto &b) {
+              if (a.delete_candidate_ids != b.delete_candidate_ids)
+                return a.delete_candidate_ids < b.delete_candidate_ids;
+              return a.insert_candidate_ids < b.insert_candidate_ids;
+            });
+}
+
 void add_unmatched_exact_groups(content_groups                   &out,
                                 const candidate_registry         &registry,
                                 const std::vector<pending_group> &exact_groups,
@@ -1245,6 +1300,13 @@ content_groups build_content_groups(const candidate_registry &registry,
   }
 
   if (diagnostics != nullptr) {
+    {
+      scoped_profile_timer timer(profile, "content_groups.type2b_diagnostics");
+      collect_type2b_diagnostics(registry, *diagnostics);
+      if (profile != nullptr)
+        profile->add_counter("content_groups.type2b_groups_observed",
+                             diagnostics->type2b_groups.size());
+    }
     // Observe every verified edge, including selection losers. Degrees describe
     // competing partners, not transitive equivalence classes or accepted identity.
     std::vector<std::size_t> partner_counts(registry.total_record_count(), 0);

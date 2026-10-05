@@ -294,6 +294,7 @@ using stream_clock = std::chrono::steady_clock;
 // remains available for focused tests and callers that need captured XML.
 
 struct streamed_child {
+  explicit streamed_child(bool collect_type2b = false) : forms(collect_type2b) {}
   canonical_forms_builder forms;
   std::string              raw_text;
   std::string              xpath;
@@ -600,6 +601,7 @@ void finish_streamed_child(streamed_region             &region,
       std::move(forms.exact), std::move(forms.type2_canonical),
       std::move(forms.normalized_lines), std::move(forms.normalized_tokens),
       child.type2_eligible);
+  candidate.type2b_canonical_text = std::move(forms.type2b_canonical);
   candidate.xpath     = std::move(child.xpath);
   candidate.full_name = std::move(child.full_name);
   candidate.end_idx   = end_idx;
@@ -644,7 +646,8 @@ void consume_streamed_children(
   }
 
   if (node.is_start() && is_preferred_child_candidate_name(node.name)) {
-    streamed_child child;
+    streamed_child child(opt.collect_type2b_diagnostics &&
+                         is_type2_eligible_name(node.name));
     child.xpath          = streaming_xpath(reader, stats);
     child.full_name      = node.full_name();
     child.start_idx      = node_index;

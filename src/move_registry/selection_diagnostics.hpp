@@ -20,6 +20,16 @@ struct candidate_diagnostic {
   std::size_t token_units = 0;
 };
 
+// A blind equivalence group is an observation, never a production proposal.
+// Endpoint lists may contain consistent pairs; the count excludes those pairs.
+struct type2b_group_diagnostic {
+  std::vector<std::size_t> delete_candidate_ids;
+  std::vector<std::size_t> insert_candidate_ids;
+  std::size_t blind_only_pair_count = 0;
+  std::string location_change; // populated only for a unique blind-only pair
+  std::string location_reason;
+};
+
 struct type3_pair_diagnostic {
   std::size_t del_candidate_id = 0;
   std::size_t ins_candidate_id = 0;
@@ -65,6 +75,7 @@ struct correspondence_diagnostic {
 struct selection_diagnostics {
   std::vector<candidate_diagnostic> candidates;
   std::vector<type3_pair_diagnostic> type3_pairs;
+  std::vector<type2b_group_diagnostic> type2b_groups;
   std::vector<correspondence_diagnostic> correspondences;
 };
 

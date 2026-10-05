@@ -154,9 +154,9 @@ srcMove --version
 - `--min-granularity statement|fragment` selects the minimum move unit.
   `statement` is the default; `fragment` enables low-level diff fragments for
   specialized analysis.
-- `--diagnostics` adds unique Type-1 classified correspondences, retained-candidate
-  evidence, and Type-3 comparison evidence to the results JSON. Its nested
-  diagnostics schema is version `2`; it requires `--results <file>`.
+- `--diagnostics` adds correspondence, candidate, Type-3 retrieval, and
+  observation-only Type-2b diagnostics to `--results <file>`. See the
+  [diagnostics contract](doc/architecture.md#observation-only-type-2b-retrieval).
 - `--profile` writes coarse `profile.<stage>_ms=<milliseconds>` timings to
   standard error.
 - `-v` and `--verbose` print selected move-match diagnostics to standard output.

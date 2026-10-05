@@ -13,7 +13,7 @@ namespace srcmove {
 
 struct captured_srcml_node;
 
-enum class identifier_normalization { none, consistent };
+enum class identifier_normalization { none, consistent, blind };
 
 struct canonical_options {
   bool ignore_diff_ws              = true;
@@ -28,13 +28,14 @@ struct canonical_options {
 struct canonical_forms {
   std::string                exact;
   std::string                type2_canonical;
+  std::string                type2b_canonical; // diagnostics only
   std::vector<std::uint64_t> normalized_lines;
   std::vector<std::uint64_t> normalized_tokens;
 };
 
 class canonical_forms_builder {
 public:
-  canonical_forms_builder();
+  explicit canonical_forms_builder(bool collect_type2b = false);
   ~canonical_forms_builder();
 
   canonical_forms_builder(canonical_forms_builder &&) noexcept;

@@ -58,6 +58,7 @@ public:
   endpoint_location_context location;
   std::string raw_text;             // exact region inner text, for debug
   std::string canonical_text;       // normalized subtree identity, for matching
+  std::string type2b_canonical_text; // populated only for CLI diagnostics
   std::string type2_canonical_text; // compact, consistently normalized identity
   std::vector<std::uint64_t> type2_normalized_lines; // cached Type-3 sequence
   std::vector<std::uint64_t> type3_normalized_tokens; // consistent name tokens

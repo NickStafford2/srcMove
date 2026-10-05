@@ -33,6 +33,7 @@ enum class minimum_move_granularity {
 struct region_filter_options {
   region_filter_policy policy = region_filter_policy::revision_aware;
   // Common practical filters:
+  bool        collect_type2b_diagnostics = false;
   bool        drop_whitespace_only = true;
   bool        skip_pre_marked      = false;
   bool        expand_structural_children = true;

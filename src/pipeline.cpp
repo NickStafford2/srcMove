@@ -171,6 +171,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     srcml_reader          reader(srcdiff_in_filename);
     region_filter_options filter_options = get_default_filter_options();
     filter_options.min_granularity = options.min_granularity;
+    filter_options.collect_type2b_diagnostics = options.diagnostics;
     candidate_collection collection =
         collect_candidates_streaming(reader, filter_options, profile);
     candidates = std::move(collection.candidates);

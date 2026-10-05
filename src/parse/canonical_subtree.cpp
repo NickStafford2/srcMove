@@ -259,6 +259,10 @@ private:
       if (collect_output) {
         out += normalized_text;
       }
+    } else if (opt.identifiers == identifier_normalization::blind &&
+               normalizable_name) {
+      normalized_text = "$name";
+      if (collect_output) out += normalized_text;
     } else if (opt.normalize_literals && literal_depth > 0) {
       literal_value_emitted = true;
       normalized_text = current_literal_category == "$number"
@@ -304,11 +308,17 @@ private:
 } // namespace
 
 struct canonical_forms_builder::implementation {
-  implementation()
+  explicit implementation(bool collect_type2b)
       : exact(exact_options, true), normalized(normalized_options(), false,
                                                &forms.normalized_lines,
                                                &forms.normalized_tokens),
-        lexical(lexical_options(), true) {}
+        lexical(lexical_options(), true) {
+    if (collect_type2b) {
+      auto options = lexical_options();
+      options.identifiers = identifier_normalization::blind;
+      blind = std::make_unique<canonical_builder>(options, true);
+    }
+  }
 
   static canonical_options normalized_options() {
     canonical_options options;
@@ -327,13 +337,14 @@ struct canonical_forms_builder::implementation {
 
   canonical_options exact_options;
   canonical_forms   forms;
+  std::unique_ptr<canonical_builder> blind;
   canonical_builder exact;
   canonical_builder normalized;
   canonical_builder lexical;
 };
 
-canonical_forms_builder::canonical_forms_builder()
-    : impl(std::make_unique<implementation>()) {}
+canonical_forms_builder::canonical_forms_builder(bool collect_type2b)
+    : impl(std::make_unique<implementation>(collect_type2b)) {}
 
 canonical_forms_builder::~canonical_forms_builder() = default;
 
@@ -348,12 +359,14 @@ void canonical_forms_builder::consume(const srcml_node &node) {
   impl->exact.consume(node, full_name);
   impl->normalized.consume(node, full_name);
   impl->lexical.consume(node, full_name);
+  if (impl->blind) impl->blind->consume(node, full_name);
 }
 
 canonical_forms canonical_forms_builder::finish() {
   impl->forms.exact = impl->exact.finish();
   (void)impl->normalized.finish();
   impl->forms.type2_canonical = impl->lexical.finish();
+  if (impl->blind) impl->forms.type2b_canonical = impl->blind->finish();
   return std::move(impl->forms);
 }
 

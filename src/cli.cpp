@@ -29,8 +29,8 @@ std::string build_help(const std::string &progname) {
   out << "  --results-only        Write JSON without annotated XML; requires"
          " --results and no out.xml\n";
   out << "  --profile              Write coarse timing data to stderr\n";
-  out << "  --diagnostics          Include correspondence, candidate, and Type-3"
-         " decision evidence in results JSON\n";
+  out << "  --diagnostics          Include correspondence, candidate, Type-3, and"
+         " observation-only Type-2b evidence in results JSON\n";
   out << "  --min-granularity <statement|fragment>\n";
   out << "                         Minimum move unit (default: statement)\n";
   out << "  -v, --verbose          Print move-match debug output to stdout\n";

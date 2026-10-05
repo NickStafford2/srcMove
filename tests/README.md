@@ -47,7 +47,9 @@ python3 tests/regression/policy/list.py --catalog contextual
   production disposition. Unique Type-1 output uses this oracle: only supported
   relocations are moves. A separate Type-2c catalog checks classification and
   production disposition, equivalent ordinary/diagnostic/results-only output,
-  repeated-group guards, and edited-parent child movement. Type-2c reservation
+  repeated-group guards, and edited-parent child movement. Type-2b diagnostics
+  check blind-only evidence, mixed/repeated ambiguity, syntax guards, and
+  ordinary/diagnostic/results-only equivalence. Type-2c reservation
   controls protect both endpoint directions from alternate Type-3 matching;
   normalization contracts retain ten ambiguous correspondences from nine XML
   fixtures. Type-3 contracts check observation-only location decisions, verified

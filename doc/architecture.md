@@ -318,6 +318,46 @@ Container-local anchor intervals are `different`, not crossed, when their
 mapped containers differ. Diagnostics require `--results` and are not emitted
 during ordinary runs.
 
+### Observation-only Type-2b retrieval
+
+Only `--diagnostics` enables a second lexical identity for Type-2b review.
+Eligible structural candidates use the same literal categories, candidate kind,
+comment/formatting exclusions, operators, and retained empty statements as
+Type-2c, but every direct srcML `<name>` token becomes the same `$name` token.
+Repeated-name patterns therefore need not agree. This is srcMove's blind
+identifier normalization, not a claim of full BigCloneBench equivalence.
+Ordinary runs do not construct this identity or retrieve blind groups.
+
+`diagnostics.type2b_groups` is an additive array in diagnostics schema `4`:
+
+- `correspondence_kind`: `"type2b"`
+- `observation_only`: `true`
+- `delete_candidate_ids` and `insert_candidate_ids`: sorted references to
+  `diagnostics.candidates`, which retain each endpoint's XPath and raw text
+- `cardinality`: `"one_to_one"` for a unique blind group, otherwise `"ambiguous"`
+- `blind_only_pair_count`: the number of delete/insert combinations in the group
+  whose Type-2c identities differ; it is not a selected-move count
+- `location_change` and `location_reason`: existing location-classifier output
+  for unique blind-only pairs; omitted for ambiguous groups
+
+Only groups with a nonzero blind-only pair count are retained. A mixed group
+can include endpoints that also form exact or Type-2c pairs; its count excludes
+those stronger pairs. Retrieval observes all active Type-2c-eligible structural
+candidates, including endpoints already selected or reserved by production.
+It does not choose partners, reserve endpoints, build selection proposals, or
+change Type-3 retrieval. Grouping and counting avoid expanding the full pair
+product, and groups are sorted deterministically by endpoint IDs. With
+`--profile`, diagnostic runs additionally emit
+`profile.content_groups.type2b_diagnostics_ms` and
+`profile.content_groups.type2b_groups_observed`.
+
+Type-2b is absent from production `moves[].match_kind`, `match_kinds`, and XML
+annotations. Existing correspondence records remain unchanged; the new groups
+live in their own array. Diagnostic and results-only modes preserve ordinary
+results and selected XML annotations.
+
+### Type-3 correspondence diagnostics
+
 Type-3 location decisions are observation-only, computed once per verified edge
 when diagnostics are requested, after production selection. Selected and rejected
 edges are both retained; below-threshold pairs remain shortlist observations and
@@ -340,7 +380,8 @@ not selected, not that it was established as stationary.
 The consistent identifier-renaming category is emitted as `type2c` (Type-2c),
 previously named `type2`. This is a terminology change: normalization, candidate
 eligibility, precedence, correspondence, and selection are unchanged. No
-`type2b` category is emitted. Identifier consistency is lexical within each
+`type2b` production match category is emitted; blind observations are described
+above. Identifier consistency is lexical within each
 candidate: first-occurrence numbering preserves repeated-name patterns and
 distinguishes different direct srcML `<name>` tokens; it does not resolve name
 bindings. Literal-category normalization and the other rules above are

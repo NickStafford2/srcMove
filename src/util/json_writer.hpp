@@ -127,6 +127,39 @@ inline void write_selection_diagnostics(std::ostream &out,
     out << "\n";
   }
   out << "    ],\n";
+  out << "    \"type2b_groups\": [\n";
+  for (std::size_t index = 0; index < diagnostics.type2b_groups.size(); ++index) {
+    const auto &group = diagnostics.type2b_groups[index];
+    const auto write_ids = [&](const std::vector<std::size_t> &ids) {
+      out << "[";
+      for (std::size_t i = 0; i < ids.size(); ++i) {
+        if (i != 0) out << ", ";
+        out << ids[i];
+      }
+      out << "]";
+    };
+    out << "      {\n        \"correspondence_kind\": \"type2b\",\n";
+    out << "        \"observation_only\": true,\n";
+    out << "        \"cardinality\": ";
+    write_string(out, group.delete_candidate_ids.size() == 1 &&
+                          group.insert_candidate_ids.size() == 1
+                          ? "one_to_one" : "ambiguous");
+    out << ",\n        \"delete_candidate_ids\": ";
+    write_ids(group.delete_candidate_ids);
+    out << ",\n        \"insert_candidate_ids\": ";
+    write_ids(group.insert_candidate_ids);
+    out << ",\n        \"blind_only_pair_count\": " << group.blind_only_pair_count;
+    if (!group.location_change.empty()) {
+      out << ",\n        \"location_change\": ";
+      write_string(out, group.location_change);
+      out << ",\n        \"location_reason\": ";
+      write_string(out, group.location_reason);
+    }
+    out << "\n      }";
+    if (index + 1 < diagnostics.type2b_groups.size()) out << ",";
+    out << "\n";
+  }
+  out << "    ],\n";
   out << "    \"type3_pairs\": [\n";
   for (std::size_t index = 0; index < diagnostics.type3_pairs.size(); ++index) {
     const type3_pair_diagnostic &pair = diagnostics.type3_pairs[index];
