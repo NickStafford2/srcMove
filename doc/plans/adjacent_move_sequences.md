@@ -58,7 +58,41 @@ Verified code boundaries:
   [`pipeline.cpp`](../../src/pipeline.cpp) count existing reported groups,
   estimated pairs, and annotated candidate endpoints separately.
 
-### The screenshot is a reordered sequence
+### Primary History example: five consecutive declarations
+
+OpenCV History comparison 5 in the retained October 5 snapshot provides a
+cleaner motivating case than the supplied screenshot. `JacobiSVDImpl_`
+transfers from `modules/core/src/lapack.cpp` to
+`modules/core/src/lapack.simd.hpp`. The start of its body contains:
+
+```cpp
+VBLAS<_Tp> vblas;
+AutoBuffer<double> Wbuf(n);
+double* W = Wbuf.data();
+int i, j, k, iter, max_iter = std::max(m, 30);
+_Tp c, s;
+```
+
+The saved results report these as five unique one-to-one Type-1 groups.
+Inspection of the saved srcDiff XML confirms they are consecutive direct
+children of one `block_content` on each side, in the same order, with only
+whitespace elements between them. There is no whole-`JacobiSVDImpl_` report.
+This run is a concrete positive oracle for Stage 1: one ordered aggregate
+retaining five links. It is not an experimental result for the proposed code.
+
+The following `double sd;` declaration has no selected report and must stop
+Stage 1 from extending through it. Later exact statements cannot be joined by
+pretending that the omitted declaration does not exist. Other parts of the
+function differ, but the reason it was not selected as a whole has not been
+diagnosed; do not attribute that outcome to the Type-3 threshold without
+candidate and proposal evidence.
+
+Snapshot, commit, group, XPath, and checksum locators are recorded in the
+[source ledger](../../../thesis-workspace/references/source-ledger.md#opencv-adjacent-declaration-sequence-inspected-2026-10-05).
+This is an AI inspection of retained output/source representation, not human
+validation or an estimate of how frequently sequences are fragmented.
+
+### Secondary counterexample: the screenshot is reordered
 
 The supplied screenshot shows:
 
@@ -256,6 +290,7 @@ presence or a lower total count.
 | Case | Required outcome |
 | --- | --- |
 | Two/three unchanged adjacent statements transfer, same order | One ordered aggregate; individual links retained |
+| OpenCV History pair 5: five initial `JacobiSVDImpl_` declarations | One aggregate of five links; stop before unreported `double sd;` |
 | Half a block transfers; whole block unavailable/below similarity | Sequence represented without claiming whole-block detection |
 | Screenshot permutation `A B C` → `C A B` | Aggregate `A B`, singleton `C`; no whole-run Type-1 |
 | Adjacent source members go to separate functions/files | Separate reports |
