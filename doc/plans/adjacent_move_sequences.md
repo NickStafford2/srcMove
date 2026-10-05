@@ -26,6 +26,83 @@ This narrowly scoped plan extends the broader
 [move-detection redesign](move_detection_redesign.md). Location eligibility
 remains governed by the [correspondence plan](correspondence.md).
 
+## Recommended next slice: one reported Type-1 move per ordered run
+
+Proposed October 5, 2026; not implemented. The user's intended outcome is one
+larger Type-1 move for an unchanged contiguous run, rather than a primary list
+of its individual moves. Stage 1 supplies the conservative grouping evidence;
+its additive sequence records are an intermediate representation.
+
+Recommend a srcMove-owned reporting projection after selection: replace each
+qualifying run with one compound Type-1 report in the primary reporting view,
+and keep each ungrouped selected move as one report. Retain the atomic selected
+matches underneath for provenance, exact member correspondence, and expansion.
+History and srcDiffVisual should consume that projection, rather than inventing
+their own grouping. This gives one larger reported move without changing which
+matches the detector selects or introducing window search.
+
+For example, an unchanged ordered transfer of `A; B; C;` reports one Type-1
+move with one source endpoint covering the three siblings and one destination
+endpoint covering their counterparts. Member links remain A→A, B→B, C→C.
+It is a sequence endpoint, not an invented enclosing AST block. An unmatched
+statement, meaningful intervening child, different parent, or reordered member
+continues to stop aggregation under the existing conservative rules.
+
+Represent this as a distinct report kind (for example `ordered_sequence`) with
+`content_relationship: type1`, an ordered endpoint on each side, and member
+references. The internal report kind need not appear in the primary UI label:
+the viewer can say “Type 1” and highlight the complete run, with optional member
+expansion. Do not flatten its members into an existing content-equivalence
+group, whose endpoint sets imply possible partners across those sets.
+
+Use the existing `sequence_reporting_unit_count` as the basis for the primary
+report count, and expose the atomic group count separately with an explicit
+label. This is a count of reported relocation units, not developer actions.
+Keep whole-method benchmark coverage separate: an interior sequence does not
+become a detection of its enclosing method.
+
+### Alternatives and tradeoffs
+
+| Option | Assessment |
+| --- | --- |
+| Display a sequence alongside all its members as primary moves | Preserves compatibility, but leaves the user's counting and presentation problem unresolved. Keep this only as a diagnostic view. |
+| Emit one compound report, retaining atomic matches internally | Recommended next slice. Uses existing evidence, provides the intended count and appearance, and avoids changing selection. Requires an explicit consumer/output contract. |
+| Flatten different statements into an existing equivalence group | Reject: can imply incorrect cross-member partner links. |
+| Detect whole sequence candidates before selection | Potential later recall improvement. Can recover unmatched/renamed interior code, but changes detection and requires competition, bounds, and renewed evaluation. Not necessary merely to report existing runs once. |
+
+### Questions for independent review
+
+The recommendation is firm at the behavioral level; the serialized contract
+and aggregate classification proof still need review before implementation:
+
+1. Confirm that ordered member Type-1 equality plus reliable, barrier-free
+   adjacency implies whole-endpoint Type-1 equality under srcMove's canonical
+   representation. Check inter-member text and XML context, not just member
+   labels. If that implication has exceptions, require a bounded linear
+   whole-endpoint equality check before promoting a run to a Type-1 report;
+   preserve atomic fallback when it fails.
+2. Choose an explicit output migration. A compatible candidate is a new
+   primary `reported_moves` collection while preserving legacy `moves` as
+   atomic evidence; replacing the semantics of `moves` requires a deliberate
+   schema migration. Decide the exact names/version boundary before coding.
+   Do not leave consumers to guess whether both collections should be counted.
+3. Decide how ordered endpoints expose source spans, member XPaths, and XML
+   annotations. Preserve original partner links and avoid wrapping siblings in
+   a synthetic AST node. A single displayed span must not imply detection of
+   the enclosing block or silently include an intervening unmatched statement.
+4. Verify that reported units partition selected groups exactly once, that
+   compound endpoints have equal ordered canonical content, and that gaps,
+   repeats, barriers, and permutations retain the expected smaller reports.
+   Check normal/diagnostic/results-only output and History/API/export/UI count
+   agreement. Add focused consumer compatibility tests; retain detector
+   preservation checks rather than changing benchmark oracles to reward grouping.
+
+Review scope: settle reporting semantics first. Stage 2a/2b remain deferred;
+this recommendation does not authorize their implementation. No new matching
+search is required. Projection is linear in member references once Stage 1
+has built the runs; any aggregate equality verification must also account for
+the total canonical content processed and avoid all-pairs comparisons.
+
 ## Evidence and problem boundary
 
 The author's working draft is in `thesis-workspace/thesis-draft-final/`; the
