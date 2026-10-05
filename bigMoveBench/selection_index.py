@@ -183,6 +183,74 @@ def sample_frames(compiled, index_path: Path, *, seed: int, per_category: int = 
     return frames, metadata
 
 
+def sample_allocations(compiled, index_path: Path, *, seed: int, allocations):
+    """Explicit census/sample quotas; no fallback, replacement, or redistribution.
+
+    Unlike standard frozen profiles this API permits different category sizes.
+    All shortages/census assertions are checked before retrieving any frames.
+    Only selected identities and their complete contributors are read.
+    """
+    frames = {category: [] for category in CATEGORIES}
+    allocation_keys = [(a['category'], a['band']) for a in allocations]
+    if len(set(allocation_keys)) != len(allocation_keys):
+        raise ValueError('duplicate category/band allocation')
+    with closing(open_index(compiled, index_path)) as index, closing(_catalog_connection(compiled)) as source:
+        counts = {(cat, band): (n, rows, sources) for cat, band, n, rows, sources in
+                  index.execute('SELECT * FROM counts ORDER BY category,band')}
+        if set(allocation_keys) != set(counts):
+            raise ValueError('explicit plan must cover every indexed category/band exactly once')
+        for allocation in allocations:
+            cat, band = allocation['category'], allocation['band']
+            n = counts[cat, band][0]
+            quota = allocation['count']
+            if type(quota) is not int or quota <= 0 or allocation['mode'] not in ('census', 'sample'):
+                raise ValueError(f'invalid allocation for {cat}/{band}')
+            if allocation['mode'] == 'census' and n != quota:
+                raise ValueError(f'unexpected census population for {cat}/{band}: {n} != {quota}')
+            if n < quota:
+                raise ValueError(f'insufficient indexed frames for {cat}/{band}: {n} < {quota}')
+        metadata = []
+        for allocation in allocations:
+            cat, band = allocation['category'], allocation['band']
+            n, catalog_rows, source_rows = counts[cat, band]
+            seed_bytes = canonical_json({'algorithm': ALGORITHM, 'seed': seed, 'category': cat, 'band': band})
+            positions = (list(range(n)) if allocation['mode'] == 'census' else
+                         random.Random(seed_bytes).sample(range(n), allocation['count']))
+            identifiers = []
+            for position in positions:
+                row = index.execute(LOOKUP_SQL, (cat, band, position)).fetchone()
+                if row is None:
+                    raise ValueError(f'missing dense position {cat}/{band}/{position}')
+                identifiers.append(row[0])
+            if len(set(identifiers)) != len(identifiers):
+                raise ValueError('duplicate selected content identity')
+            by_id = {}
+            for key, rows in _row_groups_for_identifiers(source, cat, 'exact-unordered-fragment-pair', identifiers):
+                expected = [r[0] for r in index.execute(
+                    'SELECT pair_id FROM contributors WHERE category=? AND frame_id=? ORDER BY pair_id', (cat, key))]
+                if expected != sorted(r['pair_id'] for r in rows):
+                    raise ValueError(f'catalog contributors differ from index for {key}')
+                frame = _frame(key, rows, 'exact-unordered-fragment-pair')
+                expected_counts = index.execute(
+                    'SELECT catalog_rows,source_rows FROM frames WHERE category=? AND frame_id=?', (cat, key)).fetchone()
+                if expected_counts != (frame['catalog_row_count'], frame['source_row_multiplicity']):
+                    raise ValueError(f'catalog multiplicity differs from index for {key}')
+                if cat == 'type3':
+                    strength = min(min(r['similarity_line'], r['similarity_token']) for r in rows)
+                    if type3_stratum(strength) != band:
+                        raise ValueError(f'catalog strength band differs from index for {key}')
+                by_id[key] = frame
+            if set(by_id) != set(identifiers):
+                raise ValueError(f'selected identities unavailable in catalog for {cat}/{band}')
+            # Artifact/execution order is stable, independent of random.sample return order.
+            frames[cat].extend(by_id[key] for key in sorted(identifiers))
+            metadata.append({**allocation, 'population_frames': n,
+                             'population_catalog_rows': catalog_rows, 'population_source_rows': source_rows,
+                             'seed_bytes_utf8': seed_bytes.decode() if allocation['mode'] == 'sample' else None,
+                             'selected_positions_in_draw_order': positions})
+    return frames, metadata
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('dataset')

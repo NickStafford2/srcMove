@@ -148,3 +148,96 @@ for about 84% of that phase. The entire persistence phase was only 7.9% of
 measured case wall time, so eliminating it completely would cap the observed
 single-worker speedup near 1.09x. This is operational profiling evidence, not a
 scientific benchmark result or a justification for changing recovery semantics.
+
+## Explicit thesis experiment
+
+[`thesis_experiment.py`](../thesis_experiment.py) prepares the mixed census/sample
+plan in [`thesis_experiment.json`](../thesis_experiment.json). This is a separate
+entry point from the standard frozen small/medium profiles. It uses the existing
+selection companion and canonical contributor hydration, direction, case
+publisher, serial runner, and scoring oracles. It does not change frozen files
+or detector behavior.
+
+From the parent workspace root:
+
+```bash
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/thesis_experiment.py prepare
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/thesis_experiment.py verify <experiment-id>
+# This last command runs the complete evaluation; preparation never does:
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/thesis_experiment.py execute <experiment-id>
+```
+
+Preparation binds the verified Chapter 6 audit to the recorded dataset/index
+identity, asserts the three census counts, and checks every sample quota before
+hydration. Each sampled category/band uses the companion's
+`python-random-sample-dense-positions-v1` procedure with seed 20261005. The request
+records the exact canonical seed bytes, Python runtime/backend hashes, position
+order and draw positions. Serialization and execution follow configuration band
+order, then ascending frame IDs in each band. Census strata use all dense
+positions without consulting the RNG. No replacement, quota redistribution,
+substitution, or outcome-based filtering is allowed.
+
+The publication contains five immutable selection manifests and five normalized
+case collections, bound by an explicitly designated experiment manifest under
+`benchmark-results/bigMoveBench/thesis-preparations/<experiment-id>/`. The
+manifest freezes the configuration, correction snapshot, constructor and oracle
+versions, Python source hashes, actual pair/case/fragment/functionality coverage,
+and development-profile overlap. Selected contributors retain raw labels and
+multiplicity, plus reverse-row provenance. Complete content-conflict evidence is
+retained; sampling exclusions use the complement of recorded dense positions
+instead of expanding millions of excluded frames. The current audited dataset
+has no unavailable source rows; the CLI rejects an audit that reports any.
+
+Final preparation also requires a passing validation record for the exact Python
+sources/runtime (`--validation-record`, defaulting to the retained 2026-10-05
+validation JSON). It copies that record into the immutable publication. The
+record distinguishes focused unit/regression tests and the eight-case actual
+binary fixture smoke from final experiment evidence. Reproducing preparation
+can reuse this record while its source/runtime hashes still match.
+
+Preparation hashes the catalog and companion once. Verification/restart use
+canonical dataset identity checks, companion size/mtime, and complete hashes and
+inventories for selected artifacts and generated objects; they do not repeatedly
+hash the full source catalog. All prepared serial input/metadata contracts are
+checked without running detectors. Selection and experiment files are published
+through new content-addressed directories, refuse replacement, and are made
+read-only. Normalized case collections retain the canonical publisher's
+identity and checksum policy.
+
+The execution command verifies the frozen Python source/runtime and input
+contracts before running every member with the frozen correction snapshot and
+no development srcDiff cache. It records actual executable hashes and build
+receipt observations when execution starts. `--resume-run <run-directory>`
+requires the same experiment, correction, and executable identities. Changes to
+frozen execution sources or runtime fail explicitly; an ordinary Git commit with
+unchanged file contents does not change those hashes.
+
+Classification disagreements, misses, false positives, and semantic ineligibility
+remain observations and never substitute or silently drop cases. In particular,
+Type-2b retains its supplied expectation even though srcMove has no dedicated
+blind-only matching stage; classification disagreement does not gate this
+experiment. Tool/oracle failures are reported after all members run. Supplied
+and reviewed outcomes remain separate in each `summary.json`, `cases.csv`, and
+execution journal. Interpret the weak Type-3/Type-4 reference stratum as the
+supplied raw syntactic-type-3 rows with conservative BOTH below 0.5; it is not an
+independently verified semantic Type-4 dataset.
+
+Retained frozen profiles are compared by exact unordered fragment hashes, with
+shared IDs and per-final-category overlap recorded and no overlapping cases
+removed. Default scope is the checked-in frozen table plus cache-root
+`frozen-profiles*.jsonl`; `--development-profile <path>` can explicitly declare
+another retained table. Historical execution outcomes are never consulted.
+
+Focused fixtures and a separate actual-binary smoke can be run before final
+preparation:
+
+```bash
+./bin/srcml-dev-shell bash -lc 'cd /workspace/srcMove && python3 -m unittest bigMoveBench.tests.test_thesis_experiment bigMoveBench.tests.test_selection_index bigMoveBench.tests.test_benchmark_cases bigMoveBench.tests.test_normalized_execution -v'
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/tests/run_thesis_smoke.py --output-dir srcMove/benchmark-results/bigMoveBench/thesis-fixture-smoke-<new-name>
+```
+
+The smoke uses an eight-case synthetic fixture and a `fixture-smoke` designation,
+with separate artifacts/results. Its labels and timings are compatibility tests,
+not final thesis detector measurements. Shared fragments and functionalities
+also mean distinct selected content pairs are not necessarily independent.
+Report strata separately and distinguish supplied negatives from positive rates.

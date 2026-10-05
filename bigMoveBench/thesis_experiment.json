@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "designation": "final-thesis-experiment",
+  "seed": 20261005,
+  "expected_total": 5598,
+  "direction": "fragment-sha256-ascending",
+  "allocations": [
+    {"category": "type1", "band": "", "mode": "census", "count": 951},
+    {"category": "type2b", "band": "", "mode": "census", "count": 80},
+    {"category": "type2c", "band": "", "mode": "census", "count": 567},
+    {"category": "type3", "band": "very_strong", "mode": "sample", "count": 500},
+    {"category": "type3", "band": "strong", "mode": "sample", "count": 500},
+    {"category": "type3", "band": "moderate", "mode": "sample", "count": 500},
+    {"category": "type3", "band": "weak", "mode": "sample", "count": 500},
+    {"category": "known-false-positive", "band": "", "mode": "sample", "count": 2000}
+  ]
+}
