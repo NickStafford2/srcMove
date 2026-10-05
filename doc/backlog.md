@@ -68,6 +68,16 @@ settled.
   score: maximizing the current heuristic can also favor excessive fragmentation.
   The limitation is established by the procedure; its frequency and the benefit
   of a replacement remain unmeasured.
+- Rename the consistent Type-2 matching method's output label from `type2` to
+  `type2c`. Its identifier normalization requires a consistent one-to-one name
+  mapping; the current label hides that restriction. Coordinate the change with
+  summary counts, diagnostics, XML/JSON output, consumers (including
+  BigMoveBench and srcDiffVisual), tests, and documentation, and define
+  compatibility for existing results. Preserve historical outputs under their
+  original labels. This is a label clarification, not a change to matching:
+  blind-only pairs remain ineligible for Type-2 matching, though some can be
+  detected by the Type-3 similarity method. A method label does not independently
+  establish the lowest applicable content type.
 - Rename the report JSON field `match_kinds` to `match_types` for the Type-1,
   Type-2, and Type-3 group counts. Coordinate the rename with JSON consumers,
   tests, and documentation, and decide how to handle schema compatibility.
