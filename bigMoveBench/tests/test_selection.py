@@ -89,6 +89,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
         type3 = pair_row()
         type3["syntactic_type"] = 3
         type3["pair_type"] = "type-3"
+        type3["similarity_line"] = .95
         false_positive = distinct_false_positive_row(bce)
         write_export(
             exports / "positive.csv",
@@ -270,7 +271,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
             type2_dir, type2, _ = create_selection(
                 compiled,
                 data_root=root / "data",
-                pair_set="type2",
+                pair_set="type2c",
                 mode="census",
             )
             type3_dir, type3, _ = create_selection(

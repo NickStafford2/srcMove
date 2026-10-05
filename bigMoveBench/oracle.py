@@ -9,6 +9,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from bigMoveBench.categories import expected_category, normalize_reported_category
+
 TextValidation = dict[str, str]
 MV_NAMESPACE = "http://www.srcML.org/srcMove"
 SRC_NAMESPACE = "http://www.srcML.org/srcML/src"
@@ -293,7 +295,7 @@ def _validate_results_schema(
     elif move_count != len(moves):
         failures.append("move_count does not match the moves list")
 
-    observed_counts = {"type1": 0, "type2": 0, "type3": 0}
+    observed_counts = {"type1": 0, "type2": 0, "type2c": 0, "type2b": 0, "type3": 0}
     move_ids: set[str] = set()
     for index, move in enumerate(moves):
         prefix = f"moves[{index}]"
@@ -360,7 +362,7 @@ def assess_positive_case(
     expected_match_kinds = {1: "type1", 2: "type2", 3: "type3"}
     if syntactic_type not in expected_match_kinds:
         raise ValueError(f"unsupported BigCloneBench syntactic type: {syntactic_type}")
-    expected_match_kind = expected_match_kind_override or expected_match_kinds[syntactic_type]
+    expected_match_kind = expected_match_kind_override or expected_category(metadata)
 
     if metadata.get("syntactic_type") != syntactic_type:
         operational_failures.append(
@@ -486,7 +488,7 @@ def assess_positive_case(
         )
 
     correctly_classified = next(
-        (candidate for candidate in detected if candidate[0]["match_kind"] == expected_match_kind),
+        (candidate for candidate in detected if normalize_reported_category(candidate[0]["match_kind"]) == normalize_reported_category(expected_match_kind)),
         None,
     )
     selected = correctly_classified or detected[0]

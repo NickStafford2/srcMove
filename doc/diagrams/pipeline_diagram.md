@@ -29,7 +29,7 @@ flowchart LR
         compare[Compare deleted pieces<br/>with added pieces]
         classify{How well do<br/>they match?}
         exact[Type 1<br/>exact match]
-        renamed[Type 2<br/>consistent renaming]
+        renamed[Type 2c<br/>consistent renaming]
         similar[Type 3<br/>near match]
         none[No supported match]
         compare --> classify
@@ -107,15 +107,15 @@ flowchart TB
         ignore --> inner
     end
 
-    saved[(Saved in memory for matching<br/>deleted or added side<br/>file, span, and XPath<br/>raw source text<br/>Type 1 and Type 2 forms<br/>Type 3 statement and token sequences<br/>structural role)]
+    saved[(Saved in memory for matching<br/>deleted or added side<br/>file, span, and XPath<br/>raw source text<br/>Type 1 and Type 2c forms<br/>Type 3 statement and token sequences<br/>structural role)]
 
     subgraph p3 [Phase 3 — Find possible moves]
         load[Compare an insert and delete]
         same{Is pair Type 1? <br/> Ignore comments and formatting}
-        names{Is pair Type 2? <br/> Consistently replace names and literals.}
+        names{Is pair Type 2c? <br/> Consistently replace names and literals.}
         close{Is pair Type 3? <br/> At least 90% alike in either statements or tokens?}
         exact[Possible Type 1 move]
-        renamed[Possible Type 2 move]
+        renamed[Possible Type 2c move]
         near[Possible Type 3 move]
         noMatch[No supported match]
         repeated{Does this description match<br/>several deleted or added pieces?}
@@ -149,7 +149,7 @@ flowchart TB
     end
 
     subgraph p4 [Phase 4 — Choose the best explanation]
-        gather[Put all possible Type 1, Type 2,<br/>and Type 3 matches into one list]
+        gather[Put all possible Type 1, Type 2c,<br/>and Type 3 matches into one list]
         rank[Rank by match strength and how much<br/>changed code the match explains]
         parent{Do several strong inner matches<br/>explain the change better than one outer match?}
         useChildren[Prefer the inner matches]
@@ -208,7 +208,7 @@ discarded as the stream advances.
 The figures use the thesis's expected move vocabulary:
 
 - **Type 1** is an exact match after ignoring comments and formatting;
-- **Type 2** permits consistent changes to names and literal values;
+- **Type 2c** permits consistent changes to names and literal values;
 - **Type 3** is a near match under the 90% sequence-similarity rule;
 - **useful piece** is a move candidate;
 - **possible move** is a match proposal; and

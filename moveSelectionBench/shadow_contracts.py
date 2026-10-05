@@ -81,7 +81,7 @@ def _safe_file(root: Path, value: Any, context: str) -> Path:
 
 
 def load_shadow_contracts(path: Path, correspondence_kind: str = "type1") -> list[dict[str, Any]]:
-    if correspondence_kind not in {"type1", "type2"}:
+    if correspondence_kind not in {"type1", "type2c"}:
         raise ShadowContractError("unsupported contract correspondence kind")
     try:
         document = json.loads(path.read_text(encoding="utf-8"))
@@ -198,7 +198,8 @@ def load_shadow_contracts(path: Path, correspondence_kind: str = "type1") -> lis
         if not isinstance(carried, bool):
             raise ShadowContractError(f"{case_id}: carried_by_parent must be boolean")
 
-        expected_output = raw_case.get(f"expected_{correspondence_kind}_output")
+        output_kind = "type2" if correspondence_kind == "type2c" else correspondence_kind
+        expected_output = raw_case.get(f"expected_{output_kind}_output")
         if cardinality != "one_to_one":
             if expected_output != "unchanged_group_policy":
                 raise ShadowContractError(
@@ -212,7 +213,7 @@ def load_shadow_contracts(path: Path, correspondence_kind: str = "type1") -> lis
             # losing to a selected normalized parent. Eligibility is not final
             # output; Type-1's adopted contract remains unchanged.
             selection_loser = (
-                correspondence_kind == "type2"
+                correspondence_kind == "type2c"
                 and policy_output == "move"
                 and expected_output == "not_move"
                 and raw_case.get("expected_selection") == "covered_by_selected_parent"

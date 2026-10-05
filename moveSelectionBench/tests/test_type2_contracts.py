@@ -27,7 +27,7 @@ CATALOG = REPO_ROOT / 'moveSelectionBench/type2_contracts.json'
 class Type2ContractTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
-        cls.cases = load_shadow_contracts(CATALOG, correspondence_kind='type2')
+        cls.cases = load_shadow_contracts(CATALOG, correspondence_kind='type2c')
 
     def test_type1_catalog_cannot_silently_accept_type2_contracts(self) -> None:
         with self.assertRaisesRegex(ShadowContractError, 'expected type1 evidence'):
@@ -60,7 +60,7 @@ class Type2ContractTests(unittest.TestCase):
                         output = temporary / f'{mode}.json'
                         annotation = temporary / f'{mode}.xml'
                         command = [str(srcmove), str(case['fixture']['srcdiff']),
-                                   '--results', str(output), '--min-granularity', 'fragment']
+                                   '--results', str(output), '--min-granularity', 'fragment', '--profile']
                         if diagnostics:
                             command.append('--diagnostics')
                         if results_only:
@@ -70,7 +70,16 @@ class Type2ContractTests(unittest.TestCase):
                         result = subprocess.run(command, cwd=REPO_ROOT, text=True,
                                                 capture_output=True, check=False)
                         self.assertEqual(result.returncode, 0, result.stderr)
+                        for name in ('type2c_build_ms', 'type2c_groups_built',
+                                     'type2c_groups_selected'):
+                            self.assertIn('profile.content_groups.' + name + '=', result.stderr)
+                        self.assertNotIn('profile.content_groups.type2_', result.stderr)
                         payload = json.loads(output.read_text())
+                        self.assertEqual(set(payload['match_kinds']),
+                                         {'type1', 'type2c', 'type3'})
+                        self.assertTrue(all(move['match_kind'] in
+                                            {'type1', 'type2c', 'type3'}
+                                            for move in payload['moves']))
                         if diagnostics:
                             actual = evaluate_shadow_diagnostics(case, payload)
                             assert_shadow_expectation(case, actual)
@@ -88,7 +97,7 @@ class Type2ContractTests(unittest.TestCase):
                                     for side, text in (('delete', 'before_text'), ('insert', 'after_text'))
                                 }
                                 selected = any(
-                                    move.get('match_kind') == 'type2'
+                                    move.get('match_kind') == 'type2c'
                                     and paths['delete'].intersection(move.get('from_xpaths', []))
                                     and paths['insert'].intersection(move.get('to_xpaths', []))
                                     for move in payload['moves']
@@ -99,7 +108,7 @@ class Type2ContractTests(unittest.TestCase):
                                                  case['expected_type2_output'])
                                 if case.get('expected_selection') == 'covered_by_selected_parent':
                                     self.assertTrue(any(
-                                        move.get('match_kind') == 'type2'
+                                        move.get('match_kind') == 'type2c'
                                         and any(child.startswith(parent + '/')
                                                 for child in paths['delete']
                                                 for parent in move.get('from_xpaths', []))

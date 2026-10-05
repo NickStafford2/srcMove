@@ -19,7 +19,8 @@ if str(REPO_ROOT) not in sys.path:
 
 from bigMoveBench.catalog import load_compiled_dataset
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
-PAIR_SETS = ("type1", "type2", "type3", "known-false-positive")
+from bigMoveBench.categories import CATEGORY_RULES_VERSION, category_sql
+PAIR_SETS = ("type1", "type2b", "type2c", "type3", "known-false-positive")
 PRESET_PATH = SCRIPT_DIR / "frozen_profiles.jsonl"
 from bigMoveBench.selection import (
     TYPE3_STRATA,
@@ -98,7 +99,7 @@ def _probe_type3_frames(
         for band, _, _ in TYPE3_STRATA:
             rows = connection.execute(
                 "SELECT unordered_pair_id FROM pair_rows NOT INDEXED "
-                "WHERE pair_kind='positive' AND syntactic_type=3 "
+                "WHERE pair_kind='positive' AND " + category_sql("pair_rows") + "='type3' "
                 "AND source_status='available' AND " + predicates[band] +
                 " ORDER BY pair_id LIMIT 2000"
             )
@@ -160,7 +161,8 @@ def generate(args: argparse.Namespace) -> tuple[Path, dict[str, int]]:
             )
         request = manifest["request"]
         if (
-            request["pair_set"] != pair_set
+            request.get("category_rules_version") != CATEGORY_RULES_VERSION
+            or request["pair_set"] != pair_set
             or request["mode"] != "sample"
             or request["sample"]["seed"] != args.seed
             or request["sample"]["size"] != 100
@@ -190,6 +192,7 @@ def generate(args: argparse.Namespace) -> tuple[Path, dict[str, int]]:
 
     header = {
         "kind": "manifest",
+        "category_rules_version": CATEGORY_RULES_VERSION,
         "schema_version": 1,
         "created_at": utc_now(),
         "compiled_dataset": {

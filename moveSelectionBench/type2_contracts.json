@@ -13,7 +13,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {},
@@ -42,7 +42,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {
@@ -73,7 +73,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {
@@ -107,7 +107,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {
@@ -147,7 +147,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {},
@@ -176,7 +176,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 2,
         "after_count": 2,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "many_to_many"
       },
       "structural_precondition": {},
@@ -205,7 +205,7 @@
         "after_text": "int old_count = 2;",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {
@@ -239,7 +239,7 @@
         "after_text": "int renamed() {return 81;}",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {},
@@ -268,7 +268,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 2,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "many_to_one"
       },
       "structural_precondition": {},
@@ -297,7 +297,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {
@@ -331,7 +331,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {
@@ -362,7 +362,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {},
@@ -393,7 +393,7 @@
         "after_text": "int new_count = 1;",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {
@@ -425,7 +425,7 @@
         "after_text": "if (all || p->fpFmt != 0) { const char *format = p->fpFmt; append(out, \" --fpfmt %s\", format ? format : \"empty\"); }",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {
@@ -457,7 +457,7 @@
         "after_text": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {},
@@ -486,7 +486,7 @@
         "after_text": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {},
@@ -515,7 +515,7 @@
         "after_text": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {},
@@ -544,7 +544,7 @@
         "after_text": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
         "before_count": 1,
         "after_count": 1,
-        "correspondence_kind": "type2",
+        "correspondence_kind": "type2c",
         "cardinality": "one_to_one"
       },
       "structural_precondition": {},

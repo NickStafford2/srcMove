@@ -33,7 +33,7 @@ Given a srcDiff XML document, srcMove:
 3. builds canonical representations from the embedded srcML structure
 4. uses FNV-1a hashes as indexes, then confirms exact matches with the full
    canonical text
-5. recovers Type-2 matches by consistently normalizing eligible names and
+5. recovers Type-2c matches by consistently normalizing eligible names and
    literal categories
 6. suppresses overlapping parent/child selections and annotates every group
    containing both deletes and inserts
@@ -189,7 +189,7 @@ by this pipeline.
 
 ## Matching scope
 
-The deterministic classifier reports `type1`, `type2`, and `type3`;
+The deterministic classifier reports `type1`, `type2c`, and `type3`;
 pairs below the Type-3 threshold remain unmatched. Hash equality alone never
 establishes a match. The normalization rules, 0.90 similarity formula,
 ambiguity policy, and performance safeguards have one canonical description in
@@ -252,7 +252,7 @@ srcReader/srcML stack.
 ## Current limitations
 
 - Type-4 moves are not supported.
-- Type-2 normalization is lexical and consistency-sensitive; it is not semantic
+- Type-2c normalization is lexical and consistency-sensitive; it is not semantic
   equivalence. Type-3 uses bounded syntactic similarity and likewise does not
   imply semantic equivalence.
 - There is no probabilistic confidence score, locality model, or behavioral

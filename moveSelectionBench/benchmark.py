@@ -30,7 +30,7 @@ from performance.benchmark import parse_named_path, parse_profile_output, valida
 CATALOG_SCHEMA_VERSION = 2
 RUN_SCHEMA_VERSION = 1
 SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9_]*$")
-ALLOWED_MATCH_KINDS = {"type1", "type2", "type3"}
+ALLOWED_MATCH_KINDS = {"type1", "type2c", "type3"}
 ALLOWED_INPUT_SHAPES = {"single_file", "archive"}
 ALLOWED_CASE_STATUSES = {"contract", "hypothesis"}
 
@@ -61,7 +61,7 @@ def _validate_expectation(value: Any, context: str) -> dict[str, Any]:
             or not all(isinstance(kind, str) and kind in ALLOWED_MATCH_KINDS for kind in kinds)
         ):
             raise CatalogError(
-                f"{context}: match_kinds must contain type1, type2, or type3"
+                f"{context}: match_kinds must contain type1, type2c, or type3"
             )
     return result
 

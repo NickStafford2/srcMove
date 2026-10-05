@@ -25,7 +25,7 @@ from bigMoveBench.evaluate import (
     pair_set_passes,
 )
 from bigMoveBench.label_corrections import LabelCorrections
-from bigMoveBench.frozen_profiles import create_frozen_selection
+from bigMoveBench.frozen_profiles import PRESET_PATH, _rows, create_frozen_selection
 from bigMoveBench.installation import BCE_DIR
 from bigMoveBench.normalized_execution import SerialBenchmarkExecutionRunner
 from bigMoveBench.selection import create_selection
@@ -40,7 +40,8 @@ from benchmarking.tooling import find_srcdiff, find_srcmove
 
 PAIR_SETS = (
     ("type1", "Type 1"),
-    ("type2", "Type 2"),
+    ("type2b", "Type 2b (blind-only)"),
+    ("type2c", "Type 2c (consistent)"),
     ("type3", "Type 3"),
     ("known-false-positive", "Known false positives"),
 )
@@ -66,6 +67,8 @@ def parse_args() -> argparse.Namespace:
         choices=tuple(PAIR_SET_LABELS),
         help="Run only one pair set (default: run the full suite).",
     )
+    parser.add_argument("--frozen-profiles", type=Path, default=PRESET_PATH,
+                        help="Explicit regenerated frozen profile file; legacy files retain their membership.")
     parser.add_argument("--verify-source", action="store_true")
     parser.add_argument("--srcdiff", type=Path)
     parser.add_argument("--srcmove", type=Path)
@@ -141,6 +144,9 @@ def _pair_result(
         "benchmark_cases_disposition": benchmark_cases_disposition,
         "run_id": summary["run_id"],
         "run_directory": str(run_dir),
+        "category_rules_version": summary.get("category_rules_version"),
+        "category_membership": summary.get("category_membership", "legacy_syntactic_type"),
+        "category_reports": dict(summary.get("category_reports", {})),
         "counts": dict(counts),
         "reviewed_counts": dict(reviewed_counts),
         "reviewed_rates": dict(summary.get("reviewed_rates", {})),
@@ -191,6 +197,10 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
     label_corrections = LabelCorrections()
     selected_pair_set = getattr(args, "pair_set", None)
     profile = getattr(args, "profile", "full")
+    preset_path = getattr(args, "frozen_profiles", PRESET_PATH)
+    if profile in ("small", "medium"):
+        for category in ((selected_pair_set,) if selected_pair_set else tuple(PAIR_SET_LABELS)):
+            _rows(profile, category, preset_path)
     cache_root = args.cache_root.expanduser().resolve()
     results_root = args.results_root.expanduser().resolve()
     srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
@@ -248,6 +258,7 @@ def run_suite(args: argparse.Namespace) -> tuple[Path, dict[str, Any], bool]:
                         data_root=cache_root,
                         pair_set=pair_set,
                         profile=profile,
+                        preset_path=preset_path,
                     )
                 )
             )
@@ -430,6 +441,20 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
                 f"{passed:,}/{selected:,} ({pass_rate:.1%})   "
                 f"srcMove {_seconds(elapsed)}"
             )
+        for category, report in result.get("category_reports", {}).items():
+            denominators = report["denominators"]
+            detected = report["complete_detections"]
+            print(
+                f"                          {category}: complete detection "
+                f"{detected}/{denominators['selected']} selected; "
+                f"{detected}/{denominators['srcdiff_eligible']} srcDiff eligible; "
+                f"category agreement {report['original_category_agreements']}/{detected} "
+                f"complete; reviewed {report['reviewed_category_agreements']}/{detected} complete"
+            )
+            distribution = report["reported_categories_among_complete_detections"]
+            print("                          reported among complete detections: " +
+                  (", ".join(f"{kind}={value['count']}/{detected}" for kind, value in distribution.items())
+                   or "none (denominator 0)"))
         if result["pair_set"] == "known-false-positive":
             errors = sum(
                 counts[name]
@@ -448,7 +473,9 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
         else:
             expected_kind = {
                 "type1": "type1",
-                "type2": "type2",
+                "type2": "type2 (legacy consistent)",
+                "type2b": "type2b",
+                "type2c": "type2c",
                 "type3": "type3",
             }[result["pair_set"]]
             errors = sum(

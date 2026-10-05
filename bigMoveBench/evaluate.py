@@ -18,7 +18,7 @@ from bigMoveBench.oracle import (
 )
 
 
-SCORING_ORACLE_VERSION = 7
+SCORING_ORACLE_VERSION = 8
 OPERATIONAL_FAILURES = (
     "upstream_failure",
     "srcdiff_semantic_ineligible",
@@ -198,13 +198,16 @@ def _score_completed_case(
             {"from": "not_checked", "to": "not_checked"},
             results,
         )
-    assessment = assess_positive_case(
-        metadata=metadata,
-        results=results,
-        syntactic_type=syntactic_type,
-        srcmove_xml=srcmove_xml,
-        srcdiff_xml=srcdiff_xml,
-    )
+    try:
+        assessment = assess_positive_case(
+            metadata=metadata,
+            results=results,
+            syntactic_type=syntactic_type,
+            srcmove_xml=srcmove_xml,
+            srcdiff_xml=srcdiff_xml,
+        )
+    except ValueError as error:
+        return "oracle_failure", [str(error)], {"from": "not_checked", "to": "not_checked"}, results
     try:
         correction = (label_corrections or LabelCorrections()).match(metadata)
     except ValueError as error:
@@ -224,6 +227,9 @@ def _score_completed_case(
         results["_oracle_reviewed_failures"] = (
             reviewed.operational_failures + reviewed.detection_failures + reviewed.classification_failures
         )
+    results["_oracle_expected_category"] = metadata.get("benchmark_category", f"type{syntactic_type}")
+    results["_oracle_category_rules_version"] = metadata.get("category_rules_version")
+    results["_oracle_complete_detection"] = assessment.detected
     if assessment.detected_move_id is not None:
         results["_oracle_detected_move_id"] = assessment.detected_move_id
         results["_oracle_observed_match_kind"] = assessment.observed_match_kind

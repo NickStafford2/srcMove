@@ -33,6 +33,7 @@ from benchmarking.provenance import observe_executable, sha256_file, utc_now
 from benchmarking.srcdiff_validation import validate_srcdiff_xml
 from benchmarking.storage import write_json_atomic
 from benchmarking.tooling import find_srcdiff, find_srcmove
+from bigMoveBench.categories import category_metrics, normalize_reported_category
 from bigMoveBench.adapter import SEMANTIC_ORACLE_VERSION, validate_srcdiff_semantics
 from bigMoveBench.benchmark_cases import (
     SerialBenchmarkCaseRunner,
@@ -80,6 +81,10 @@ CASE_CSV_FIELDS = (
     "diagnostic_stage",
     "case_kind",
     "clone_type",
+    "category_rules_version",
+    "benchmark_category",
+    "complete_fragment_detected",
+    "normalized_observed_category",
     "syntactic_type",
     "expected_match_kind",
     "observed_match_kind",
@@ -397,6 +402,9 @@ ORDER BY current.case_id
             "ATTACH DATABASE ? AS benchmark_cases",
             (str(benchmark_cases_database.resolve()),),
         )
+        run_configuration = json.loads(self.connection.execute(
+            "SELECT configuration_json FROM run_metadata"
+        ).fetchone()[0])
         query = """
 SELECT
   c.ordinal,
@@ -481,8 +489,15 @@ ORDER BY c.ordinal
                             "clone_type": (
                                 "known_false_positive"
                                 if row["case_kind"] == "known_false_positive"
-                                else f"type{row['syntactic_type']}"
+                                else row["expected_match_kind"]
                             ),
+                            "category_rules_version": run_configuration.get("category_rules_version"),
+                            "benchmark_category": row["expected_match_kind"],
+                            "complete_fragment_detected": (
+                                row["outcome"] in {"oracle_pass", "wrong_classification"}
+                                if row["case_kind"] == "positive" else ""
+                            ),
+                            "normalized_observed_category": normalize_reported_category(observed_kind),
                             "syntactic_type": row["syntactic_type"],
                             "expected_match_kind": row["expected_match_kind"],
                             "observed_match_kind": observed_kind,
@@ -557,13 +572,26 @@ ORDER BY c.ordinal
         srcdiff_cache_hits = srcdiff_cache_misses = 0
         type3_groups: dict[str, dict[str, Any]] = {}
         diagnostic_stages: dict[str, int] = {}
+        category_groups: dict[str, dict[str, Any]] = {}
+        run_metadata = self.connection.execute("SELECT * FROM run_metadata").fetchone()
+        assert run_metadata is not None
+        selected_pair_set = json.loads(run_metadata["provenance_json"])["benchmark_cases"]["pair_set"]
+        if selected_pair_set in ("type1", "type2", "type2b", "type2c", "type3"):
+            category_groups[selected_pair_set] = dict(selected=0, completed=0, eligible=0,
+                detected=0, agreed=0, reviewed_agreed=0, reported={})
         self.connection.execute(
             "ATTACH DATABASE ? AS benchmark_cases",
             (str(benchmark_cases_database.resolve()),),
         )
         try:
+            for category, total in self.connection.execute(
+                "SELECT expected_match_kind, count(*) FROM benchmark_cases.cases "
+                "WHERE case_kind='positive' GROUP BY expected_match_kind"
+            ):
+                category_groups[category] = dict(selected=total, completed=0, eligible=0,
+                    detected=0, agreed=0, reviewed_agreed=0, reported={})
             query = """
-SELECT c.type3_strength_stratum, c.case_kind, a.*
+SELECT c.expected_match_kind, c.type3_strength_stratum, c.case_kind, a.*
 FROM benchmark_cases.cases AS c
 JOIN attempts AS a ON a.case_id=c.case_id AND a.status='terminal'
 WHERE NOT EXISTS (
@@ -579,6 +607,17 @@ ORDER BY c.ordinal
                 validation = json.loads(row["text_validation_json"] or "{}")
                 results = json.loads(row["oracle_results_json"] or "{}")
                 reviewed_counts[results.get("_oracle_reviewed_outcome", outcome)] += 1
+                if row["case_kind"] == "positive":
+                    group = category_groups[row["expected_match_kind"]]
+                    group["completed"] += 1
+                    group["eligible"] += int(row["semantic_status"] == "eligible")
+                    detected = outcome in {"oracle_pass", "wrong_classification"}
+                    group["detected"] += int(detected)
+                    group["agreed"] += int(outcome == "oracle_pass")
+                    group["reviewed_agreed"] += int(results.get("_oracle_reviewed_outcome", outcome) == "oracle_pass")
+                    if detected:
+                        kind = normalize_reported_category(results.get("_oracle_observed_match_kind", "unavailable"))
+                        group["reported"][kind] = group["reported"].get(kind, 0) + 1
                 correction = results.get("_oracle_label_correction")
                 if correction:
                     correction_counts[correction["id"]] = correction_counts.get(correction["id"], 0) + 1
@@ -714,7 +753,10 @@ ORDER BY c.ordinal
                 ),
             }
         summary = {
-            "schema_version": 1,
+            "schema_version": 2,
+            "category_rules_version": configuration.get("category_rules_version"),
+            "category_membership": "derived" if configuration.get("category_rules_version") else "legacy_syntactic_type",
+            "category_reports": {kind: category_metrics(**group) for kind, group in sorted(category_groups.items())},
             "created_at": utc_now(),
             "run_id": metadata["run_id"],
             "benchmark_cases_id": metadata["benchmark_cases_id"],
@@ -840,6 +882,7 @@ class SerialBenchmarkExecutionRunner:
                 "output_mode": "results_only",
                 "diagnostics": self.diagnostics_enabled,
             },
+            "category_rules_version": benchmark_cases.manifest.get("category_rules_version"),
             "scoring_oracle_version": SCORING_ORACLE_VERSION,
             "development_srcdiff_cache": {
                 "enabled": srcdiff_cache is not None,

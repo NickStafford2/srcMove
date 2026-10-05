@@ -27,6 +27,7 @@ from bigMoveBench.catalog import (
     VerifiedCompiledDataset,
     load_compiled_dataset,
 )
+from bigMoveBench.categories import CATEGORY_RULES_VERSION, benchmark_category, category_sql
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
 from benchmarking.identity import canonical_json, content_identifier
 from bigMoveBench.progress import ProgressDisplay
@@ -34,7 +35,7 @@ from benchmarking.provenance import sha256_file, utc_now
 
 
 SELECTION_SCHEMA_VERSION = 1
-SELECTOR_VERSION = 3
+SELECTOR_VERSION = 4
 GENERATED_INPUT_IDENTITY_VERSION = 1
 DEFAULT_SAMPLE_SIZE = 100
 TYPE3_STRATA = (
@@ -45,7 +46,8 @@ TYPE3_STRATA = (
 )
 PAIR_SETS = {
     "type1": {"pair_kind": "positive", "syntactic_types": [1]},
-    "type2": {"pair_kind": "positive", "syntactic_types": [2]},
+    "type2b": {"pair_kind": "positive", "syntactic_types": [3]},
+    "type2c": {"pair_kind": "positive", "syntactic_types": [2]},
     "type3": {"pair_kind": "positive", "syntactic_types": [3]},
     "known-false-positive": {
         "pair_kind": "known_false_positive",
@@ -72,6 +74,9 @@ def _pair_predicate(pair_set: str, alias: str = "p") -> tuple[str, list[Any]]:
     if syntactic_types is not None:
         predicate += f" AND {alias}.syntactic_type IN ({','.join('?' * len(syntactic_types))})"
         parameters.extend(syntactic_types)
+    if syntactic_types is not None:
+        predicate += f" AND ({category_sql(alias)})=?"
+        parameters.append(pair_set)
     return predicate, parameters
 
 
@@ -154,6 +159,8 @@ def _row_record(
         "function_two": _function(row, 2),
         "pair_kind": row["pair_kind"],
         "pair_type": row["pair_type"],
+        "benchmark_category": benchmark_category(dict(row)),
+        "category_rules_version": CATEGORY_RULES_VERSION,
         "syntactic_type": row["syntactic_type"],
         "similarity": {
             "line": row["similarity_line"],
@@ -691,6 +698,7 @@ def create_selection(
 
     request = {
         "selector_version": SELECTOR_VERSION,
+        "category_rules_version": CATEGORY_RULES_VERSION,
         "compiled_dataset_id": compiled.dataset_id,
         "compiled_manifest_sha256": compiled.manifest_sha256,
         "pair_set": pair_set,

@@ -17,6 +17,10 @@ implementation remains documented in
 selection redesign remains documented in
 [`doc/plans/move_detection_redesign.md`](move_detection_redesign.md).
 
+Current output calls the consistent Type-2 method Type-2c (`type2c`). Historical
+phase names and internal `type2` identifiers below are retained; see the
+[current output contract](../architecture.md#results-terminology).
+
 ## Central idea
 
 Move detection contains two separate problems:

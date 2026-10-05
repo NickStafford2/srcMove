@@ -133,6 +133,10 @@ under test unchanged. It applies to `nested_exact_parent_over_child`,
 `shared_delete_stronger_edge`, and
 `coherent_type3_parent_over_partition`.
 
+Current emitted categories use Type-2c (`type2c`); the retained Type-2 replay
+report uses `expected_type: "type2c"` and `strict_type2c_detected`. Historical
+comparisons and evidence below retain their original Type-2 labels. See the [output contract](../doc/architecture.md#results-terminology).
+
 ## Type-2 observation baseline
 
 For the current evidence audit and bounded independent evaluation proposal, see

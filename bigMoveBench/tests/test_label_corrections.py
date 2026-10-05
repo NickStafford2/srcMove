@@ -87,6 +87,17 @@ class LabelCorrectionTests(unittest.TestCase):
         self.assertNotEqual(self.registry.identity, LabelCorrections(self.path).identity)
         self.assertEqual(self.registry.match(self.metadata), self.entry)
 
+    def test_derived_consistent_category_preserves_review_and_surfaces_conflicts(self):
+        self.metadata.update(category_rules_version=1, benchmark_category='type2c')
+        self.assertEqual(self.registry.match(self.metadata), self.entry)
+        outcome, _, _, evidence = self.score(kind='type3')
+        self.assertEqual(outcome, 'wrong_classification')
+        self.assertTrue(evidence['_oracle_complete_detection'])
+        self.assertEqual(evidence['_oracle_reviewed_outcome'], 'oracle_pass')
+        changed = {**self.metadata, 'syntactic_type': 3, 'benchmark_category': 'type2b'}
+        with self.assertRaisesRegex(ValueError, 'explicit review required'):
+            self.registry.match(changed)
+
     def test_shipped_review_identity(self):
         registry = LabelCorrections()
         entry = next(

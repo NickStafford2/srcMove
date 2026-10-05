@@ -136,7 +136,7 @@
         {
           "from": "if (left) { int marker = 0; transferLeft(); int marker = 0; }",
           "to": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
-          "match_kinds": ["type2"]
+          "match_kinds": ["type2c"]
         }
       ],
       "forbidden": [
@@ -325,7 +325,7 @@
         {
           "from": "void gotoURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
           "to": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
-          "match_kinds": ["type2"]
+          "match_kinds": ["type2c"]
         }
       ],
       "forbidden": [
@@ -346,7 +346,7 @@
         {
           "from": "byte[] buffer = new byte[4096];",
           "to": "byte[] buf = new byte[1024];",
-          "match_kinds": ["type2"]
+          "match_kinds": ["type2c"]
         },
         {
           "from": "while ((bytes_read = in.read(buffer)) != -1) out.write(buffer, 0, bytes_read);",
@@ -385,7 +385,7 @@
           "from": "if (all || p->realFmt != 0) { const char *format = p->realFmt; append(out, \" --realfmt %s\", format ? format : \"default\"); }",
           "to": "if (all || p->fpFmt != 0) { const char *format = p->fpFmt; append(out, \" --fpfmt %s\", format ? format : \"empty\"); }",
           "match_kinds": [
-            "type2"
+            "type2c"
           ]
         }
       ],

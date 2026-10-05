@@ -10,7 +10,7 @@ distribution layout through which this repository reads the BigCloneBench H2
 database and IJaDataset sources. In prose, use `BigMoveBench` for this benchmark;
 `bigMoveBench` is the repository directory and Python package, while
 `bigmovebench-*` names its Make targets. Prose uses Type-1, Type-2, and Type-3;
-machine-facing pair-set identifiers use `type1`, `type2`, `type3`, and
+machine-facing pair-set identifiers use `type1`, `type2b`, `type2c`, `type3`, and
 `known-false-positive`.
 
 ## Layout
@@ -41,8 +41,9 @@ The cache remains under `bigMoveBench/cache/bigclonebench/` because it is a seal
 representation of the upstream dataset. BigMoveBench suite summaries are stored
 under `benchmark-results/bigMoveBench/`.
 For each positive pair set, BigMoveBench reports a strict synthetic
-detection-and-classification outcome rate: Type-1 must report `type1`, Type-2
-must report `type2`, Type-3 must report `type3`, and the position/text oracle
+detection-and-classification outcome rate: Type-1 must report `type1`, Type-2c
+must report `type2c` (legacy output `type2` accepted), Type-2b expects `type2b`,
+and Type-3 must report `type3`, and the position/text oracle
 must pass. A separately reported reviewed score applies explicit corrections
 for reviewed source-label disagreements. Type-1 and Type-2 are required
 pass/fail categories under those reviewed expectations; the original-label
@@ -109,7 +110,7 @@ make bigmovebench-select \
   BIGCLONEBENCH_DATASET=<dataset-id> CLONE_TYPE=type1 MODE=census
 ```
 
-Use `CLONE_TYPE=type2`, `CLONE_TYPE=type3`, or
+Use `CLONE_TYPE=type2b`, `CLONE_TYPE=type2c`, `CLONE_TYPE=type3`, or
 `CLONE_TYPE=known-false-positive` for the other pair sets. Ordinary samples
 select the lowest seeded SHA-256 ranks from the complete eligible frame. Type-3
 samples instead divide frames by `min(line similarity, token similarity)` into
@@ -206,7 +207,8 @@ forces srcDiff to expose the cross-file delete and insert without making either
 container or whole file appear moved.
 
 The redesign checkpoint at commit `3022c00` is the development baseline for
-the frozen medium profile: Type-1 100/100, Type-2 100/100, Type-3 33/100
+the legacy frozen medium profile (raw syntactic-type grouping):
+Type-1 100/100, Type-2 100/100, Type-3 33/100
 (23 very strong and 10 strong), and known false whole-pair acceptances 0/100.
 The run also reported 48 incidental child moves. This records a comparison
 point, not a target or a frozen threshold choice.
@@ -306,10 +308,19 @@ identifier. BigMoveBench data is not reused for runtime experiments. Use
 independent, large, pre-existing srcDiff XML workloads with the
 [performance benchmark](../performance/README.md) when comparing srcMove builds.
 
+Exclusive derived membership, reviewed-label interaction, the report schema,
+explicit denominators and artifact regeneration are defined in the
+[category methodology](docs/methodology.md#exclusive-derived-categories-and-output-contract).
+The checked-in frozen profiles use legacy membership; new Type-2b, Type-2c and
+Type-3 presets require regeneration into a separate file and explicit
+`--frozen-profiles PATH`. Existing research artifacts are preserved.
+
 ## Validation
 
 - Type-1 expects the complete intended move to be `type1`.
-- Type-2 expects the complete intended move to be `type2`.
+- Type-2c expects `type2c` (legacy srcMove `type2` accepted).
+- Type-2b is blind-only and expects `type2b`; a complete Type-3 report is a
+  detection success with a classification mismatch.
 - Type-3 expects the complete intended move to be `type3`; its recall is observational.
 - A known-false-positive case expects no single reported move to link the full
   generated source and target fragments. Zero moves passes. Smaller incidental

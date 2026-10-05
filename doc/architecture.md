@@ -3,7 +3,7 @@
 srcMove is a C++ command-line tool that post-processes srcDiff XML and marks
 regions that its matching and selection policy identifies as relocated source
 code. Its primary research focus is move detection across file and structural
-boundaries, with Type-1, Type-2, and Type-3 correspondence evidence.
+boundaries, with Type-1, Type-2c, and Type-3 correspondence evidence.
 
 ## Terminology
 
@@ -13,9 +13,9 @@ srcDiff represents source present only in the original revision with
 candidates. It is an operational detector result, not proof of a historical
 move, developer intent, or semantic equivalence. A content match supports a
 proposed correspondence; it does not establish continuing identity by itself.
-Type-1, Type-2, and Type-3 describe content evidence; group kind separately
+Type-1, Type-2c, and Type-3 describe content evidence; group kind separately
 describes endpoint cardinality and ambiguity. Reported moves are broader than
-classifier-confirmed relocation: unique Type-1 and Type-2 pairs require positive
+classifier-confirmed relocation: unique Type-1 and Type-2c pairs require positive
 location evidence, whereas Type-3 selection and repeated exact groups follow
 their separate policies described below.
 
@@ -90,7 +90,7 @@ This exposes crossings of unchanged conditionals without tree rematching.
 Enclosing conditionals are not also retained as anchors; repeated innermost
 conditionals can therefore still leave order unresolved.
 Unmapped candidates retain unreliable anchor intervals. Production selection
-consumes this context for unique one-to-one Type-1 and Type-2 correspondences.
+consumes this context for unique one-to-one Type-1 and Type-2c correspondences.
 
 This distinction permits a deletion in one archive unit to match an insertion
 in another without mistaking a combined srcDiff filename for one revision's
@@ -130,13 +130,13 @@ relocations remain eligible as unique Type-1 proposals; stationary, restructured
 parent-carried correspondences remain diagnostic-only. The same compact
 decision records materialize the opt-in diagnostics, so production eligibility
 and diagnostic interpretation cannot diverge.
-Unique Type-2 groups are classified once after exact grouping has removed Type-1
+Unique Type-2c groups are classified once after exact grouping has removed Type-1
 correspondences. The same decisions control eligibility and diagnostics: only
-`relocated` pairs enter selection. Each unique Type-2 pair reserves its endpoint
+`relocated` pairs enter selection. Each unique Type-2c pair reserves its endpoint
 IDs before Type-3 retrieval, regardless of location outcome or final selection.
 Reservation prevents weaker alternate partners without reserving spans, so
 distinct enclosing and descendant proposals still compete normally.
-Type-2 decisions do not participate in exact-parent carrying, since containment
+Type-2c decisions do not participate in exact-parent carrying, since containment
 inside an edited parent does not establish stable relative position.
 The Phase 0 contract adapter resolves endpoints by the reviewed construct and
 exact text rather than using current classifications as its oracle. With
@@ -202,12 +202,12 @@ The incremental builder in
 each candidate's XML events through coordinated builders for all cached
 matching representations. The Type-1 form ignores all diff wrappers,
 comments, `diff:ws` elements, and formatting-only text while retaining
-identifiers, literals, keywords, operators, and srcML structure. The Type-2
+identifiers, literals, keywords, operators, and srcML structure. The Type-2c
 identity is a compact lexical form: it consistently numbers direct srcML
 `<name>` tokens by first occurrence, replaces literals with their category
 (`integer`, `floating`, `string`, `character`, `boolean`, or `null`), and
 ignores comments and formatting. Empty statements remain in the lexical form:
-adding or removing one requires Type-3 similarity assessment rather than Type-2
+adding or removing one requires Type-3 similarity assessment rather than Type-2c
 equality. Other source tokens and operators remain unchanged. Group keys also
 include the candidate's srcML element kind, so lexically identical constructs of different kinds do not
 collapse into one group.
@@ -216,11 +216,11 @@ Candidates are bucketed with 64-bit FNV-1a hashes of that canonical form. A hash
 is only an index: groups are split and confirmed using the full canonical text,
 so a hash collision is not accepted as a move.
 
-Type-2 eligibility is narrower than general candidate eligibility. The stream
+Type-2c eligibility is narrower than general candidate eligibility. The stream
 admits structural constructs (including functions and declarations of functions,
 types, and namespaces) plus `decl_stmt`, `if_stmt`, `for`, `while`, `do`,
 `switch`, and `try` statements. Standalone `expr_stmt` and `return` candidates
-can participate in exact Type-1 matching but are excluded from Type-2 grouping.
+can participate in exact Type-1 matching but are excluded from Type-2c grouping.
 The [historical study](../moveSelectionBench/historical_study/README.md) contains
 a source-reviewed renamed call reorder that reaches candidate construction but
 misses at this eligibility boundary. This is a limitation, not a negative move
@@ -235,12 +235,12 @@ bundle policy, including its declared constants, lives in
 2. classifies unique one-to-one exact correspondences and admits only supported
    relocations to production proposal selection; non-1x1 exact groups retain
    existing group policy
-3. groups eligible constructs by exact Type-2 representation, classifies unique
+3. groups eligible constructs by exact Type-2c representation, classifies unique
    pairs, and reserves their endpoint identities
 4. generates Type-3 edges for remaining structurally compatible candidates
-5. turns eligible exact and Type-2 correspondences plus verified Type-3 edges
+5. turns eligible exact and Type-2c correspondences plus verified Type-3 edges
    into one proposal set
-6. disables unique Type-1 and Type-2 proposals without positive relocation
+6. disables unique Type-1 and Type-2c proposals without positive relocation
    decisions before hierarchy selection
 7. ranks proposals by size-aware utility plus an internal structural-coverage
    term, then confidence, evidence class, source-construct preference, and
@@ -251,7 +251,7 @@ bundle policy, including its declared constants, lives in
 
 Repeated exact equivalence classes are retained as multi-endpoint move/copy
 groups with ambiguity-aware confidence; they do not claim an individual
-pairing. Repeated Type-2 classes remain unresolved because normalization has
+pairing. Repeated Type-2c classes remain unresolved because normalization has
 already removed distinguishing content, and document order alone is not
 correspondence evidence.
 
@@ -259,7 +259,7 @@ Type-3 uses a NiCad-inspired sequence rule implemented directly in srcMove; no
 NiCad executable or runtime dependency is involved. Canonicalization caches two
 compact views: normalized code divided at statement and block boundaries (`;`,
 `{`, and `}`), and a finer token sequence. Both similarity views retain the
-Type-2 representation's consistent first-occurrence name mapping. This keeps
+Type-2c representation's consistent first-occurrence name mapping. This keeps
 identifier-correspondence patterns as evidence rather than making similarly
 shaped but unrelated functions identical through blind name replacement.
 
@@ -274,7 +274,7 @@ The comparison first rejects impossible size ratios, then runs a two-row LCS
 that exits when the remaining rows cannot reach the required common length.
 Candidates are restricted to the same eligible srcML element kind and the 0.90
 size window, rather than forming an unrestricted delete-by-insert product.
-Eligible Type-1, Type-2, and Type-3 proposals compete in the same utility
+Eligible Type-1, Type-2c, and Type-3 proposals compete in the same utility
 ordering. A large verified near-match can therefore suppress a small exact
 descendant.
 Correlated evidence is represented by its strongest applicable match class
@@ -307,7 +307,7 @@ materializes that JSON evidence from candidate-owned XPaths and skips the
 second XML pass entirely.
 
 `--diagnostics` is an opt-in results mode for algorithm review. Diagnostics
-schema version `4` records unique Type-1/Type-2 and verified Type-3 edge classifications,
+schema version `4` records unique Type-1/Type-2c and verified Type-3 edge classifications,
 endpoint context independent of selection, retained candidates, and Type-3 shortlist
 decisions, including observed line and token LCS evidence for below-threshold
 pairs and whether a verified edge was selected. Each correspondence also says
@@ -337,9 +337,33 @@ not selected, not that it was established as stationary.
 
 ### Results terminology
 
+The consistent identifier-renaming category is emitted as `type2c` (Type-2c),
+previously named `type2`. This is a terminology change: normalization, candidate
+eligibility, precedence, correspondence, and selection are unchanged. No
+`type2b` category is emitted. Identifier consistency is lexical within each
+candidate: first-occurrence numbering preserves repeated-name patterns and
+distinguishes different direct srcML `<name>` tokens; it does not resolve name
+bindings. Literal-category normalization and the other rules above are
+srcMove's rules, not a claim that every rule equals BigCloneBench's.
+
+New JSON uses `moves[].match_kind = "type2c"`, `match_kinds.type2c`, and
+`diagnostics.correspondences[].correspondence_kind = "type2c"`.
+`diagnostics.type3_pairs[].outcome` uses `ambiguous_type2c` for the existing
+normalized-ambiguity rejection. Profiling uses
+`content_groups.type2c_build`, `content_groups.type2c_groups_built`, and
+`content_groups.type2c_groups_selected` (with the usual `profile.` prefix and
+`_ms` suffix for the timer). XML has no category attribute: `mv:id`, `mv:from`,
+and `mv:to` remain unchanged. The results and diagnostics schema version numbers
+are unchanged; consumers that enumerate labels must add `type2c`. Retained
+legacy `type2` reports describe this same consistent category, not blind
+matching. srcMove-owned history admission accepts both labels, and its text
+summaries combine them under Type 2c. Historical evidence keeps its original
+labels. BigMoveBench and srcDiffVisual require coordinated consumer updates.
+
+
 The JSON contract distinguishes evidence, endpoint cardinality, and counts:
 
-- `match_kind` (`type1`, `type2`, or `type3`) states why candidate content
+- `match_kind` (`type1`, `type2c`, or `type3`) states why candidate content
   corresponds.
 - `group_kinds` classifies endpoint cardinality: `move_1_to_1` is one deletion
   and one insertion, `moves_many` has equal counts greater than one, and
@@ -362,13 +386,14 @@ The matcher reports four classification outcomes:
 
 - `type1`: identical comment- and formatting-insensitive canonical
   structure and meaningful text
-- `type2`: identical identifier- and literal-normalized canonical structure
+- `type2c`: identical consistent-identifier- and literal-category-normalized
+  lexical form, with the same candidate element kind
 - `type3`: eligible unmatched candidates satisfy the 0.90 bounded-LCS rule
 - none: no accepted pair is emitted; candidates remain unmatched
 
 Selected groups are either one-to-one correspondences or exact multi-endpoint
 equivalence classes. Multi-endpoint groups describe move/copy or repeated
-content without claiming a particular pairing. Ambiguous normalized Type-2
+content without claiming a particular pairing. Ambiguous normalized Type-2c
 classes are not selected.
 
 ## Performance model
@@ -395,11 +420,11 @@ performance result for arbitrary projects.
   graph optimizer.
 - Exact repeats retain group-level correspondence, but contextual evidence for
   disambiguating individual repeated moves is not implemented. Ambiguous
-  Type-2 repeats remain unresolved.
+  Type-2c repeats remain unresolved.
 - Type-3 retrieval uses kind and size windows but not an approximate-neighbor
   index or configurable top-`k` shortlist.
 - Type-4 moves are not supported.
-- Exact, Type-2, and Type-3 matching use statement-or-larger candidates by
+- Exact, Type-2c, and Type-3 matching use statement-or-larger candidates by
   default. Tiny fragments can be enabled explicitly but are not useful as the
   default move unit.
 - Confidence is an interpretable ranking value, not a calibrated probability.
@@ -408,7 +433,7 @@ performance result for arbitrary projects.
 - srcMove depends on the regions exposed by srcDiff; it is not a general diff
   engine and does not recover changes that srcDiff does not represent as usable
   candidates.
-- Unique Type-1 and Type-2 output requires positive relocation evidence from
+- Unique Type-1 and Type-2c output requires positive relocation evidence from
   revision files, mapped semantic containers, or crossed stable anchors. Missing
   context remains ambiguous, not proven stationary. This policy does not
   reconstruct developer intent or resolve repeated NxM groups. Type-3 movement

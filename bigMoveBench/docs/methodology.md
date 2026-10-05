@@ -67,8 +67,9 @@ The two distinct container classes prevent the wrappers themselves from looking
 like a cross-file move.
 
 The original-label evaluation uses a strict detection-and-classification oracle:
-Type-1 cases must classify the intended whole-fragment move as `type1`, Type-2
-as `type2`, and Type-3 as `type3`. Position and per-side text validation are
+Type-1 cases must classify the intended whole-fragment move as `type1`, Type-2c
+as `type2c` (legacy srcMove `type2` is accepted), Type-2b as `type2b`, and
+Type-3 as `type3`. Position and per-side text validation are
 correlated to the same JSON result; the result's XPaths supply its position
 evidence from the admitted srcDiff XML.
 Detecting the intended payload with the wrong match kind is useful failure
@@ -130,6 +131,144 @@ either the normalized statement/block sequence or normalized token sequence must
 satisfy its symmetric `0.90` bounded-LCS rule. BigMoveBench evaluates Type-3 as
 an observational recall stratum, so below-threshold pairs remain informative
 misses rather than suite failures. Type-4 is not supported.
+
+## Exclusive derived categories and output contract
+
+`categories.py` is the canonical rule implementation. Category rules version 1
+matches the local BigCloneEval “Tool Evaluation Report” in
+`data/BigCloneEval/ReadMe.md` (lines 380–396),
+`ToolEvaluator.java`'s `getNumClones_type2c_inter` and
+`getNumClones_type2b_inter` (including their intra-project/detected counterparts),
+and `EvaluateTools.java`'s `getCondition`:
+
+| Derived benchmark category | Original database membership |
+| --- | --- |
+| `type1` | `syntactic_type = 1` |
+| `type2c` (consistent) | `syntactic_type = 2`, regardless of similarity |
+| `type2b` (blind-only) | `syntactic_type = 3` and both similarity fields equal 1.0 |
+| `type3` | Remaining `syntactic_type = 3` rows; retain the existing strength bands |
+
+Upstream implements blind-only membership with `least(similarity_line,
+similarity_token) >= 1.0`; BigMoveBench uses the same comparison on database
+scores stored in [0,1], without rounding or tolerance. The general blind-renaming
+criterion also accepts consistent pairs; **`type2b` here denotes only the
+exclusive blind-only reporting subset**. BigCloneEval's aggregate “Type-2” is
+Type-2b plus Type-2c. It is not a detector output alias and is not an exclusive
+BigMoveBench pair-set name. New selection accepts `type2b` and `type2c`; it
+rejects ambiguous `type2` requests.
+
+Source `syntactic_type`, `pair_type`, similarity values, contributing row IDs,
+function IDs, fragment hashes and multiplicities are preserved unchanged.
+Selection rows add `benchmark_category` and `category_rules_version`; the
+selection request includes that version in its content identity. Generated
+cases store the derived category in `expected_match_kind`, expose it as
+`benchmark_category` and `clone_type`, and retain raw `syntactic_type` separately.
+Only derived Type-3 receives a Type-3 strength band. Deduplication, conflict
+exclusion, source availability and srcDiff admission rules remain unchanged.
+
+The results schema remains version 1. BigMoveBench accepts both srcMove
+`type2c` and the historical `type2` in move `match_kind` and `match_kinds` counts.
+Each spelling's count must match the moves actually using it; counts cannot be
+renamed independently. Output comparison normalizes legacy `type2` to `type2c`.
+Raw output and observed labels are retained. `type2b` is also an accepted report
+category for a future detector. No Type-2b detection capability is presumed:
+a complete Type-2b pair reported as Type-3 is detected but incorrectly
+classified, whereas smaller child moves are detection misses. The detector's
+rename to `type2c` requires no matching-behavior change in this benchmark.
+
+Reviewed corrections are still matched by exact unordered fragment hashes.
+Historical correction `original_match_kind: type2` means consistent `type2c`;
+its reviewed Type-3 expectation is preserved. A correction matching content
+but conflicting with a new inherited category produces an explicit oracle
+failure requiring review, rather than being discarded or silently applied.
+The corrected case remains in its inherited category's denominator. Original
+and reviewed outcomes and correction identity/digest remain separate. A reviewed
+Type-3 correction does not assign an external Type-3 band to a Type-2c case.
+
+### Report schema and denominators
+
+Scoring oracle version 8 writes complete detection evidence independently of
+classification. Run `summary.json` schema version 2 adds `category_rules_version`,
+`category_membership` (`derived` or `legacy_syntactic_type`) and
+`category_reports[category]`; suite summaries copy these reports and console
+output prints their counts. Existing `counts`, `rates`, `reviewed_counts` and
+`reviewed_rates` retain their original strict outcome meanings.
+
+Each category report exposes:
+
+- `denominators.selected`: all generated execution cases in the category,
+  including operational failures and pending cases, not contributing row count.
+- `denominators.completed`: cases with a latest terminal attempt.
+- `denominators.srcdiff_eligible`: terminal cases admitted by the unchanged
+  srcDiff semantic gate, including subsequent tool/schema failures.
+- `denominators.complete_detections`: cases with one single move satisfying
+  both complete texts and the existing per-side positional overlap oracle.
+- `complete_detections`, `original_category_agreements`, and
+  `reviewed_category_agreements`: separate numerators. Complete detections
+  include both `oracle_pass` and `wrong_classification`.
+- `rates.complete_detection_over_selected` and
+  `rates.complete_detection_over_eligible`; original and reviewed agreement
+  rates over selected cases and over complete detections.
+- `reported_categories_among_complete_detections`: normalized reported-category
+  counts and proportions, with complete detections as denominator. One move per
+  case is chosen by the existing oracle: prefer an agreeing complete move,
+  otherwise the first complete move. Incidental and partial moves do not enter
+  this distribution. `unavailable` marks missing historical diagnostic evidence.
+
+Zero denominators yield JSON `null`, and empty distributions remain empty.
+Running summaries have pending cases in the selected denominator; use completed
+summaries for final rates. CSV adds `benchmark_category`,
+`category_rules_version`, `complete_fragment_detected` and
+`normalized_observed_category`, while preserving raw `observed_match_kind`,
+`syntactic_type`, reviewed outcome, and correction fields.
+
+### Existing artifacts: regeneration, not implicit migration
+
+Existing compiled catalogs and generated Java object bytes remain reusable;
+they preserve the raw evidence needed for category derivation. Existing
+selection manifests, case databases, frozen profile rows, journals and results
+remain legacy evidence under their recorded rules. Loading a legacy case keeps
+its original `1/2/3` oracle; versionless metadata is never inferred to be
+Type-2b from a high score. Legacy `type2` oracle comparison accepts new detector
+`type2c`, but this compatibility does not expand membership to aggregate Type-2.
+New summaries explicitly mark such artifacts `legacy_syntactic_type`.
+Old run directories cannot resume under scoring oracle 8 because run
+configuration/provenance changed; choose a new run ID/directory.
+
+For a new evaluation, reuse the verified compiled dataset ID, create new
+selections with selector version 4, then publish new benchmark-case databases
+and execute into new result directories. A bounded Type-2b sample, from the
+workspace root, is:
+
+```bash
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/selection.py <dataset-id> --pair-set type2b --mode sample --sample-size 20 --seed 0
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/benchmark_cases.py <new-selection-id>
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/normalized_execution.py <new-benchmark-cases-id> --results-root /workspace/srcMove/benchmark-results
+```
+
+Use `type2c` separately with the same declared sampling parameters. Follow the
+case publisher's CLI help for an explicit cache root. Execution without
+`--resume-run` creates a **new** run directory. Recreate Type-3 selections too, since Type-2b rows
+are now excluded from those bands. No database recompile is needed.
+
+The checked-in `frozen_profiles.jsonl` remains an unchanged legacy profile.
+New Type-2b/Type-2c/Type-3 preset requests reject it with regeneration guidance;
+the suite preflights this before starting tools or writing results. To prepare
+new frozen profiles explicitly, generate into a different file and retain the
+old file and its digest:
+
+```bash
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/generate_frozen_profiles.py <dataset-id> --output /workspace/srcMove/bigMoveBench/cache/frozen-profiles-categories-v1.jsonl --seed 0
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/suite.py --profile small --frozen-profiles /workspace/srcMove/bigMoveBench/cache/frozen-profiles-categories-v1.jsonl
+```
+
+Generation scans the declared frame; it is a separate offline operation and was
+not performed for this change. Its supplied `--selection` inputs must already
+carry category rules version 1. No in-place artifact migration is implemented.
+Any future audit migration must write a new artifact, name the old identity and
+digest, declare changed membership/denominators, preserve review evidence, and
+rescore retained outputs under a new oracle identity; it must not relabel old
+summary counts in place.
 
 ## Type-3 Similarity Reference
 
@@ -219,8 +358,9 @@ separate in reports so one easy category does not hide failures in another.
 
 ```text
 syntactic_type = 1             exact / Type-1 move baseline
-syntactic_type = 2             renamed / Type-2 move baseline
-syntactic_type = 3, sim >= .90 strong external Type-3 reference cases
+syntactic_type = 2             consistent / Type-2c move baseline
+syntactic_type = 3, line = token = 1.0   blind-only / Type-2b
+syntactic_type = 3, .90 <= min(line,token) < 1.0   Type-3 reference
 syntactic_type = 3, sim < .70  weak external Type-3 stress cases
 internal = FALSE/TRUE          default BigCloneEval rows vs internal rows
 f1.project = f2.project        intra-project rows
@@ -246,10 +386,12 @@ than executing the same generated input twice.
 
 The compiled external dataset identified by the checked-in
 [`frozen_profiles.jsonl`](../frozen_profiles.jsonl) manifest contains 8,648,734
-available labeled pair rows: 47,146 Type-1 rows, 4,223 Type-2 rows, 8,323,944
-Type-3 rows, and 273,421 known-false-positive rows. These collapse to 6,011,979
-unique unordered fragment-content pairs across label kinds. Type 1 collapses to
-951 unique content pairs, Type 2 to 567, and known false positives to about
+available labeled pair rows under the **legacy raw syntactic-type grouping**:
+47,146 type-1 rows, 4,223 type-2 rows, 8,323,944 type-3 rows, and 273,421 known-false-positive rows. These collapse to 6,011,979
+unique unordered fragment-content pairs across label kinds. These historical
+counts do not describe the new exclusive derived categories; Type-2b was
+contained in the raw type-3 grouping. Raw syntactic type 1 collapses to
+951 unique content pairs, raw syntactic type 2 to 567, and known false positives to about
 232,509; Type 3 accounts for the remaining multimillion-case scale. Counts are
 dataset-specific and must be read from the compiled manifest and selection
 manifests for every reported run rather than treated as timeless constants.

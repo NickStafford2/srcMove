@@ -11,6 +11,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any, Mapping
 
+from bigMoveBench.categories import CATEGORY_RULES_VERSION
 from bigMoveBench.catalog import VerifiedCompiledDataset
 from bigMoveBench.selection import SELECTION_SCHEMA_VERSION, TYPE3_STRATA, _artifact, load_selection
 from benchmarking.identity import canonical_json, content_identifier
@@ -18,16 +19,20 @@ from benchmarking.provenance import sha256_file, utc_now
 
 
 PRESET_PATH = Path(__file__).with_name("frozen_profiles.jsonl")
-PAIR_SETS = ("type1", "type2", "type3", "known-false-positive")
+PAIR_SETS = ("type1", "type2", "type2b", "type2c", "type3", "known-false-positive")
 PROFILE_SIZES = {"small": 20, "medium": 100}
 
 
-def _rows(profile: str, pair_set: str) -> tuple[Mapping[str, Any], list[Mapping[str, Any]]]:
+def _rows(profile: str, pair_set: str, preset_path: Path = PRESET_PATH) -> tuple[Mapping[str, Any], list[Mapping[str, Any]]]:
     if profile not in PROFILE_SIZES or pair_set not in PAIR_SETS:
         raise ValueError(f"unsupported frozen profile: {profile}/{pair_set}")
-    values = [json.loads(line) for line in PRESET_PATH.read_text(encoding="utf-8").splitlines()]
+    values = [json.loads(line) for line in preset_path.read_text(encoding="utf-8").splitlines()]
     if not values or values[0].get("kind") != "manifest":
         raise ValueError("frozen profile manifest is missing")
+    if values[0].get("category_rules_version") not in (None, CATEGORY_RULES_VERSION):
+        raise ValueError("unsupported frozen category rules version")
+    if pair_set in ("type2b", "type2c", "type3") and values[0].get("category_rules_version") != CATEGORY_RULES_VERSION:
+        raise ValueError("frozen profiles use legacy category membership; regenerate to a new file before running type2b/type2c/type3")
     limit = 5 if pair_set == "type3" and profile == "small" else (25 if pair_set == "type3" else PROFILE_SIZES[profile])
     rows = [
         row for row in values[1:]
@@ -46,8 +51,9 @@ def create_frozen_selection(
     data_root: Path,
     pair_set: str,
     profile: str,
+    preset_path: Path = PRESET_PATH,
 ) -> tuple[Path, Mapping[str, Any], bool]:
-    preset, rows = _rows(profile, pair_set)
+    preset, rows = _rows(profile, pair_set, preset_path)
     identity = preset["compiled_dataset"]
     expected_identity = {
         "dataset_id": compiled.dataset_id,
@@ -58,6 +64,7 @@ def create_frozen_selection(
         raise ValueError("frozen profiles belong to a different compiled dataset")
     request = {
         "selector_version": "frozen-profile-v2",
+        **({"category_rules_version": CATEGORY_RULES_VERSION} if preset.get("category_rules_version") == CATEGORY_RULES_VERSION else {}),
         "compiled_dataset_id": compiled.dataset_id,
         "compiled_manifest_sha256": compiled.manifest_sha256,
         "pair_set": pair_set,
@@ -69,7 +76,7 @@ def create_frozen_selection(
             "algorithm": preset["selection_algorithm"],
             "seed": preset["seed"],
             "size": len(rows),
-            "preset_sha256": sha256_file(PRESET_PATH),
+            "preset_sha256": sha256_file(preset_path),
         },
         "eligibility": preset["eligibility"],
     }

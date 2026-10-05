@@ -32,6 +32,7 @@ from bigMoveBench.catalog import VerifiedCompiledDataset, load_compiled_dataset
 from bigMoveBench.contracts import InputPair
 from bigMoveBench.generated_objects import GeneratedObject, GeneratedObjectStore
 from bigMoveBench.paths import DEFAULT_CACHE_ROOT
+from bigMoveBench.categories import CATEGORY_RULES_VERSION, benchmark_category
 from bigMoveBench.selection import GENERATED_INPUT_IDENTITY_VERSION, load_selection
 from bigMoveBench.synthetic import (
     STABLE_DESTINATION_ROLE,
@@ -46,7 +47,7 @@ from bigMoveBench.synthetic import (
 BENCHMARK_CASES_SCHEMA_VERSION = 1
 BENCHMARK_CASES_SQLITE_APPLICATION_ID = 0x424D4331
 BENCHMARK_CASES_SQLITE_USER_VERSION = 1
-PAIR_SETS = {"type1", "type2", "type3", "known-false-positive"}
+PAIR_SETS = {"type1", "type2", "type2b", "type2c", "type3", "known-false-positive"}
 
 
 @dataclass(frozen=True)
@@ -262,6 +263,8 @@ def _logical_inventory_sha256(connection: sqlite3.Connection) -> str:
 
 def _benchmark_cases_identity(selection: Mapping[str, Any]) -> dict[str, Any]:
     return {
+        **({"category_rules_version": selection["request"]["category_rules_version"]}
+           if "category_rules_version" in selection["request"] else {}),
         "schema_version": BENCHMARK_CASES_SCHEMA_VERSION,
         "wrapper_version": STABLE_WRAPPER_VERSION,
         "compiled_dataset_id": selection["request"]["compiled_dataset_id"],
@@ -434,7 +437,10 @@ def publish_benchmark_cases(
         else "positive"
     )
     expected_syntactic_type = None
-    if case_kind != "known_false_positive":
+    category_version = request.get("category_rules_version")
+    if category_version not in (None, CATEGORY_RULES_VERSION):
+        raise ValueError("unsupported selection category rules")
+    if case_kind != "known_false_positive" and category_version is None:
         expected_syntactic_type = int(pair_set.removeprefix("type"))
     compiled = load_compiled_dataset(
         request["compiled_dataset_id"], data_root=data_root, verification="identity"
@@ -507,6 +513,8 @@ def publish_benchmark_cases(
                 if any(
                     not isinstance(row, Mapping)
                     or row.get("pair_kind") != case_kind
+                    or (category_version is not None and case_kind == "positive"
+                        and benchmark_category(row) != pair_set)
                     or (
                         expected_syntactic_type is not None
                         and row.get("syntactic_type") != expected_syntactic_type
@@ -544,7 +552,7 @@ def publish_benchmark_cases(
                     and isinstance(row.get("tokens", {}).get("min"), int)
                 ]
                 type3_similarity = type3_stratum = None
-                if representative_type == 3 and case_kind == "positive":
+                if (pair_set == "type3" and case_kind == "positive"):
                     type3_similarity, type3_stratum = _type3_frame_strength(rows)
                 functionality_ids = frame.get("functionality_ids", [])
                 function_ids = frame.get("function_ids", [])
@@ -567,6 +575,7 @@ def publish_benchmark_cases(
                 expected_match_kind = (
                     "whole_fragment_rejection"
                     if case_kind == "known_false_positive"
+                    else pair_set if category_version is not None
                     else {1: "type1", 2: "type2", 3: "type3"}[representative_type]
                 )
                 connection.execute(
@@ -647,6 +656,7 @@ def publish_benchmark_cases(
             "identity_sha256": hashlib.sha256(canonical_json(identity)).hexdigest(),
             "created_at": utc_now(),
             "identity": identity,
+            "category_rules_version": category_version,
             "selection": {
                 "selection_id": selection_manifest["selection_id"],
                 "pair_set": pair_set,
@@ -841,12 +851,14 @@ ORDER BY c.ordinal
                     row["modified_fragment_sha256"]
                 )
                 metadata = {
+                    "category_rules_version": self.benchmark_cases.manifest.get("category_rules_version"),
+                    "benchmark_category": row["expected_match_kind"],
                     "source": "BigCloneBench normalized benchmark cases",
                     "case_kind": row["case_kind"],
                     "clone_type": (
                         "known_false_positive"
                         if row["case_kind"] == "known_false_positive"
-                        else f"type{row['syntactic_type']}"
+                        else row["expected_match_kind"]
                     ),
                     "syntactic_type": row["syntactic_type"],
                     "syntactic_types": (

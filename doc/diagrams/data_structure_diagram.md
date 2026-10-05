@@ -89,7 +89,7 @@ classDiagram
 
 `candidate_registry` is the authoritative owner of candidates. `content_groups`
 is a derived snapshot containing candidate identifiers rather than candidate
-copies. FNV-1a hashes index exact and Type-2 representations, but full canonical
+copies. FNV-1a hashes index exact and Type-2c representations, but full canonical
 text confirms equality. Type-3 candidates are shortlisted by construct kind and
 sequence size before bounded-LCS comparison; there is no SHA-1 index,
 probability model, or retained AST in the current implementation.

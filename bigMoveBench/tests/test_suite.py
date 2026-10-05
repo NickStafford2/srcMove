@@ -56,7 +56,7 @@ class BigCloneBenchSuiteTests(unittest.TestCase):
             "oracle_failure": 0,
         }
         self.assertTrue(_pair_set_operational_pass("type3", counts))
-        self.assertFalse(_pair_set_operational_pass("type2", counts))
+        self.assertFalse(_pair_set_operational_pass("type2c", counts))
         counts["srcmove_tool_failure"] = 1
         self.assertFalse(_pair_set_operational_pass("type3", counts))
 
@@ -136,7 +136,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             self.assertTrue((args.cache_root / "benchmark-cases").is_dir())
             self.assertTrue((first_dir / "summary.json").is_file())
             self.assertTrue((second_dir / "summary.json").is_file())
-            self.assertEqual(len(first["pair_sets"]), 4)
+            self.assertEqual(len(first["pair_sets"]), 5)
             self.assertEqual(
                 sorted(path.name for path in (root / "profiles").iterdir()),
                 sorted(
@@ -144,7 +144,8 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                     for prefix in ("first", "second")
                     for pair_set in (
                         "type1",
-                        "type2",
+                        "type2b",
+                        "type2c",
                         "type3",
                         "known-false-positive",
                     )
@@ -152,7 +153,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             )
             self.assertEqual(
                 {item["pair_set"] for item in first["pair_sets"]},
-                {"type1", "type2", "type3", "known-false-positive"},
+                {"type1", "type2b", "type2c", "type3", "known-false-positive"},
             )
             self.assertEqual(first["request"]["mode"], "census")
             self.assertNotIn("seed", first["request"])
@@ -164,7 +165,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 )
             )
             self.assertEqual(
-                len({item["run_id"] for item in first["pair_sets"]}), 4
+                len({item["run_id"] for item in first["pair_sets"]}), 5
             )
             negative = next(
                 item
@@ -188,11 +189,11 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             report = output.getvalue()
             self.assertIn(
                 "BigMoveBench suite: FAIL "
-                "(2/4 pair sets operationally complete)",
+                "(3/5 pair sets operationally complete)",
                 report,
             )
             self.assertIn("Type 1                 FAIL  reviewed passed 0/1 (0.0%)", report)
-            self.assertIn("Type 2                 FAIL  reviewed passed 0/1 (0.0%)", report)
+            self.assertIn("Type 2c (consistent)   FAIL  reviewed passed 0/1 (0.0%)", report)
             self.assertIn(
                 "Type 3                 OBS   observational census; 1 selected",
                 report,
@@ -218,7 +219,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             reviewed_suite = copy.deepcopy(first)
             reviewed_pair = next(
                 item for item in reviewed_suite["pair_sets"]
-                if item["pair_set"] == "type2"
+                if item["pair_set"] == "type2c"
             )
             reviewed_pair["reviewed_counts"]["oracle_pass"] = 1
             reviewed_pair["reviewed_counts"]["srcmove_miss"] = 0
@@ -227,7 +228,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             with redirect_stdout(reviewed_output):
                 _print_report(first_dir, reviewed_suite)
             self.assertIn(
-                "Type 2                 PASS  reviewed passed 1/1 (100.0%)",
+                "Type 2c (consistent)   PASS  reviewed passed 1/1 (100.0%)",
                 reviewed_output.getvalue(),
             )
             self.assertIn(
@@ -255,7 +256,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 "unsuitable for thesis results",
                 cached_output.getvalue(),
             )
-            self.assertIn("srcDiff cache: 4 hits, 0 misses", cached_output.getvalue())
+            self.assertIn("srcDiff cache: 5 hits, 0 misses", cached_output.getvalue())
             first["request"]["development_srcdiff_cache"]["enabled"] = False
 
             type3["assessment"]["sample_interpretation"] = (

@@ -47,7 +47,7 @@ class Type2AdoptionTests(unittest.TestCase):
                     self.assertEqual(result['move_count'], 0)
                     evidence = result['diagnostics']
                     records = [r for r in evidence['correspondences']
-                               if r['correspondence_kind'] == 'type2']
+                               if r['correspondence_kind'] == 'type2c']
                     self.assertEqual(len(records), 1)
                     record = records[0]
                     self.assertEqual(record['shadow_change'], 'stationary')
@@ -73,7 +73,7 @@ class Type2AdoptionTests(unittest.TestCase):
                                and candidates[r['insert_candidate_id']]['xpath'] in correspondence['to_xpaths']]
                     self.assertEqual(len(records), 1, correspondence)
                     record = records[0]
-                    self.assertEqual(record['correspondence_kind'], 'type2')
+                    self.assertEqual(record['correspondence_kind'], 'type2c')
                     self.assertEqual(record['cardinality'], 'one_to_one')
                     self.assertEqual(record['shadow_change'], 'ambiguous')
                     self.assertEqual(record['classification_reason'], 'insufficient_context')

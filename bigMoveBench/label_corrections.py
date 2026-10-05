@@ -7,6 +7,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
+from bigMoveBench.categories import normalize_reported_category
+
 REGISTRY_PATH = Path(__file__).with_name("reviewed_label_corrections.json")
 
 
@@ -43,8 +45,8 @@ class LabelCorrections:
                     and all(c in "0123456789abcdef" for c in h)
                     for h in hashes
                 )
-                or entry.get("original_match_kind") not in ("type1", "type2", "type3")
-                or entry.get("reviewed_match_kind") not in ("type1", "type2", "type3")
+                or entry.get("original_match_kind") not in ("type1", "type2", "type2b", "type2c", "type3")
+                or entry.get("reviewed_match_kind") not in ("type1", "type2", "type2b", "type2c", "type3")
                 or not isinstance(entry.get("id"), str)
                 or not entry["id"]
                 or not isinstance(entry.get("reason"), str)
@@ -72,8 +74,12 @@ class LabelCorrections:
         entry = self._entries.get(tuple(sorted(hashes)))
         if (
             entry is None
-            or entry["original_match_kind"] != f"type{metadata.get('syntactic_type')}"
+            or normalize_reported_category(entry["original_match_kind"]) != normalize_reported_category(
+                metadata.get("benchmark_category", f"type{metadata.get('syntactic_type')}")
+            )
         ):
+            if entry is not None and metadata.get("category_rules_version") is not None:
+                raise ValueError("reviewed correction conflicts with inherited benchmark category; explicit review required")
             return None
         # Return a separate object so callers cannot mutate the run snapshot.
         return json.loads(json.dumps(entry))

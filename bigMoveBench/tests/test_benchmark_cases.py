@@ -37,7 +37,7 @@ def compile_fixture(root: Path):
     type_two = test_catalog.pair_row()
     type_two.update({"syntactic_type": 2, "pair_type": "type-2"})
     type_three = test_catalog.pair_row()
-    type_three.update({"syntactic_type": 3, "pair_type": "type-3"})
+    type_three.update({"syntactic_type": 3, "pair_type": "type-3", "similarity_line": .95})
     test_catalog.write_export(
         exports / "positive.csv", [type_one, type_two, type_three]
     )
@@ -84,7 +84,7 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
         fixture = test_catalog.BigCloneBenchCompiledDatasetTests()
         bce = fixture.create_bce(root)
         first = test_catalog.pair_row()
-        first.update({"pair_type": "type-3", "syntactic_type": 3})
+        first.update({"pair_type": "type-3", "syntactic_type": 3, "similarity_line": .95})
         second = test_catalog.distinct_false_positive_row(bce)
         second["pair_type"] = "type-3"
         exports = root / "exports"
@@ -303,7 +303,7 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
     def test_all_pair_sets_preserve_case_kind_and_expected_count(self) -> None:
         declarations = (
             ("type1", "positive", 1, 1),
-            ("type2", "positive", 2, 1),
+            ("type2c", "positive", 2, 1),
             ("type3", "positive", 3, 1),
             ("known-false-positive", "known_false_positive", 3, 0),
         )

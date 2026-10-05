@@ -50,9 +50,9 @@ class StructuralContextTests(unittest.TestCase):
         ]
         with tempfile.TemporaryDirectory() as directory:
             tmp = Path(directory)
-            for kind in ('type1', 'type2', 'type3'):
+            for kind in ('type1', 'type2c', 'type3'):
                 after = deepcopy(edited if kind == 'type3' else before)
-                if kind == 'type2':
+                if kind == 'type2c':
                     for node in after.iter(SRC + 'name'):
                         if node.text in ('ready', 'value'):
                             node.text = 'renamed_' + node.text
