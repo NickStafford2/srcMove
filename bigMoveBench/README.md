@@ -19,6 +19,8 @@ machine-facing pair-set identifiers use `type1`, `type2b`, `type2c`, `type3`, an
   Java runtime.
 - `compile.py` builds or reuses the catalog implemented by `catalog.py`.
 - `selection.py` publishes deterministic pair-set samples or censuses.
+- `audit.py` reports population accounting, selection provenance, and sampling
+  procedures without changing datasets or selections (see below).
 - `synthetic.py` converts one selected fragment pair into a two-file move.
 - `generated_objects.py` provides the stable, content-addressed wrapper store
   used by benchmark cases.
@@ -40,6 +42,25 @@ machine-facing pair-set identifiers use `type1`, `type2b`, `type2c`, `type3`, an
 The cache remains under `bigMoveBench/cache/bigclonebench/` because it is a sealed
 representation of the upstream dataset. BigMoveBench suite summaries are stored
 under `benchmark-results/bigMoveBench/`.
+
+For a read-only Chapter 6 audit, run from the parent workspace root:
+
+```bash
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/audit.py \
+  --index srcMove/bigMoveBench/cache/selection-index-v1.sqlite \
+  --output-dir srcMove/benchmark-results/bigMoveBench/chapter6-audit-<date>
+```
+
+The audit resolves the compiled dataset by the index's recorded identity and
+writes `audit.json` and `audit.md` to a new directory, refusing overwrite. Each
+SQL query has a 120-second budget (`--query-budget-seconds`); optional coverage
+checks that exceed it are reported as omitted. It uses identity verification,
+not full catalog or fragment-store hashing. Final experiment status requires
+an explicit designation: `--final-selection <selection-directory>` or a
+selection manifest's `final_thesis_experiment: true`. An ordinary cached or
+frozen selection is not assumed to be final. Audit timings are storage/query
+overhead, not detector measurements. No frozen profile is needed for the audit.
+
 For each positive pair set, BigMoveBench reports a strict synthetic
 detection-and-classification outcome rate: Type-1 must report `type1`, Type-2c
 must report `type2c` (legacy output `type2` accepted), Type-2b expects `type2b`,
