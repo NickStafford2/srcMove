@@ -364,3 +364,28 @@ stale scratch cleanup, frozen executable admission, compact storage, and
 read-only status, list, and show queries. Progress tests cover transactional
 publication, resumed prefixes, no-op runs, renderer isolation, TTY output, and
 stdout/stderr separation.
+
+## Evidence snapshots
+
+`srcmove-history -C REPOSITORY definition --format json` exposes the immutable
+analysis manifest (schema 7). `snapshot --format json` returns a schema 1 record
+with the snapshot ID, ZIP path, and covered-pair count. Snapshots acquire the
+operation lock and reject unfinished batches, so their frontier is consistent.
+
+Each ZIP contains the definition, status, every compact pair as JSON Lines,
+the text report, configuration, a checksummed manifest, and available workspace
+build/source receipts. Verified saved comparisons are included under
+`comparisons/<pair-number>/`. Before `compare --pair` saves XML, regenerated
+compact detections and the results JSON checksum must match the stored pair.
+The associated `history-evidence.json` records its identity and file checksums.
+
+Snapshot status and report paths are relative to the state directory, so
+exporting the same evidence through different container mounts produces the
+same bytes. Workspace `history-more`, `history-status`, and `history-export`
+also work in the development shell; see the [workspace commands](../../../docs/workspace.md).
+
+The ZIP name hashes its checksummed contents. Exporting unchanged evidence
+reuses identical bytes; extending coverage or adding a verified comparison
+produces a different ZIP and preserves prior snapshots. Snapshots are portable
+derived evidence, not resumable analysis databases. They record observations,
+not independently established precision, recall, or human review judgments.

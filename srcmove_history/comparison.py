@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import hashlib
+
 import os
 import stat
 import uuid
@@ -11,6 +14,7 @@ from pathlib import Path
 from .configuration import load_history_configuration
 from .contracts import PairOutcome, PairStatus, PairWorkItem, VerifiedArtifact
 from .coordinator import run_pairs
+from .compact import compact_pair_outcome
 from .database import AnalysisDatabase, analysis_database_exists
 from .git import resolve_commit
 from .inputs import (
@@ -103,6 +107,24 @@ def compare_commits(
         saved_paths: list[Path] = []
 
         def publish(outcome: PairOutcome) -> None:
+            if pair is not None:
+                compact = compact_pair_outcome(outcome)
+                observed_moves = [
+                    {
+                        "ordinal": move.ordinal,
+                        "content_relationship": move.content_relationship,
+                        "from_xpaths": json.loads(move.from_xpaths_json),
+                        "to_xpaths": json.loads(move.to_xpaths_json),
+                        "from_text_digests": json.loads(move.from_text_digests_json),
+                        "to_text_digests": json.loads(move.to_text_digests_json),
+                    }
+                    for move in compact.moves
+                ]
+                expected_results = pair.get("results_observation")
+                if expected_results is not None and compact.results_sha256 != expected_results["sha256"]:
+                    raise ValueError("regenerated results JSON differs from stored history evidence")
+                if compact.status != pair["status"] or observed_moves != pair["moves"]:
+                    raise ValueError("regenerated comparison differs from stored history evidence")
             outcomes.append(outcome)
             selected = _selected_artifacts(outcome, save)
             if not selected:
@@ -112,6 +134,13 @@ def compare_commits(
                 target = destination / artifact.path.name
                 _copy_atomically(artifact.path, target)
                 saved_paths.append(target)
+            if pair is not None and selected:
+                record = {
+                    "schema_version": 1,
+                    "pair_fingerprint": pair["pair_fingerprint"],
+                    "files": {artifact.path.name: hashlib.sha256(artifact.path.read_bytes()).hexdigest() for artifact in selected},
+                }
+                (destination / "history-evidence.json").write_text(json.dumps(record, sort_keys=True) + "\n")
 
         try:
             run_pairs(

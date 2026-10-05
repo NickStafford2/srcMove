@@ -32,6 +32,7 @@ from .locking import AnalysisOperationLock, is_analysis_writer_locked
 from .presentation import render_run, render_status
 from .progress import TerminalAnalysisObserver
 from .report import build_report, render_report
+from .snapshot import export_snapshot
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -189,6 +190,10 @@ def build_parser() -> argparse.ArgumentParser:
         help="artifacts to retain under the analysis state directory",
     )
     _add_format(compare)
+    snapshot = commands.add_parser("snapshot", help="export an immutable evidence ZIP")
+    _add_format(snapshot)
+    definition = commands.add_parser("definition", help="show the frozen study definition")
+    _add_format(definition)
     return parser
 
 
@@ -593,6 +598,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if arguments.output_format == "human"
                 else _json(_status_document(summary))
             )
+            exit_status = 0
+        elif arguments.command == "definition":
+            with AnalysisDatabase.open(analysis, read_only=True) as database:
+                document = database.initial_manifest().record()
+            output = _json(document)
+            exit_status = 0
+        elif arguments.command == "snapshot":
+            document = export_snapshot(analysis)
+            output = _json(document) if arguments.output_format == "json" else str(document["path"])
             exit_status = 0
         elif arguments.command == "report":
             output = render_report(build_report(analysis))

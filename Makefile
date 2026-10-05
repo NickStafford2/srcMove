@@ -33,6 +33,9 @@ help:
 	@printf '  %-28s %s\n' 'make test-classification' 'Run the focused Type-1/2/3/none contracts'
 	@printf '  %-28s %s\n' 'make move-selection-benchmark' 'Characterize current parent/child selection behavior'
 	@printf '  %-28s %s\n' 'make history-scaling' 'Measure history throughput across JOBS'
+	@printf '  %-28s %s\n' 'make history-more' 'Extend workspace history; REPO=notepadpp COUNT=100'
+	@printf '  %-28s %s\n' 'make history-status' 'Inspect workspace history coverage'
+	@printf '  %-28s %s\n' 'make history-export' 'Export workspace history to the private thesis folder'
 	@printf '  %-28s %s\n' 'make bigmovebench-preflight' 'Check the local BigCloneBench installation'
 	@printf '  %-28s %s\n' 'make bigmovebench-compile' 'Compile or reuse the local BigCloneBench catalog'
 	@printf '  %-28s %s\n' 'make bigmovebench-conflicts' 'Explain content identities excluded for conflicting labels'
@@ -179,3 +182,11 @@ bigmovebench-suite:
 		$(if $(filter 1 yes true,$(TYPE3_REVIEW)),--type3-review) \
 		--srcdiff /workspace/srcDiff/build/bin/srcdiff \
 		--srcmove /workspace/srcMove/build/srcMove
+
+# Convenience forwarding when this checkout is inside SrcMLBuildTemplate.
+# Command-line variables propagate through recursive make; defaults belong
+# to the workspace Makefile rather than this independent repository.
+.PHONY: history-new history-more history-export history-status
+history-new history-more history-export history-status:
+	@test -x ../bin/history-workflow || { echo 'error: these convenience targets require the parent SrcMLBuildTemplate workspace'; exit 2; }
+	$(MAKE) --no-print-directory -C .. $@
