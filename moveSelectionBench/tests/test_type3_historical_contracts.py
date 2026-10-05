@@ -82,7 +82,7 @@ class HistoricalType3ContractTests(unittest.TestCase):
                         self.assertEqual(len(matches), 1)
                         record = matches[0]
                         oracle = edge['source_oracle']
-                        selected = any(m['match_kind'] == 'type3' and m['from_xpaths'] == [before['xpath']]
+                        selected = any(m['content_relationship'] == 'type3' and m['from_xpaths'] == [before['xpath']]
                                        and m['to_xpaths'] == [after['xpath']] for m in docs[0]['moves'])
                         self.assertEqual(selected, record['current_result'] == 'move')
                         if case['id'] == 'functor_competition':

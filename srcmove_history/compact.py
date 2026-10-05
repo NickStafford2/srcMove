@@ -28,7 +28,7 @@ COMPACT_FAILURE_LOG_LIMIT = 64 * 1024
 @dataclass(frozen=True, slots=True)
 class CompactMove:
     ordinal: int
-    match_kind: str
+    content_relationship: str
     from_xpaths_json: bytes
     to_xpaths_json: bytes
     from_text_digests_json: bytes
@@ -124,9 +124,9 @@ def _compact_results(
 def _compact_move(value: Any, ordinal: int) -> CompactMove:
     if not isinstance(value, dict):
         raise ValueError(f"srcMove move {ordinal} must be an object")
-    match_kind = value.get("match_kind")
-    if not isinstance(match_kind, str) or not match_kind:
-        raise ValueError(f"srcMove move {ordinal} has no match kind")
+    content_relationship = value.get("content_relationship")
+    if not isinstance(content_relationship, str) or not content_relationship:
+        raise ValueError(f"srcMove move {ordinal} has no content relationship")
     from_xpaths = _string_array(value.get("from_xpaths"), "from_xpaths", ordinal)
     to_xpaths = _string_array(value.get("to_xpaths"), "to_xpaths", ordinal)
     from_texts = _string_array(
@@ -135,7 +135,7 @@ def _compact_move(value: Any, ordinal: int) -> CompactMove:
     to_texts = _string_array(value.get("to_raw_texts"), "to_raw_texts", ordinal)
     return CompactMove(
         ordinal=ordinal,
-        match_kind=match_kind,
+        content_relationship=content_relationship,
         from_xpaths_json=canonical_json_bytes(from_xpaths),
         to_xpaths_json=canonical_json_bytes(to_xpaths),
         from_text_digests_json=canonical_json_bytes(_text_digests(from_texts)),

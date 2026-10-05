@@ -97,9 +97,9 @@ def validate_move_record_shape(move: Any, index: int) -> list[str]:
         return [f"results.json moves[{index}] is not an object"]
 
     failures: list[str] = []
-    if move.get("match_kind") not in {"type1", "type2c", "type3"}:
+    if move.get("content_relationship") not in {"type1", "type2c", "type3"}:
         failures.append(
-            f"results.json moves[{index}].match_kind must be type1, type2c, or type3"
+            f"results.json moves[{index}].content_relationship must be type1, type2c, or type3"
         )
     for key in ("confidence_milli", "selection_utility", "matched_units"):
         value = move.get(key)
@@ -126,7 +126,7 @@ def normalize_move_record(move: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "move_id": move.get("move_id"),
-        "match_kind": move.get("match_kind"),
+        "content_relationship": move.get("content_relationship"),
         "confidence_milli": move.get("confidence_milli"),
         "selection_utility": move.get("selection_utility"),
         "matched_units": move.get("matched_units"),
@@ -178,14 +178,14 @@ def move_matches_expectation(
             ),
         )
 
-    if "match_kind" in expected and actual["match_kind"] != expected["match_kind"]:
+    if "content_relationship" in expected and actual["content_relationship"] != expected["content_relationship"]:
         return (
             False,
             "\n".join(
                 [
-                    "match_kind mismatch:",
-                    f"  expected: {expected['match_kind']!r}",
-                    f"  actual:   {actual['match_kind']!r}",
+                    "content_relationship mismatch:",
+                    f"  expected: {expected['content_relationship']!r}",
+                    f"  actual:   {actual['content_relationship']!r}",
                 ]
             ),
         )
@@ -229,7 +229,7 @@ def check_summary_fields(
         "candidates_total",
         "groups_total",
         "group_kinds",
-        "match_kinds",
+        "content_relationships",
     )
 
     for key in required_top_level_keys:
@@ -287,29 +287,29 @@ def check_summary_fields(
                         failures,
                     )
 
-    if "match_kinds" in expected and "match_kinds" in results_json:
-        expected_match_kinds = expected["match_kinds"]
-        actual_match_kinds = results_json["match_kinds"]
+    if "content_relationships" in expected and "content_relationships" in results_json:
+        expected_content_relationships = expected["content_relationships"]
+        actual_content_relationships = results_json["content_relationships"]
 
-        if not isinstance(expected_match_kinds, dict):
-            failures.append("expected.json field 'match_kinds' is not an object")
-        elif not isinstance(actual_match_kinds, dict):
-            failures.append("results.json field 'match_kinds' is not an object")
+        if not isinstance(expected_content_relationships, dict):
+            failures.append("expected.json field 'content_relationships' is not an object")
+        elif not isinstance(actual_content_relationships, dict):
+            failures.append("results.json field 'content_relationships' is not an object")
         else:
             for key in ("type1", "type2c", "type3"):
-                if key not in expected_match_kinds:
+                if key not in expected_content_relationships:
                     failures.append(
-                        f"expected.json match_kinds missing required field {key!r}"
+                        f"expected.json content_relationships missing required field {key!r}"
                     )
-                if key not in actual_match_kinds:
+                if key not in actual_content_relationships:
                     failures.append(
-                        f"results.json match_kinds missing required field {key!r}"
+                        f"results.json content_relationships missing required field {key!r}"
                     )
-                if key in expected_match_kinds and key in actual_match_kinds:
+                if key in expected_content_relationships and key in actual_content_relationships:
                     compare_scalar(
-                        actual_match_kinds[key],
-                        expected_match_kinds[key],
-                        f"match_kinds.{key}",
+                        actual_content_relationships[key],
+                        expected_content_relationships[key],
+                        f"content_relationships.{key}",
                         failures,
                     )
 
@@ -389,6 +389,9 @@ def validate_results(
     expected: dict[str, Any], results_json: dict[str, Any]
 ) -> list[str]:
     failures: list[str] = []
+    from bigMoveBench.oracle import _validate_results_schema
+
+    failures.extend(_validate_results_schema(results_json, require_xpaths=True))
     failures.extend(check_summary_fields(results_json, expected))
     failures.extend(validate_moves(expected, results_json))
     return failures

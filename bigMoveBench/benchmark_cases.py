@@ -44,9 +44,9 @@ from bigMoveBench.synthetic import (
 )
 
 
-BENCHMARK_CASES_SCHEMA_VERSION = 1
+BENCHMARK_CASES_SCHEMA_VERSION = 2
 BENCHMARK_CASES_SQLITE_APPLICATION_ID = 0x424D4331
-BENCHMARK_CASES_SQLITE_USER_VERSION = 1
+BENCHMARK_CASES_SQLITE_USER_VERSION = 2
 PAIR_SETS = {"type1", "type2", "type2b", "type2c", "type3", "known-false-positive"}
 
 
@@ -136,7 +136,7 @@ CREATE TABLE cases (
   original_destination_object_id TEXT NOT NULL REFERENCES generated_objects(object_id),
   modified_source_object_id TEXT NOT NULL REFERENCES generated_objects(object_id),
   modified_destination_object_id TEXT NOT NULL REFERENCES generated_objects(object_id),
-  expected_match_kind TEXT NOT NULL,
+  expected_content_relationship TEXT NOT NULL,
   expected_move_count INTEGER NOT NULL CHECK (expected_move_count IN (0, 1)),
   from_start_line INTEGER NOT NULL CHECK (from_start_line >= 1),
   from_end_line INTEGER NOT NULL CHECK (from_end_line >= from_start_line),
@@ -572,11 +572,11 @@ def publish_benchmark_cases(
                     if isinstance(function_ids, list) and len(function_ids) > 1
                     else None
                 )
-                expected_match_kind = (
+                expected_content_relationship = (
                     "whole_fragment_rejection"
                     if case_kind == "known_false_positive"
                     else pair_set if category_version is not None
-                    else {1: "type1", 2: "type2", 3: "type3"}[representative_type]
+                    else {1: "type1", 2: "type2c", 3: "type3"}[representative_type]
                 )
                 connection.execute(
                     "INSERT INTO cases VALUES "
@@ -594,7 +594,7 @@ def publish_benchmark_cases(
                         empty_destination.object_id,
                         empty_source.object_id,
                         modified_object.object_id,
-                        expected_match_kind,
+                        expected_content_relationship,
                         0 if case_kind == "known_false_positive" else 1,
                         original_object.payload_range[0],
                         original_object.payload_range[1],
@@ -852,13 +852,13 @@ ORDER BY c.ordinal
                 )
                 metadata = {
                     "category_rules_version": self.benchmark_cases.manifest.get("category_rules_version"),
-                    "benchmark_category": row["expected_match_kind"],
+                    "benchmark_category": row["expected_content_relationship"],
                     "source": "BigCloneBench normalized benchmark cases",
                     "case_kind": row["case_kind"],
                     "clone_type": (
                         "known_false_positive"
                         if row["case_kind"] == "known_false_positive"
-                        else row["expected_match_kind"]
+                        else row["expected_content_relationship"]
                     ),
                     "syntactic_type": row["syntactic_type"],
                     "syntactic_types": (

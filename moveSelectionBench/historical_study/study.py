@@ -396,10 +396,10 @@ def score(args):
                               endpoint_is_unique(repo,c['commit'],e['new'],new_raw))
                     matches=match_event(tree,moves,old,new) if unique else []
                     event_row.update(selected_indices=matches,
-                        selected_types=[moves[i]['match_kind'] for i in matches],
+                        selected_types=[moves[i]['content_relationship'] for i in matches],
                         outcome='detected' if matches else 'needs_miss_review' if unique else 'needs_occurrence_resolution')
                 for i,m in enumerate(moves):
-                    row['outputs'].append({'index':i,'type':m['match_kind'],
+                    row['outputs'].append({'index':i,'type':m['content_relationship'],
                         'from_xpaths':m['from_xpaths'],'to_xpaths':m['to_xpaths'],
                         'old':[xpath_endpoint(tree,x,'delete') for x in m['from_xpaths']],
                         'new':[xpath_endpoint(tree,x,'insert') for x in m['to_xpaths']],

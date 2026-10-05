@@ -56,7 +56,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 ("{}", "invalid_structure"),
                 (
                     json.dumps(
-                        {"results_schema_version": 1, "move_count": 0, "match_kinds": {}, "moves": []}
+                        {"results_schema_version": 2, "move_count": 0, "content_relationships": {}, "moves": []}
                     ),
                     "valid",
                 ),
@@ -80,12 +80,12 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             },
         }
         results = {
-            "results_schema_version": 1, "move_count": 1,
-            "match_kinds": {"type1": 1},
+            "results_schema_version": 2, "move_count": 1,
+            "content_relationships": {"type1": 1},
             "moves": [
                 {
                     "move_id": "m1",
-                    "match_kind": "type1",
+                    "content_relationship": "type1",
                     "from_xpaths": [
                         "/src:unit[@filename='source/input.java']"
                         "/src:class[1]/src:block[1]/diff:delete[1]"
@@ -139,7 +139,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             self.assertEqual(outcome, "oracle_failure")
             self.assertTrue(any("resolved to 0 nodes" in failure for failure in failures))
 
-    def test_type_two_scoring_requires_type2_match_kind(self) -> None:
+    def test_type_two_scoring_requires_type2_content_relationship(self) -> None:
         metadata = {
             "syntactic_type": 2,
             "expected": {
@@ -168,19 +168,19 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 "</unit>"
             )
             results_path = root / "results.json"
-            for match_kind, expected_outcome in (
+            for content_relationship, expected_outcome in (
                 ("type1", "wrong_classification"),
-                ("type2", "oracle_pass"),
+                ("type2c", "oracle_pass"),
             ):
                 results_path.write_text(
                     json.dumps(
                         {
-                            "results_schema_version": 1, "move_count": 1,
-                            "match_kinds": {match_kind: 1},
+                            "results_schema_version": 2, "move_count": 1,
+                            "content_relationships": {content_relationship: 1},
                             "moves": [
                                 {
                                     "move_id": "m1",
-                                    "match_kind": match_kind,
+                                    "content_relationship": content_relationship,
                                     "from_raw_texts": ["void moved() {}\n"],
                                     "to_raw_texts": ["void moved() {}\n"],
                                 }
@@ -188,7 +188,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                         }
                     )
                 )
-                with self.subTest(match_kind=match_kind):
+                with self.subTest(content_relationship=content_relationship):
                     outcome, _, _, _ = _score_completed_case(
                         metadata=metadata,
                         results_path=results_path,
@@ -196,7 +196,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                     )
                     self.assertEqual(outcome, expected_outcome)
 
-    def test_type_three_scoring_requires_type3_match_kind(self) -> None:
+    def test_type_three_scoring_requires_type3_content_relationship(self) -> None:
         metadata = {
             "syntactic_type": 3,
             "expected": {
@@ -225,19 +225,19 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 "</unit>"
             )
             results_path = root / "results.json"
-            for match_kind, expected_outcome in (
-                ("type2", "wrong_classification"),
+            for content_relationship, expected_outcome in (
+                ("type2c", "wrong_classification"),
                 ("type3", "oracle_pass"),
             ):
                 results_path.write_text(
                     json.dumps(
                         {
-                            "results_schema_version": 1, "move_count": 1,
-                            "match_kinds": {match_kind: 1},
+                            "results_schema_version": 2, "move_count": 1,
+                            "content_relationships": {content_relationship: 1},
                             "moves": [
                                 {
                                     "move_id": "m1",
-                                    "match_kind": match_kind,
+                                    "content_relationship": content_relationship,
                                     "from_raw_texts": ["void before() {}\n"],
                                     "to_raw_texts": ["void after() {}\n"],
                                 }
@@ -245,7 +245,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                         }
                     )
                 )
-                with self.subTest(match_kind=match_kind):
+                with self.subTest(content_relationship=content_relationship):
                     outcome, _, _, _ = _score_completed_case(
                         metadata=metadata,
                         results_path=results_path,
@@ -274,7 +274,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
         ) -> dict[str, object]:
             return {
                 "move_id": move_id,
-                "match_kind": kind,
+                "content_relationship": kind,
                 "from_raw_texts": [from_text],
                 "to_raw_texts": [to_text],
             }
@@ -330,13 +330,13 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             for label, moves, xml_text, expected_outcome in cases:
                 counts: dict[str, int] = {}
                 for observed in moves:
-                    kind = str(observed["match_kind"])
+                    kind = str(observed["content_relationship"])
                     counts[kind] = counts.get(kind, 0) + 1
                 results_path.write_text(
                     json.dumps(
                         {
-                            "results_schema_version": 1, "move_count": len(moves),
-                            "match_kinds": counts,
+                            "results_schema_version": 2, "move_count": len(moves),
+                            "content_relationships": counts,
                             "moves": moves,
                         }
                     )
@@ -378,11 +378,11 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             results_path.write_text(
                 json.dumps(
                     {
-                        "results_schema_version": 1, "move_count": 1,
-                        "match_kinds": {"type1": 1},
+                        "results_schema_version": 2, "move_count": 1,
+                        "content_relationships": {"type1": 1},
                         "moves": [
                             {
-                                "match_kind": "type1",
+                                "content_relationship": "type1",
                                 "from_raw_texts": ["void moved() {}"],
                                 "to_raw_texts": ["void moved() {}"],
                             }
@@ -399,7 +399,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             self.assertTrue(any("move_id" in failure for failure in failures))
 
             results_path.write_text(
-                json.dumps({"results_schema_version": 1, "move_count": 0, "match_kinds": {}, "moves": []})
+                json.dumps({"results_schema_version": 2, "move_count": 0, "content_relationships": {}, "moves": []})
             )
             srcmove_xml.write_text("<unit>")
             outcome, _, _, _ = _score_completed_case(
@@ -421,17 +421,17 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
         }
         cases = (
             (
-                {"results_schema_version": 1, "move_count": 0, "match_kinds": {}, "moves": []},
+                {"results_schema_version": 2, "move_count": 0, "content_relationships": {}, "moves": []},
                 "oracle_pass",
             ),
             (
                 {
-                    "results_schema_version": 1, "move_count": 1,
-                    "match_kinds": {"type1": 1},
+                    "results_schema_version": 2, "move_count": 1,
+                    "content_relationships": {"type1": 1},
                     "moves": [
                         {
                             "move_id": "child",
-                            "match_kind": "type1",
+                            "content_relationship": "type1",
                             "from_raw_texts": ["child();"],
                             "to_raw_texts": ["child();"],
                         }
@@ -441,18 +441,18 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             ),
             (
                 {
-                    "results_schema_version": 1, "move_count": 2,
-                    "match_kinds": {"type1": 1, "type3": 1},
+                    "results_schema_version": 2, "move_count": 2,
+                    "content_relationships": {"type1": 1, "type3": 1},
                     "moves": [
                         {
                             "move_id": "whole",
-                            "match_kind": "type3",
+                            "content_relationship": "type3",
                             "from_raw_texts": ["void fromWhole() {\n  child();\n}\n"],
                             "to_raw_texts": ["void toWhole() {\n  child();\n}\n"],
                         },
                         {
                             "move_id": "child",
-                            "match_kind": "type1",
+                            "content_relationship": "type1",
                             "from_raw_texts": ["child();"],
                             "to_raw_texts": ["child();"],
                         },

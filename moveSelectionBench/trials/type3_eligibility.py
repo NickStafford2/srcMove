@@ -24,11 +24,11 @@ INSERT = '''    // EXPERIMENT ONLY: retain the verified graph and original partn
       ++trial_degrees[edge.ins_id];
     }
     for (match_proposal &proposal : proposals) {
-      if (proposal.group.match != match_kind::type3) continue;
+      if (proposal.group.match != content_relationship::type3) continue;
       const auto del_id = proposal.group.del_ids.front();
       const auto ins_id = proposal.group.ins_ids.front();
       const auto decision = classify_correspondence(
-          registry, del_id, ins_id, match_kind::type3);
+          registry, del_id, ins_id, content_relationship::type3);
       bool accepted = move_eligible(decision.classification);
 #ifdef SRCMOVE_TRIAL_REJECT_COMPETING
       accepted = accepted && trial_degrees[del_id] == 1 && trial_degrees[ins_id] == 1;
@@ -129,7 +129,7 @@ def compare(out):
             if (dest / (variant + '.xml')).read_bytes() != (dest / (variant + '-ordinary.xml')).read_bytes():
                 raise AssertionError('Diagnostic annotations changed')
             (dest / (variant + '.seconds')).write_text(str(time.monotonic() - start))
-        key = lambda m: (m['match_kind'], tuple(m['from_xpaths']), tuple(m['to_xpaths']))
+        key = lambda m: (m['content_relationship'], tuple(m['from_xpaths']), tuple(m['to_xpaths']))
         old = {key(m): m for m in docs['baseline']['moves']}
         row = dict(case, variants={})
         for variant in ['location', 'uncontested']:
@@ -139,7 +139,7 @@ def compare(out):
             new = {key(m): m for m in doc['moves']}
             row['variants'][variant] = dict(removed=[old[k] for k in sorted(old.keys() - new.keys())],
                 added=[new[k] for k in sorted(new.keys() - old.keys())],
-                baseline_match_kinds=docs['baseline']['match_kinds'], match_kinds=doc['match_kinds'])
+                baseline_content_relationships=docs['baseline']['content_relationships'], content_relationships=doc['content_relationships'])
         report['cases'].append(row)
         if any(v['removed'] or v['added'] for v in row['variants'].values()):
             print(case['suite'], case['name'], {k: (len(v['removed']), len(v['added'])) for k, v in row['variants'].items()}, flush=True)

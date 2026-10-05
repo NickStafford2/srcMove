@@ -213,7 +213,7 @@ class _SummaryView:
             self.moves.get("annotated_regions", summary.get("annotated_region_count"))
         )
         move_types = _mapping(
-            self.moves.get("by_type", summary.get("match_kinds"))
+            self.moves.get("by_content_relationship", summary.get("content_relationships"))
         )
         self.move_types = {
             str(name): _nonnegative_int(count)
@@ -288,12 +288,10 @@ class _SummaryView:
         labels = {"type1": "Type 1", "type2c": "Type 2c", "type3": "Type 3"}
         for name in ("type1", "type2c", "type3"):
             count = self.move_types.get(name, 0)
-            if name == "type2c":
-                count += self.move_types.get("type2", 0)
             if count:
                 parts.append(f"{count} {labels[name]}")
         for name, count in sorted(self.move_types.items()):
-            if name not in labels and name != "type2" and count:
+            if name not in labels and count:
                 parts.append(f"{count} {name}")
         return " · ".join(parts)
 

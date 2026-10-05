@@ -68,12 +68,7 @@ settled.
   score: maximizing the current heuristic can also favor excessive fragmentation.
   The limitation is established by the procedure; its frequency and the benefit
   of a replacement remain unmeasured.
-- Rename the report JSON field `match_kinds` to `match_types` for the Type-1,
-  Type-2, and Type-3 group counts. Coordinate the rename with JSON consumers,
-  tests, and documentation, and decide how to handle schema compatibility.
-- Review related JSON terminology in the same schema update (proposed names;
-  current behavior is unchanged):
-  - `match_kind` → `match_type`, consistent with the summary field.
+- Review remaining JSON terminology (proposed names; current behavior is unchanged):
   - `confidence_milli` → `selection_weight_milli`: a ranking weight, not a
     measured probability of correctness.
   - `move_pair_count` → `estimated_pair_count`: the sum of the smaller endpoint

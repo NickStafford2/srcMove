@@ -20,7 +20,7 @@ class HistoricalStudyTests(unittest.TestCase):
 <unit filename="same.cpp"><diff:delete><function>void f(){<expr_stmt>use(realFmt);</expr_stmt>}</function></diff:delete>
 <diff:insert><function>void f(){<expr_stmt>use(intFmt);</expr_stmt>}</function><function>void f(){<expr_stmt>use(fpFmt);</expr_stmt>}</function></diff:insert></unit></unit>'''))
         self.prefix = "/src:unit[@filename='same.cpp']"
-        self.move = dict(match_kind='type2c',from_xpaths=[self.prefix+'/diff:delete[1]/src:function[1]'],
+        self.move = dict(content_relationship='type2c',from_xpaths=[self.prefix+'/diff:delete[1]/src:function[1]'],
                          to_xpaths=[self.prefix+'/diff:insert[1]/src:function[1]'])
 
     def test_wrong_normalized_partner_is_not_true_positive(self):

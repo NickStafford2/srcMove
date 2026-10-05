@@ -75,9 +75,9 @@ class Type2ContractTests(unittest.TestCase):
                             self.assertIn('profile.content_groups.' + name + '=', result.stderr)
                         self.assertNotIn('profile.content_groups.type2_', result.stderr)
                         payload = json.loads(output.read_text())
-                        self.assertEqual(set(payload['match_kinds']),
+                        self.assertEqual(set(payload['content_relationships']),
                                          {'type1', 'type2c', 'type3'})
-                        self.assertTrue(all(move['match_kind'] in
+                        self.assertTrue(all(move['content_relationship'] in
                                             {'type1', 'type2c', 'type3'}
                                             for move in payload['moves']))
                         if diagnostics:
@@ -97,7 +97,7 @@ class Type2ContractTests(unittest.TestCase):
                                     for side, text in (('delete', 'before_text'), ('insert', 'after_text'))
                                 }
                                 selected = any(
-                                    move.get('match_kind') == 'type2c'
+                                    move.get('content_relationship') == 'type2c'
                                     and paths['delete'].intersection(move.get('from_xpaths', []))
                                     and paths['insert'].intersection(move.get('to_xpaths', []))
                                     for move in payload['moves']
@@ -108,7 +108,7 @@ class Type2ContractTests(unittest.TestCase):
                                                  case['expected_type2_output'])
                                 if case.get('expected_selection') == 'covered_by_selected_parent':
                                     self.assertTrue(any(
-                                        move.get('match_kind') == 'type2c'
+                                        move.get('content_relationship') == 'type2c'
                                         and any(child.startswith(parent + '/')
                                                 for child in paths['delete']
                                                 for parent in move.get('from_xpaths', []))

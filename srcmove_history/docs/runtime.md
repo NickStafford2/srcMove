@@ -125,9 +125,9 @@ being interpreted as an in-place update.
 
 Human-readable output is the default. `run`, `status`, `list`, `show`, and
 `compare` accept `--format human|json`. The `run` and `status` JSON forms emit
-status document schema version 2. Its names make commit pair counts explicit
+status document schema version 3. Its names make commit pair counts explicit
 and report moves as `detections`,
-`source_destination_pairings`, `annotated_regions`, and `by_match_type`.
+`source_destination_pairings`, `annotated_regions`, and `by_content_relationship`.
 Status derives live writer state by probing the operation lock; `activity.json`
 alone is never treated as proof that a run is active.
 The compact summary reports processed adjacent commit pairs, separates commit
@@ -214,8 +214,10 @@ Old JSON chain roots are deliberately rejected. Mixing the old chain format
 with SQLite would recreate multiple authorities and ambiguous recovery. Start a
 new analysis root instead.
 
-Database schema version 6 is a deliberate clean break. Older roots are rejected
-with an instruction to start a fresh state directory. Version 6 retains the
+Database schema version 7 is a deliberate clean break for content-relationship
+reporting. Older roots are rejected with an instruction to start a fresh state
+directory. Results schema 2, compact-pair schema 3, and validator version 3
+require regenerated outcomes. Version 7 retains the
 analysis-relative repository and admitted-tool locators introduced in version 4
 and srcDiff archive invariant from version 5. It also records unsupported Git
 modes as compact path-exclusion counts instead of failing an otherwise valid
@@ -292,7 +294,7 @@ Successful results retain compact evidence rather than complete XML or raw
 moved source bodies:
 
 - scalar and grouped metrics;
-- match kind and source/destination XPath arrays for each move;
+- predicted content relationship and source/destination XPath arrays for each move;
 - SHA-256 and UTF-8 byte length for each moved raw-text region;
 - results-file SHA-256 and byte length as an observation.
 

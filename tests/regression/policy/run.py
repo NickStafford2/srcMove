@@ -102,17 +102,17 @@ def evaluate(case: PolicyCaseSpec, results: dict[str, Any]) -> tuple[bool, str]:
             for move in moves[:3]:
                 if isinstance(move, dict):
                     raw = _normalized_texts(move, "from_raw_texts")
-                    samples.append(f"{move.get('match_kind', '?')}:{raw!r}")
+                    samples.append(f"{move.get('content_relationship', '?')}:{raw!r}")
             return False, f"expected no moves; detected {len(moves)} ({', '.join(samples)})"
         return True, ""
 
     definition = case.definition
-    expected_kind = definition["expected_match_kind"]
+    expected_kind = definition["expected_content_relationship"]
     expected_from = _text(definition["expected_from_lines"])
     expected_to = _text(definition["expected_to_lines"])
     matches = []
     for move in moves:
-        if not isinstance(move, dict) or move.get("match_kind") != expected_kind:
+        if not isinstance(move, dict) or move.get("content_relationship") != expected_kind:
             continue
         if expected_from not in _normalized_texts(move, "from_raw_texts"):
             continue
@@ -123,7 +123,7 @@ def evaluate(case: PolicyCaseSpec, results: dict[str, Any]) -> tuple[bool, str]:
     if not matches:
         observed = [
             (
-                move.get("match_kind"),
+                move.get("content_relationship"),
                 _normalized_texts(move, "from_raw_texts"),
                 _normalized_texts(move, "to_raw_texts"),
             )

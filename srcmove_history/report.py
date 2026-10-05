@@ -51,7 +51,7 @@ class ReportSnapshot:
     analyzable_paths: int
     move_groups: int
     move_bearing_commit_pairs: int
-    match_kinds: tuple[tuple[str, int], ...]
+    content_relationships: tuple[tuple[str, int], ...]
     within_file_moves: int
     cross_file_moves: int
     unclassified_location_moves: int
@@ -98,7 +98,7 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
             ).fetchall()
             move_rows = database.connection.execute(
                 """
-                SELECT m.match_kind, m.from_xpaths_json, m.to_xpaths_json
+                SELECT m.content_relationship, m.from_xpaths_json, m.to_xpaths_json
                 FROM moves AS m
                 JOIN batches AS b ON b.batch_id = m.batch_id
                 WHERE b.status = 'completed'
@@ -158,12 +158,12 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
                 if maximum is None or candidate.moves > maximum.moves:
                     maximum = candidate
 
-    match_kinds: Counter[str] = Counter()
+    content_relationships: Counter[str] = Counter()
     within_file = 0
     cross_file = 0
     unclassified = 0
     for row in move_rows:
-        match_kinds[_text(row["match_kind"], "move match kind")] += 1
+        content_relationships[_text(row["content_relationship"], "move content relationship")] += 1
         sources = _filenames(_array(row["from_xpaths_json"], "source XPaths"))
         destinations = _filenames(
             _array(row["to_xpaths_json"], "destination XPaths")
@@ -208,7 +208,7 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
         analyzable_paths=analyzable_paths,
         move_groups=move_groups,
         move_bearing_commit_pairs=sum(count > 0 for count in move_counts),
-        match_kinds=tuple(sorted(match_kinds.items())),
+        content_relationships=tuple(sorted(content_relationships.items())),
         within_file_moves=within_file,
         cross_file_moves=cross_file,
         unclassified_location_moves=unclassified,
@@ -249,7 +249,7 @@ def render_report(report: ReportSnapshot) -> str:
     move_commit_pair_share = _ratio(
         report.move_bearing_commit_pairs, report.compared_commit_pairs
     )
-    match_kinds = dict(report.match_kinds)
+    content_relationships = dict(report.content_relationships)
     group_kinds = dict(report.group_kinds)
 
     lines = ["Repository History Move Analysis", "=" * 32, "", "Scope"]
@@ -314,17 +314,16 @@ def render_report(report: ReportSnapshot) -> str:
         )
     )
 
-    lines.extend(("", "Match classification"))
-    match_kinds["type2c"] = match_kinds.pop("type2", 0) + match_kinds.get("type2c", 0)
+    lines.extend(("", "Content classification"))
     for name in ("type1", "type2c", "type3"):
-        count = match_kinds.pop(name, 0)
+        count = content_relationships.pop(name, 0)
         lines.append(
             _field(
-                _match_label(name),
+                _content_relationship_label(name),
                 f"{count:,} ({_ratio(count, report.move_groups)})",
             )
         )
-    for name, count in sorted(match_kinds.items()):
+    for name, count in sorted(content_relationships.items()):
         lines.append(_field(name, f"{count:,} ({_ratio(count, report.move_groups)})"))
 
     lines.extend(("", "Location"))
@@ -457,7 +456,7 @@ def render_report(report: ReportSnapshot) -> str:
             f"of {report.move_groups:,} detections "
             f"({_ratio(report.maximum.moves, report.move_groups)})."
         )
-    type3 = dict(report.match_kinds).get("type3", 0)
+    type3 = dict(report.content_relationships).get("type3", 0)
     if type3:
         lines.append(
             f"  - Type 3 approximate matches account for {type3:,} of "
@@ -659,7 +658,7 @@ def _maximum_label(maximum: CommitPairMaximum | None) -> str:
     )
 
 
-def _match_label(name: str) -> str:
+def _content_relationship_label(name: str) -> str:
     return {"type1": "Type 1", "type2c": "Type 2c", "type3": "Type 3"}[name]
 
 

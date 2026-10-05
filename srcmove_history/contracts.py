@@ -10,7 +10,7 @@ from typing import Any
 
 # Bump when the normalized terminal pair-result contract changes.
 PAIR_OUTCOME_SCHEMA_VERSION = 2
-COMPACT_PAIR_SCHEMA_VERSION = 2
+COMPACT_PAIR_SCHEMA_VERSION = 3
 
 
 class PairStatus(str, Enum):

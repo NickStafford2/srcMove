@@ -101,11 +101,11 @@ def main():
                     and c['candidate_id'] in endpoints[side]['candidate_ids']} for side in ('old','new')}
                 indices=[i for i,m in enumerate(moves) if len(m['from_xpaths'])==len(m['to_xpaths'])==1
                     and m['from_xpaths'][0] in paths['old'] and m['to_xpaths'][0] in paths['new']]
-                kinds=[moves[i]['match_kind'] for i in indices]
+                kinds=[moves[i]['content_relationship'] for i in indices]
                 row['events'].append(dict(id=event['id'],scope='whole_construct',expected_type='type2c',
                     exact_selected_indices=indices,selected_types=kinds,
                     outcome='detected' if indices else 'unresolved' if any(e['status']=='unresolved' for e in endpoints.values()) else 'missed',
-                    strict_type2c_detected=bool(indices) and all(k in ('type2', 'type2c') for k in kinds),endpoints=endpoints))
+                    strict_type2c_detected=bool(indices) and all(k == 'type2c' for k in kinds),endpoints=endpoints))
             row['selected_output_count']=len(moves)
             row['unadjudicated_output_indices']=[i for i in range(len(moves))
                 if not any(i in e['exact_selected_indices'] for e in row['events'])]

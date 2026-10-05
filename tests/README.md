@@ -72,7 +72,7 @@ python3 tests/regression/policy/list.py --catalog contextual
 - `policy`: reviewer-owned main and contextual move-policy catalogs.
   Every entry generates an isolated before/after archive, then runs through
   `srcdiff` and `srcMove`. Negative cases require zero moves; positive cases
-  require exactly one move with the declared raw text and match kind.
+  require exactly one move with the declared raw text and content relationship.
 
 The canonicalization unit fixture and historical source-pair fixtures use
 fragment granularity because they isolate low-level normalization and grouping

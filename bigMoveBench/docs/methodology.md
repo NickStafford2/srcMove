@@ -68,11 +68,11 @@ like a cross-file move.
 
 The original-label evaluation uses a strict detection-and-classification oracle:
 Type-1 cases must classify the intended whole-fragment move as `type1`, Type-2c
-as `type2c` (legacy srcMove `type2` is accepted), Type-2b as `type2b`, and
+as `type2c`, Type-2b as `type2b`, and
 Type-3 as `type3`. Position and per-side text validation are
 correlated to the same JSON result; the result's XPaths supply its position
 evidence from the admitted srcDiff XML.
-Detecting the intended payload with the wrong match kind is useful failure
+Detecting the intended payload with the incorrect content classification is useful failure
 evidence, but it is not counted as a pass. Type-3 recall is observational. The
 benchmark deliberately uses BigCloneBench as the best available large labeled
 source; questionable labels,
@@ -97,7 +97,7 @@ schema, and execution checks remain required. A missing move still fails, and
 reporting the inherited type instead of the reviewed type also fails the
 reviewed expectation.
 
-The checked-in [correction registry](../reviewed_label_corrections.json) records
+The checked-in [current correction registry](../content_relationship_corrections.json) records
 each review. Each correction identifies the two exact fragment hashes, original and reviewed
 types, source function IDs, and the reason for review. The unordered hash pair
 supports either comparison direction; a modified fragment does not inherit the
@@ -161,23 +161,23 @@ Source `syntactic_type`, `pair_type`, similarity values, contributing row IDs,
 function IDs, fragment hashes and multiplicities are preserved unchanged.
 Selection rows add `benchmark_category` and `category_rules_version`; the
 selection request includes that version in its content identity. Generated
-cases store the derived category in `expected_match_kind`, expose it as
+cases store the derived category in `expected_content_relationship`, expose it as
 `benchmark_category` and `clone_type`, and retain raw `syntactic_type` separately.
 Only derived Type-3 receives a Type-3 strength band. Deduplication, conflict
 exclusion, source availability and srcDiff admission rules remain unchanged.
 
-The results schema remains version 1. BigMoveBench accepts both srcMove
-`type2c` and the historical `type2` in move `match_kind` and `match_kinds` counts.
-Each spelling's count must match the moves actually using it; counts cannot be
-renamed independently. Output comparison normalizes legacy `type2` to `type2c`.
-Raw output and observed labels are retained. `type2b` is also an accepted report
-category for a future detector. No Type-2b detection capability is presumed:
+Results schema 2 uses `moves[].content_relationship` and `content_relationships`
+for predicted content classifications and their group counts. Current consumers
+reject schema 1, superseded fields, legacy `type2`, and `type2b` as a selected
+report label. Counts must agree with the reported groups. Reference expectations
+may still be Type-2b; this does not manufacture a detector prediction.
+No Type-2b detection capability is presumed:
 a complete Type-2b pair reported as Type-3 is detected but incorrectly
 classified, whereas smaller child moves are detection misses. The detector's
 rename to `type2c` requires no matching-behavior change in this benchmark.
 
 Reviewed corrections are still matched by exact unordered fragment hashes.
-Historical correction `original_match_kind: type2` means consistent `type2c`;
+Historical correction `original_content_relationship: type2` means consistent `type2c`;
 its reviewed Type-3 expectation is preserved. A correction matching content
 but conflicting with a new inherited category produces an explicit oracle
 failure requiring review, rather than being discarded or silently applied.
@@ -188,7 +188,7 @@ Type-3 correction does not assign an external Type-3 band to a Type-2c case.
 ### Report schema and denominators
 
 Scoring oracle version 8 writes complete detection evidence independently of
-classification. Run `summary.json` schema version 2 adds `category_rules_version`,
+classification. Run `summary.json` schema version 3 retains `category_rules_version`,
 `category_membership` (`derived` or `legacy_syntactic_type`) and
 `category_reports[category]`; suite summaries copy these reports and console
 output prints their counts. Existing `counts`, `rates`, `reviewed_counts` and
@@ -219,7 +219,7 @@ Zero denominators yield JSON `null`, and empty distributions remain empty.
 Running summaries have pending cases in the selected denominator; use completed
 summaries for final rates. CSV adds `benchmark_category`,
 `category_rules_version`, `complete_fragment_detected` and
-`normalized_observed_category`, while preserving raw `observed_match_kind`,
+`normalized_observed_category`, while preserving raw `observed_content_relationship`,
 `syntactic_type`, reviewed outcome, and correction fields.
 
 ### Existing artifacts: regeneration, not implicit migration
@@ -227,13 +227,14 @@ summaries for final rates. CSV adds `benchmark_category`,
 Existing compiled catalogs and generated Java object bytes remain reusable;
 they preserve the raw evidence needed for category derivation. Existing
 selection manifests, case databases, frozen profile rows, journals and results
-remain legacy evidence under their recorded rules. Loading a legacy case keeps
-its original `1/2/3` oracle; versionless metadata is never inferred to be
-Type-2b from a high score. Legacy `type2` oracle comparison accepts new detector
-`type2c`, but this compatibility does not expand membership to aggregate Type-2.
-New summaries explicitly mark such artifacts `legacy_syntactic_type`.
-Old run directories cannot resume under scoring oracle 8 because run
-configuration/provenance changed; choose a new run ID/directory.
+remain legacy evidence under their recorded rules. Current consumers require
+new benchmark-case collections (schema/user version 2), execution journals
+(schema/user version 2), and results (schema 2). Do not relabel retained output
+or resume old run directories. Scoring oracle 9 requires a new run ID/directory.
+Versionless raw source metadata is not inferred to be Type-2b from a high score;
+category derivation and case publication remain separate from output admission.
+See [the reporting contract](../../doc/architecture.md#results-terminology) for
+the historical/current correction registries and full regeneration requirements.
 
 For a new evaluation, reuse the verified compiled dataset ID, create new
 selections with selector version 4, then publish new benchmark-case databases

@@ -95,7 +95,7 @@ class Type3ContractTests(unittest.TestCase):
                         if edge.get('covered_by_type3_parent'):
                             deleted_path = candidates[record['delete_candidate_id']]['xpath']
                             inserted_path = candidates[record['insert_candidate_id']]['xpath']
-                            self.assertTrue(any(m['match_kind'] == 'type3'
+                            self.assertTrue(any(m['content_relationship'] == 'type3'
                                                 and deleted_path.startswith(m['from_xpaths'][0] + '/')
                                                 and inserted_path.startswith(m['to_xpaths'][0] + '/')
                                                 for m in observed['moves']))
@@ -105,7 +105,7 @@ class Type3ContractTests(unittest.TestCase):
                         self.assertIsNone(record['parent_insert_candidate_id'])
                         deleted = candidates[record['delete_candidate_id']]
                         inserted = candidates[record['insert_candidate_id']]
-                        selected = any(m['match_kind'] == 'type3' and m['from_xpaths'] == [deleted['xpath']]
+                        selected = any(m['content_relationship'] == 'type3' and m['from_xpaths'] == [deleted['xpath']]
                                        and m['to_xpaths'] == [inserted['xpath']] for m in observed['moves'])
                         self.assertEqual(record['current_result'], 'move' if selected else 'not_move')
                     if not case['expected_edges']:

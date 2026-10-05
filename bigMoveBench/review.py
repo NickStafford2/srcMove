@@ -69,7 +69,7 @@ def _case_diagnosis(
     if outcome == "oracle_pass":
         return {"stage": "selected", "reason": "expected_type3_move_selected"}
     if outcome == "wrong_classification":
-        return {"stage": "classification", "reason": "wrong_match_kind"}
+        return {"stage": "classification", "reason": "wrong_content_relationship"}
 
     diagnostics = results.get("diagnostics")
     if not isinstance(diagnostics, Mapping):
@@ -265,7 +265,7 @@ def _write_bundle(
             }
         )
 
-    manifest = {"schema_version": 1, "case_count": len(records), "cases": manifest_cases}
+    manifest = {"schema_version": 2, "case_count": len(records), "cases": manifest_cases}
     manifest_path = bundle_dir / "manifest.json"
     _atomic_write(manifest_path, json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
@@ -349,7 +349,7 @@ def _markdown(records: list[dict[str, Any]]) -> str:
         for index, move in enumerate(moves, start=1):
             lines.extend(
                 [
-                    f"### Actual move {index}: {move.get('match_kind', 'unknown')}",
+                    f"### Actual move {index}: {move.get('content_relationship', 'unknown')}",
                     "",
                     (
                         f"Confidence `{move.get('confidence_milli')}`; utility "
@@ -403,7 +403,7 @@ def write_type3_review(
         outcome = str(attempt["outcome"])
         records.append(
             {
-                "schema_version": 1,
+                "schema_version": 2,
                 "ordinal": int(case["ordinal"]),
                 "case_id": str(case["case_id"]),
                 "outcome": outcome,
@@ -417,7 +417,7 @@ def write_type3_review(
                 "function_id_one": case["representative_function_id_one"],
                 "function_id_two": case["representative_function_id_two"],
                 "expected": {
-                    "match_kind": case["expected_match_kind"],
+                    "content_relationship": case["expected_content_relationship"],
                     "from_sha256": case["original_fragment_sha256"],
                     "to_sha256": case["modified_fragment_sha256"],
                     "from_lines": [case["from_start_line"], case["from_end_line"]],

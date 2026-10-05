@@ -18,7 +18,7 @@ from bigMoveBench.oracle import (
 )
 
 
-SCORING_ORACLE_VERSION = 8
+SCORING_ORACLE_VERSION = 9
 OPERATIONAL_FAILURES = (
     "upstream_failure",
     "srcdiff_semantic_ineligible",
@@ -216,7 +216,7 @@ def _score_completed_case(
         reviewed = assess_positive_case(
             metadata=metadata, results=results, syntactic_type=syntactic_type,
             srcmove_xml=srcmove_xml, srcdiff_xml=srcdiff_xml,
-            expected_match_kind_override=correction["reviewed_match_kind"],
+            expected_content_relationship_override=correction["reviewed_content_relationship"],
         )
         results["_oracle_label_correction"] = correction
         results["_oracle_reviewed_outcome"] = (
@@ -232,7 +232,7 @@ def _score_completed_case(
     results["_oracle_complete_detection"] = assessment.detected
     if assessment.detected_move_id is not None:
         results["_oracle_detected_move_id"] = assessment.detected_move_id
-        results["_oracle_observed_match_kind"] = assessment.observed_match_kind
+        results["_oracle_observed_content_relationship"] = assessment.observed_content_relationship
     if assessment.operational_failures:
         return (
             "oracle_failure",

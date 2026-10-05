@@ -10,11 +10,11 @@
 
 namespace srcmove {
 
-inline constexpr std::uint32_t results_schema_version = 1;
+inline constexpr std::uint32_t results_schema_version = 2;
 
 struct move_entry {
   std::string              move_id;
-  std::string              match_kind;
+  std::string              content_relationship;
   std::uint32_t            confidence_milli = 0;
   std::uint64_t            selection_utility = 0;
   std::uint32_t            matched_units = 0;
@@ -34,9 +34,9 @@ struct group_kind_counts {
   std::size_t ambiguous      = 0;
 };
 
-struct match_kind_counts {
+struct content_relationship_counts {
   std::size_t type1 = 0;
-  std::size_t type2 = 0;
+  std::size_t type2c = 0;
   std::size_t type3 = 0;
 };
 
@@ -52,7 +52,7 @@ struct summary {
   std::size_t candidates_total  = 0;
   std::size_t groups_total      = 0;
   group_kind_counts group_kinds;
-  match_kind_counts match_kinds;
+  content_relationship_counts content_relationships;
   bool diagnostics_enabled = false;
   selection_diagnostics diagnostics;
 };

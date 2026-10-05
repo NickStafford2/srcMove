@@ -33,7 +33,7 @@ from benchmarking.provenance import observe_executable, sha256_file, utc_now
 from benchmarking.srcdiff_validation import validate_srcdiff_xml
 from benchmarking.storage import write_json_atomic
 from benchmarking.tooling import find_srcdiff, find_srcmove
-from bigMoveBench.categories import category_metrics, normalize_reported_category
+from bigMoveBench.categories import category_metrics
 from bigMoveBench.adapter import SEMANTIC_ORACLE_VERSION, validate_srcdiff_semantics
 from bigMoveBench.benchmark_cases import (
     SerialBenchmarkCaseRunner,
@@ -58,9 +58,9 @@ from bigMoveBench.selection import TYPE3_STRATA
 from bigMoveBench.srcdiff_cache import DevelopmentSrcdiffCache
 
 
-EXECUTION_JOURNAL_SCHEMA_VERSION = 1
+EXECUTION_JOURNAL_SCHEMA_VERSION = 2
 EXECUTION_JOURNAL_APPLICATION_ID = 0x424D4A31
-EXECUTION_JOURNAL_USER_VERSION = 1
+EXECUTION_JOURNAL_USER_VERSION = 2
 RETRYABLE_FAILURES = {
     "upstream_failure",
     "srcmove_tool_failure",
@@ -74,7 +74,7 @@ CASE_CSV_FIELDS = (
     "ordinal",
     "outcome",
     "reviewed_outcome",
-    "reviewed_expected_match_kind",
+    "reviewed_expected_content_relationship",
     "label_correction_id",
     "label_correction_reason",
     "reviewed_failures",
@@ -84,10 +84,9 @@ CASE_CSV_FIELDS = (
     "category_rules_version",
     "benchmark_category",
     "complete_fragment_detected",
-    "normalized_observed_category",
     "syntactic_type",
-    "expected_match_kind",
-    "observed_match_kind",
+    "expected_content_relationship",
+    "observed_content_relationship",
     "move_count",
     "semantic_status",
     "semantic_reason",
@@ -240,6 +239,8 @@ class ExecutionJournal:
         row = self.connection.execute("SELECT * FROM run_metadata").fetchone()
         if row is None:
             raise ValueError("normalized execution journal metadata is missing")
+        if row["schema_version"] != EXECUTION_JOURNAL_SCHEMA_VERSION:
+            raise ValueError("unsupported normalized execution journal; regenerate the run")
         expected = (
             benchmark_cases.benchmark_cases_id,
             benchmark_cases.manifest_sha256,
@@ -412,7 +413,7 @@ SELECT
   c.pair_set,
   c.case_kind,
   c.syntactic_type,
-  c.expected_match_kind,
+  c.expected_content_relationship,
   c.original_fragment_sha256,
   c.modified_fragment_sha256,
   c.type3_both_similarity,
@@ -461,7 +462,7 @@ ORDER BY c.ordinal
                         row["srcdiff_record_json"] or "{}"
                     )
                     observed_kind = results.get(
-                        "_oracle_observed_match_kind", ""
+                        "_oracle_observed_content_relationship", ""
                     )
                     moves = results.get("moves")
                     if (
@@ -470,14 +471,14 @@ ORDER BY c.ordinal
                         and len(moves) == 1
                         and isinstance(moves[0], dict)
                     ):
-                        observed_kind = moves[0].get("match_kind", "")
+                        observed_kind = moves[0].get("content_relationship", "")
                     writer.writerow(
                         {
                             "case_id": row["case_id"],
                             "ordinal": row["ordinal"],
                             "outcome": row["outcome"],
                             "reviewed_outcome": results.get("_oracle_reviewed_outcome", row["outcome"]),
-                            "reviewed_expected_match_kind": results.get("_oracle_label_correction", {}).get("reviewed_match_kind", row["expected_match_kind"]),
+                            "reviewed_expected_content_relationship": results.get("_oracle_label_correction", {}).get("reviewed_content_relationship", row["expected_content_relationship"]),
                             "label_correction_id": results.get("_oracle_label_correction", {}).get("id", ""),
                             "label_correction_reason": results.get("_oracle_label_correction", {}).get("reason", ""),
                             "reviewed_failures": " | ".join(results.get("_oracle_reviewed_failures", json.loads(row["oracle_failures_json"] or "[]"))),
@@ -489,18 +490,17 @@ ORDER BY c.ordinal
                             "clone_type": (
                                 "known_false_positive"
                                 if row["case_kind"] == "known_false_positive"
-                                else row["expected_match_kind"]
+                                else row["expected_content_relationship"]
                             ),
                             "category_rules_version": run_configuration.get("category_rules_version"),
-                            "benchmark_category": row["expected_match_kind"],
+                            "benchmark_category": row["expected_content_relationship"],
                             "complete_fragment_detected": (
                                 row["outcome"] in {"oracle_pass", "wrong_classification"}
                                 if row["case_kind"] == "positive" else ""
                             ),
-                            "normalized_observed_category": normalize_reported_category(observed_kind),
                             "syntactic_type": row["syntactic_type"],
-                            "expected_match_kind": row["expected_match_kind"],
-                            "observed_match_kind": observed_kind,
+                            "expected_content_relationship": row["expected_content_relationship"],
+                            "observed_content_relationship": observed_kind,
                             "move_count": results.get("move_count", ""),
                             "semantic_status": row["semantic_status"],
                             "semantic_reason": semantic_details.get("reason", ""),
@@ -585,13 +585,13 @@ ORDER BY c.ordinal
         )
         try:
             for category, total in self.connection.execute(
-                "SELECT expected_match_kind, count(*) FROM benchmark_cases.cases "
-                "WHERE case_kind='positive' GROUP BY expected_match_kind"
+                "SELECT expected_content_relationship, count(*) FROM benchmark_cases.cases "
+                "WHERE case_kind='positive' GROUP BY expected_content_relationship"
             ):
                 category_groups[category] = dict(selected=total, completed=0, eligible=0,
                     detected=0, agreed=0, reviewed_agreed=0, reported={})
             query = """
-SELECT c.expected_match_kind, c.type3_strength_stratum, c.case_kind, a.*
+SELECT c.expected_content_relationship, c.type3_strength_stratum, c.case_kind, a.*
 FROM benchmark_cases.cases AS c
 JOIN attempts AS a ON a.case_id=c.case_id AND a.status='terminal'
 WHERE NOT EXISTS (
@@ -608,7 +608,7 @@ ORDER BY c.ordinal
                 results = json.loads(row["oracle_results_json"] or "{}")
                 reviewed_counts[results.get("_oracle_reviewed_outcome", outcome)] += 1
                 if row["case_kind"] == "positive":
-                    group = category_groups[row["expected_match_kind"]]
+                    group = category_groups[row["expected_content_relationship"]]
                     group["completed"] += 1
                     group["eligible"] += int(row["semantic_status"] == "eligible")
                     detected = outcome in {"oracle_pass", "wrong_classification"}
@@ -616,7 +616,7 @@ ORDER BY c.ordinal
                     group["agreed"] += int(outcome == "oracle_pass")
                     group["reviewed_agreed"] += int(results.get("_oracle_reviewed_outcome", outcome) == "oracle_pass")
                     if detected:
-                        kind = normalize_reported_category(results.get("_oracle_observed_match_kind", "unavailable"))
+                        kind = results.get("_oracle_observed_content_relationship", "unavailable")
                         group["reported"][kind] = group["reported"].get(kind, 0) + 1
                 correction = results.get("_oracle_label_correction")
                 if correction:
@@ -753,7 +753,7 @@ ORDER BY c.ordinal
                 ),
             }
         summary = {
-            "schema_version": 2,
+            "schema_version": 3,
             "category_rules_version": configuration.get("category_rules_version"),
             "category_membership": "derived" if configuration.get("category_rules_version") else "legacy_syntactic_type",
             "category_reports": {kind: category_metrics(**group) for kind, group in sorted(category_groups.items())},

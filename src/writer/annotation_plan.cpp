@@ -16,7 +16,7 @@ namespace srcmove {
 
 namespace {
 
-std::string match_kind_name(match_kind match) {
+std::string content_relationship_name(match_kind match) {
   switch (match) {
   case match_kind::type1:
     return "type1";
@@ -48,7 +48,7 @@ collect_group_xpaths(content_groups::id_view   ids,
 }
 
 move_tag make_move_tag(const std::string              &move_id,
-                       const std::string              &match_kind,
+                       const std::string              &content_relationship,
                        move_candidate::Kind            kind,
                        std::size_t                     ins_count,
                        std::size_t                     del_count,
@@ -58,7 +58,7 @@ move_tag make_move_tag(const std::string              &move_id,
                        const content_group           &group) {
   move_tag tag;
   tag.move_id        = move_id;
-  tag.match_kind     = match_kind;
+  tag.content_relationship     = content_relationship;
   tag.kind           = kind;
   tag.inserts        = static_cast<std::uint32_t>(ins_count);
   tag.deletes        = static_cast<std::uint32_t>(del_count);
@@ -76,7 +76,7 @@ void add_group_tags(tag_map                        &tags,
                     content_groups::id_view         ids,
                     const candidate_registry       &registry,
                     const std::string              &move_id,
-                    const std::string              &match_kind,
+                    const std::string              &content_relationship,
                     std::size_t                     ins_count,
                     std::size_t                     del_count,
                     const std::vector<std::string> &partner_xpaths,
@@ -85,7 +85,7 @@ void add_group_tags(tag_map                        &tags,
     const move_candidate &candidate = registry.candidate(id);
 
     tags.emplace(candidate.start_idx,
-                 make_move_tag(move_id, match_kind, candidate.kind, ins_count,
+                 make_move_tag(move_id, content_relationship, candidate.kind, ins_count,
                                del_count, partner_xpaths, candidate.xpath,
                                candidate.raw_text, group));
   }
@@ -120,12 +120,12 @@ tag_map build_move_tags(const content_groups     &groups,
           collect_group_xpaths(ins_ids, registry);
 
       const std::string move_id    = get_uuid();
-      const std::string match_kind = match_kind_name(g.match);
+      const std::string content_relationship = content_relationship_name(g.match);
 
-      add_group_tags(tags, del_ids, registry, move_id, match_kind, g.ins_count(),
+      add_group_tags(tags, del_ids, registry, move_id, content_relationship, g.ins_count(),
                      g.del_count(), ins_xpaths, g);
 
-      add_group_tags(tags, ins_ids, registry, move_id, match_kind, g.ins_count(),
+      add_group_tags(tags, ins_ids, registry, move_id, content_relationship, g.ins_count(),
                      g.del_count(), del_xpaths, g);
     }
   }

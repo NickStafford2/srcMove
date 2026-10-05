@@ -43,7 +43,7 @@ def score(case, dest):
     doc = read(dest/'results.json')
     outputs = []
     for index, move in enumerate(doc['moves']):
-        outputs.append(dict(index=index, type=move['match_kind'],
+        outputs.append(dict(index=index, type=move['content_relationship'],
             old=[xpath_endpoint(tree, x, 'delete') for x in move['from_xpaths']],
             new=[xpath_endpoint(tree, x, 'insert') for x in move['to_xpaths']]))
     scored = dict(expected=[], forbidden=[], outputs=outputs)

@@ -98,8 +98,8 @@ class CategoryTests(unittest.TestCase):
                 metadata["case_kind"] = "known_false_positive"
             if not legacy:
                 metadata.update(category_rules_version=CATEGORY_RULES_VERSION, benchmark_category=category)
-            results = dict(results_schema_version=1, move_count=1, match_kinds={reported: 1}, moves=[
-                dict(move_id="m1", match_kind=reported, from_raw_texts=["{}" if partial else "void before() {}"],
+            results = dict(results_schema_version=2, move_count=1, content_relationships={reported: 1}, moves=[
+                dict(move_id="m1", content_relationship=reported, from_raw_texts=["{}" if partial else "void before() {}"],
                      to_raw_texts=["{}" if partial else "void after() {}"], from_xpaths=["/src:function"], to_xpaths=["/src:function"])])
             path = root / "results.json"
             path.write_text(json.dumps(results))
@@ -110,14 +110,12 @@ class CategoryTests(unittest.TestCase):
                 "<insert mv:id='m1' mv:from='from' pos:start='7:1' pos:end='7:20'/></unit>")
             return _score_completed_case(metadata=metadata, results_path=path, srcmove_xml=xml)
 
-    def test_legacy_and_new_consistent_output(self):
-        for legacy in (False, True):
-            for reported in ("type2", "type2c"):
-                self.assertEqual(self.score("type2c", reported, legacy=legacy)[0], "oracle_pass")
-        self.assertEqual(self.score("type2b", "type2")[0], "wrong_classification")
+    def test_consistent_output(self):
+        self.assertEqual(self.score("type2c", "type2c")[0], "oracle_pass")
+        self.assertEqual(self.score("type2b", "type2c")[0], "wrong_classification")
 
-    def test_negative_oracle_keeps_whole_pair_rejection_for_new_and_legacy_output(self):
-        for reported in ("type2", "type2c", "type3"):
+    def test_negative_oracle_keeps_whole_pair_rejection(self):
+        for reported in ("type2c", "type3"):
             with self.subTest(reported=reported):
                 self.assertEqual(self.score("type2c", reported, negative=True)[0], "srcmove_false_positive")
                 self.assertEqual(self.score("type2c", reported, negative=True, partial=True)[0], "oracle_pass")
@@ -126,11 +124,10 @@ class CategoryTests(unittest.TestCase):
         outcome, _, _, evidence = self.score("type2b", "type3")
         self.assertEqual(outcome, "wrong_classification")
         self.assertTrue(evidence["_oracle_complete_detection"])
-        self.assertEqual(evidence["_oracle_observed_match_kind"], "type3")
+        self.assertEqual(evidence["_oracle_observed_content_relationship"], "type3")
         outcome, _, _, evidence = self.score("type2b", "type3", partial=True)
         self.assertEqual(outcome, "srcmove_miss")
         self.assertFalse(evidence["_oracle_complete_detection"])
-        self.assertEqual(self.score("type2b", "type2b")[0], "oracle_pass")
 
     def test_category_report_journal_csv_and_summary(self):
         from bigMoveBench.tests import test_benchmark_cases, test_normalized_execution
@@ -143,7 +140,7 @@ class CategoryTests(unittest.TestCase):
             patches = execution._successful_patches(tools)
             run_dir = root / "run"
             evidence = {"move_count": 1, "_oracle_complete_detection": True,
-                "_oracle_observed_match_kind": "type2", "_oracle_category_rules_version": 1,
+                "_oracle_observed_content_relationship": "type2c", "_oracle_category_rules_version": 1,
                 "_oracle_reviewed_outcome": "oracle_pass"}
             with patches[0], patches[1], mock.patch(
                 "bigMoveBench.normalized_execution._score_completed_case",
@@ -155,8 +152,7 @@ class CategoryTests(unittest.TestCase):
             self.assertEqual(summary["category_membership"], "derived")
             with (run_dir / "cases.csv").open() as stream:
                 row = next(csv.DictReader(stream))
-            self.assertEqual(row["observed_match_kind"], "type2")
-            self.assertEqual(row["normalized_observed_category"], "type2c")
+            self.assertEqual(row["observed_content_relationship"], "type2c")
             self.assertEqual(row["benchmark_category"], "type2c")
             self.assertEqual(row["syntactic_type"], "2")
             self.assertEqual(row["category_rules_version"], "1")

@@ -90,8 +90,8 @@ from pathlib import Path
 source, output = Path(sys.argv[1]), Path(sys.argv[2])
 shutil.copy2(source, output)
 Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
-    json.dumps({'results_schema_version': 1, 'move_count': 0,
-                'match_kinds': {}, 'moves': []}))
+    json.dumps({'results_schema_version': 2, 'move_count': 0,
+                'content_relationships': {}, 'moves': []}))
 """,
             )
             args = SimpleNamespace(

@@ -1,5 +1,5 @@
 {
-  "results_schema_version": 1,
+  "results_schema_version": 2,
   "move_count": 0,
   "move_group_count": 0,
   "move_pair_count": 0,
@@ -17,7 +17,7 @@
     "copy_or_repeat": 0,
     "ambiguous": 0
   },
-  "match_kinds": {
+  "content_relationships": {
     "type1": 0,
     "type2c": 0,
     "type3": 0

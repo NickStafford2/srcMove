@@ -28,7 +28,7 @@ from .retention import RetentionPolicy
 
 
 DATABASE_NAME = "analysis.sqlite3"
-DATABASE_SCHEMA_VERSION = 6
+DATABASE_SCHEMA_VERSION = 7
 DATABASE_APPLICATION_ID = 0x53524D41  # "SRMA"
 TARGET_KINDS = {"total_pairs", "through", "all"}
 TERMINAL_PAIR_STATUSES = {
@@ -609,7 +609,7 @@ class AnalysisDatabase:
                 self.connection.execute(
                     """
                     INSERT INTO moves(
-                        batch_id, batch_sequence, move_ordinal, match_kind,
+                        batch_id, batch_sequence, move_ordinal, content_relationship,
                         from_xpaths_json, to_xpaths_json,
                         from_text_digests_json, to_text_digests_json
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
@@ -618,7 +618,7 @@ class AnalysisDatabase:
                         batch.batch_id,
                         item.sequence,
                         move.ordinal,
-                        move.match_kind,
+                        move.content_relationship,
                         move.from_xpaths_json,
                         move.to_xpaths_json,
                         move.from_text_digests_json,
@@ -751,23 +751,23 @@ class AnalysisDatabase:
             raise ValueError(
                 "completed analysis coverage drifts from stored commit pairs"
             )
-        match_kinds = {
-            _text(row["match_kind"], "move match kind"): _nonnegative_integer(
+        content_relationships = {
+            _text(row["content_relationship"], "move content relationship"): _nonnegative_integer(
                 row["count"], "move match-kind count"
             )
             for row in self.connection.execute(
                 """
-                SELECT m.match_kind, COUNT(*) AS count
+                SELECT m.content_relationship, COUNT(*) AS count
                 FROM moves AS m
                 JOIN batches AS b ON b.batch_id = m.batch_id
                 WHERE b.status = 'completed'
-                GROUP BY m.match_kind
-                ORDER BY m.match_kind
+                GROUP BY m.content_relationship
+                ORDER BY m.content_relationship
                 """
             )
         }
-        if sum(match_kinds.values()) != totals["move_group_count"]:
-            raise ValueError("stored move match kinds drift from move-group count")
+        if sum(content_relationships.values()) != totals["move_group_count"]:
+            raise ValueError("stored move content relationships drift from move-group count")
         return {
             "schema_version": DATABASE_SCHEMA_VERSION,
             "revision": state.revision,
@@ -787,7 +787,7 @@ class AnalysisDatabase:
             "move_group_count": totals["move_group_count"],
             "move_pair_count": totals["move_pair_count"],
             "annotated_region_count": totals["annotated_region_count"],
-            "match_kinds": match_kinds,
+            "content_relationships": content_relationships,
             "timings": dict(sorted(timings.items())),
         }
 
@@ -840,7 +840,7 @@ class AnalysisDatabase:
         moves = []
         move_rows = self.connection.execute(
             """
-            SELECT move_ordinal, match_kind, from_xpaths_json, to_xpaths_json,
+            SELECT move_ordinal, content_relationship, from_xpaths_json, to_xpaths_json,
                    from_text_digests_json, to_text_digests_json
             FROM moves WHERE batch_id = ? AND batch_sequence = ?
             ORDER BY move_ordinal
@@ -853,7 +853,7 @@ class AnalysisDatabase:
             moves.append(
                 {
                     "ordinal": expected_ordinal,
-                    "match_kind": _text(move["match_kind"], "move match kind"),
+                    "content_relationship": _text(move["content_relationship"], "move content relationship"),
                     "from_xpaths": _json_array(
                         bytes(move["from_xpaths_json"]), "move from xpaths"
                     ),
@@ -1358,7 +1358,7 @@ CREATE TABLE moves (
     batch_id TEXT NOT NULL,
     batch_sequence INTEGER NOT NULL,
     move_ordinal INTEGER NOT NULL CHECK (move_ordinal >= 0),
-    match_kind TEXT NOT NULL,
+    content_relationship TEXT NOT NULL,
     from_xpaths_json BLOB NOT NULL,
     to_xpaths_json BLOB NOT NULL,
     from_text_digests_json BLOB NOT NULL,

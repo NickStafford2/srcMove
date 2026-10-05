@@ -398,7 +398,7 @@ def _status_document(summary: Mapping[str, Any]) -> dict[str, Any]:
     if "pair_seconds" in timings:
         timings["commit_pair_seconds"] = timings.pop("pair_seconds")
     return {
-        "schema_version": 2,
+        "schema_version": 3,
         "analysis": dict(summary.get("analysis", {})),
         "state": summary.get("state", "idle"),
         "target": {"kind": target_kind, "value": target_value},
@@ -424,7 +424,7 @@ def _status_document(summary: Mapping[str, Any]) -> dict[str, Any]:
             "detections": summary.get("move_group_count", 0),
             "source_destination_pairings": summary.get("move_pair_count", 0),
             "annotated_regions": summary.get("annotated_region_count", 0),
-            "by_match_type": dict(summary.get("match_kinds", {})),
+            "by_content_relationship": dict(summary.get("content_relationships", {})),
         },
         "history": {
             "newest_commit": summary.get("newest_commit"),
@@ -499,7 +499,7 @@ def _render_pair(detail: Mapping[str, Any]) -> str:
         for index, move in enumerate(moves, start=1):
             if not isinstance(move, Mapping):
                 continue
-            kind = str(move.get("match_kind", "unknown"))
+            kind = str(move.get("content_relationship", "unknown"))
             sources = len(move.get("from_xpaths", ()))
             destinations = len(move.get("to_xpaths", ()))
             lines.append(
@@ -519,7 +519,7 @@ def _json(value: Mapping[str, Any]) -> str:
 def _comparison_document(result: ComparisonResult) -> dict[str, Any]:
     outcome = result.outcome
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "comparison": {
             "old_commit": outcome.work_item.old_commit,
             "new_commit": outcome.work_item.new_commit,
@@ -561,7 +561,7 @@ def _pair_page_document(
 ) -> dict[str, Any]:
     cursor = page.get("next_cursor")
     return {
-        "schema_version": 1,
+        "schema_version": 2,
         "analysis": dict(identity),
         "pairs": {
             "items": page.get("items", []),
@@ -627,7 +627,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 if arguments.output_format == "human"
                 else _json(
                     {
-                        "schema_version": 1,
+                        "schema_version": 2,
                         "analysis": identity,
                         "pair": detail,
                     }

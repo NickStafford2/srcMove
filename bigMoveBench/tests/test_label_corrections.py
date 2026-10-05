@@ -25,11 +25,11 @@ class LabelCorrectionTests(unittest.TestCase):
         self.entry = {
             'id': 'empty-statement-test', 'function_ids': [1, 2],
             'fragment_sha256': [hashlib.sha256(t.encode()).hexdigest() for t in (self.before, self.after)],
-            'original_match_kind': 'type2', 'reviewed_match_kind': 'type3',
+            'original_content_relationship': 'type2c', 'reviewed_content_relationship': 'type3',
             'reason': 'Removed statement',
         }
         self.path = self.root / 'registry.json'
-        self.path.write_text(json.dumps({'schema_version': 1, 'pair_policy': 'unordered_exact_utf8_sha256', 'corrections': [self.entry]}))
+        self.path.write_text(json.dumps({'schema_version': 2, 'pair_policy': 'unordered_exact_utf8_sha256', 'corrections': [self.entry]}))
         self.registry = LabelCorrections(self.path)
         self.metadata = {
             'syntactic_type': 2,
@@ -43,8 +43,8 @@ class LabelCorrectionTests(unittest.TestCase):
         self.xml.write_text("<unit xmlns:mv='http://www.srcML.org/srcMove' xmlns:pos='http://www.srcML.org/srcML/position'><function mv:id='m1' mv:to='x' pos:start='3:1' pos:end='3:30'/><function mv:id='m1' mv:from='y' pos:start='7:1' pos:end='7:30'/></unit>")
 
     def score(self, kind='type3', partial=False, missing=False, invalid=False):
-        moves = [] if missing else [{'move_id': 'm1', 'match_kind': kind, 'from_raw_texts': ['return;' if partial else self.before], 'to_raw_texts': [self.after]}]
-        results = {'results_schema_version': 0 if invalid else 1, 'move_count': len(moves), 'moves': moves, 'match_kinds': {kind: len(moves)}}
+        moves = [] if missing else [{'move_id': 'm1', 'content_relationship': kind, 'from_raw_texts': ['return;' if partial else self.before], 'to_raw_texts': [self.after]}]
+        results = {'results_schema_version': 0 if invalid else 2, 'move_count': len(moves), 'moves': moves, 'content_relationships': {kind: len(moves)}}
         path = self.root / 'results.json'
         path.write_text(json.dumps(results))
         return _score_completed_case(metadata=self.metadata, results_path=path, srcmove_xml=self.xml, label_corrections=self.registry)
@@ -55,7 +55,7 @@ class LabelCorrectionTests(unittest.TestCase):
         self.assertTrue(failures)
         self.assertEqual(results['_oracle_reviewed_outcome'], 'oracle_pass')
         self.assertEqual(results['_oracle_label_correction'], self.entry)
-        outcome, _, _, results = self.score('type2')
+        outcome, _, _, results = self.score('type2c')
         self.assertEqual(outcome, 'oracle_pass')
         self.assertEqual(results['_oracle_reviewed_outcome'], 'wrong_classification')
         self.assertTrue(results['_oracle_reviewed_failures'])
@@ -105,7 +105,7 @@ class LabelCorrectionTests(unittest.TestCase):
             if entry['id'] == 'bcb-69322-96077-empty-statement'
         )
         self.assertEqual(entry['function_ids'], [69322, 96077])
-        self.assertEqual(entry['reviewed_match_kind'], 'type3')
+        self.assertEqual(entry['reviewed_content_relationship'], 'type3')
 
     def test_journal_csv_summary_and_restart_provenance(self):
         helper = test_normalized_execution.NormalizedExecutionTests()
@@ -126,14 +126,14 @@ class LabelCorrectionTests(unittest.TestCase):
         self.assertEqual(summary['reviewed_counts']['oracle_pass'], 2)
         self.assertEqual(summary['rates']['end_to_end_detection_and_classification'], 0)
         self.assertEqual(summary['reviewed_rates']['end_to_end_detection_and_classification'], 1)
-        self.assertTrue(_pair_set_operational_pass('type2', summary['reviewed_counts']))
-        self.assertFalse(_pair_set_operational_pass('type2', summary['counts']))
+        self.assertTrue(_pair_set_operational_pass('type2c', summary['reviewed_counts']))
+        self.assertFalse(_pair_set_operational_pass('type2c', summary['counts']))
         with (run_dir / 'cases.csv').open() as stream:
             rows = list(csv.DictReader(stream))
         self.assertEqual(rows[0]['outcome'], 'wrong_classification')
         self.assertEqual(rows[0]['reviewed_outcome'], 'oracle_pass')
         self.assertEqual(rows[0]['label_correction_id'], self.entry['id'])
-        self.assertEqual(rows[0]['reviewed_expected_match_kind'], 'type3')
+        self.assertEqual(rows[0]['reviewed_expected_content_relationship'], 'type3')
         runner = helper._runner(cases, run_dir)
         runner.provenance['label_corrections']['sha256'] = '0' * 64
         with self.assertRaises(ValueError):

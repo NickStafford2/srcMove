@@ -9,7 +9,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from bigMoveBench.categories import expected_category, normalize_reported_category
+from bigMoveBench.categories import expected_category
 
 TextValidation = dict[str, str]
 MV_NAMESPACE = "http://www.srcML.org/srcMove"
@@ -27,7 +27,7 @@ class PositiveOracleAssessment:
     classification_failures: list[str]
     text_validation: TextValidation
     detected_move_id: str | None = None
-    observed_match_kind: str | None = None
+    observed_content_relationship: str | None = None
 
 
 def load_json(path: Path) -> Any:
@@ -282,9 +282,11 @@ def _validate_results_schema(
     if not isinstance(results, dict):
         return ["results.json root must be an object"]
 
-    if results.get("results_schema_version") != 1:
-        failures.append("results_schema_version: expected 1")
+    if results.get("results_schema_version") != 2:
+        failures.append("results_schema_version: expected 2")
 
+    if "match_kinds" in results:
+        failures.append("superseded match_kinds field; regenerate results with schema 2")
     moves = results.get("moves")
     move_count = results.get("move_count")
     if not isinstance(moves, list):
@@ -295,7 +297,12 @@ def _validate_results_schema(
     elif move_count != len(moves):
         failures.append("move_count does not match the moves list")
 
-    observed_counts = {"type1": 0, "type2": 0, "type2c": 0, "type2b": 0, "type3": 0}
+    if "move_group_count" in results:
+        group_count = results["move_group_count"]
+        if type(group_count) is not int or group_count != len(moves):
+            failures.append("move_group_count does not match the moves list")
+
+    observed_counts = {"type1": 0, "type2c": 0, "type3": 0}
     move_ids: set[str] = set()
     for index, move in enumerate(moves):
         prefix = f"moves[{index}]"
@@ -309,11 +316,13 @@ def _validate_results_schema(
             failures.append(f"{prefix}.move_id: duplicate move id {move_id!r}")
         else:
             move_ids.add(move_id)
-        match_kind = move.get("match_kind")
-        if match_kind not in observed_counts:
-            failures.append(f"{prefix}.match_kind: invalid value {match_kind!r}")
+        if "match_kind" in move:
+            failures.append(f"{prefix}: superseded match_kind field; regenerate results")
+        content_relationship = move.get("content_relationship")
+        if content_relationship not in observed_counts:
+            failures.append(f"{prefix}.content_relationship: invalid value {content_relationship!r}")
         else:
-            observed_counts[match_kind] += 1
+            observed_counts[content_relationship] += 1
         for field in ("from_raw_texts", "to_raw_texts"):
             values = move.get(field)
             if not isinstance(values, list) or not all(
@@ -331,17 +340,19 @@ def _validate_results_schema(
                         f"{prefix}.{field}: expected a list of absolute XPaths"
                     )
 
-    match_kinds = results.get("match_kinds")
-    if not isinstance(match_kinds, dict):
-        failures.append("match_kinds: expected an object")
+    content_relationships = results.get("content_relationships")
+    if not isinstance(content_relationships, dict):
+        failures.append("content_relationships: expected an object")
     else:
+        if set(content_relationships) - set(observed_counts):
+            failures.append("content_relationships: unsupported categories; regenerate results")
         for kind, observed in observed_counts.items():
-            count = match_kinds.get(kind, 0)
+            count = content_relationships.get(kind, 0)
             if not isinstance(count, int) or isinstance(count, bool) or count < 0:
-                failures.append(f"match_kinds.{kind}: expected a nonnegative integer")
+                failures.append(f"content_relationships.{kind}: expected a nonnegative integer")
             elif count != observed:
                 failures.append(
-                    f"match_kinds.{kind}: expected {observed} from the moves list, got {count}"
+                    f"content_relationships.{kind}: expected {observed} from the moves list, got {count}"
                 )
     return failures
 
@@ -353,16 +364,16 @@ def assess_positive_case(
     syntactic_type: int,
     srcmove_xml: Path | None = None,
     srcdiff_xml: Path | None = None,
-    expected_match_kind_override: str | None = None,
+    expected_content_relationship_override: str | None = None,
 ) -> PositiveOracleAssessment:
     operational_failures = _validate_results_schema(results)
     detection_failures: list[str] = []
     classification_failures: list[str] = []
     text_validation: TextValidation = {"from": "not_checked", "to": "not_checked"}
-    expected_match_kinds = {1: "type1", 2: "type2", 3: "type3"}
-    if syntactic_type not in expected_match_kinds:
+    expected_content_relationships = {1: "type1", 2: "type2c", 3: "type3"}
+    if syntactic_type not in expected_content_relationships:
         raise ValueError(f"unsupported BigCloneBench syntactic type: {syntactic_type}")
-    expected_match_kind = expected_match_kind_override or expected_category(metadata)
+    expected_content_relationship = expected_content_relationship_override or expected_category(metadata)
 
     if metadata.get("syntactic_type") != syntactic_type:
         operational_failures.append(
@@ -488,7 +499,7 @@ def assess_positive_case(
         )
 
     correctly_classified = next(
-        (candidate for candidate in detected if normalize_reported_category(candidate[0]["match_kind"]) == normalize_reported_category(expected_match_kind)),
+        (candidate for candidate in detected if candidate[0]["content_relationship"] == expected_content_relationship),
         None,
     )
     selected = correctly_classified or detected[0]
@@ -496,7 +507,7 @@ def assess_positive_case(
     text_validation = {"from": from_status, "to": to_status}
     if correctly_classified is None:
         classification_failures.append(
-            f"match_kind: expected {expected_match_kind!r}, got {move['match_kind']!r}"
+            f"content_relationship: expected {expected_content_relationship!r}, got {move['content_relationship']!r}"
         )
     return PositiveOracleAssessment(
         True,
@@ -506,7 +517,7 @@ def assess_positive_case(
         classification_failures,
         text_validation,
         move["move_id"],
-        move["match_kind"],
+        move["content_relationship"],
     )
 
 
@@ -599,7 +610,7 @@ def classify_result(
         "moves:",
         "moves[",
         "move_count:",
-        "match_kinds",
+        "content_relationships",
         "metadata ",
         "srcmove.xml parse error:",
     )

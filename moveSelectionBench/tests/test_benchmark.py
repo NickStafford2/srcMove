@@ -27,7 +27,7 @@ FIXTURE_XML = REPO_ROOT / "tests" / "fixtures" / "benchmark" / "input.srcdiff.xm
 def move(from_text: str, to_text: str, kind: str = "type1") -> dict[str, object]:
     return {
         "move_id": "m1",
-        "match_kind": kind,
+        "content_relationship": kind,
         "from_raw_texts": [from_text],
         "to_raw_texts": [to_text],
         "from_xpaths": ["/from"],
@@ -43,8 +43,9 @@ def write_fake_srcmove(
 ) -> Path:
     encoded = repr(
         {
-            "results_schema_version": 1,
+            "results_schema_version": 2,
             "move_count": len(moves),
+            "content_relationships": {kind: sum(m["content_relationship"] == kind for m in moves) for kind in ("type1", "type2c", "type3")},
             "moves": moves,
             "candidates_total": 2,
             "groups_total": 1,
@@ -52,10 +53,11 @@ def write_fake_srcmove(
     )
     results_only_encoded = repr(
         {
-            "results_schema_version": 1,
+            "results_schema_version": 2,
             "move_count": len(
                 results_only_moves if results_only_moves is not None else moves
             ),
+            "content_relationships": {kind: sum(m["content_relationship"] == kind for m in (results_only_moves if results_only_moves is not None else moves)) for kind in ("type1", "type2c", "type3")},
             "moves": results_only_moves if results_only_moves is not None else moves,
             "candidates_total": 2,
             "groups_total": 1,
@@ -111,7 +113,7 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
 
     def test_semantic_evaluation_normalizes_whitespace_and_checks_forbidden(self) -> None:
         case = {
-            "required": [{"from": "whole old", "to": "whole new", "match_kinds": ["type3"]}],
+            "required": [{"from": "whole old", "to": "whole new", "content_relationships": ["type3"]}],
             "forbidden": [{"from": "small();", "to": "small();"}],
         }
         passing = evaluate_results(
@@ -133,7 +135,7 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "invalid shape"):
             evaluate_results(
                 {"required": [], "forbidden": []},
-                {"moves": [{"match_kind": "type1"}]},
+                {"moves": [{"content_relationship": "type1"}]},
             )
 
     def test_summary_reports_baseline_transitions(self) -> None:
@@ -160,7 +162,7 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
             catalog.write_text(
                 json.dumps(
                     {
-                        "schema_version": 2,
+                        "schema_version": 3,
                         "cases": [
                             {
                                 "id": "one",
@@ -203,7 +205,7 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
             catalog.write_text(
                 json.dumps(
                     {
-                        "schema_version": 2,
+                        "schema_version": 3,
                         "cases": [
                             {
                                 "id": "unsafe",
@@ -229,7 +231,7 @@ class MoveSelectionBenchmarkTests(unittest.TestCase):
             catalog.write_text(
                 json.dumps(
                     {
-                        "schema_version": 2,
+                        "schema_version": 3,
                         "cases": [
                             {
                                 "id": "equivalence",

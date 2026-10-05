@@ -5,7 +5,7 @@ from pathlib import Path
 import sqlite3
 import sys
 
-from bigMoveBench.browser.reader import list_cases, list_runs, show_case, show_run, show_source
+from bigMoveBench.browser.reader import SCHEMA_VERSION, list_cases, list_runs, show_case, show_run, show_source
 
 
 def main():
@@ -44,7 +44,7 @@ def main():
         else:
             result = show_case(args.results_root, args.cache_root, args.run_id, args.category, args.case_id)
     except (OSError, ValueError, KeyError, sqlite3.Error) as error:
-        print(json.dumps({"schema_version": 1, "error": str(error),
+        print(json.dumps({"schema_version": SCHEMA_VERSION, "error": str(error),
             "error_kind": "not_found" if isinstance(error, FileNotFoundError) else "invalid"}))
         return 2
     print(json.dumps(result, ensure_ascii=False))

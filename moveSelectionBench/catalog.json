@@ -1,5 +1,5 @@
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "cases": [
     {
       "id": "nested_exact_parent_over_child",
@@ -11,7 +11,7 @@
         {
           "from": "if (ready) { int payload = 7; publish(payload); }",
           "to": "if (ready) { int payload = 7; publish(payload); }",
-          "match_kinds": ["type1"]
+          "content_relationships": ["type1"]
         }
       ],
       "forbidden": [
@@ -32,7 +32,7 @@
         {
           "from": "int marker = 1;",
           "to": "int marker = 1;",
-          "match_kinds": ["type1"]
+          "content_relationships": ["type1"]
         }
       ],
       "forbidden": [
@@ -115,8 +115,8 @@
       "category": "hierarchical_coherence",
       "rationale": "Largest wins is not absolute: independently relocated children should remain separate when there is no coherent destination parent.",
       "required": [
-        {"from": "int alpha = 1;", "to": "int alpha = 1;", "match_kinds": ["type1"]},
-        {"from": "int beta = 2;", "to": "int beta = 2;", "match_kinds": ["type1"]}
+        {"from": "int alpha = 1;", "to": "int alpha = 1;", "content_relationships": ["type1"]},
+        {"from": "int beta = 2;", "to": "int beta = 2;", "content_relationships": ["type1"]}
       ],
       "forbidden": [
         {
@@ -136,7 +136,7 @@
         {
           "from": "if (left) { int marker = 0; transferLeft(); int marker = 0; }",
           "to": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
-          "match_kinds": ["type2c"]
+          "content_relationships": ["type2c"]
         }
       ],
       "forbidden": [
@@ -154,7 +154,7 @@
       "category": "mixed_polarity",
       "rationale": "An opposite-side transition invalidates the outer candidate but must not erase an eligible inner move.",
       "required": [
-        {"from": "int rescued = 9;", "to": "int rescued = 9;", "match_kinds": ["type1"]}
+        {"from": "int rescued = 9;", "to": "int rescued = 9;", "content_relationships": ["type1"]}
       ],
       "forbidden": []
     },
@@ -168,7 +168,7 @@
         {
           "from": "if (a) { while (b) { int work = 3; } finish(); }",
           "to": "if (a) { while (b) { int work = 3; } finish(); }",
-          "match_kinds": ["type1"]
+          "content_relationships": ["type1"]
         }
       ],
       "forbidden": [
@@ -186,7 +186,7 @@
       "category": "common_ownership",
       "rationale": "Leaving diff:common must restore delete ownership, while common content itself remains in both revisions.",
       "required": [
-        {"from": "int after_common = 41;", "to": "int after_common = 41;", "match_kinds": ["type1"]}
+        {"from": "int after_common = 41;", "to": "int after_common = 41;", "content_relationships": ["type1"]}
       ],
       "forbidden": [
         {
@@ -203,7 +203,7 @@
       "category": "common_ownership",
       "rationale": "Leaving diff:common must restore insert ownership, while common content itself remains in both revisions.",
       "required": [
-        {"from": "int after_common = 42;", "to": "int after_common = 42;", "match_kinds": ["type1"]}
+        {"from": "int after_common = 42;", "to": "int after_common = 42;", "content_relationships": ["type1"]}
       ],
       "forbidden": [
         {
@@ -220,8 +220,8 @@
       "category": "mixed_polarity",
       "rationale": "A nested insert must become an independent destination, then closing it must restore delete ownership.",
       "required": [
-        {"from": "int nested_insert = 51;", "to": "int nested_insert = 51;", "match_kinds": ["type1"]},
-        {"from": "int restored_delete = 52;", "to": "int restored_delete = 52;", "match_kinds": ["type1"]}
+        {"from": "int nested_insert = 51;", "to": "int nested_insert = 51;", "content_relationships": ["type1"]},
+        {"from": "int restored_delete = 52;", "to": "int restored_delete = 52;", "content_relationships": ["type1"]}
       ],
       "forbidden": []
     },
@@ -232,8 +232,8 @@
       "category": "mixed_polarity",
       "rationale": "A nested delete must become an independent source, then closing it must restore insert ownership.",
       "required": [
-        {"from": "int nested_delete = 62;", "to": "int nested_delete = 62;", "match_kinds": ["type1"]},
-        {"from": "int restored_insert = 61;", "to": "int restored_insert = 61;", "match_kinds": ["type1"]}
+        {"from": "int nested_delete = 62;", "to": "int nested_delete = 62;", "content_relationships": ["type1"]},
+        {"from": "int restored_insert = 61;", "to": "int restored_insert = 61;", "content_relationships": ["type1"]}
       ],
       "forbidden": []
     },
@@ -263,7 +263,7 @@
         {
           "from": "int relocated() {return 81;}",
           "to": "int relocated() {return 81;}",
-          "match_kinds": ["type1"]
+          "content_relationships": ["type1"]
         }
       ],
       "forbidden": []
@@ -278,12 +278,12 @@
         {
           "from": "if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); }",
           "to": "if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); }",
-          "match_kinds": ["type1"]
+          "content_relationships": ["type1"]
         },
         {
           "from": "if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); }",
           "to": "if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); }",
-          "match_kinds": ["type1"]
+          "content_relationships": ["type1"]
         }
       ],
       "forbidden": [
@@ -304,7 +304,7 @@
         {
           "from": "int selected_value = source + 201;",
           "to": "int selected_value = source + 201;",
-          "match_kinds": ["type1"]
+          "content_relationships": ["type1"]
         }
       ],
       "forbidden": [
@@ -325,7 +325,7 @@
         {
           "from": "void gotoURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
           "to": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
-          "match_kinds": ["type2c"]
+          "content_relationships": ["type2c"]
         }
       ],
       "forbidden": [
@@ -346,22 +346,22 @@
         {
           "from": "byte[] buffer = new byte[4096];",
           "to": "byte[] buf = new byte[1024];",
-          "match_kinds": ["type2c"]
+          "content_relationships": ["type2c"]
         },
         {
           "from": "while ((bytes_read = in.read(buffer)) != -1) out.write(buffer, 0, bytes_read);",
           "to": "while ((len = in.read(buf)) > 0) out.write(buf, 0, len);",
-          "match_kinds": ["type3"]
+          "content_relationships": ["type3"]
         },
         {
           "from": "in.close();",
           "to": "in.close();",
-          "match_kinds": ["type1"]
+          "content_relationships": ["type1"]
         },
         {
           "from": "out.close();",
           "to": "out.close();",
-          "match_kinds": ["type1"]
+          "content_relationships": ["type1"]
         }
       ],
       "forbidden": [
@@ -384,7 +384,7 @@
         {
           "from": "if (all || p->realFmt != 0) { const char *format = p->realFmt; append(out, \" --realfmt %s\", format ? format : \"default\"); }",
           "to": "if (all || p->fpFmt != 0) { const char *format = p->fpFmt; append(out, \" --fpfmt %s\", format ? format : \"empty\"); }",
-          "match_kinds": [
+          "content_relationships": [
             "type2c"
           ]
         }

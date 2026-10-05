@@ -8,7 +8,7 @@ from tests.support.validation import check_summary_fields, validate_moves
 def move(**overrides: object) -> dict[str, object]:
     value: dict[str, object] = {
         "move_id": "m1",
-        "match_kind": "type3",
+        "content_relationship": "type3",
         "confidence_milli": 825,
         "selection_utility": 12000,
         "matched_units": 14,
@@ -36,17 +36,17 @@ class ResultValidationTests(unittest.TestCase):
         self.assertTrue(any("confidence_milli" in item for item in failures))
         self.assertTrue(any("selection_reason" in item for item in failures))
 
-    def test_legacy_exact_match_kind_is_rejected(self) -> None:
+    def test_legacy_exact_content_relationship_is_rejected(self) -> None:
         failures = validate_moves(
-            {"moves": [move()]}, {"moves": [move(match_kind="exact")]}
+            {"moves": [move()]}, {"moves": [move(content_relationship="exact")]}
         )
-        self.assertTrue(any("match_kind must be type1" in item for item in failures))
+        self.assertTrue(any("content_relationship must be type1" in item for item in failures))
 
     def test_type3_summary_count_is_required_and_compared(self) -> None:
-        expected = {"match_kinds": {"type1": 0, "type2c": 0, "type3": 1}}
-        actual = {"match_kinds": {"type1": 0, "type2c": 0}}
+        expected = {"content_relationships": {"type1": 0, "type2c": 0, "type3": 1}}
+        actual = {"content_relationships": {"type1": 0, "type2c": 0}}
         failures = check_summary_fields(actual, expected)
-        self.assertIn("results.json match_kinds missing required field 'type3'", failures)
+        self.assertIn("results.json content_relationships missing required field 'type3'", failures)
 
 
 if __name__ == "__main__":

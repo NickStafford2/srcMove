@@ -65,7 +65,7 @@ void append_move_result(move_entry_map &moves, const move_tag &tag,
                         const std::string &xpath) {
   move_entry &entry = moves[tag.move_id];
   entry.move_id     = tag.move_id;
-  entry.match_kind  = tag.match_kind;
+  entry.content_relationship  = tag.content_relationship;
   entry.confidence_milli = tag.confidence_milli;
   entry.selection_utility = tag.selection_utility;
   entry.matched_units = tag.matched_units;

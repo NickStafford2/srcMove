@@ -7,9 +7,8 @@ import json
 from pathlib import Path
 from typing import Any, Mapping
 
-from bigMoveBench.categories import normalize_reported_category
 
-REGISTRY_PATH = Path(__file__).with_name("reviewed_label_corrections.json")
+REGISTRY_PATH = Path(__file__).with_name("content_relationship_corrections.json")
 
 
 class LabelCorrections:
@@ -20,13 +19,13 @@ class LabelCorrections:
         registry = json.loads(contents)
         if (
             not isinstance(registry, dict)
-            or registry.get("schema_version") != 1
+            or registry.get("schema_version") != 2
             or registry.get("pair_policy") != "unordered_exact_utf8_sha256"
             or not isinstance(registry.get("corrections"), list)
         ):
             raise ValueError("unsupported reviewed-label correction registry")
         self.identity = {
-            "schema_version": 1,
+            "schema_version": 2,
             "sha256": hashlib.sha256(contents).hexdigest(),
             "snapshot": registry,
         }
@@ -45,8 +44,8 @@ class LabelCorrections:
                     and all(c in "0123456789abcdef" for c in h)
                     for h in hashes
                 )
-                or entry.get("original_match_kind") not in ("type1", "type2", "type2b", "type2c", "type3")
-                or entry.get("reviewed_match_kind") not in ("type1", "type2", "type2b", "type2c", "type3")
+                or entry.get("original_content_relationship") not in ("type1", "type2b", "type2c", "type3")
+                or entry.get("reviewed_content_relationship") not in ("type1", "type2b", "type2c", "type3")
                 or not isinstance(entry.get("id"), str)
                 or not entry["id"]
                 or not isinstance(entry.get("reason"), str)
@@ -72,12 +71,11 @@ class LabelCorrections:
                 raise ValueError(f"{side} content does not match its SHA-256")
             hashes.append(digest)
         entry = self._entries.get(tuple(sorted(hashes)))
-        if (
-            entry is None
-            or normalize_reported_category(entry["original_match_kind"]) != normalize_reported_category(
-                metadata.get("benchmark_category", f"type{metadata.get('syntactic_type')}")
-            )
-        ):
+        expected = metadata.get(
+            "benchmark_category",
+            {1: "type1", 2: "type2c", 3: "type3"}.get(metadata.get("syntactic_type")),
+        )
+        if entry is None or entry["original_content_relationship"] != expected:
             if entry is not None and metadata.get("category_rules_version") is not None:
                 raise ValueError("reviewed correction conflicts with inherited benchmark category; explicit review required")
             return None

@@ -1,0 +1,41 @@
+{
+  "schema_version": 2,
+  "pair_policy": "unordered_exact_utf8_sha256",
+  "corrections": [
+    {
+      "id": "bcb-69322-96077-empty-statement",
+      "function_ids": [
+        69322,
+        96077
+      ],
+      "fragment_sha256": [
+        "2054aab2e071a52377909184a0fe46bf0789bd8ea07c43662697334f1480ced5",
+        "44fdffeb341c31d437565cc492b2ed72180c58535467cf63df26ed221d607a63"
+      ],
+      "reviewed_description": "High-similarity Type-3; no BigCloneBench Type-3 strength band assigned",
+      "reason": "Consistent identifier and literal substitutions accompany removal of a standalone empty statement after a while block. Statement addition or removal exceeds the thesis Type-2 definition.",
+      "reviewer": "Nicholas Stafford",
+      "review_status": "author_reviewed",
+      "original_content_relationship": "type2c",
+      "reviewed_content_relationship": "type3"
+    },
+    {
+      "id": "bcb-10380189-21441448-empty-statement",
+      "function_ids": [
+        10380189,
+        21441448
+      ],
+      "fragment_sha256": [
+        "392426aa2c8d5946aea10be47485eb43d033b8e0d92d2561f6320a4526e68054",
+        "62108ac4e7fdfb9abe5798be85ea33d0b47b743260d6141e8c106ffcb1836191"
+      ],
+      "reviewed_description": "High-similarity Type-3; no BigCloneBench Type-3 strength band assigned",
+      "reason": "The fragments differ by a standalone empty statement before return null. Statement addition or removal exceeds the thesis Type-1 and Type-2 definitions.",
+      "reviewer": "Nicholas Stafford",
+      "review_status": "author_reviewed",
+      "original_content_relationship": "type1",
+      "reviewed_content_relationship": "type3"
+    }
+  ],
+  "historical_source": "reviewed_label_corrections.json"
+}

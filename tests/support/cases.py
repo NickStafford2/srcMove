@@ -245,12 +245,12 @@ def _load_policy_catalog(
             )
 
         if expect_move:
-            match_kind = raw_case.get("expected_match_kind")
-            allowed_match_kinds = ("type1", "type2c", "type3")
-            if match_kind not in allowed_match_kinds:
+            content_relationship = raw_case.get("expected_content_relationship")
+            allowed_content_relationships = ("type1", "type2c", "type3")
+            if content_relationship not in allowed_content_relationships:
                 raise CaseDefinitionError(
-                    f"{context}: expected_match_kind must be one of "
-                    + ", ".join(repr(kind) for kind in allowed_match_kinds)
+                    f"{context}: expected_content_relationship must be one of "
+                    + ", ".join(repr(kind) for kind in allowed_content_relationships)
                 )
             _validate_lines(
                 raw_case.get("expected_from_lines"), "expected_from_lines", context

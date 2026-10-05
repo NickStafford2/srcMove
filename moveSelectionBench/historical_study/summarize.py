@@ -7,8 +7,8 @@ from pathlib import Path
 from study import ROOT, HERE, read, write, digest, verify_seal, verify_execution, second_verdicts
 
 
-def current_match_kind(kind):
-    return 'type2c' if kind == 'type2' else kind
+def current_content_relationship(kind):
+    return kind
 
 
 def unique_records(records, key, description):
@@ -106,15 +106,15 @@ def main():
                 outputs=unique_records(adjudicated['outputs'], 'index', 'output index')
                 if any(type(i) is not int for i in outputs):
                     raise ValueError('output index must be an integer')
-                expected={i for i,m in enumerate(moves) if m['match_kind'] in ('type1','type2','type2c')}
+                expected={i for i,m in enumerate(moves) if m['content_relationship'] in ('type1','type2c')}
                 if set(outputs)!=expected:raise ValueError(f'output adjudication incomplete/duplicated: {case_id}')
                 if len(outputs)!=len(adjudicated['outputs']):raise ValueError('duplicate output index')
                 for i,m in enumerate(moves):
-                    if m['match_kind']=='type3':type3[(name,cohort)]+=1;continue
-                    if m['match_kind'] not in ('type1','type2','type2c'):
-                        raise ValueError('unexpected selected match kind')
+                    if m['content_relationship']=='type3':type3[(name,cohort)]+=1;continue
+                    if m['content_relationship'] not in ('type1','type2c'):
+                        raise ValueError('unexpected selected content relationship')
                     label=outputs[i]
-                    if current_match_kind(label['type'])!=current_match_kind(m['match_kind']):raise ValueError('output type drift')
+                    if current_content_relationship(label['type'])!=current_content_relationship(m['content_relationship']):raise ValueError('output type drift')
                     if label['verdict'] not in ('valid_independent','valid_carried','false_correspondence',
                                                 'false_location','unresolved_group','unresolved'):
                         raise ValueError('unknown output verdict')
@@ -123,7 +123,7 @@ def main():
                     if not m['from_xpaths'] or not m['to_xpaths']:
                         raise ValueError('selected output lacks endpoints')
                     unit='one_to_one' if len(m['from_xpaths'])==len(m['to_xpaths'])==1 else 'repeated_group'
-                    precision[(cohort,m['match_kind'],unit,label['scope'])][label['verdict']]+=1
+                    precision[(cohort,m['content_relationship'],unit,label['scope'])][label['verdict']]+=1
                 labels=unique_records(adjudicated['events'], 'id', 'event adjudication')
                 expected_events={e['id'] for e in frozen.get('events', [])
                                  if verdicts[e['id']] in ('confirm','confirmed') and e.get('count_in_strict_recall',True)}
@@ -158,7 +158,7 @@ def main():
                             if i in used_detections:
                                 raise ValueError('one exact output counted as multiple source targets')
                             used_detections.add(i)
-                        correct=any(current_match_kind(moves[i]['match_kind'])==current_match_kind(event['type']) for i in indices)
+                        correct=any(current_content_relationship(moves[i]['content_relationship'])==current_content_relationship(event['type']) for i in indices)
                         recall[key]['strict_correct_type']+=int(correct)
     result['source_label_counts']=dict(result['source_label_counts'])
     result['execution']=[dict(repository=k[0],cohort=k[1],counts=dict(v)) for k,v in execution.items()]

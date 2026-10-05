@@ -27,10 +27,10 @@ from benchmarking.tooling import find_srcmove
 from performance.benchmark import parse_named_path, parse_profile_output, validate_name
 
 
-CATALOG_SCHEMA_VERSION = 2
-RUN_SCHEMA_VERSION = 1
+CATALOG_SCHEMA_VERSION = 3
+RUN_SCHEMA_VERSION = 2
 SAFE_ID = re.compile(r"^[a-z0-9][a-z0-9_]*$")
-ALLOWED_MATCH_KINDS = {"type1", "type2c", "type3"}
+ALLOWED_CONTENT_RELATIONSHIPS = {"type1", "type2c", "type3"}
 ALLOWED_INPUT_SHAPES = {"single_file", "archive"}
 ALLOWED_CASE_STATUSES = {"contract", "hypothesis"}
 
@@ -53,15 +53,15 @@ def _validate_expectation(value: Any, context: str) -> dict[str, Any]:
         text = result.get(field)
         if not isinstance(text, str) or not normalize_text(text):
             raise CatalogError(f"{context}: {field} must be non-empty text")
-    kinds = result.get("match_kinds")
+    kinds = result.get("content_relationships")
     if kinds is not None:
         if (
             not isinstance(kinds, list)
             or not kinds
-            or not all(isinstance(kind, str) and kind in ALLOWED_MATCH_KINDS for kind in kinds)
+            or not all(isinstance(kind, str) and kind in ALLOWED_CONTENT_RELATIONSHIPS for kind in kinds)
         ):
             raise CatalogError(
-                f"{context}: match_kinds must contain type1, type2c, or type3"
+                f"{context}: content_relationships must contain type1, type2c, or type3"
             )
     return result
 
@@ -72,7 +72,7 @@ def load_catalog(path: Path) -> list[dict[str, Any]]:
     except (OSError, UnicodeError, json.JSONDecodeError) as error:
         raise CatalogError(f"cannot read catalog {path}: {error}") from error
     if not isinstance(document, dict) or document.get("schema_version") != CATALOG_SCHEMA_VERSION:
-        raise CatalogError("catalog schema_version must be 2")
+        raise CatalogError("catalog schema_version must be 3")
     raw_cases = document.get("cases")
     if not isinstance(raw_cases, list) or not raw_cases:
         raise CatalogError("catalog cases must be a non-empty array")
@@ -151,13 +151,13 @@ def _result_moves(results: Mapping[str, Any]) -> list[dict[str, Any]]:
             raise ValueError(f"results move {ordinal} must be an object")
         from_texts = move.get("from_raw_texts")
         to_texts = move.get("to_raw_texts")
-        kind = move.get("match_kind")
+        kind = move.get("content_relationship")
         if (
             not isinstance(from_texts, list)
             or not all(isinstance(text, str) for text in from_texts)
             or not isinstance(to_texts, list)
             or not all(isinstance(text, str) for text in to_texts)
-            or kind not in ALLOWED_MATCH_KINDS
+            or kind not in ALLOWED_CONTENT_RELATIONSHIPS
         ):
             raise ValueError(f"results move {ordinal} has an invalid shape")
         parsed.append(move)
@@ -165,8 +165,8 @@ def _result_moves(results: Mapping[str, Any]) -> list[dict[str, Any]]:
 
 
 def expectation_matches(expectation: Mapping[str, Any], move: Mapping[str, Any]) -> bool:
-    allowed = expectation.get("match_kinds")
-    if allowed is not None and move.get("match_kind") not in allowed:
+    allowed = expectation.get("content_relationships")
+    if allowed is not None and move.get("content_relationship") not in allowed:
         return False
     wanted_from = normalize_text(str(expectation["from"]))
     wanted_to = normalize_text(str(expectation["to"]))
@@ -237,8 +237,12 @@ def _load_result_file(path: Path) -> dict[str, Any]:
     value = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(value, dict):
         raise ValueError("results root must be an object")
-    if value.get("results_schema_version") != 1:
-        raise ValueError("results.results_schema_version must be 1")
+    if value.get("results_schema_version") != 2:
+        raise ValueError("results.results_schema_version must be 2")
+    from bigMoveBench.oracle import _validate_results_schema
+    failures = _validate_results_schema(value)
+    if failures:
+        raise ValueError("; ".join(failures))
     _result_moves(value)
     return value
 
@@ -260,7 +264,7 @@ def _matching_decisions(results: Mapping[str, Any]) -> list[tuple[Any, ...]]:
     for move in _result_moves(results):
         decisions.append(
             (
-                move["match_kind"],
+                move["content_relationship"],
                 tuple(
                     sorted(normalize_text(text) for text in move["from_raw_texts"])
                 ),

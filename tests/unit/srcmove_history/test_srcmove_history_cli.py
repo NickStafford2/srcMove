@@ -61,7 +61,7 @@ def fake_executable(path: Path, outcome: str = "valid-archive") -> Path:
 
 
 class SrcMoveHistoryCliTests(unittest.TestCase):
-    def test_status_json_schema_2_uses_explicit_research_terms(self) -> None:
+    def test_status_json_schema_3_uses_explicit_research_terms(self) -> None:
         document = _status_document(
             {
                 "completed_pair_count": 8,
@@ -74,7 +74,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "move_group_count": 4,
                 "move_pair_count": 5,
                 "annotated_region_count": 9,
-                "match_kinds": {"type1": 3, "type3": 1},
+                "content_relationships": {"type1": 3, "type3": 1},
                 "oldest_completed_commit": "a" * 40,
                 "newest_commit": "b" * 40,
                 "timings": {"pair_seconds": 12.5, "srcmove_seconds": 3.0},
@@ -92,7 +92,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             }
         )
 
-        self.assertEqual(document["schema_version"], 2)
+        self.assertEqual(document["schema_version"], 3)
         self.assertEqual(
             document["coverage"],
             {
@@ -117,7 +117,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "detections": 4,
                 "source_destination_pairings": 5,
                 "annotated_regions": 9,
-                "by_match_type": {"type1": 3, "type3": 1},
+                "by_content_relationship": {"type1": 3, "type3": 1},
             },
         )
         self.assertEqual(
@@ -463,7 +463,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             )
             self.assertEqual((status, error), (0, ""))
             report = json.loads(output)
-            self.assertEqual(report["schema_version"], 2)
+            self.assertEqual(report["schema_version"], 3)
             self.assertEqual(report["coverage"]["committed_commit_pairs"], 2)
             self.assertIsNone(report["pending"])
             self.assertEqual(
@@ -562,7 +562,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 },
                 "moves": [
                     {
-                        "match_kind": "type1",
+                        "content_relationship": "type1",
                         "from_xpaths": ["/secret/source"],
                         "to_xpaths": ["/secret/destination"],
                         "from_text_digests": [{"sha256": "c" * 64}],

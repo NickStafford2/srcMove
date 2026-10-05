@@ -5,7 +5,7 @@ import sqlite3
 import tempfile
 import unittest
 
-from bigMoveBench.browser.reader import list_cases, list_runs, show_case, show_source
+from bigMoveBench.browser.reader import list_cases, list_runs, show_case, show_run, show_source
 
 
 class BrowserTests(unittest.TestCase):
@@ -39,7 +39,7 @@ class BrowserTests(unittest.TestCase):
         database = directory / "benchmark_cases.sqlite"
         with sqlite3.connect(database) as connection:
             connection.executescript("""
-CREATE TABLE cases(case_id TEXT, ordinal INTEGER, case_kind TEXT, expected_match_kind TEXT,
+CREATE TABLE cases(case_id TEXT, ordinal INTEGER, case_kind TEXT, expected_content_relationship TEXT,
  type3_both_similarity REAL, type3_strength_stratum TEXT, min_tokens INTEGER,
  original_fragment_sha256 TEXT, modified_fragment_sha256 TEXT,
  from_start_line INTEGER, from_end_line INTEGER, to_start_line INTEGER, to_end_line INTEGER);
@@ -48,7 +48,7 @@ CREATE TABLE cases(case_id TEXT, ordinal INTEGER, case_kind TEXT, expected_match
                 connection.execute("INSERT INTO cases VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)", (
                     f"{category}-{ordinal}", ordinal, "positive", category, None, None, 50,
                     *self.fragments, 3, 4, 3, 4))
-        manifest = {"schema_version": 1, "benchmark_cases_id": identifier,
+        manifest = {"schema_version": 2, "benchmark_cases_id": identifier,
                     "compiled_dataset": {"dataset_id": self.dataset},
                     "artifacts": {"benchmark_cases": {"path": database.name, "size_bytes": database.stat().st_size}}}
         manifest_path = directory / "manifest.json"
@@ -63,14 +63,14 @@ CREATE TABLE run_metadata(singleton INTEGER, schema_version INTEGER, benchmark_c
 CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, status TEXT, outcome TEXT,
  oracle_results_json TEXT, semantic_status TEXT, semantic_details_json TEXT, oracle_failures_json TEXT, text_validation_json TEXT);
 """)
-            connection.execute("INSERT INTO run_metadata VALUES (1,1,?,?)", (identifier, hashlib.sha256(manifest_path.read_bytes()).hexdigest()))
+            connection.execute("INSERT INTO run_metadata VALUES (1,2,?,?)", (identifier, hashlib.sha256(manifest_path.read_bytes()).hexdigest()))
             for ordinal in (1, 2):
                 result = {"move_count": 1 if ordinal == 1 else 0, "moves": [],
-                          "_oracle_observed_match_kind": "type3" if ordinal == 1 else None,
+                          "_oracle_observed_content_relationship": "type3" if ordinal == 1 else None,
                           "_oracle_reviewed_outcome": "oracle_pass" if ordinal == 1 else "srcmove_miss",
-                          "_oracle_label_correction": {"id": "correction", "reviewed_match_kind": "type3"}}
+                          "_oracle_label_correction": {"id": "correction", "reviewed_content_relationship": "type3"}}
                 if ordinal == 1:
-                    result["moves"] = [{"move_id": "move-1", "match_kind": "type3", "from_raw_texts": ["before"], "to_raw_texts": ["after"]}]
+                    result["moves"] = [{"move_id": "move-1", "content_relationship": "type3", "from_raw_texts": ["before"], "to_raw_texts": ["after"]}]
                 connection.execute("INSERT INTO attempts VALUES (?,?,?,?,?,?,?,?,?,?)", (
                     f"{category}-attempt-{ordinal}", f"{category}-{ordinal}", 0, "terminal",
                     "wrong_classification" if ordinal == 1 else "srcmove_miss", json.dumps(result),
@@ -79,6 +79,7 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
     def test_pagination_across_members_and_read_only_queries(self):
         before = [hashlib.sha256(path.read_bytes()).hexdigest() for path in self.journals]
         self.assertEqual(list_runs(self.results)["default_run_id"], "saved-run")
+        self.assertEqual(show_run(self.results, "saved-run")["schema_version"], 2)
         page = list_cases(self.results, self.cache, "saved-run", offset=1, limit=2)
         self.assertEqual(page["total"], 4)
         self.assertEqual(page["matched"], 4)
@@ -86,6 +87,12 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
         self.assertEqual(page["next_offset"], 3)
         self.assertNotIn("moves", page["items"][0])
         self.assertEqual(before, [hashlib.sha256(path.read_bytes()).hexdigest() for path in self.journals])
+
+    def test_legacy_execution_journal_is_rejected(self):
+        with sqlite3.connect(self.journals[0]) as connection:
+            connection.execute("UPDATE run_metadata SET schema_version=1")
+        with self.assertRaisesRegex(ValueError, "Unsupported benchmark execution journal"):
+            list_cases(self.results, self.cache, "saved-run")
 
     def test_incomplete_runs_do_not_hide_completed_runs(self):
         pending = self.results / "pending-run"
@@ -128,7 +135,7 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
         self.assertEqual(original["matched"], 1)
         case = original["items"][0]
         self.assertTrue(case["complete_fragment_detected"])
-        self.assertEqual(case["observed_match_kind"], "type3")
+        self.assertEqual(case["observed_content_relationship"], "type3")
         reviewed = list_cases(self.results, self.cache, "saved-run", category="type2b", outcome="oracle_pass", basis="reviewed")
         self.assertEqual(reviewed["items"][0]["case_id"], case["case_id"])
 

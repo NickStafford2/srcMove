@@ -42,7 +42,7 @@ class Type2AdoptionTests(unittest.TestCase):
                 with self.subTest(side=side, mode=mode):
                     result = self.run_fixture(fixtures / f'{side}_{mode}.xml')
                     if mode == 'control':
-                        self.assertEqual(result['match_kinds']['type3'], 1)
+                        self.assertEqual(result['content_relationships']['type3'], 1)
                         continue
                     self.assertEqual(result['move_count'], 0)
                     evidence = result['diagnostics']

@@ -60,8 +60,8 @@ group_kind_counts count_group_kinds(const content_groups &groups) {
   return counts;
 }
 
-match_kind_counts count_match_kinds(const content_groups &groups) {
-  match_kind_counts counts;
+content_relationship_counts count_content_relationships(const content_groups &groups) {
+  content_relationship_counts counts;
 
   for (const content_group &group : groups.groups()) {
     if (group.del_count() == 0 || group.ins_count() == 0) {
@@ -73,7 +73,7 @@ match_kind_counts count_match_kinds(const content_groups &groups) {
       ++counts.type1;
       break;
     case match_kind::type2:
-      ++counts.type2;
+      ++counts.type2c;
       break;
     case match_kind::type3:
       ++counts.type3;
@@ -230,7 +230,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     result.candidates_total       = count_grouped_candidate_ids(groups);
     result.groups_total           = groups.group_count();
     result.group_kinds            = count_group_kinds(groups);
-    result.match_kinds            = count_match_kinds(groups);
+    result.content_relationships            = count_content_relationships(groups);
     result.diagnostics_enabled    = options.diagnostics;
     result.diagnostics            = std::move(diagnostics);
   }

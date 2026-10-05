@@ -473,7 +473,6 @@ def _print_report(directory: Path, suite: Mapping[str, Any]) -> None:
         else:
             expected_kind = {
                 "type1": "type1",
-                "type2": "type2 (legacy consistent)",
                 "type2b": "type2b",
                 "type2c": "type2c",
                 "type3": "type3",

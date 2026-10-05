@@ -19,7 +19,7 @@ class profile_report;
 
 struct move_tag {
   std::string              move_id;
-  std::string              match_kind;
+  std::string              content_relationship;
   std::uint32_t            confidence_milli = 0;
   std::uint64_t            selection_utility = 0;
   std::uint32_t            matched_units = 0;

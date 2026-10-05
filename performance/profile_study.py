@@ -127,7 +127,7 @@ def _load_records(run_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any
                     "candidates_total": results.get("candidates_total"),
                     "groups_total": results.get("groups_total"),
                     "move_group_count": results.get("move_group_count"),
-                    "match_kinds": results.get("match_kinds", {}),
+                    "content_relationships": results.get("content_relationships", {}),
                 }
             )
             records.append(record)
@@ -155,7 +155,7 @@ def _result_medians(records: list[dict[str, Any]]) -> dict[str, Any]:
         ):
             values = [row[key] for row in rows if row.get(key) is not None]
             result[workload][key] = median(values) if values else None
-        result[workload]["match_kinds"] = rows[0].get("match_kinds", {}) if rows else {}
+        result[workload]["content_relationships"] = rows[0].get("content_relationships", {}) if rows else {}
     return result
 
 
@@ -188,7 +188,7 @@ def _report(summary: dict[str, Any], results: dict[str, Any]) -> str:
             "- result counts: "
             f"regions={counts['regions_total']}, candidates={counts['candidates_total']}, "
             f"groups={counts['groups_total']}, moves={counts['move_group_count']}, "
-            f"match_kinds={json.dumps(counts['match_kinds'], sort_keys=True)}"
+            f"content_relationships={json.dumps(counts['content_relationships'], sort_keys=True)}"
         )
         lines.append("")
     return "\n".join(lines)

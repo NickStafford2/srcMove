@@ -72,8 +72,8 @@ inline void write_move_entry(std::ostream     &out,
 
   out << pad << "{\n";
   out << field_pad << "\"move_id\": \"" << m.move_id << "\",\n";
-  out << field_pad << "\"match_kind\": ";
-  write_string(out, m.match_kind);
+  out << field_pad << "\"content_relationship\": ";
+  write_string(out, m.content_relationship);
   out << ",\n";
   out << field_pad << "\"confidence_milli\": " << m.confidence_milli
       << ",\n";
@@ -285,10 +285,10 @@ inline void write_summary(std::ostream &out, const summary &summ) {
   out << "    \"copy_or_repeat\": " << summ.group_kinds.copy_or_repeat << ",\n";
   out << "    \"ambiguous\": " << summ.group_kinds.ambiguous << "\n";
   out << "  },\n";
-  out << "  \"match_kinds\": {\n";
-  out << "    \"type1\": " << summ.match_kinds.type1 << ",\n";
-  out << "    \"type2c\": " << summ.match_kinds.type2 << ",\n";
-  out << "    \"type3\": " << summ.match_kinds.type3 << "\n";
+  out << "  \"content_relationships\": {\n";
+  out << "    \"type1\": " << summ.content_relationships.type1 << ",\n";
+  out << "    \"type2c\": " << summ.content_relationships.type2c << ",\n";
+  out << "    \"type3\": " << summ.content_relationships.type3 << "\n";
   out << "  }";
   if (summ.diagnostics_enabled) {
     out << ",\n";

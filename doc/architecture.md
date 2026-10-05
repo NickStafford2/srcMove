@@ -299,10 +299,10 @@ adds the srcMove namespace and annotates matched start tags with:
 
 Annotations may be placed on a structural child inside a diff wrapper rather
 than on the wrapper itself. The optional `--results` output records move groups,
-match kinds, source/destination XPaths, raw texts, candidate counts, group
+predicted content relationships, source/destination XPaths, raw texts, candidate counts, group
 classifications, confidence in thousandths, matched units, selection utility,
 and the selection reason as JSON. The top-level `results_schema_version`
-identifies this contract and is currently `1`. With `--results-only`, srcMove
+identifies this contract and is currently `2`. With `--results-only`, srcMove
 materializes that JSON evidence from candidate-owned XPaths and skips the
 second XML pass entirely.
 
@@ -351,7 +351,7 @@ product, and groups are sorted deterministically by endpoint IDs. With
 `profile.content_groups.type2b_diagnostics_ms` and
 `profile.content_groups.type2b_groups_observed`.
 
-Type-2b is absent from production `moves[].match_kind`, `match_kinds`, and XML
+Type-2b is absent from production `moves[].content_relationship`, `content_relationships`, and XML
 annotations. Existing correspondence records remain unchanged; the new groups
 live in their own array. Diagnostic and results-only modes preserve ordinary
 results and selected XML annotations.
@@ -377,35 +377,91 @@ not selected, not that it was established as stationary.
 
 ### Results terminology
 
-The consistent identifier-renaming category is emitted as `type2c` (Type-2c),
-previously named `type2`. This is a terminology change: normalization, candidate
-eligibility, precedence, correspondence, and selection are unchanged. No
-`type2b` production match category is emitted; blind observations are described
-above. Identifier consistency is lexical within each
-candidate: first-occurrence numbering preserves repeated-name patterns and
-distinguishes different direct srcML `<name>` tokens; it does not resolve name
-bindings. Literal-category normalization and the other rules above are
-srcMove's rules, not a claim that every rule equals BigCloneBench's.
+Results schema `2` reports `moves[].content_relationship` and the top-level
+`content_relationships` group counts. The values remain `type1`, `type2c`, and
+`type3`. These are srcMove's predicted classifications of the reported
+endpoints' contents under the thesis's Type-1, Type-2c, Type-2b, and Type-3
+terminology. A classification does not establish continuity, relocation, or
+computational equivalence. Each reported group contributes one count,
+including groups with repeated endpoints.
 
-New JSON uses `moves[].match_kind = "type2c"`, `match_kinds.type2c`, and
-`diagnostics.correspondences[].correspondence_kind = "type2c"`.
-`diagnostics.type3_pairs[].outcome` uses `ambiguous_type2c` for the existing
-normalized-ambiguity rejection. Profiling uses
-`content_groups.type2c_build`, `content_groups.type2c_groups_built`, and
-`content_groups.type2c_groups_selected` (with the usual `profile.` prefix and
-`_ms` suffix for the timer). XML has no category attribute: `mv:id`, `mv:from`,
-and `mv:to` remain unchanged. The results and diagnostics schema version numbers
-are unchanged; consumers that enumerate labels must add `type2c`. Retained
-legacy `type2` reports describe this same consistent category, not blind
-matching. srcMove-owned history admission accepts both labels, and its text
-summaries combine them under Type 2c. Historical evidence keeps its original
-labels. BigMoveBench and srcDiffVisual require coordinated consumer updates.
+The matching passes currently supply these predictions. Their rules do not
+always identify the thesis's lowest applicable content type. In particular,
+a blind-only Type-2b pair can be detected through Type-3 matching and receive
+an incorrect `type3` classification. That is a classification disagreement,
+separate from a detection miss. Type-1 canonicalization and Type-2c lexical
+normalization also disregard different formatting details, and neither
+identifier normalization nor literal normalization resolves bindings or tests
+computation. This reporting change improves neither classification nor move
+selection; no selected Type-2b category is manufactured.
+
+Internal `match_kind` describes the matching pass and retains its name.
+Diagnostic `correspondence_kind` identifies the comparison evidence for a
+candidate correspondence, including unselected edges and observation-only
+blind groups. It is not a reported endpoint content classification and remains
+separate. `classification_reason` and `shadow_change` describe location
+judgments. Type-3 shortlist `outcome` records retrieval or selection decisions.
+Diagnostics schema remains `4`. Profiling names describe implementation stages.
+XML has no content classification attribute: `mv:id`, `mv:from`, and `mv:to`
+identify groups and partners and remain unchanged.
+
+#### Incompatible stored output
+
+Current consumers reject results schema `1`, the superseded `match_kind` and
+`match_kinds` fields, and the legacy reported `type2` label. Retained results,
+historical reviews, and frozen snapshots keep their original fields and labels;
+they were not produced by schema `2` and must not be relabeled as new evidence.
+`VERSION` is unchanged.
+
+Regenerate detector JSON and benchmark runs with the rebuilt executable. Publish
+new BigMoveBench benchmark-case collections (manifest and SQLite schema `2`)
+from existing compiled data and selections, and create new execution journals
+(schema/user version `2`, scoring oracle `9`, summary schema `3`). Existing compiled source data, selection populations,
+and source inputs do not need to be reselected for this reporting change.
+Current label correction snapshots use
+`bigMoveBench/content_relationship_corrections.json` (schema `2`); the original
+`reviewed_label_corrections.json` remains historical evidence. The current copy
+retains the reviewed judgments and fragment hashes, with the historical
+consistent `type2` expectations explicitly recorded as `type2c`.
+
+Start fresh history analyses: database schema is `7`, compact-pair schema is `3`,
+and results validator version is `3`. Older databases and cached outcomes are
+incompatible. Preserve old state directories for evidence and create new ones;
+do not resume an old analysis against the new binary. Current move-selection
+benchmark catalogs use schema `3` and runs use schema `2`. Regenerate their output in a new directory.
+
+#### srcDiffVisual follow-up (separate repository)
+
+The companion application must adopt the new contract before using these runs:
+
+- `srcdiffvisual/srcmove/srcmove_results.py` and
+  `srcdiffvisual/srcmove/validate_results.py`: admit results schema `2`, require
+  the new classification fields, reject legacy fields/labels, and preserve the
+  new producer metadata. Audit projections and result enrichment, which copy
+  producer data.
+- `srcdiffvisual/artifacts/store.py`: emit `content_relationship` in move
+  manifests; regenerate saved artifacts or explicitly version their contracts.
+- `srcdiffvisual/bigmovebench/_browser.py`: expect browser response schema `2`.
+  Update bundles/routes for `expected_content_relationship`,
+  `reviewed_expected_content_relationship`, `observed_content_relationship`,
+  `reviewed_content_relationship`, and `content_relationships`.
+- `frontend/src/types.ts`, `frontend/src/history/types.ts`, and
+  `frontend/src/bigmovebench/browserTypes.ts`: rename classification properties.
+  Update artifact navigation, filtering, popups, summaries, HistoryInput, and
+  SavedBenchmarkBrowser, plus their fixtures and tests. Remove `type2` label
+  compatibility and present mismatches as classification disagreements.
+- History status uses schema `3` with `moves.by_content_relationship`; pair list, pair detail, and comparison
+  responses use schema `2`. Update `srcdiffvisual/history/client.py`
+  expectations and route/tests accordingly. Rebuild the application's bundled srcMove/history
+  code and refresh analyses and artifacts after the coordinated update.
+
+No sibling code is changed by this task.
 
 
 The JSON contract distinguishes evidence, endpoint cardinality, and counts:
 
-- `match_kind` (`type1`, `type2c`, or `type3`) states why candidate content
-  corresponds.
+- `content_relationship` (`type1`, `type2c`, or `type3`) predicts the
+  contents' classification; `content_relationships` counts groups by prediction.
 - `group_kinds` classifies endpoint cardinality: `move_1_to_1` is one deletion
   and one insertion, `moves_many` has equal counts greater than one, and
   `copy_or_repeat` has unequal nonzero counts. `delete_only` and `insert_only`
@@ -423,7 +479,7 @@ calibrated probability.
 
 ## Matching and group semantics
 
-The matcher reports four classification outcomes:
+The matching passes currently supply these classifications:
 
 - `type1`: identical comment- and formatting-insensitive canonical
   structure and meaningful text

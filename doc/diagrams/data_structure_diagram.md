@@ -32,7 +32,7 @@ classDiagram
     class content_group {
         candidate_id_ranges
         group_kind cardinality
-        match_kind evidence
+        match_kind matching_method
         confidence_milli
         selection_utility
         matched_units
@@ -52,7 +52,7 @@ classDiagram
 
     class move_tag {
         move_id
-        match_kind
+        content_relationship
         endpoint_xpath
         partner_xpaths
         ranking_evidence
@@ -60,7 +60,7 @@ classDiagram
 
     class move_entry {
         move_id
-        match_kind
+        content_relationship
         source_xpaths_and_texts
         destination_xpaths_and_texts
         ranking_evidence
@@ -71,7 +71,7 @@ classDiagram
         move_pair_count
         annotated_region_count
         group_kind_counts
-        match_kind_counts
+        content_relationship_counts
         move_entries
         optional_diagnostics
     }

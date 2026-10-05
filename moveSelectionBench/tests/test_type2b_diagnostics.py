@@ -50,8 +50,8 @@ class Type2bDiagnosticTests(unittest.TestCase):
             self.assertNotIn('diagnostics', payloads[0])
             self.assertNotIn('content_groups.type2b_', profiles[0])
             self.assertIn('content_groups.type2b_diagnostics_ms=', profiles[1])
-            self.assertTrue(all(m['match_kind'] != 'type2b' for m in ordinary['moves']))
-            self.assertNotIn('type2b', ordinary['match_kinds'])
+            self.assertTrue(all(m['content_relationship'] != 'type2b' for m in ordinary['moves']))
+            self.assertNotIn('type2b', ordinary['content_relationships'])
             return payloads[1]['diagnostics']
 
     def test_unique_inconsistent_rename_is_observation_only(self):

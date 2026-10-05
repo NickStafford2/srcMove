@@ -24,7 +24,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
             "move_group_count": 59,
             "move_pair_count": 67,
             "annotated_region_count": 156,
-            "match_kinds": {"type1": 31, "type2c": 7, "type3": 21},
+            "content_relationships": {"type1": 31, "type2c": 7, "type3": 21},
             "newest_commit": "3f523613528194d3487853ed6e5367c6f215ec4f",
             "oldest_completed_commit": "0a4af54a7e67e3cf87a7cec44d80870f5df260cf",
             "cumulative_wall_seconds": 301.2,
@@ -88,7 +88,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
                     "groups": 1,
                     "pairs": 1,
                     "annotated_regions": 1,
-                    "by_type": {"type1": 1},
+                    "by_content_relationship": {"type1": 1},
                 },
             }
         )

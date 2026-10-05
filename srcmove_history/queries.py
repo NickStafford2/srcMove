@@ -17,7 +17,7 @@ from .database import (
 from .inputs import canonical_json_bytes
 
 
-QUERY_SCHEMA_VERSION = 1
+QUERY_SCHEMA_VERSION = 2
 FAILURE_PAIR_STATUSES = tuple(
     sorted(status for status in TERMINAL_PAIR_STATUSES if status.endswith("_failed"))
 )
@@ -154,7 +154,7 @@ class StatusSnapshot:
             "move_group_count": self.moves.groups,
             "move_pair_count": self.moves.pairs,
             "annotated_region_count": self.moves.annotated_regions,
-            "match_kinds": {
+            "content_relationships": {
                 item.name: item.count for item in self.moves.by_type
             },
             "cumulative_wall_seconds": self.cumulative_wall_seconds,
@@ -297,23 +297,23 @@ class AnalysisReader:
                     raise ValueError(
                         "durable analysis coverage drifts from stored commit pairs"
                     )
-                match_kinds = tuple(
+                content_relationships = tuple(
                     NamedCount(
-                        _text(row["match_kind"], "move match kind"),
-                        _count(row["count"], "move match-kind count"),
+                        _text(row["content_relationship"], "move content relationship"),
+                        _count(row["count"], "move content-relationship count"),
                     )
                     for row in database.connection.execute(
                         """
-                        SELECT match_kind, COUNT(*) AS count
+                        SELECT content_relationship, COUNT(*) AS count
                         FROM moves
-                        GROUP BY match_kind
-                        ORDER BY match_kind
+                        GROUP BY content_relationship
+                        ORDER BY content_relationship
                         """
                     )
                 )
-                if sum(item.count for item in match_kinds) != totals["move_group_count"]:
+                if sum(item.count for item in content_relationships) != totals["move_group_count"]:
                     raise ValueError(
-                        "stored move match kinds drift from move-group count"
+                        "stored move content relationships drift from move-group count"
                     )
                 stored_invocation = database.latest_invocation()
                 return StatusSnapshot(
@@ -331,7 +331,7 @@ class AnalysisReader:
                     moves=MoveCounts(
                         totals["move_count"], totals["move_group_count"],
                         totals["move_pair_count"], totals["annotated_region_count"],
-                        match_kinds,
+                        content_relationships,
                     ),
                     cumulative_wall_seconds=database.cumulative_wall_seconds(),
                     timings=tuple(

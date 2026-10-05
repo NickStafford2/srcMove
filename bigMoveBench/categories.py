@@ -36,16 +36,12 @@ def benchmark_category(row: Mapping[str, Any]) -> str:
     raise ValueError(f"unsupported BigCloneBench syntactic type: {kind}")
 
 
-def normalize_reported_category(kind: str) -> str:
-    """Legacy srcMove type2 meant consistent renaming, never aggregate Type-2."""
-    return "type2c" if kind == "type2" else kind
-
 
 def expected_category(metadata: Mapping[str, Any]) -> str:
     version = metadata.get("category_rules_version")
     if version is None:
-        # Frozen artifacts retain their original oracle; do not infer membership.
-        return {1: "type1", 2: "type2", 3: "type3"}[metadata["syntactic_type"]]
+        # Raw database Type-2 rows supply a consistent Type-2c expectation.
+        return {1: "type1", 2: "type2c", 3: "type3"}[metadata["syntactic_type"]]
     if version != CATEGORY_RULES_VERSION:
         raise ValueError(f"unsupported category rules version: {version}")
     category = metadata.get("benchmark_category")

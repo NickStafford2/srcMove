@@ -147,8 +147,10 @@ srcMove --version
 ```
 
 - `--results <file>` writes versioned move groups, XPaths, raw texts, candidate
-  counts, group classifications, and match kinds as JSON. The top-level
-  `results_schema_version` is currently `1`.
+  counts, group classifications, and predicted content relationships as JSON.
+  See [the reporting contract](doc/architecture.md#results-terminology) for
+  classification limits and regeneration requirements. The top-level
+  `results_schema_version` is currently `2`.
 - `--results-only` writes the JSON result without reparsing and writing annotated
   XML. It requires `--results <file>` and does not accept an output XML path.
 - `--min-granularity statement|fragment` selects the minimum move unit.
@@ -197,7 +199,7 @@ ambiguity policy, and performance safeguards have one canonical description in
 
 In srcMove documentation, a reported *move* is a selected pair or group of
 deleted and inserted candidates, not proof of a historical move or semantic
-equivalence. Location evidence and selection requirements differ by match kind;
+equivalence. Location evidence and selection requirements differ by matching method;
 see [location classification vocabulary](doc/architecture.md#location-classification-vocabulary).
 
 ## Documentation and evaluation

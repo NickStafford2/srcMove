@@ -15,7 +15,7 @@ import shutil
 import tempfile
 
 CATEGORIES = ("type1", "type2b", "type2c", "type3", "known-false-positive")
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 
 def _json(path):
@@ -48,7 +48,7 @@ def _run(results_root, run_id):
 
 def show_run(results_root: Path, run_id: str):
     _, summary = _run(results_root, run_id)
-    return {"schema_version": SCHEMA_VERSION, "run_id": run_id, **summary}
+    return {**summary, "schema_version": SCHEMA_VERSION, "run_id": run_id}
 
 
 def list_runs(results_root: Path):
@@ -96,7 +96,7 @@ def _member_connection(connection, cache_root):
     connection.row_factory = sqlite3.Row
     connection.execute("PRAGMA query_only=ON")
     metadata = connection.execute("SELECT * FROM run_metadata WHERE singleton=1").fetchone()
-    if metadata is None or metadata["schema_version"] != 1:
+    if metadata is None or metadata["schema_version"] != 2:
         raise ValueError("Unsupported benchmark execution journal.")
     identifier = metadata["benchmark_cases_id"]
     if not re.fullmatch(r"bmb-benchmark-cases-sha256-[0-9a-f]{64}", identifier):
@@ -106,7 +106,7 @@ def _member_connection(connection, cache_root):
     if hashlib.sha256(manifest_path.read_bytes()).hexdigest() != metadata["benchmark_cases_manifest_sha256"]:
         raise ValueError("Benchmark case manifest differs from the recorded run.")
     manifest = _json(manifest_path)
-    if manifest.get("schema_version") != 1 or manifest.get("benchmark_cases_id") != identifier:
+    if manifest.get("schema_version") != 2 or manifest.get("benchmark_cases_id") != identifier:
         raise ValueError("Unsupported benchmark case collection.")
     database = case_directory / "benchmark_cases.sqlite"
     declared = manifest["artifacts"]["benchmark_cases"]
@@ -127,15 +127,15 @@ AND NOT EXISTS (
 """
 _OUTCOME = "coalesce(a.outcome, 'not_executed')"
 _REVIEWED = "coalesce(json_extract(a.oracle_results_json, '$._oracle_reviewed_outcome'), a.outcome, 'not_executed')"
-_OBSERVED = """coalesce(json_extract(a.oracle_results_json, '$._oracle_observed_match_kind'),
+_OBSERVED = """coalesce(json_extract(a.oracle_results_json, '$._oracle_observed_content_relationship'),
 CASE WHEN json_array_length(a.oracle_results_json, '$.moves')=1
-THEN json_extract(a.oracle_results_json, '$.moves[0].match_kind') END)"""
+THEN json_extract(a.oracle_results_json, '$.moves[0].content_relationship') END)"""
 _FIELDS = f"""
-c.case_id, c.ordinal, c.case_kind, c.expected_match_kind,
+c.case_id, c.ordinal, c.case_kind, c.expected_content_relationship,
 c.type3_both_similarity, c.type3_strength_stratum, c.min_tokens,
 {_OUTCOME} AS outcome, {_REVIEWED} AS reviewed_outcome,
-{_OBSERVED} AS observed_match_kind,
-coalesce(json_extract(a.oracle_results_json, '$._oracle_label_correction.reviewed_match_kind'), c.expected_match_kind) AS reviewed_expected_match_kind,
+{_OBSERVED} AS observed_content_relationship,
+coalesce(json_extract(a.oracle_results_json, '$._oracle_label_correction.reviewed_content_relationship'), c.expected_content_relationship) AS reviewed_expected_content_relationship,
 json_extract(a.oracle_results_json, '$._oracle_label_correction.id') AS label_correction_id,
 json_extract(a.oracle_results_json, '$.move_count') AS move_count,
 json_extract(a.oracle_results_json, '$._oracle_diagnostic_stage') AS diagnostic_stage,
@@ -231,7 +231,7 @@ def show_case(results_root: Path, cache_root: Path, run_id: str, category: str, 
             "semantic_details": retained("semantic_details_json", {}),
             "text_validation": retained("text_validation_json", {}),
             "moves": results.get("moves", []),
-            "match_kinds": results.get("match_kinds", {}),
+            "content_relationships": results.get("content_relationships", {}),
             "diagnostics": results.get("diagnostics"),
             "results_available": bool(attempt and attempt["oracle_results_json"]),
             "tool_sha256": summary.get("tool_sha256", {}),

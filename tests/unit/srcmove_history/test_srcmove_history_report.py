@@ -46,7 +46,7 @@ class SrcMoveHistoryReportTests(unittest.TestCase):
             self._snapshot(),
             move_groups=0,
             move_bearing_commit_pairs=0,
-            match_kinds=(),
+            content_relationships=(),
             within_file_moves=0,
             cross_file_moves=0,
             group_kinds=(),
@@ -75,8 +75,8 @@ class SrcMoveHistoryReportTests(unittest.TestCase):
         self.assertIn("may contain multiple source or destination regions", report)
         self.assertIn("Total wall time sums finalized run invocations", report)
 
-    def test_report_combines_legacy_and_current_consistent_counts(self) -> None:
-        snapshot = replace(self._snapshot(), match_kinds=(("type2", 1), ("type2c", 3)))
+    def test_report_presents_current_consistent_counts(self) -> None:
+        snapshot = replace(self._snapshot(), content_relationships=(("type2c", 4),))
         report = render_report(snapshot)
         self.assertIn("Type 2c                     4", report)
         self.assertNotIn("type2 ", report)
@@ -100,7 +100,7 @@ class SrcMoveHistoryReportTests(unittest.TestCase):
             analyzable_paths=368,
             move_groups=65,
             move_bearing_commit_pairs=16,
-            match_kinds=(("type1", 20), ("type2c", 4), ("type3", 41)),
+            content_relationships=(("type1", 20), ("type2c", 4), ("type3", 41)),
             within_file_moves=52,
             cross_file_moves=13,
             unclassified_location_moves=0,

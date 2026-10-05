@@ -14,14 +14,14 @@ class BigMoveBenchOracleTests(unittest.TestCase):
 
     def test_type_two_rejects_wrong_classification(self) -> None:
         failures = self._validate_case(2, "type1")
-        self.assertTrue(any("expected 'type2'" in failure for failure in failures))
+        self.assertTrue(any("expected 'type2c'" in failure for failure in failures))
 
     def test_type_three_requires_type3_classification(self) -> None:
         self.assertEqual(self._validate_case(3, "type3"), [])
-        failures = self._validate_case(3, "type2")
+        failures = self._validate_case(3, "type2c")
         self.assertTrue(any("expected 'type3'" in failure for failure in failures))
 
-    def _validate_case(self, syntactic_type: int, match_kind: str) -> list[str]:
+    def _validate_case(self, syntactic_type: int, content_relationship: str) -> list[str]:
         with tempfile.TemporaryDirectory() as temporary_directory:
             case_dir = Path(temporary_directory)
             metadata = {
@@ -38,13 +38,13 @@ class BigMoveBenchOracleTests(unittest.TestCase):
                 },
             }
             results = {
-                "results_schema_version": 1,
+                "results_schema_version": 2,
                 "move_count": 1,
-                "match_kinds": {match_kind: 1},
+                "content_relationships": {content_relationship: 1},
                 "moves": [
                     {
                         "move_id": "m1",
-                        "match_kind": match_kind,
+                        "content_relationship": content_relationship,
                         "from_raw_texts": ["void moved() {}"],
                         "to_raw_texts": ["void moved() {}"],
                     }
