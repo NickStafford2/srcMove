@@ -5,7 +5,7 @@ from pathlib import Path
 import sqlite3
 import sys
 
-from bigMoveBench.browser.reader import list_cases, list_runs, show_case, show_run
+from bigMoveBench.browser.reader import list_cases, list_runs, show_case, show_run, show_source
 
 
 def main():
@@ -26,6 +26,9 @@ def main():
     detail = sub.add_parser("show-case")
     for key in ("run_id", "category", "case_id"):
         detail.add_argument(key)
+    source = sub.add_parser("show-source")
+    for key in ("run_id", "category", "case_id"):
+        source.add_argument(key)
     args = parser.parse_args()
     try:
         if args.command == "list-runs":
@@ -36,6 +39,8 @@ def main():
             result = list_cases(args.results_root, args.cache_root, args.run_id,
                 category=args.category, outcome=args.outcome, query=args.query,
                 basis=args.basis, offset=args.offset, limit=args.limit)
+        elif args.command == "show-source":
+            result = show_source(args.results_root, args.cache_root, args.run_id, args.category, args.case_id)
         else:
             result = show_case(args.results_root, args.cache_root, args.run_id, args.category, args.case_id)
     except (OSError, ValueError, KeyError, sqlite3.Error) as error:

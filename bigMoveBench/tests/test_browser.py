@@ -5,7 +5,7 @@ import sqlite3
 import tempfile
 import unittest
 
-from bigMoveBench.browser.reader import list_cases, list_runs, show_case
+from bigMoveBench.browser.reader import list_cases, list_runs, show_case, show_source
 
 
 class BrowserTests(unittest.TestCase):
@@ -92,6 +92,36 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
         pending.mkdir()
         (pending / "summary.json").write_text(json.dumps({"status": "executing"}))
         self.assertEqual([item["run_id"] for item in list_runs(self.results)["items"]], ["saved-run"])
+
+    def test_source_input_is_verified_and_confined_to_member(self):
+        path = self.run / "type1/tool-attempts/srcdiff/attempt-one/srcdiff.xml"
+        path.parent.mkdir(parents=True)
+        path.write_text('<unit xmlns="http://www.srcML.org/srcML/src"/>')
+        record = {"xml": {"sha256": hashlib.sha256(path.read_bytes()).hexdigest()}}
+        with sqlite3.connect(self.journals[0]) as connection:
+            for column in ("srcdiff_admitted INTEGER", "srcdiff_record_json TEXT", "srcdiff_attempt_path TEXT"):
+                connection.execute("ALTER TABLE attempts ADD COLUMN " + column)
+            connection.execute("UPDATE attempts SET srcdiff_admitted=1,srcdiff_record_json=?,srcdiff_attempt_path=? WHERE case_id='type1-1'", (json.dumps(record), "tool-attempts/srcdiff/attempt-one"))
+        source = show_source(self.results, self.cache, "saved-run", "type1", "type1-1")
+        self.assertEqual(source["srcdiff_xml"], path.read_text())
+        self.assertEqual(source["results"]["move_count"], 1)
+        path.write_text("changed XML")
+        with self.assertRaisesRegex(ValueError, "checksum differs"):
+            show_source(self.results, self.cache, "saved-run", "type1", "type1-1")
+        with sqlite3.connect(self.journals[0]) as connection:
+            connection.execute("UPDATE attempts SET srcdiff_attempt_path='../escape'")
+        with self.assertRaisesRegex(ValueError, "escapes"):
+            show_source(self.results, self.cache, "saved-run", "type1", "type1-1")
+
+    def test_wal_pages_are_read_without_changing_original_sidecars(self):
+        with sqlite3.connect(self.journals[0]) as connection:
+            connection.execute("PRAGMA journal_mode=WAL")
+            connection.execute("UPDATE attempts SET outcome='oracle_pass' WHERE case_id='type1-1'")
+            connection.commit()
+            before = {p.name: p.read_bytes() for p in self.journals[0].parent.glob("execution.sqlite*")}
+            page = list_cases(self.results, self.cache, "saved-run", category="type1")
+            self.assertEqual(page["items"][0]["outcome"], "oracle_pass")
+            self.assertEqual(before, {p.name: p.read_bytes() for p in self.journals[0].parent.glob("execution.sqlite*")})
 
     def test_detection_and_original_reviewed_outcomes_stay_separate(self):
         original = list_cases(self.results, self.cache, "saved-run", category="type2b", outcome="wrong_classification")

@@ -259,7 +259,12 @@ From the workspace root, query it directly with:
 ```
 
 Other commands are `show-run RUN_ID`, `list-cases RUN_ID`, and
-`show-case RUN_ID CATEGORY CASE_ID`. Case lists accept `--category`, `--outcome`,
+`show-case RUN_ID CATEGORY CASE_ID`. `show-source RUN_ID CATEGORY CASE_ID`
+returns the checksum-verified retained positioned srcDiff input and scored move
+results for annotation reconstruction by the viewer. Missing completed results
+or mismatched retained input are explicit errors. Journals are copied to a
+temporary snapshot, including retained WAL pages, to avoid writing SQLite
+sidecars into saved benchmark directories. Case lists accept `--category`, `--outcome`,
 `--basis original|reviewed`, `--query`, `--offset`, and `--limit` (1–100).
 The browser code is separate from the construction/execution source files bound
 to prepared experiment identities.

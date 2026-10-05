@@ -11,6 +11,8 @@ import json
 from pathlib import Path
 import re
 import sqlite3
+import shutil
+import tempfile
 
 CATEGORIES = ("type1", "type2b", "type2c", "type3", "known-false-positive")
 SCHEMA_VERSION = 1
@@ -77,29 +79,41 @@ def _member(directory, category, cache_root):
     journal = _inside(directory, f"{category}/execution.sqlite")
     if not journal.is_file():
         raise FileNotFoundError("Benchmark execution journal is unavailable.")
-    # Journals can retain committed WAL pages: do not use immutable=1 here.
-    with closing(sqlite3.connect(journal.as_uri() + "?mode=ro", uri=True)) as connection:
-        connection.row_factory = sqlite3.Row
-        connection.execute("PRAGMA query_only=ON")
-        metadata = connection.execute("SELECT * FROM run_metadata WHERE singleton=1").fetchone()
-        if metadata is None or metadata["schema_version"] != 1:
-            raise ValueError("Unsupported benchmark execution journal.")
-        identifier = metadata["benchmark_cases_id"]
-        if not re.fullmatch(r"bmb-benchmark-cases-sha256-[0-9a-f]{64}", identifier):
-            raise ValueError("Invalid benchmark case collection identity.")
-        case_directory = _inside(cache_root, f"benchmark-cases/{identifier}")
-        manifest_path = case_directory / "manifest.json"
-        if hashlib.sha256(manifest_path.read_bytes()).hexdigest() != metadata["benchmark_cases_manifest_sha256"]:
-            raise ValueError("Benchmark case manifest differs from the recorded run.")
-        manifest = _json(manifest_path)
-        if manifest.get("schema_version") != 1 or manifest.get("benchmark_cases_id") != identifier:
-            raise ValueError("Unsupported benchmark case collection.")
-        database = case_directory / "benchmark_cases.sqlite"
-        declared = manifest["artifacts"]["benchmark_cases"]
-        if declared.get("path") != database.name or database.stat().st_size != declared["size_bytes"]:
-            raise ValueError("Benchmark case database declaration differs.")
-        connection.execute("ATTACH DATABASE ? AS definitions", (database.as_uri() + "?mode=ro&immutable=1",))
-        yield connection, manifest
+    # Completed journals may lack an SHM file after another reader closes.
+    # A private snapshot lets SQLite recover committed WAL pages without
+    # creating sidecars in the read-only evidence directory.
+    with tempfile.TemporaryDirectory(prefix="bmb-browser-") as temporary:
+        snapshot = Path(temporary) / journal.name
+        shutil.copyfile(journal, snapshot)
+        wal = journal.with_name(journal.name + "-wal")
+        if wal.is_file():
+            shutil.copyfile(wal, snapshot.with_name(snapshot.name + "-wal"))
+        with closing(sqlite3.connect(snapshot)) as connection:
+            yield from _member_connection(connection, cache_root)
+
+
+def _member_connection(connection, cache_root):
+    connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA query_only=ON")
+    metadata = connection.execute("SELECT * FROM run_metadata WHERE singleton=1").fetchone()
+    if metadata is None or metadata["schema_version"] != 1:
+        raise ValueError("Unsupported benchmark execution journal.")
+    identifier = metadata["benchmark_cases_id"]
+    if not re.fullmatch(r"bmb-benchmark-cases-sha256-[0-9a-f]{64}", identifier):
+        raise ValueError("Invalid benchmark case collection identity.")
+    case_directory = _inside(cache_root, f"benchmark-cases/{identifier}")
+    manifest_path = case_directory / "manifest.json"
+    if hashlib.sha256(manifest_path.read_bytes()).hexdigest() != metadata["benchmark_cases_manifest_sha256"]:
+        raise ValueError("Benchmark case manifest differs from the recorded run.")
+    manifest = _json(manifest_path)
+    if manifest.get("schema_version") != 1 or manifest.get("benchmark_cases_id") != identifier:
+        raise ValueError("Unsupported benchmark case collection.")
+    database = case_directory / "benchmark_cases.sqlite"
+    declared = manifest["artifacts"]["benchmark_cases"]
+    if declared.get("path") != database.name or database.stat().st_size != declared["size_bytes"]:
+        raise ValueError("Benchmark case database declaration differs.")
+    connection.execute("ATTACH DATABASE ? AS definitions", (database.as_uri() + "?mode=ro&immutable=1",))
+    yield connection, manifest
 
 
 # One row per test definition, using its latest committed terminal attempt.
@@ -222,3 +236,26 @@ def show_case(results_root: Path, cache_root: Path, run_id: str, category: str, 
             "results_available": bool(attempt and attempt["oracle_results_json"]),
             "tool_sha256": summary.get("tool_sha256", {}),
         }
+
+
+def show_source(results_root: Path, cache_root: Path, run_id: str, category: str, case_id: str):
+    """Return the exact retained positioned input and its scored move results."""
+    directory, summary = _run(results_root, run_id)
+    if category not in [item["pair_set"] for item in summary["member_summaries"]]:
+        raise ValueError("Unknown benchmark category.")
+    with _member(directory, category, cache_root) as (connection, _):
+        row = connection.execute(f"SELECT {_FIELDS} {_FROM} WHERE c.case_id=?", (case_id,)).fetchone()
+        if row is None:
+            raise FileNotFoundError("Benchmark case is unavailable.")
+        attempt = connection.execute("SELECT * FROM attempts WHERE attempt_id=?", (row["attempt_id"],)).fetchone()
+        if not attempt or not attempt["oracle_results_json"] or not attempt["srcdiff_admitted"]:
+            raise ValueError("Source view requires retained srcDiff input and completed srcMove results.")
+        record = json.loads(attempt["srcdiff_record_json"])
+        path = _inside(directory / category, attempt["srcdiff_attempt_path"] + "/srcdiff.xml")
+        payload = path.read_bytes()
+        if hashlib.sha256(payload).hexdigest() != record["xml"]["sha256"]:
+            raise ValueError("Retained srcDiff input checksum differs from the recorded attempt.")
+        return {"schema_version": SCHEMA_VERSION, "run_id": run_id,
+                "case": _case_summary(row, category), "srcdiff_xml": payload.decode("utf-8"),
+                "results": json.loads(attempt["oracle_results_json"]),
+                "tool_sha256": summary.get("tool_sha256", {})}
