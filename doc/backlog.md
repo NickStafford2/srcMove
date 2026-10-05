@@ -116,7 +116,9 @@ settled.
 - Flesh out `expected_srcdiff_format.xml` so it demonstrates normal srcDiff
   output, or replace it with a clearer non-XML explanation.
 
+
+- Investigate whole-fragment scoring in BigMoveBench. Each constructed case specifies one expected fragment on each side. Verify whether the scorer should require each fragment’s matching text and source position to belong to the same reported endpoint, and whether it should also verify the expected file path. Add a regression case where a group satisfies the current checks using different endpoints. Compare current and proposed scoring on retained results before changing the oracle. Preserve valid groups containing additional fragments; do not assume every detected move must be one-to-one.
+
 ## Questions
 
-- What should count as one independent BigCloneBench move test: a pair row, a
-  distinct text pair, or a derived clone cluster?
+- What should count as one independent BigCloneBench move test: a pair row, a distinct text pair, or a derived clone cluster?
