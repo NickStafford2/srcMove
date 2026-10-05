@@ -129,3 +129,20 @@ class ThesisExperimentTests(unittest.TestCase):
             'oracle_failure':0,'wrong_classification':80,'srcmove_miss':2,'srcdiff_semantic_ineligible':1}}]), 'completed')
         self.assertEqual(execution_status([{'counts': {'upstream_failure':1,'srcmove_tool_failure':0,
             'oracle_failure':0}}]), 'completed_with_tool_or_oracle_failures')
+
+    def test_final_preparation_retains_test_validation_separately_from_input_checks(self):
+        from bigMoveBench.thesis_experiment import source_identity, runtime_identity
+        with tempfile.TemporaryDirectory() as temporary, redirect_stderr(io.StringIO()):
+            root = Path(temporary)
+            compiled, cache, index = self.fixture(root)
+            config = fixture_config()
+            config['designation'] = 'final-thesis-experiment'
+            validation = {'status': 'passed', 'source_sha256': source_identity(),
+                          'runtime': runtime_identity(), 'tests': 'fixture validation record'}
+            directory = prepare(config, compiled, index, cache, root / 'results',
+                audit_binding={'fixture': True}, development_paths=[], hash_sources=False,
+                validation=validation)
+            manifest = verify_experiment(directory, cache)
+            self.assertEqual(manifest['identity']['preparation_validation'], validation)
+            self.assertEqual(json.loads((directory / 'validation.json').read_text()), validation)
+            self.assertEqual(manifest['identity']['input_validation']['directional_case_count'], 23)

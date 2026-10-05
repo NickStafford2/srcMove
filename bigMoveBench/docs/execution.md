@@ -158,10 +158,46 @@ selection companion and canonical contributor hydration, direction, case
 publisher, serial runner, and scoring oracles. It does not change frozen files
 or detector behavior.
 
-From the parent workspace root:
+From a Docker shell, prepare and run the thesis experiment with the normal Make
+entry points:
 
 ```bash
-./bin/srcml-dev-shell python3 srcMove/bigMoveBench/thesis_experiment.py prepare
+cd /workspace/srcMove
+make bigmovebench-thesis-prepare
+make bigmovebench-thesis-run
+```
+
+Preparation reuses the compiled source dataset. It runs the BigMoveBench unit
+tests, focused classification regressions, and separate eight-case fixture
+smoke, then records their logs and current Python source/runtime hashes in a
+new validation directory. It freezes the current scoring rules and correction
+registry in a new experiment. This validation runs fixture detectors only;
+it does not evaluate the thesis population. The test-validation record and
+the prepared-input checks are retained separately.
+
+When an earlier completed run of the same design exists, preparation compares
+the new selection with the first such run and requires identical fragment
+pairs, directions, and Type-3 bands. Use
+`THESIS_PREVIOUS_EXPERIMENT=<experiment-id-or-directory>` to name a baseline
+explicitly. Schema-dependent case IDs may change. Old preparations, selections,
+and result directories remain intact.
+
+Successful preparation updates the convenience pointer
+`benchmark-results/bigMoveBench/latest-thesis-preparation.json`. A failed refresh
+disables that pointer so the run target cannot silently use an earlier
+preparation. The run target verifies the preparation and current correction
+registry, then starts all 5,598 cases in a new results directory. It never
+resumes a legacy run or substitutes a small/medium development profile.
+`BENCHMARK_CACHE_ROOT` and `BENCHMARK_RESULTS_ROOT` overrides must be the same
+for both targets.
+
+The lower-level commands remain available from the parent workspace root.
+After benchmark Python code or runtime changes, pass a fresh
+`--validation-record` to `prepare`; the Make preparation target generates one
+automatically:
+
+```bash
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/thesis_experiment.py prepare --validation-record <fresh-validation.json>
 ./bin/srcml-dev-shell python3 srcMove/bigMoveBench/thesis_experiment.py verify <experiment-id>
 # This last command runs the complete evaluation; preparation never does:
 ./bin/srcml-dev-shell python3 srcMove/bigMoveBench/thesis_experiment.py execute <experiment-id>

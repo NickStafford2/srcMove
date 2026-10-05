@@ -303,8 +303,8 @@ def prepare(config, compiled, index_path, cache_root, results_root, *, audit_bin
             'benchmark_cases_id': cases.benchmark_cases_id, 'benchmark_cases_manifest_sha256': cases.manifest_sha256,
             'metrics': frame_metrics(frames_by_category[category]), 'selection_counts': selection['counts']})
     print('experiment: verify all prepared input contracts', file=sys.stderr, flush=True)
-    validation = verify_case_collection(cache_root, members, frames_by_category, registry)
-    if validation['directional_case_count'] != config['expected_total']:
+    input_validation = verify_case_collection(cache_root, members, frames_by_category, registry)
+    if input_validation['directional_case_count'] != config['expected_total']:
         raise ValueError('prepared case total differs from plan')
     overlap = development_overlap(frames, development_paths)
     code = source_identity()
@@ -318,7 +318,7 @@ def prepare(config, compiled, index_path, cache_root, results_root, *, audit_bin
         'sampling_runtime': runtime_identity(), 'members': members, 'correction_registry_sha256': registry.identity['sha256'],
         'construction_and_execution_source_sha256': code, 'versions': versions, 'audit_binding': audit_binding,
         'preparation_validation': validation,
-        'development_overlap': overlap, 'metrics': metrics, 'input_validation': validation,
+        'development_overlap': overlap, 'metrics': metrics, 'input_validation': input_validation,
         'measurement_policy': {'classification_disagreements': 'measured; no correctness pass gate in this experiment',
             'type2b': 'No dedicated blind-only matching stage assumed. Original Type-2b expectations remain; mismatches are measured.',
             'type3_weak': 'Raw syntactic_type=3, conservative BOTH<0.5; weakly Type-3/Type-4 reference stratum, not verified semantic Type-4.',

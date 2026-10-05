@@ -14,6 +14,8 @@ VERIFY_SOURCE ?= 0
 CACHE ?= 0
 REFRESH_CACHE ?= 0
 TYPE3_REVIEW ?= 0
+THESIS_PREVIOUS_EXPERIMENT ?=
+.PHONY: bigmovebench-thesis-prepare bigmovebench-thesis-run
 .PHONY: help configure build test test-unit test-bigmovebench test-move-selection test-performance test-srcmove-history test-xml test-source test-policy test-classification move-selection-benchmark history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-normalized-run bigmovebench-suite
 
 help:
@@ -38,6 +40,8 @@ help:
 	@printf '  %-28s %s\n' 'make bigmovebench-benchmark-cases' 'Publish normalized cases from a selection'
 	@printf '  %-28s %s\n' 'make bigmovebench-normalized-run' 'Run normalized cases through the serial journal'
 	@printf '  %-28s %s\n' 'make bigmovebench-suite' 'Run BigMoveBench; CACHE=1 enables development-only reuse'
+	@printf '  %-28s %s\n' 'make bigmovebench-thesis-prepare' 'Validate and prepare the 5,598-case thesis experiment'
+	@printf '  %-28s %s\n' 'make bigmovebench-thesis-run' 'Run the latest prepared thesis experiment into new results'
 
 configure:
 	$(CMAKE) -S . -B build -G Ninja
@@ -113,6 +117,17 @@ history-scaling:
 
 bigmovebench-preflight:
 	@$(PYTHON) bigMoveBench/installation.py
+
+bigmovebench-thesis-prepare:
+	@$(PYTHON) bigMoveBench/thesis_workflow.py prepare \
+		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
+		--results-root "$(BENCHMARK_RESULTS_ROOT)" \
+		$(if $(THESIS_PREVIOUS_EXPERIMENT),--previous-experiment "$(THESIS_PREVIOUS_EXPERIMENT)")
+
+bigmovebench-thesis-run:
+	@$(PYTHON) bigMoveBench/thesis_workflow.py run \
+		--cache-root "$(BENCHMARK_CACHE_ROOT)" \
+		--results-root "$(BENCHMARK_RESULTS_ROOT)"
 
 bigmovebench-compile:
 	@$(PYTHON) bigMoveBench/compile.py \

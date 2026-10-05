@@ -21,6 +21,8 @@ machine-facing pair-set identifiers use `type1`, `type2b`, `type2c`, `type3`, an
 - `selection.py` publishes deterministic pair-set samples or censuses.
 - `thesis_experiment.py` prepares, verifies, and executes the explicit mixed
   census/sample [thesis experiment](docs/execution.md#explicit-thesis-experiment).
+- `thesis_workflow.py` supplies `make bigmovebench-thesis-prepare` and
+  `make bigmovebench-thesis-run`; see the same execution guide.
 - `audit.py` reports population accounting, selection provenance, and sampling
   procedures without changing datasets or selections (see below).
 - `synthetic.py` converts one selected fragment pair into a two-file move.
