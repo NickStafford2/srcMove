@@ -50,6 +50,8 @@ summaries or diagrams disagree with current behavior.
 
 ## Research notes and planned work
 
+- [Adjacent moved sequences](plans/adjacent_move_sequences.md): proposed ordered
+  aggregation, bounded sequence matching, regression cases, and evaluation gates
 - [Correspondence before change classification](plans/correspondence.md):
   roadmap for shared Type-1/2/3 movement classification, consistent repeated-group
   policy, and historical-analysis evaluation of false and missed moves
