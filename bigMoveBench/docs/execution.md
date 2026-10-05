@@ -241,3 +241,25 @@ with separate artifacts/results. Its labels and timings are compatibility tests,
 not final thesis detector measurements. Shared fragments and functionalities
 also mean distinct selected content pairs are not necessarily independent.
 Report strata separately and distinguish supplied negatives from positive rates.
+
+## Read-only run browser
+
+The `bigMoveBench.browser` subpackage exposes a schema-version-1 JSON projection
+of completed thesis runs for srcDiffVisual. It reads existing aggregate summaries,
+execution journals, benchmark-case definitions, and compiled fragment caches;
+it never executes tools or modifies benchmark evidence. Original and reviewed
+outcomes remain separate. See srcDiffVisual's
+[results and review guide](../../../srcDiffVisual/docs/bigmovebench-review.md)
+for the UI and HTTP interface.
+
+From the workspace root, query it directly with:
+
+```bash
+./bin/srcml-dev-shell bash -lc 'cd /workspace/srcMove && python3 -m bigMoveBench.browser --results-root benchmark-results/bigMoveBench/thesis-runs --cache-root bigMoveBench/cache list-runs'
+```
+
+Other commands are `show-run RUN_ID`, `list-cases RUN_ID`, and
+`show-case RUN_ID CATEGORY CASE_ID`. Case lists accept `--category`, `--outcome`,
+`--basis original|reviewed`, `--query`, `--offset`, and `--limit` (1–100).
+The browser code is separate from the construction/execution source files bound
+to prepared experiment identities.
