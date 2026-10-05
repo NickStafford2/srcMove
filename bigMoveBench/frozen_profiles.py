@@ -77,6 +77,7 @@ def create_frozen_selection(
             "seed": preset["seed"],
             "size": len(rows),
             "preset_sha256": sha256_file(preset_path),
+            **({"indexed_selection": preset["indexed_selection"]} if "indexed_selection" in preset else {}),
         },
         "eligibility": preset["eligibility"],
     }

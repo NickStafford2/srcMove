@@ -254,21 +254,110 @@ are now excluded from those bands. No database recompile is needed.
 The checked-in `frozen_profiles.jsonl` remains an unchanged legacy profile.
 New Type-2b/Type-2c/Type-3 preset requests reject it with regeneration guidance;
 the suite preflights this before starting tools or writing results. To prepare
-new frozen profiles explicitly, generate into a different file and retain the
-old file and its digest:
+new frozen profiles explicitly, retain the old profile and its digest and use
+new paths for both companion and profile. The commands below are opt-in and
+construction can read the entire catalog; no full-dataset construction or
+evaluation was run for this change.
 
 ```bash
-./bin/srcml-dev-shell python3 srcMove/bigMoveBench/generate_frozen_profiles.py <dataset-id> --output /workspace/srcMove/bigMoveBench/cache/frozen-profiles-categories-v1.jsonl --seed 0
-./bin/srcml-dev-shell python3 srcMove/bigMoveBench/suite.py --profile small --frozen-profiles /workspace/srcMove/bigMoveBench/cache/frozen-profiles-categories-v1.jsonl
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/selection_index.py <dataset-id> --output /workspace/srcMove/bigMoveBench/cache/selection-index-categories-v1.sqlite
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/generate_frozen_profiles.py <dataset-id> --selection-index /workspace/srcMove/bigMoveBench/cache/selection-index-categories-v1.sqlite --output /workspace/srcMove/bigMoveBench/cache/frozen-profiles-indexed-v1-seed0.jsonl --seed 0
+./bin/srcml-dev-shell python3 srcMove/bigMoveBench/suite.py --profile small --frozen-profiles /workspace/srcMove/bigMoveBench/cache/frozen-profiles-indexed-v1-seed0.jsonl
 ```
 
-Generation scans the declared frame; it is a separate offline operation and was
-not performed for this change. Its supplied `--selection` inputs must already
-carry category rules version 1. No in-place artifact migration is implemented.
-Any future audit migration must write a new artifact, name the old identity and
-digest, declare changed membership/denominators, preserve review evidence, and
-rescore retained outputs under a new oracle identity; it must not relabel old
-summary counts in place.
+Generation without `--selection-index` retains full-frame SHA-256 ranking and
+verified `--selection PAIR_SET=PATH` reuse. Type-3 now uses that full-frame
+selection path too; the earlier capped candidate query is retired. Supplied
+selections must carry category rules version 1. The unvalidated
+`--sampling bounded`, time/probe limits, and bounded exploratory reporting have
+been retired. Neither generation nor sampling implicitly builds a companion.
+
+### Indexed selection companion version 1
+
+`selection_index.py` writes a new SQLite artifact, opened read-only for reuse.
+It binds dataset ID, compiled manifest digest, catalog digest, category rules,
+eligibility, dedupe policy and position order. Unsupported versions and identity
+mismatches fail explicitly. It adds nothing to the compiled catalog and does
+not reclassify old selections, profiles, case databases, corrections or results.
+Choose a new filename to rebuild; outputs are published exclusively through a
+same-directory temporary file and existing files cannot be replaced. Interrupted
+construction leaves no usable partial companion. Allow free space for the new
+companion, SQLite transaction journal, and temporary publication file (the latter
+is hard-linked rather than copied).
+
+Construction first counts available rows, then streams available rows in
+unordered content-identity order through `pair_unordered_idx`. Within each
+identity it excludes positive/negative content conflicts before grouping by
+derived category. `exclusions` retains the complete conflict row evidence;
+`contributors` retains every eligible catalog pair ID. Multiplicities remain
+source-row counts rather than additional sampling tickets. Frames can appear in
+more than one positive category when distinct source assertions so indicate,
+matching the existing selector. Type-3 uses the minimum of both similarities
+across its contributing category rows and the existing four bands.
+
+Each category/band receives dense zero-based positions ordered by frame ID.
+`frames` has primary key `(category, band, position)`; `counts` stores frame,
+catalog-row and source-row totals, including zero counts for empty categories or
+bands. Empty/insufficient populations fail explicitly, without probing or a
+fallback algorithm. The profile generator requires 100 frames for each
+non-Type-3 category and 25 for each Type-3 band. The companion supports only
+available-source, unordered-content dedupe with the documented default
+eligibility; row-audit and custom filter selections still use `selection.py`.
+
+Sampling uses independently seeded Python `random.sample(range(count), quota)`
+per category/band and direct primary-key position lookups. It then hydrates only
+selected identities through the catalog's `pair_unordered_idx`, retaining the
+existing direction policy, contributor metadata and reverse-row exclusions.
+The seed and algorithm version describe a new sample, not equivalence to the old
+SHA-256-ranked samples. The frozen profile records companion SHA-256, identity,
+and full population counts; those fields propagate into the frozen selection's
+request and identity. Retain the companion and profile with research provenance.
+The profile's small subset preserves the existing SHA-256 ordering of its
+selected medium frames (five per Type-3 band); it is a nested subset, not a new
+independent population sample. Frozen-selection count fields describe selected
+profile frames; population totals live in `request.sample.indexed_selection`.
+
+`ProgressDisplay` reports construction phases and elapsed time, processed
+available rows and percentage during materialization, an animated TTY heartbeat
+through SQL/commit work, and periodic durable status when redirected (default
+30 seconds). Construction reports per-phase elapsed seconds, available rows,
+eligible frames, exclusions, catalog bytes and companion bytes. Memory during
+grouping depends on the largest repeated content identity, not just sample size.
+Full-catalog construction runtime, peak memory and disk overhead remain
+unmeasured; fixture observations do not establish production performance.
+
+Focused fixture validation, from the workspace root:
+
+```bash
+./bin/srcml-dev-shell bash -lc 'cd srcMove && python3 -m unittest bigMoveBench.tests.test_selection_index bigMoveBench.tests.test_categories bigMoveBench.tests.test_selection bigMoveBench.tests.test_progress -v'
+./bin/srcml-dev-shell bash -lc 'cd srcMove && python3 -m unittest discover -s bigMoveBench/tests -v'
+```
+
+The tests print `EXPLAIN QUERY PLAN` evidence: position sampling uses
+`SEARCH frames USING PRIMARY KEY (category=? AND band=? AND position=?)`;
+selected catalog hydration uses `SEARCH p USING INDEX pair_unordered_idx
+(unordered_pair_id=?)` and indexed function/materialization joins. Neither
+retrieval plan scans the catalog. Construction deliberately scans it, and profile
+provenance hashes the companion once per generation.
+
+Docker fixture measurements on 2026-10-05 (single runs, not a scaling claim):
+
+| Available catalog rows | Eligible frames | Catalog bytes | Companion bytes | Construction seconds |
+| --- | --- | --- | --- | --- |
+| 34 | 32 | 167,936 | 32,768 | 0.041 |
+| 802 | 800 | 2,068,480 | 331,776 | 0.139 |
+
+Both fixtures exclude one content-conflict identity. Construction seconds cover
+setup, counting, materialization and initial finalization through the report
+snapshot; publication and profile generation are separate. The tests also check
+reference-inventory agreement, deterministic samples, dense positions, duplicate
+multiplicity, conservative strength, reverse contributors, identity rejection,
+shortages, unchanged catalog bytes and exclusive profile publication.
+
+No in-place artifact migration is implemented. Any future audit migration must
+write a new artifact, name the old identity and digest, declare changed
+membership/denominators, preserve review evidence, and rescore retained outputs
+under a new oracle identity; it must not relabel old summary counts in place.
 
 ## Type-3 Similarity Reference
 
