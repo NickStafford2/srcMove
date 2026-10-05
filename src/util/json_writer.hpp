@@ -254,7 +254,7 @@ inline void write_summary(std::ostream &out, const summary &summ) {
   out << "  },\n";
   out << "  \"match_kinds\": {\n";
   out << "    \"type1\": " << summ.match_kinds.type1 << ",\n";
-  out << "    \"type2\": " << summ.match_kinds.type2 << ",\n";
+  out << "    \"type2c\": " << summ.match_kinds.type2 << ",\n";
   out << "    \"type3\": " << summ.match_kinds.type3 << "\n";
   out << "  }";
   if (summ.diagnostics_enabled) {

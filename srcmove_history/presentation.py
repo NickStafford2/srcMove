@@ -285,13 +285,15 @@ class _SummaryView:
     @property
     def moves_text(self) -> str:
         parts = [_count(self.move_groups, "detected", "detected")]
-        labels = {"type1": "Type 1", "type2": "Type 2", "type3": "Type 3"}
-        for name in ("type1", "type2", "type3"):
+        labels = {"type1": "Type 1", "type2c": "Type 2c", "type3": "Type 3"}
+        for name in ("type1", "type2c", "type3"):
             count = self.move_types.get(name, 0)
+            if name == "type2c":
+                count += self.move_types.get("type2", 0)
             if count:
                 parts.append(f"{count} {labels[name]}")
         for name, count in sorted(self.move_types.items()):
-            if name not in labels and count:
+            if name not in labels and name != "type2" and count:
                 parts.append(f"{count} {name}")
         return " · ".join(parts)
 

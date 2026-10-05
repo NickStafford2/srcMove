@@ -12,7 +12,7 @@ make test-srcmove-history         # srcmove-history unit tests only
 make test-xml                     # build, then run XML regressions
 make test-source                  # build, then run source-pair regressions
 make test-policy                  # build, then run move-policy catalogs
-make test-classification          # focused Type-1, Type-2, Type-3, and none contracts
+make test-classification          # focused Type-1, Type-2c, Type-3, and none contracts
 ```
 
 `tests/run.py` is the underlying test selector and expects an existing build.
@@ -45,9 +45,9 @@ python3 tests/regression/policy/list.py --catalog contextual
   opt-in diagnostics, including every fixture's srcDiff membership, endpoint
   cardinality, context observations, classification, stable reason, and Type-1
   production disposition. Unique Type-1 output uses this oracle: only supported
-  relocations are moves. A separate Type-2 catalog checks classification and
+  relocations are moves. A separate Type-2c catalog checks classification and
   production disposition, equivalent ordinary/diagnostic/results-only output,
-  repeated-group guards, and edited-parent child movement. Type-2 reservation
+  repeated-group guards, and edited-parent child movement. Type-2c reservation
   controls protect both endpoint directions from alternate Type-3 matching;
   normalization contracts retain ten ambiguous correspondences from nine XML
   fixtures. Type-3 contracts check observation-only location decisions, verified
@@ -133,7 +133,7 @@ contracts, not requests for zero moves. Unequal `NxM` groups have the same
 meaning; balanced many-to-many groups use `moves_many`. `move_pair_count`
 records the maximum non-reusing pair count (`min(deletes, inserts)`), but the
 group does not claim which indistinguishable endpoint pairs with which.
-Ambiguous Type-2 fragments remain unresolved because normalization removed
+Ambiguous Type-2c fragments remain unresolved because normalization removed
 their distinguishing content; document order alone must not manufacture a
 pairing.
 

@@ -87,7 +87,7 @@ class CompactPairTests(unittest.TestCase):
                     }
                 ],
                 "group_kinds": {"one_to_one": 1},
-                "match_kinds": {"type1": 1, "type2": 0},
+                "match_kinds": {"type1": 1, "type2c": 0},
             }
             content = json.dumps(results).encode("utf-8")
             path = root / "results.json"

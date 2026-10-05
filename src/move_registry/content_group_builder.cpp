@@ -312,7 +312,7 @@ void materialize_correspondence_diagnostics(
         decision.delete_candidate_id,
         decision.insert_candidate_id,
         decision.match == match_kind::type1 ? "type1"
-            : (decision.match == match_kind::type2 ? "type2" : "type3"),
+            : (decision.match == match_kind::type2 ? "type2c" : "type3"),
         decision.delete_verified_partner_count > 1 ||
                 decision.insert_verified_partner_count > 1
             ? "competing_edges" : "one_to_one",
@@ -345,7 +345,7 @@ void update_correspondence_selection_results(
     const match_kind expected_match =
         correspondence.correspondence_kind == "type1"
             ? match_kind::type1
-            : (correspondence.correspondence_kind == "type2"
+            : (correspondence.correspondence_kind == "type2c"
                    ? match_kind::type2 : match_kind::type3);
     const bool selected = std::any_of(
         groups.groups().begin(), groups.groups().end(),
@@ -1042,7 +1042,7 @@ build_type3_edges(const candidate_registry         &registry,
       if (del.type2_canonical_text == ins.type2_canonical_text) {
         if (diagnostics != nullptr) {
           diagnostics->type3_pairs.push_back(type3_pair_diagnostic{
-              del_id, ins_id, "ambiguous_type2", 0,
+              del_id, ins_id, "ambiguous_type2c", 0,
               std::max(del.type2_normalized_lines.size(),
                        ins.type2_normalized_lines.size()),
               0,
@@ -1178,7 +1178,7 @@ content_groups build_content_groups(const candidate_registry &registry,
   std::vector<pending_group> type2_groups;
   std::vector<bool> type2_reserved(registry.total_record_count(), false);
   {
-    scoped_profile_timer timer(profile, "content_groups.type2_build");
+    scoped_profile_timer timer(profile, "content_groups.type2c_build");
     type2_groups =
         build_type2_groups(registry, exact_groups, exact_group_order);
     if (stats != nullptr) {
@@ -1303,9 +1303,9 @@ content_groups build_content_groups(const candidate_registry &registry,
                          profile_stats.type1_groups_selected);
     profile->add_counter("content_groups.type1_policy_rejected",
                          profile_stats.type1_policy_rejected);
-    profile->add_counter("content_groups.type2_groups_built",
+    profile->add_counter("content_groups.type2c_groups_built",
                          profile_stats.type2_groups_built);
-    profile->add_counter("content_groups.type2_groups_selected",
+    profile->add_counter("content_groups.type2c_groups_selected",
                          profile_stats.type2_groups_selected);
     profile->add_counter("content_groups.type3_delete_candidates",
                          profile_stats.type3_delete_candidates);

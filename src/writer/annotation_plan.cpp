@@ -21,7 +21,7 @@ std::string match_kind_name(match_kind match) {
   case match_kind::type1:
     return "type1";
   case match_kind::type2:
-    return "type2";
+    return "type2c";
   case match_kind::type3:
     return "type3";
   case match_kind::unmatched:

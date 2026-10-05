@@ -42,7 +42,7 @@
   },
   "match_kinds": {
     "type1": 1,
-    "type2": 0,
+    "type2c": 0,
     "type3": 0
   }
 }

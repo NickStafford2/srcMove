@@ -57,7 +57,7 @@ def _validate_move(value: Any, ordinal: int) -> None:
     if not isinstance(value, dict):
         raise ValueError(f"srcMove move {ordinal} must be an object")
     match_kind = value.get("match_kind")
-    if match_kind not in {"type1", "type2", "type3"}:
+    if match_kind not in {"type1", "type2", "type2c", "type3"}:
         raise ValueError(f"srcMove move {ordinal} has an invalid match kind")
     for name in ("from_xpaths", "to_xpaths", "from_raw_texts", "to_raw_texts"):
         field = value.get(name)

@@ -97,9 +97,9 @@ def validate_move_record_shape(move: Any, index: int) -> list[str]:
         return [f"results.json moves[{index}] is not an object"]
 
     failures: list[str] = []
-    if move.get("match_kind") not in {"type1", "type2", "type3"}:
+    if move.get("match_kind") not in {"type1", "type2c", "type3"}:
         failures.append(
-            f"results.json moves[{index}].match_kind must be type1, type2, or type3"
+            f"results.json moves[{index}].match_kind must be type1, type2c, or type3"
         )
     for key in ("confidence_milli", "selection_utility", "matched_units"):
         value = move.get(key)
@@ -296,7 +296,7 @@ def check_summary_fields(
         elif not isinstance(actual_match_kinds, dict):
             failures.append("results.json field 'match_kinds' is not an object")
         else:
-            for key in ("type1", "type2", "type3"):
+            for key in ("type1", "type2c", "type3"):
                 if key not in expected_match_kinds:
                     failures.append(
                         f"expected.json match_kinds missing required field {key!r}"

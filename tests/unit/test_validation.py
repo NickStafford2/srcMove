@@ -43,8 +43,8 @@ class ResultValidationTests(unittest.TestCase):
         self.assertTrue(any("match_kind must be type1" in item for item in failures))
 
     def test_type3_summary_count_is_required_and_compared(self) -> None:
-        expected = {"match_kinds": {"type1": 0, "type2": 0, "type3": 1}}
-        actual = {"match_kinds": {"type1": 0, "type2": 0}}
+        expected = {"match_kinds": {"type1": 0, "type2c": 0, "type3": 1}}
+        actual = {"match_kinds": {"type1": 0, "type2c": 0}}
         failures = check_summary_fields(actual, expected)
         self.assertIn("results.json match_kinds missing required field 'type3'", failures)
 

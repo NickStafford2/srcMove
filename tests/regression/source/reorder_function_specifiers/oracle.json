@@ -6,7 +6,7 @@
   "moves": [
     {
       "move_id": "97b1dcdaf",
-      "match_kind": "type2",
+      "match_kind": "type2c",
       "confidence_milli": 950,
       "selection_utility": 9500,
       "matched_units": 10,
@@ -40,7 +40,7 @@
   },
   "match_kinds": {
     "type1": 0,
-    "type2": 1,
+    "type2c": 1,
     "type3": 0
   }
 }
