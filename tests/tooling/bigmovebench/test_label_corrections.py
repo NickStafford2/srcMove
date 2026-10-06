@@ -50,6 +50,7 @@ class LabelCorrectionTests(unittest.TestCase):
         return _score_completed_case(metadata=self.metadata, results_path=path, srcmove_xml=self.xml, label_corrections=self.registry)
 
     def test_reviewed_match_preserves_raw_failure_and_rejects_old_label(self):
+        """Keep the original classification failure while separately recording whether the reviewed label agrees."""
         outcome, failures, _, results = self.score()
         self.assertEqual(outcome, 'wrong_classification')
         self.assertTrue(failures)
@@ -61,6 +62,7 @@ class LabelCorrectionTests(unittest.TestCase):
         self.assertTrue(results['_oracle_reviewed_failures'])
 
     def test_correction_never_bypasses_detection_or_schema_or_position(self):
+        """Apply reviewed labels only after complete detection, valid result structure, and correct source positions."""
         for kwargs, expected in [({'partial': True}, 'srcmove_miss'), ({'missing': True}, 'srcmove_miss'), ({'invalid': True}, 'oracle_failure')]:
             with self.subTest(kwargs=kwargs):
                 outcome, _, _, results = self.score(**kwargs)
@@ -70,6 +72,7 @@ class LabelCorrectionTests(unittest.TestCase):
         self.assertEqual(self.score()[3]['_oracle_reviewed_outcome'], 'srcmove_miss')
 
     def test_exact_unordered_content_identity_and_snapshot(self):
+        """Bind a correction to the exact unordered content pair and a reproducible correction snapshot."""
         self.assertEqual(self.registry.match(self.metadata), self.entry)
         reversed_metadata = copy.deepcopy(self.metadata)
         reversed_metadata['fragment_one'], reversed_metadata['fragment_two'] = reversed_metadata['fragment_two'], reversed_metadata['fragment_one']
@@ -88,6 +91,7 @@ class LabelCorrectionTests(unittest.TestCase):
         self.assertEqual(self.registry.match(self.metadata), self.entry)
 
     def test_derived_consistent_category_preserves_review_and_surfaces_conflicts(self):
+        """Preserve reviewed labels through derived categorization and expose incompatible label claims."""
         self.metadata.update(category_rules_version=1, benchmark_category='type2c')
         self.assertEqual(self.registry.match(self.metadata), self.entry)
         outcome, _, _, evidence = self.score(kind='type3')
@@ -99,6 +103,7 @@ class LabelCorrectionTests(unittest.TestCase):
             self.registry.match(changed)
 
     def test_shipped_review_identity(self):
+        """Require the checked-in reviewed correction to retain its independently recorded content identity."""
         registry = LabelCorrections()
         entry = next(
             entry for entry in registry.identity['snapshot']['corrections']
@@ -108,6 +113,8 @@ class LabelCorrectionTests(unittest.TestCase):
         self.assertEqual(entry['reviewed_content_relationship'], 'type3')
 
     def test_journal_csv_summary_and_restart_provenance(self):
+        """Retain original and reviewed outcomes plus correction provenance through journals, exports, summaries, and restart."""
+        # Prepare the inputs and exercise the operation.
         helper = test_normalized_execution.NormalizedExecutionTests()
         fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
         _, _, cases, _ = fixture.publish_two_case_fixture(self.root)
@@ -121,6 +128,7 @@ class LabelCorrectionTests(unittest.TestCase):
         with patches[0], patches[1], mock.patch('bigMoveBench.normalized_execution._score_completed_case', return_value=scored):
             runner = helper._runner(cases, run_dir)
             _, summary = runner.run()
+        # Check the required outcomes.
         self.assertEqual(summary['counts']['wrong_classification'], 2)
         self.assertEqual(summary['counts']['oracle_pass'], 0)
         self.assertEqual(summary['reviewed_counts']['oracle_pass'], 2)

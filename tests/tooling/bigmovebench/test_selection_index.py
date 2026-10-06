@@ -51,12 +51,15 @@ def compile_fixture(root: Path, repetitions=4):
 
 class SelectionIndexTests(unittest.TestCase):
     def test_index_matches_reference_inventory_and_uses_indexed_lookups(self):
+        """Match reference sampling results while resolving frames through indexes without changing the compiled catalog."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary, redirect_stderr(io.StringIO()):
             root = Path(temporary)
             compiled = compile_fixture(root)
             before = sha256_file(compiled.directory / 'catalog.sqlite')
             path = root / 'selection-v1.sqlite'
             report = build_index(compiled, path)
+            # Check the required outcomes.
             self.assertEqual(before, sha256_file(compiled.directory / 'catalog.sqlite'))
             with closing(open_index(compiled, path)) as index, closing(_catalog_connection(compiled)) as source:
                 conflicts = content_label_conflict_ids(source)
@@ -103,6 +106,7 @@ class SelectionIndexTests(unittest.TestCase):
                 open_index(replace(compiled, manifest_sha256='wrong'), path)
 
     def test_duplicates_reverse_rows_and_conservative_band(self):
+        """Preserve duplicate and reverse contributor counts while assigning their shared frame the conservative strength band."""
         with tempfile.TemporaryDirectory() as temporary, redirect_stderr(io.StringIO()):
             root = Path(temporary)
             compiled = compile_fixture(root)
@@ -132,6 +136,8 @@ class SelectionIndexTests(unittest.TestCase):
                 self.assertEqual(index.execute('SELECT COUNT(*) FROM contributors WHERE frame_id=?',(frame_id,)).fetchone()[0],3)
 
     def test_profile_generation_and_exclusive_publication(self):
+        """Generate indexed profiles with recorded index identity and refuse to overwrite a published profile."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             output = io.StringIO()
@@ -143,6 +149,7 @@ class SelectionIndexTests(unittest.TestCase):
                     output=root/'profiles.jsonl',seed=0,selection=[],selection_index=path)
                 generate(args)
             values = [json.loads(line) for line in args.output.read_text().splitlines()]
+            # Check the required outcomes.
             self.assertEqual(len(values),501)
             self.assertEqual(len(values[0]['indexed_selection']['population_counts']),8)
             self.assertEqual(values[0]['indexed_selection']['index_sha256'],sha256_file(path))

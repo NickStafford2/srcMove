@@ -6,6 +6,8 @@ import json
 from pathlib import Path
 import sys
 from tests.support.execution import artifact_directory, run_logged
+from tests.support.execution import execute_xml
+from tests.support.contract_catalogs import load_contract_catalog
 import unittest
 import xml.etree.ElementTree as ET
 
@@ -21,7 +23,8 @@ normalize = lambda text: ' '.join(text.split())
 
 class Type3ContractTests(unittest.TestCase):
     def test_verified_edges_preserve_location_and_competition(self) -> None:
-        catalog = json.loads((REPO_ROOT / 'tests/fixtures/selection/type3_contracts.json').read_text())
+        """Reviewed edited-code pairs must retain their locations, competing partners, and selection outcomes."""
+        catalog = load_contract_catalog(REPO_ROOT / 'tests/fixtures/selection/type3_contracts.json')
         self.assertEqual(len(catalog['cases']), 15)
         binary = find_srcmove(REPO_ROOT, None)
         require_tool(binary)
@@ -46,21 +49,14 @@ class Type3ContractTests(unittest.TestCase):
                         self.assertEqual(endpoints['delete'].count(edge['before_text']), 1)
                         self.assertEqual(endpoints['insert'].count(edge['after_text']), 1)
                     payloads, annotations = [], []
-                    for mode in ('ordinary', 'diagnostic', 'results_only'):
-                        output, xml = temp / f'{mode}.json', temp / f'{mode}.xml'
-                        command = [str(binary), str(fixture), '--results', str(output)]
-                        if mode != 'ordinary':
-                            command.append('--diagnostics')
-                        if mode == 'results_only':
-                            command.append('--results-only')
-                        else:
-                            command.insert(2, str(xml))
-                        result = run_logged(command, text=True, capture_output=True)
-                        require_success(result)
-                        payload = json.loads(output.read_text())
+                    observation = execute_xml(
+                        fixture.read_bytes(), case_id=self.id() + '.' + case['id'], binary=binary,
+                    )
+                    for mode in observation.modes:
+                        payload = mode.payload()
                         payloads.append(payload)
-                        if mode != 'results_only':
-                            annotations.append(xml.read_bytes())
+                        if mode.output_xml is not None:
+                            annotations.append(mode.output_xml.read_bytes())
                     self.assertEqual(annotations[0], annotations[1])
                     self.assertEqual(payloads[1], payloads[2])
                     observed = dict(payloads[1])

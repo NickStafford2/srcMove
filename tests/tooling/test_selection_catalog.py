@@ -18,7 +18,10 @@ def move(from_text: str, to_text: str, kind: str = "type1") -> dict[str, object]
 
 class SelectionCatalogTests(unittest.TestCase):
     def test_catalog_is_valid_and_contains_the_targeted_dimensions(self) -> None:
+            """Validate the selection catalog and require its intended scenario dimensions to be represented."""
+            # Prepare the inputs and exercise the operation.
             cases = load_catalog(REPO_ROOT / "tests/fixtures/selection/catalog.json")
+            # Check the required outcomes.
             self.assertGreaterEqual(len(cases), 15)
             self.assertEqual(
                 {case["category"] for case in cases},
@@ -46,6 +49,7 @@ class SelectionCatalogTests(unittest.TestCase):
             )
 
     def test_semantic_evaluation_normalizes_whitespace_and_checks_forbidden(self) -> None:
+            """Ignore irrelevant whitespace while still rejecting explicitly forbidden reported moves."""
             case = {
                 "required": [{"from": "whole old", "to": "whole new", "content_relationships": ["type3"]}],
                 "forbidden": [{"from": "small();", "to": "small();"}],
@@ -66,6 +70,7 @@ class SelectionCatalogTests(unittest.TestCase):
             self.assertEqual(failing["forbidden_found"], 1)
 
     def test_malformed_result_move_is_a_validation_error(self) -> None:
+            """Reject a result containing a structurally malformed move record."""
             with self.assertRaisesRegex(ValueError, "invalid shape"):
                 evaluate_results(
                     {"required": [], "forbidden": []},
@@ -73,6 +78,7 @@ class SelectionCatalogTests(unittest.TestCase):
                 )
 
     def test_catalog_rejects_parent_traversal(self) -> None:
+            """Reject a catalog input path that escapes its fixture root."""
             with tempfile.TemporaryDirectory() as temporary_directory:
                 catalog = Path(temporary_directory) / "catalog.json"
                 catalog.write_text(

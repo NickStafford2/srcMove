@@ -27,6 +27,8 @@ def _write_archive(root: Path, sources: dict[Path, str]) -> None:
 
 class BigMoveBenchSyntheticTests(unittest.TestCase):
     def test_archive_moves_between_stable_files(self) -> None:
+        """Generate before and after archives that transfer the payload between stable source and destination filenames."""
+        # Prepare the inputs and exercise the operation.
         original, modified, original_range, modified_range = (
             build_synthetic_move_archive(
                 "BCBMove1_2",
@@ -35,6 +37,7 @@ class BigMoveBenchSyntheticTests(unittest.TestCase):
             )
         )
 
+        # Check the required outcomes.
         self.assertEqual(
             set(original),
             {SYNTHETIC_SOURCE_PATH, SYNTHETIC_DESTINATION_PATH},
@@ -69,6 +72,8 @@ class BigMoveBenchSyntheticTests(unittest.TestCase):
             self.assertEqual(source.count("{"), source.count("}"))
 
     def test_srcml_parses_payloads_under_distinct_class_parents(self) -> None:
+        """Parse the generated payloads beneath their distinct source and destination Java classes."""
+        # Prepare the inputs and exercise the operation.
         srcml = REPO_ROOT.parent / "srcML-install" / "bin" / "srcml"
         if not srcml.is_file():
             discovered = shutil.which("srcml")
@@ -97,6 +102,7 @@ class BigMoveBenchSyntheticTests(unittest.TestCase):
                 )
             except OSError as error:
                 self.skipTest(f"srcml executable cannot run here: {error}")
+            # Check the required outcomes.
             self.assertEqual(result.returncode, 0, result.stderr)
             parsed[function_name] = ET.fromstring(result.stdout)
 
@@ -139,6 +145,8 @@ class BigMoveBenchSyntheticTests(unittest.TestCase):
         )
 
     def test_srcdiff_exposes_payload_as_delete_and_insert(self) -> None:
+        """Require srcDiff to expose the transferred payload in both a deletion and an insertion region."""
+        # Prepare the inputs and exercise the operation.
         srcdiff = REPO_ROOT.parent / "srcDiff" / "build" / "bin" / "srcdiff"
         if not srcdiff.is_file():
             discovered = shutil.which("srcdiff")
@@ -185,6 +193,7 @@ class BigMoveBenchSyntheticTests(unittest.TestCase):
                     )
                 except OSError as error:
                     self.skipTest(f"srcdiff executable cannot run here: {error}")
+                # Check the required outcomes.
                 self.assertEqual(result.returncode, 0, result.stderr)
                 diff_root = ET.parse(output_path).getroot()
 

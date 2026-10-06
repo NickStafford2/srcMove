@@ -55,6 +55,7 @@ def outcome(path: Path, work, value: dict) -> PairOutcome:
 
 class ReportedMovesTests(unittest.TestCase):
     def test_reports_partition_atomic_matches_and_reject_cross_links(self):
+        """Partition atomic matches into reports and reject sequence links to unrelated matches."""
         normalize_compactable_results(results())
         for mutation in ("repeat", "omit", "crosslink", "type", "count", "invalid_id"):
             value = results()
@@ -76,6 +77,7 @@ class ReportedMovesTests(unittest.TestCase):
                 normalize_compactable_results(value)
 
     def test_contradictory_sequence_metadata_is_rejected(self):
+        """Reject sequence metadata that contradicts its referenced atomic moves."""
         for mutation in ("count", "order", "member", "ordinal"):
             value = results()
             sequence = value["move_sequences"][0]
@@ -91,6 +93,7 @@ class ReportedMovesTests(unittest.TestCase):
                 normalize_compactable_results(value)
 
     def test_sequence_compaction_discards_unknown_source_payload(self):
+        """Keep declared sequence fields while excluding unknown source payload during compaction."""
         value = results()
         value["move_sequences"][0]["from_raw_texts"] = ["secret source payload"]
         value["move_sequences"][0]["from"]["source_text"] = "other secret payload"
@@ -100,6 +103,8 @@ class ReportedMovesTests(unittest.TestCase):
             self.assertNotIn(b"secret", compact.metrics_json)
 
     def test_reports_survive_database_queries_and_keep_raw_text_ephemeral(self):
+        """Preserve reported move structure in database queries while removing durable raw source text."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             repository = root / "repository"
@@ -115,6 +120,7 @@ class ReportedMovesTests(unittest.TestCase):
                 invocation = fixture.begin_invocation(database)
                 pair = outcome(root / "results.json", build_pair_work_items(manifest)[0], results())
                 compact = compact_pair_outcome(pair)
+                # Check the required outcomes.
                 self.assertNotIn(b"a();", compact.metrics_json)
                 database.record_outcome(batch, pair, invocation_id=invocation)
                 database.commit_pending_batch(batch)
@@ -141,6 +147,7 @@ class ReportedMovesTests(unittest.TestCase):
             self.assertEqual(dict(report.content_relationships), {"type1": 2})
 
     def test_legacy_results_do_not_invent_sequences(self):
+        """Leave sequence reporting empty when legacy results contain only atomic moves."""
         value = results()
         for field in list(value):
             if field.startswith("reported_") or field.startswith("sequence_") or field == "move_sequences":

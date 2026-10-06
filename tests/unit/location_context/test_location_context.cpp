@@ -46,6 +46,7 @@ const move_candidate *find_candidate(
 
 int main(int argc, char **argv) {
   try {
+    // Revision paths: distinguish unchanged, renamed, deleted, and inserted files.
     require(argc == 2, "expected semantic-container fixture path");
     require(split_revision_filename("same.cpp") ==
                 std::make_pair(std::string("same.cpp"), std::string("same.cpp")),
@@ -60,6 +61,7 @@ int main(int argc, char **argv) {
                 std::make_pair(std::string(), std::string("new.cpp")),
             "an inserted file has no original path");
 
+    // Candidate initialization: choose the correct revision without inventing context.
     const move_candidate deleted =
         candidate(move_candidate::Kind::del, "source.cpp|destination.cpp");
     const move_candidate inserted =
@@ -73,9 +75,11 @@ int main(int argc, char **argv) {
                 !deleted.location.anchor_interval_reliable,
             "unobserved structural context must remain explicitly unreliable");
 
+    // Read the source fixture once; later sections examine its named examples.
     srcml_reader reader(argv[1]);
     candidate_collection collection =
         collect_candidates_streaming(reader, get_default_filter_options());
+    // Cross-function transfer: preserve the two physical function identities.
     const std::string moved = "int relocated_value = source_value + 17;";
     const move_candidate *moved_delete = find_candidate(
         collection, move_candidate::Kind::del, moved, "decl_stmt");
@@ -100,6 +104,7 @@ int main(int argc, char **argv) {
                     moved_insert->location.ancestor_summary_id,
             "equivalent side-filtered ancestry must reuse one summary id");
 
+    // Added wrapper: retain the function identity and record changed ancestry.
     const std::string wrapped = "int wrapped_value = source_value + 41;";
     const move_candidate *wrapped_delete = find_candidate(
         collection, move_candidate::Kind::del, wrapped, "decl_stmt");
@@ -128,6 +133,7 @@ int main(int argc, char **argv) {
                     wrapped_insert->location.next_common_anchor_id,
             "a wrapper change between common declarations keeps one interval");
 
+    // Sibling reorder: crossing a stable declaration changes the anchor interval.
     const std::string crossing = "int crossing_value = source_value + 53;";
     const move_candidate *crossing_delete = find_candidate(
         collection, move_candidate::Kind::del, crossing, "decl_stmt");
@@ -147,6 +153,7 @@ int main(int argc, char **argv) {
                     crossing_insert->location.next_common_anchor_id,
             "crossing a unique common declaration must change the interval");
 
+    // Missing local anchors: use function boundaries rather than repeated declarations.
     const std::string bounded = "int bounded_value = source_value + 67;";
     const move_candidate *bounded_delete = find_candidate(
         collection, move_candidate::Kind::del, bounded, "decl_stmt");
@@ -186,6 +193,7 @@ int main(int argc, char **argv) {
                   has_suffix(after->location.next_common_anchor_id, ":end"),
               "unique common conditional or nested declaration must expose crossing");
     }
+    // Stationary conditional: staying after the control preserves the interval.
     {
       const std::string text = "int conditional_stationary = 73;";
       const auto *before = find_candidate(collection, move_candidate::Kind::del,
@@ -200,6 +208,7 @@ int main(int argc, char **argv) {
                   !has_suffix(before->location.previous_common_anchor_id, ":begin"),
               "staying after a common conditional must retain the same interval");
     }
+    // Excluded conditional anchors: repetition and empty content supply no crossing evidence.
     for (const auto &scenario : std::vector<std::pair<std::string, int>>{
              {"conditional_repeated", 79}, {"empty_conditional", 101}}) {
       const std::string text = "int " + scenario.first + " = " +
@@ -212,6 +221,7 @@ int main(int argc, char **argv) {
                 "repeated or comment-only conditional must not establish an anchor");
       }
     }
+    // Expression anchors: unique calls and assignments establish a real crossing.
     for (const auto &scenario : std::vector<std::pair<std::string, int>>{
              {"expression_crossing", 109}, {"expression_assignment", 149},
              {"expression_in_mixed_conditional", 151}}) {
@@ -231,6 +241,7 @@ int main(int argc, char **argv) {
                   has_suffix(after->location.next_common_anchor_id, ":end"),
               "unique common call or assignment must expose a crossing");
     }
+    // Stationary expression: staying after the same call retains the interval.
     {
       const std::string text = "int expression_stationary = 113;";
       const auto *before = find_candidate(collection, move_candidate::Kind::del,
@@ -247,6 +258,7 @@ int main(int argc, char **argv) {
                   !has_suffix(before->location.previous_common_anchor_id, ":begin"),
               "staying after a common call must retain the same interval");
     }
+    // Excluded expression anchors: repeated, edited, tiny, and comment-only calls.
     for (const auto &scenario : std::vector<std::pair<std::string, int>>{
              {"expression_repeated", 127}, {"expression_mixed", 131},
              {"expression_tiny", 137}, {"expression_comment", 139}}) {
@@ -275,6 +287,7 @@ int main(int argc, char **argv) {
               "anchor intervals must be deterministic across parses");
     }
 
+    // Exclusive methods: fall back to the common physical class container.
     const std::string member = "int member() {return 23;}";
     const move_candidate *member_delete = find_candidate(
         collection, move_candidate::Kind::del, member, "function");
@@ -288,6 +301,7 @@ int main(int argc, char **argv) {
                     member_insert->location.semantic_container_id,
             "exclusive functions must fall back to their physical common class");
 
+    // File-root declarations: preserve the absence of mapped container evidence.
     const std::string unmapped = "int unmapped_value = 31;";
     const move_candidate *unmapped_delete = find_candidate(
         collection, move_candidate::Kind::del, unmapped, "decl_stmt");
@@ -301,6 +315,7 @@ int main(int argc, char **argv) {
                 !unmapped_insert->location.ancestor_summary_reliable,
             "file-root candidates must not manufacture a mapped container");
 
+    // Registry ownership: summaries survive released parse storage.
     const std::size_t wrapped_insert_summary_id =
         wrapped_insert->location.ancestor_summary_id;
     candidate_registry registry;
@@ -310,6 +325,7 @@ int main(int argc, char **argv) {
                 (std::vector<std::string>{"block", "if_stmt", "if", "block"}),
             "registry must preserve summaries after parse storage is released");
 
+    // Multiple documents: rebase summary IDs, then reclaim removed summaries.
     const std::size_t original_summary_count =
         registry.ancestor_summaries().size();
     move_candidate later =

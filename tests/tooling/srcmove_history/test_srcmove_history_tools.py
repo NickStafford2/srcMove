@@ -10,6 +10,7 @@ from srcmove_history.tools import admit_executable
 
 class AnalysisExecutableAdmissionTests(unittest.TestCase):
     def test_admission_rejects_a_regular_non_executable_file(self) -> None:
+        """Reject a regular tool file that lacks executable permission."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             analysis = root / "analysis"
@@ -26,6 +27,7 @@ class AnalysisExecutableAdmissionTests(unittest.TestCase):
             self.assertEqual(list((analysis / "tools").rglob("*")), [])
 
     def test_admission_binds_identity_to_analysis_owned_bytes(self) -> None:
+        """Copy admitted executable bytes into analysis-owned storage and bind identity to that copy."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             analysis = root / "analysis"
@@ -44,6 +46,7 @@ class AnalysisExecutableAdmissionTests(unittest.TestCase):
             self.assertFalse(admitted.resolved_path.stat().st_mode & 0o222)
 
     def test_repeated_admission_reuses_identical_role_bytes(self) -> None:
+        """Reuse an already admitted executable when its role and bytes are unchanged."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             analysis = root / "analysis"

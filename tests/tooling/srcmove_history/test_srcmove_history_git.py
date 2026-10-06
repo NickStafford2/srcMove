@@ -44,6 +44,7 @@ def commit(repository: Path, name: str, content: str) -> str:
 
 class SrcMoveHistoryGitTests(unittest.TestCase):
     def test_srcml_source_suffixes_match_standard_registry(self) -> None:
+        """Keep admitted source suffixes aligned with the supported srcML language registry."""
         self.assertEqual(
             SRCML_SOURCE_SUFFIXES,
             {
@@ -54,6 +55,8 @@ class SrcMoveHistoryGitTests(unittest.TestCase):
         )
 
     def test_inventory_admits_only_srcml_source_extensions(self) -> None:
+        """Include supported source files and exclude unsupported extensions from revision inventory."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = Path(temporary_directory) / "repository"
             initialize(repository)
@@ -79,6 +82,7 @@ class SrcMoveHistoryGitTests(unittest.TestCase):
                 repository, old_commit, new_commit, None, (".pyi",)
             )
 
+            # Check the required outcomes.
             self.assertEqual(
                 [path.path for path in analyzable],
                 ["aspect.aj", "header.H", "source.CPP"],
@@ -101,6 +105,8 @@ class SrcMoveHistoryGitTests(unittest.TestCase):
             )
 
     def test_inventory_excludes_symlinks_and_submodules_with_reasons(self) -> None:
+        """Exclude symlinks and submodules while retaining their specific exclusion reasons."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = Path(temporary_directory) / "repository"
             initialize(repository)
@@ -123,6 +129,7 @@ class SrcMoveHistoryGitTests(unittest.TestCase):
             )
 
             by_path = {change.path: change for change in changed}
+            # Check the required outcomes.
             self.assertEqual(
                 by_path["linked.cpp"].exclusion_reasons,
                 ("unsupported_git_mode: symlink",),
@@ -136,6 +143,8 @@ class SrcMoveHistoryGitTests(unittest.TestCase):
             )
 
     def test_first_parent_selection_is_exact_root_bounded_and_merge_aware(self) -> None:
+        """Select exact first-parent history through merges without stepping beyond the root commit."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = Path(temporary_directory) / "repository"
             initialize(repository)
@@ -149,6 +158,7 @@ class SrcMoveHistoryGitTests(unittest.TestCase):
 
             selected = select_first_parent_history(repository, "HEAD", 10)
 
+            # Check the required outcomes.
             self.assertEqual(selected.resolved_start, merge)
             self.assertEqual(selected.commits, (first, second, merge))
             self.assertTrue(selected.history_exhausted)
@@ -172,6 +182,7 @@ class SrcMoveHistoryGitTests(unittest.TestCase):
             self.assertTrue(root_frontier.history_exhausted)
 
     def test_rejects_shallow_repository(self) -> None:
+        """Reject a shallow repository whose complete first-parent history cannot be established."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             source = root / "source"
@@ -196,6 +207,7 @@ class SrcMoveHistoryGitTests(unittest.TestCase):
                 select_first_parent_history(shallow, "HEAD", 1)
 
     def test_retention_ref_preserves_commits_after_branch_moves(self) -> None:
+        """Keep frozen analysis commits reachable after the source branch moves."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = Path(temporary_directory) / "repository"
             initialize(repository)
@@ -209,6 +221,7 @@ class SrcMoveHistoryGitTests(unittest.TestCase):
             self.assertEqual(git(repository, "rev-parse", ref), second)
 
     def test_first_parent_distance_rejects_a_side_parent(self) -> None:
+        """Reject a revision reachable only through a merge's side parent when computing first-parent distance."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = Path(temporary_directory) / "repository"
             initialize(repository)

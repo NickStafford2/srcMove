@@ -12,6 +12,8 @@ from tests.tooling.bigmovebench import test_catalog as compiled_fixtures
 
 class BigCloneBenchConflictReportTests(unittest.TestCase):
     def test_report_explains_content_identity_conflicts(self) -> None:
+        """Explain why the same content pair appears under positive and known false-positive upstream labels."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = compiled_fixtures.BigCloneBenchCompiledDatasetTests(
@@ -45,6 +47,7 @@ class BigCloneBenchConflictReportTests(unittest.TestCase):
                 )
             )
 
+            # Check the required outcomes.
             self.assertEqual(report["content_conflict_count"], 1)
             self.assertEqual(report["positive_catalog_rows"], 1)
             self.assertEqual(report["known_false_positive_catalog_rows"], 1)

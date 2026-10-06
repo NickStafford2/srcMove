@@ -121,6 +121,8 @@ class NormalizedExecutionTests(unittest.TestCase):
         )
 
     def test_reports_execution_progress(self) -> None:
+        """Show normalized execution starting, completing both cases, and reporting accepted, reused, and failed counts."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
@@ -137,6 +139,7 @@ class NormalizedExecutionTests(unittest.TestCase):
                 ).run()
 
             lines = output.getvalue().splitlines()
+            # Check the required outcomes.
             self.assertEqual(
                 lines[0],
                 "[normalized execution] started: 0/2   0% 00:00 — type3",
@@ -172,6 +175,8 @@ class NormalizedExecutionTests(unittest.TestCase):
         )
 
     def test_streams_stages_to_terminal_transactions_and_reuses_them(self) -> None:
+        """Commit both cases through srcDiff and srcMove, then reuse their terminal results without rerunning the tools."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
@@ -182,6 +187,7 @@ class NormalizedExecutionTests(unittest.TestCase):
             with patches[0], patches[1], patches[2]:
                 _, summary = self._runner(benchmark_cases, run_dir).run()
 
+            # Check the required outcomes.
             self.assertEqual(tools.calls, ["srcdiff", "srcmove"] * 2)
             self.assertEqual(summary["status"], "completed")
             self.assertEqual(summary["counts"]["selected"], 2)
@@ -265,6 +271,7 @@ class NormalizedExecutionTests(unittest.TestCase):
             self.assertEqual(resumed["counts"], summary["counts"])
 
     def test_type3_review_enables_diagnostics_and_writes_artifacts(self) -> None:
+        """Enable srcMove diagnostics for Type-3 review and save JSONL and Markdown review artifacts."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
@@ -289,6 +296,8 @@ class NormalizedExecutionTests(unittest.TestCase):
             self.assertTrue((run_dir / "type3-review.md").is_file())
 
     def test_opt_in_runner_profile_preserves_case_order_and_outcomes(self) -> None:
+        """Record profiling data in case order without changing outcomes or rerunning completed cases on resume."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
@@ -307,6 +316,7 @@ class NormalizedExecutionTests(unittest.TestCase):
                 json.loads(line)
                 for line in profile_path.read_text(encoding="utf-8").splitlines()
             ]
+            # Check the required outcomes.
             self.assertEqual(len(records), 2)
             self.assertEqual(
                 [record["case_id"] for record in records],
@@ -352,6 +362,8 @@ class NormalizedExecutionTests(unittest.TestCase):
             )
 
     def test_disabled_profile_does_not_collect_case_timings(self) -> None:
+        """Avoid timing collection entirely when runner profiling is disabled."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
@@ -359,6 +371,7 @@ class NormalizedExecutionTests(unittest.TestCase):
             with SerialBenchmarkCaseRunner(benchmark_cases) as cases, mock.patch(
                 "bigMoveBench.benchmark_cases.time.perf_counter_ns"
             ) as clock:
+                # Check the required outcomes.
                 self.assertEqual(cases.run(lambda case: None), 1)
             clock.assert_not_called()
             self.assertIsNone(cases.last_profile)
@@ -379,6 +392,7 @@ class NormalizedExecutionTests(unittest.TestCase):
             runner_clock.assert_not_called()
 
     def test_profile_path_cannot_overlap_execution_artifacts(self) -> None:
+        """Reject a profiling output path inside the execution-artifact directory before publishing the journal."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
@@ -393,6 +407,7 @@ class NormalizedExecutionTests(unittest.TestCase):
             self.assertFalse((run_dir / "execution.sqlite").exists())
 
     def test_existing_profile_output_is_not_overwritten(self) -> None:
+        """Refuse to overwrite an unrelated existing profiling file."""
         with tempfile.TemporaryDirectory() as temporary:
             output = Path(temporary) / "existing.jsonl"
             output.write_text('{"unrelated":true}\n', encoding="utf-8")
@@ -403,6 +418,7 @@ class NormalizedExecutionTests(unittest.TestCase):
             )
 
     def test_profile_output_failure_disables_only_the_diagnostic(self) -> None:
+        """Disable a broken profiling stream without turning the diagnostic failure into a case failure."""
         class FailingStream:
             def write(self, value):
                 raise OSError("profile disk failure")
@@ -453,6 +469,8 @@ class NormalizedExecutionTests(unittest.TestCase):
             return list(connection.execute("SELECT case_id FROM cases ORDER BY ordinal"))
 
     def test_development_cache_reuses_srcdiff_but_always_runs_srcmove(self) -> None:
+        """Reuse cached srcDiff output in development runs while rerunning srcMove, and regenerate srcDiff on refresh."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
@@ -467,6 +485,7 @@ class NormalizedExecutionTests(unittest.TestCase):
                     root / "results" / "cache-one",
                     srcdiff_cache=cache,
                 ).run()
+            # Check the required outcomes.
             self.assertEqual(first_tools.calls, ["srcdiff", "srcmove"] * 2)
             self.assertEqual(first["development_srcdiff_cache"]["hits"], 0)
             self.assertEqual(first["development_srcdiff_cache"]["misses"], 2)
@@ -500,6 +519,8 @@ class NormalizedExecutionTests(unittest.TestCase):
             self.assertEqual(refreshed["development_srcdiff_cache"]["misses"], 2)
 
     def test_semantic_ineligible_is_terminal_without_srcmove(self) -> None:
+        """Stop an ineligible srcDiff case before srcMove and scoring while retaining its terminal outcome."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
@@ -524,6 +545,7 @@ class NormalizedExecutionTests(unittest.TestCase):
                     root / "results" / "semantic",
                     runner_profile_path=profile_path,
                 ).run()
+            # Check the required outcomes.
             self.assertEqual(tools.calls, ["srcdiff"])
             self.assertEqual(summary["counts"]["srcdiff_semantic_ineligible"], 1)
             self.assertEqual(summary["counts"]["executed"], 0)
@@ -533,6 +555,8 @@ class NormalizedExecutionTests(unittest.TestCase):
             self.assertNotIn("runner.scoring_ms", record["phases_ms"])
 
     def test_profile_records_tool_and_scoring_failures(self) -> None:
+        """Include the observed tool or scoring failure in that case's profiling record."""
+        # Prepare the inputs and exercise the operation.
         scenarios = (
             ("srcdiff", "upstream_failure"),
             ("srcmove", "srcmove_tool_failure"),
@@ -591,9 +615,12 @@ class NormalizedExecutionTests(unittest.TestCase):
                         encoding="utf-8"
                     )
                 )
+                # Check the required outcomes.
                 self.assertEqual(record["outcome"], expected_outcome)
 
     def test_resume_seals_interruption_and_retries_each_pipeline_stage(self) -> None:
+        """Seal an interrupted attempt and retry the case with a new terminal attempt at each interruption stage."""
+        # Prepare the inputs and exercise the operation.
         for interrupted_stage in ("srcdiff", "srcmove", "oracle"):
             with (
                 self.subTest(stage=interrupted_stage),
@@ -624,6 +651,7 @@ class NormalizedExecutionTests(unittest.TestCase):
                         )
                     )
                 )
+                # Check the required outcomes.
                 with (
                     mock.patch(
                         "bigMoveBench.normalized_execution.execute_attempt",

@@ -5,6 +5,7 @@ from tests.support.execution import require_success, require_tool
 import json
 import sys
 from tests.support.execution import artifact_directory, run_logged
+from tests.support.execution import execute_xml
 import unittest
 from pathlib import Path
 
@@ -30,10 +31,12 @@ class Type2ContractTests(unittest.TestCase):
         cls.cases = load_shadow_contracts(CATALOG, correspondence_kind='type2c')
 
     def test_type1_catalog_cannot_silently_accept_type2_contracts(self) -> None:
+        """Reject normalized-pair cases when the loader requires exact Type-1 evidence."""
         with self.assertRaisesRegex(ShadowContractError, 'expected type1 evidence'):
             load_shadow_contracts(CATALOG)
 
     def test_reviewed_matrix_and_srcdiff_preconditions(self) -> None:
+        """Each of the 18 reviewed cases must retain its admitted endpoints and location category."""
         self.assertEqual(len(self.cases), 18)
         self.assertEqual(
             {case['expected_shadow']['change_kind'] for case in self.cases},
@@ -44,6 +47,7 @@ class Type2ContractTests(unittest.TestCase):
                 validate_srcdiff_precondition(case, case['fixture']['srcdiff'])
 
     def test_shared_decisions_match_oracle_and_output_modes(self) -> None:
+        """Reviewed Type-2 decisions and selected endpoints must agree in all output modes."""
         srcmove = find_srcmove(REPO_ROOT, None)
         require_tool(srcmove)
         with artifact_directory(case_id=self.id()) as directory:
@@ -52,29 +56,21 @@ class Type2ContractTests(unittest.TestCase):
                 with self.subTest(case=case['id']):
                     outputs = []
                     annotations = []
-                    for mode, diagnostics, results_only in (
-                        ('ordinary', False, False),
-                        ('observed', True, False),
-                        ('results_only', True, True),
-                    ):
-                        output = temporary / f'{mode}.json'
-                        annotation = temporary / f'{mode}.xml'
-                        command = [str(srcmove), str(case['fixture']['srcdiff']),
-                                   '--results', str(output), '--min-granularity', 'fragment', '--profile']
-                        if diagnostics:
-                            command.append('--diagnostics')
-                        if results_only:
-                            command.append('--results-only')
-                        else:
-                            command.insert(2, str(annotation))
-                        result = run_logged(command, cwd=REPO_ROOT, text=True,
-                                                capture_output=True, check=False)
-                        require_success(result)
+                    observation = execute_xml(
+                        case['fixture']['srcdiff'].read_bytes(),
+                        case_id=self.id() + '.' + case['id'], binary=srcmove,
+                        min_granularity='fragment', extra_args=('--profile',),
+                    )
+                    for observed_mode in observation.modes:
+                        mode = 'observed' if observed_mode.name == 'diagnostic' else observed_mode.name
+                        diagnostics = observed_mode.name != 'ordinary'
+                        results_only = observed_mode.name == 'results_only'
+                        result = observed_mode.completed
                         for name in ('type2c_build_ms', 'type2c_groups_built',
                                      'type2c_groups_selected'):
                             self.assertIn('profile.content_groups.' + name + '=', result.stderr)
                         self.assertNotIn('profile.content_groups.type2_', result.stderr)
-                        payload = json.loads(output.read_text())
+                        payload = observed_mode.payload()
                         self.assertEqual(set(payload['content_relationships']),
                                          {'type1', 'type2c', 'type3'})
                         self.assertTrue(all(move['content_relationship'] in
@@ -129,7 +125,7 @@ class Type2ContractTests(unittest.TestCase):
                         payload.pop('diagnostics', None)
                         outputs.append(payload)
                         if not results_only:
-                            annotations.append(annotation.read_bytes())
+                            annotations.append(observed_mode.output_xml.read_bytes())
                     self.assertEqual(outputs[0], outputs[1])
                     self.assertEqual(outputs[0], outputs[2])
                     self.assertEqual(annotations[0], annotations[1])

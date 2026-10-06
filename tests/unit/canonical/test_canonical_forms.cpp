@@ -70,6 +70,7 @@ std::vector<srcml_node> member_expression(const std::string &second_owner) {
 
 int main() {
   try {
+    // Baseline: value = value + 17; exposes every requested projection.
     const auto original_nodes = expression();
     const auto original = forms(original_nodes);
     require(!original.exact.empty() && !original.type2_canonical.empty() &&
@@ -80,6 +81,7 @@ int main() {
     require(original.identifier_names == std::vector<std::string>{"value"},
             "repeated identifiers have one identity in occurrence order");
 
+    // Names: consistent renaming preserves identity; inconsistent renaming does not.
     const auto renamed = forms(expression("other", "other"));
     require(original.exact != renamed.exact, "exact identity preserves names");
     require(original.type2_canonical == renamed.type2_canonical &&
@@ -93,6 +95,7 @@ int main() {
     require(original.type2b_canonical == inconsistent.type2b_canonical,
             "blind diagnostic projection does not claim consistent renaming");
 
+    // Content: literal categories normalize, but operators and syntax remain meaningful.
     const auto changed_literal = forms(expression("value", "value", "23"));
     require(original.exact != changed_literal.exact &&
                 original.names_only_canonical != changed_literal.names_only_canonical,
@@ -109,6 +112,7 @@ int main() {
     require(original.type2_canonical != forms(syntax_changed).type2_canonical,
             "added empty statement remains syntax");
 
+    // Representation: diff wrappers, comments and whitespace add no evidence.
     auto decorated = original_nodes;
     decorated.insert(decorated.begin(), tag("delete", true, true));
     decorated.insert(decorated.begin() + 1, tag("common", true, true));
@@ -124,6 +128,7 @@ int main() {
                 original.normalized_tokens == transparent.normalized_tokens,
             "revision wrappers, comments and whitespace cannot invent evidence");
 
+    // Fragmentation: a name split across text events has weaker identity evidence.
     std::vector<srcml_node> fragmented{tag("name"), srcml_node("frag"),
                                      tag("common", true, true), srcml_node("ment"),
                                      tag("common", false, true), tag("name", false)};
@@ -132,6 +137,7 @@ int main() {
     require(!original.fragmented_identifier,
             "repeated complete names are not fragmented identifiers");
 
+    // Member ownership: preserve qualifiers and detect conflicting owners.
     const auto qualified = forms(member_expression("first"));
     require(qualified.member_accesses.size() == 2 &&
                 qualified.member_accesses[0] == std::make_pair(std::string("first.member"), std::string("first.")),
@@ -144,6 +150,7 @@ int main() {
     }
     require(ambiguous, "one name used under different owners cannot claim one qualifier");
 
+    // Optional evidence: disabling extra projections leaves ordinary forms intact.
     const auto ordinary = forms(original_nodes, false);
     require(ordinary.exact == original.exact && ordinary.type2_canonical == original.type2_canonical &&
                 ordinary.names_only_canonical.empty() && ordinary.type2b_canonical.empty(),

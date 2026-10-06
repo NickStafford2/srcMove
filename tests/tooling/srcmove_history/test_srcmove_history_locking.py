@@ -17,6 +17,7 @@ from srcmove_history.locking import (
 
 class AnalysisOperationLockTests(unittest.TestCase):
     def test_probe_does_not_create_a_missing_root_or_lock_file(self) -> None:
+        """Probe missing analysis state without creating its directory or lock file."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory) / "missing-analysis"
 
@@ -30,6 +31,7 @@ class AnalysisOperationLockTests(unittest.TestCase):
     def test_probe_reports_held_and_available_locks_without_publishing_activity(
         self,
     ) -> None:
+        """Observe held and available locks without replacing their activity records."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory) / "analysis"
 
@@ -46,6 +48,7 @@ class AnalysisOperationLockTests(unittest.TestCase):
             self.assertEqual(load_analysis_activity(root), before)
 
     def test_probe_rejects_symbolic_link_root(self) -> None:
+        """Reject an analysis root that is a symbolic link."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             parent = Path(temporary_directory)
             target = parent / "analysis"
@@ -59,6 +62,7 @@ class AnalysisOperationLockTests(unittest.TestCase):
                 is_analysis_writer_locked(alias)
 
     def test_probe_rejects_unsafe_lock_files(self) -> None:
+        """Reject a lock-file symlink instead of following it to another file."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory) / "analysis"
             root.mkdir()
@@ -72,6 +76,7 @@ class AnalysisOperationLockTests(unittest.TestCase):
                 is_analysis_writer_locked(root)
 
     def test_probe_rejects_non_regular_and_multiply_linked_lock_files(self) -> None:
+        """Reject lock paths that are not regular files or have multiple hard links."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             parent = Path(temporary_directory)
             directory_root = parent / "directory-lock-analysis"
@@ -91,6 +96,7 @@ class AnalysisOperationLockTests(unittest.TestCase):
                 is_analysis_writer_locked(linked_root)
 
     def test_exclusive_lock_records_completed_activity(self) -> None:
+        """Record completed operation activity after an exclusive lock is released."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory) / "analysis"
 
@@ -111,6 +117,7 @@ class AnalysisOperationLockTests(unittest.TestCase):
             self.assertIsNotNone(activity["ended_at"])
 
     def test_second_writer_is_rejected_without_changing_owner(self) -> None:
+        """Reject a competing writer while leaving the current lock owner's record intact."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory) / "analysis"
 
@@ -126,6 +133,7 @@ class AnalysisOperationLockTests(unittest.TestCase):
                 self.assertEqual(before["invocation_id"], first.invocation_id)
 
     def test_failed_operation_releases_lock_and_records_previous_attempt(self) -> None:
+        """Release the operation lock after failure and retain the failed attempt's activity record."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory) / "analysis"
 
@@ -146,6 +154,8 @@ class AnalysisOperationLockTests(unittest.TestCase):
                 self.assertEqual(current["previous"]["result"], "failed")
 
     def test_owner_process_crash_releases_kernel_lock(self) -> None:
+        """Make the operation lock available again after its owning process crashes."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory) / "analysis"
             script = """
@@ -166,6 +176,7 @@ with AnalysisOperationLock(Path(sys.argv[1]), command="child"):
             )
             self.addCleanup(self._stop_child, child)
             assert child.stdout is not None
+            # Check the required outcomes.
             self.assertEqual(child.stdout.readline().strip(), "ready")
             with self.assertRaises(AnalysisBusyError):
                 with AnalysisOperationLock(root, command="contender"):

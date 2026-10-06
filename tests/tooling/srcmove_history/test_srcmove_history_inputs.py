@@ -32,6 +32,7 @@ def executable(path: Path, content: bytes) -> Path:
 
 class SrcMoveHistoryInputTests(unittest.TestCase):
     def test_configuration_is_frozen_in_semantic_canonical_form(self) -> None:
+        """Normalize directory paths, suffix exclusions, and timeout values before freezing analysis configuration."""
         configuration = AnalysisConfiguration(
             selected_directory="src/analysis/.",
             excluded_suffixes=(".PY", ".txt", ".py"),
@@ -45,9 +46,11 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
         self.assertEqual(configuration.record()["schema_version"], 2)
 
     def test_library_configuration_has_no_language_specific_exclusions(self) -> None:
+        """Leave language-specific exclusions empty in the library's default configuration."""
         self.assertEqual(AnalysisConfiguration().excluded_suffixes, ())
 
     def test_configuration_rejects_unsafe_or_ambiguous_values(self) -> None:
+        """Reject escaping paths, malformed suffixes, invalid timeouts, and empty source encodings."""
         invalid = (
             {"selected_directory": "../src"},
             {"excluded_suffixes": ("py",)},
@@ -60,6 +63,7 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
                 AnalysisConfiguration(**arguments)
 
     def test_executable_observation_resolves_and_hashes_one_file(self) -> None:
+        """Resolve a tool symlink and record the target's size and content checksum."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             target = executable(root / "tool-real", b"#!/bin/sh\nexit 0\n")
@@ -76,6 +80,7 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
             )
 
     def test_builder_preserves_native_object_ids_and_contiguous_order(self) -> None:
+        """Build ordered adjacent commit pairs without rewriting native Git object identifiers."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             manifest = self._manifest(
@@ -94,6 +99,7 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
             self.assertEqual(items[0].srcdiff, manifest.srcdiff.resolved_path)
 
     def test_fingerprint_is_deterministic_and_ignores_runtime_paths(self) -> None:
+        """Produce the same pair identity for equivalent inputs stored at different runtime paths."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             first = self._manifest(root / "one")
@@ -110,6 +116,8 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
             self.assertNotIn("worker", pair_fingerprint_bytes(first, "a", "b").decode())
 
     def test_fingerprint_changes_with_every_identity_input(self) -> None:
+        """Change the pair fingerprint when any declared identity input changes."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             manifest = self._manifest(root)
@@ -135,6 +143,7 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
             }
             for name, changed in changes.items():
                 with self.subTest(name=name):
+                    # Check the required outcomes.
                     self.assertNotEqual(pair_fingerprint(changed, "a", "b"), baseline)
             configuration_changes = {
                 "selected_directory": None,
@@ -159,6 +168,7 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
             self.assertNotEqual(pair_fingerprint(manifest, "a", "new"), baseline)
 
     def test_same_executable_content_has_same_identity_and_drift_does_not(self) -> None:
+        """Give identical executable bytes the same identity and distinguish changed bytes."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             first = self._manifest(root / "first", tool_content=b"same")
@@ -175,6 +185,7 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
             )
 
     def test_canonical_json_is_independent_of_dictionary_order(self) -> None:
+        """Serialize equal dictionary contents identically regardless of insertion order."""
         left = {"outer": {"b": 2, "a": 1}, "value": 3}
         right = {"value": 3, "outer": {"a": 1, "b": 2}}
 
@@ -186,6 +197,7 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
         self.assertEqual(json.loads(canonical_json_bytes(left)), left)
 
     def test_manifest_is_versioned_and_contains_exact_frozen_history(self) -> None:
+        """Save a versioned manifest containing the exact selected frozen commit history."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             manifest = self._manifest(Path(temporary_directory))
             record = json.loads(manifest.canonical_bytes())
@@ -198,6 +210,8 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
             self.assertIn("fingerprint_schema_versions", record)
 
     def test_manifest_loader_rejects_schema_and_json_drift(self) -> None:
+        """Reject malformed or incompatible frozen manifests instead of accepting schema drift."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             manifest = self._manifest(root / "repository")
@@ -221,6 +235,7 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
                 with self.subTest(name=name):
                     value = json.loads(json.dumps(baseline))
                     mutate(value)
+                    # Check the required outcomes.
                     with self.assertRaises(ValueError):
                         load_frozen_manifest_bytes(
                             canonical_pretty_json_bytes(value),
@@ -241,6 +256,8 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
                 )
 
     def test_resume_verification_rejects_input_drift(self) -> None:
+        """Refuse to resume analysis after a frozen input changes."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             manifest = self._manifest(root / "frozen", tool_content=b"same")
@@ -258,6 +275,7 @@ class SrcMoveHistoryInputTests(unittest.TestCase):
                 srcdiff=current_diff,
                 srcmove=current_move,
             )
+            # Check the required outcomes.
             self.assertEqual(
                 build_pair_work_items(rebound)[0].srcdiff,
                 current_diff.resolved_path,

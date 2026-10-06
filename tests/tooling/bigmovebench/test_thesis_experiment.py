@@ -35,6 +35,7 @@ class ThesisExperimentTests(unittest.TestCase):
         return compiled, cache, index
 
     def test_agreed_design_exact_counts_and_band_allocations(self):
+        """Validate the agreed 5,598-case experiment, fixed seed, category counts, and Type-3 band allocations."""
         config = json.loads(DEFAULT_CONFIG.read_text())
         validate_config(config)
         self.assertEqual(config['seed'], 20261005)
@@ -48,6 +49,7 @@ class ThesisExperimentTests(unittest.TestCase):
             validate_config(bad)
 
     def test_mixed_census_sample_determinism_no_replacement_and_fail_fast(self):
+        """Mix full censuses with seeded samples without replacement and reject insufficient indexed populations."""
         with tempfile.TemporaryDirectory() as temporary, redirect_stderr(io.StringIO()):
             compiled, cache, index = self.fixture(Path(temporary))
             config = fixture_config()
@@ -73,6 +75,7 @@ class ThesisExperimentTests(unittest.TestCase):
                     sample_allocations(compiled, index, seed=1, allocations=bad)
 
     def test_immutable_publication_overlap_corrections_contract_and_execution(self):
+        """Publish an immutable experiment with overlap and correction evidence, then execute its selected cases."""
         with tempfile.TemporaryDirectory() as temporary, redirect_stderr(io.StringIO()):
             root = Path(temporary)
             compiled, cache, index = self.fixture(root)
@@ -125,12 +128,14 @@ class ThesisExperimentTests(unittest.TestCase):
                 verify_experiment(directory, cache)
 
     def test_disagreements_are_measurements_tool_failures_are_reported(self):
+        """Complete experiments with classification disagreements while explicitly reporting tool and oracle failures."""
         self.assertEqual(execution_status([{'counts': {'upstream_failure':0,'srcmove_tool_failure':0,
             'oracle_failure':0,'wrong_classification':80,'srcmove_miss':2,'srcdiff_semantic_ineligible':1}}]), 'completed')
         self.assertEqual(execution_status([{'counts': {'upstream_failure':1,'srcmove_tool_failure':0,
             'oracle_failure':0}}]), 'completed_with_tool_or_oracle_failures')
 
     def test_final_preparation_retains_test_validation_separately_from_input_checks(self):
+        """Save preparation test validation independently of selected-input validation in the experiment manifest."""
         from bigMoveBench.thesis_experiment import source_identity, runtime_identity
         with tempfile.TemporaryDirectory() as temporary, redirect_stderr(io.StringIO()):
             root = Path(temporary)

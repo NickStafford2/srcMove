@@ -175,6 +175,15 @@ def run_fixture(case: Fixture, srcmove: Path, artifacts: Path, srcdiff: Path | N
             raise FixtureExecutionError(format_process_failure(label, result) + f"\nartifacts: {case_dir}")
 
     if isinstance(case, XmlCaseSpec):
+        # Readable source examples must describe the retained encoding being run.
+        description = case.case_dir / "case.json"
+        if description.is_file():
+            import xml.etree.ElementTree as ET
+            from tests.support.readable_cases import source_view
+            root = ET.parse(case.input_xml).getroot()
+            for side, revision in (("before", "delete"), ("after", "insert")):
+                if (case.case_dir / (side + ".cpp")).read_text() != source_view(root, revision):
+                    raise FixtureExecutionError(f"{case.name}: {side} source view differs from input.xml")
         input_xml = case_dir / "input.xml"
         shutil.copyfile(case.input_xml, input_xml)
     else:
@@ -256,6 +265,14 @@ class AcceptedFixtureTest(unittest.TestCase):
 
     def __str__(self) -> str:
         return self.id()
+
+    def shortDescription(self) -> str | None:
+        if isinstance(self.case, PolicyCaseSpec):
+            return self.case.rationale
+        description = self.case.case_dir / "case.json"
+        if description.is_file():
+            return load_json(description)["purpose"]
+        return None
 
     def runTest(self) -> None:
         srcmove = find_srcmove(REPO_ROOT)

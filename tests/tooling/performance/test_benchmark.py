@@ -45,6 +45,7 @@ def write_profile_tool(path: Path, milliseconds: float, fail: bool = False) -> P
 
 class PerformanceBenchmarkTests(unittest.TestCase):
     def test_profile_parser_preserves_timer_and_counter_units(self) -> None:
+        """Parse profiler timers and counters without conflating their time and count units."""
         self.assertEqual(
             parse_profile_output(
                 "profile.pipeline.total_ms=12.375\n"
@@ -60,6 +61,8 @@ class PerformanceBenchmarkTests(unittest.TestCase):
         )
 
     def test_schedule_is_reproducible_paired_and_position_balanced(self) -> None:
+        """Schedule seeded variants in reproducible paired trials with balanced execution positions."""
+        # Prepare the inputs and exercise the operation.
         arguments = {
             "workload_names": ["large-b", "large-a"],
             "variant_names": ["baseline", "candidate"],
@@ -69,6 +72,7 @@ class PerformanceBenchmarkTests(unittest.TestCase):
         }
         first = build_schedule(**arguments)
         second = build_schedule(**arguments)
+        # Check the required outcomes.
         self.assertEqual(first, second)
 
         measured = [entry for entry in first if entry["phase"] == "measured"]
@@ -96,10 +100,13 @@ class PerformanceBenchmarkTests(unittest.TestCase):
             )
 
     def test_run_records_raw_measurements_summary_and_paired_deltas(self) -> None:
+        """Run paired performance variants and retain raw measurements, summaries, and per-pair differences."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
+            # Arrange tools reporting 10 ms and 15 ms of internal work.
             baseline = write_profile_tool(root / "baseline", 10.0)
             candidate = write_profile_tool(root / "candidate", 15.0)
+            # Run one warmup and two measured repetitions per variant.
             run_dir, manifest, summary = run_performance(
                 output_root=root / "performance",
                 variants={"baseline": baseline, "candidate": candidate},
@@ -113,6 +120,7 @@ class PerformanceBenchmarkTests(unittest.TestCase):
                 run_id="fixture-comparison",
             )
 
+            # Check the run policy and exact workload identity.
             self.assertEqual(manifest["status"], "completed")
             self.assertEqual(
                 manifest["policy"]["ordering"],
@@ -137,6 +145,7 @@ class PerformanceBenchmarkTests(unittest.TestCase):
                 workload["sha256"],
             )
             self.assertNotIn("inputs", manifest["observation"])
+            # Check measured counts and the independently expected 5 ms and 1.5x differences.
             self.assertEqual(summary["counts"]["warmup_attempts"], 2)
             self.assertEqual(summary["counts"]["measured_attempts"], 4)
             self.assertEqual(summary["counts"]["measured_failed"], 0)
@@ -153,6 +162,7 @@ class PerformanceBenchmarkTests(unittest.TestCase):
             self.assertEqual(comparison["candidate_minus_baseline"]["median"], 5.0)
             self.assertEqual(comparison["candidate_over_baseline"]["median"], 1.5)
 
+            # Check raw observations, discarded validated outputs, and artifact checksums.
             with (run_dir / "raw.csv").open(encoding="utf-8") as stream:
                 rows = list(csv.DictReader(stream))
             self.assertEqual(len(rows), 6)
@@ -190,6 +200,8 @@ class PerformanceBenchmarkTests(unittest.TestCase):
                 )
 
     def test_failed_measurements_remain_in_raw_data_and_counts(self) -> None:
+        """Keep failed performance attempts in raw measurements and failure totals instead of discarding them."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             baseline = write_profile_tool(root / "baseline", 10.0)
@@ -207,6 +219,7 @@ class PerformanceBenchmarkTests(unittest.TestCase):
                 run_id="fixture-failure",
             )
 
+            # Check the required outcomes.
             self.assertEqual(summary["counts"]["measured_attempts"], 4)
             self.assertEqual(summary["counts"]["measured_successful"], 2)
             self.assertEqual(summary["counts"]["measured_failed"], 2)
@@ -244,6 +257,7 @@ class PerformanceBenchmarkTests(unittest.TestCase):
             )
 
     def test_workloads_are_explicit_resolved_and_unique(self) -> None:
+        """Resolve explicitly named workloads and reject ambiguous or duplicate workload definitions."""
         workloads = load_workloads([f"large={INPUT_XML}"])
         self.assertEqual(workloads, {"large": INPUT_XML.resolve()})
         with self.assertRaisesRegex(ValueError, "at least one workload"):
@@ -252,6 +266,8 @@ class PerformanceBenchmarkTests(unittest.TestCase):
             load_workloads([f"same={INPUT_XML}", f"same={INPUT_XML}"])
 
     def test_workload_checksum_is_rechecked_before_execution(self) -> None:
+        """Reject a workload whose bytes changed after its initial checksum was recorded."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             workload_path = root / "large.srcdiff.xml"
@@ -262,6 +278,7 @@ class PerformanceBenchmarkTests(unittest.TestCase):
             run_dir = root / "run"
             (run_dir / "attempts").mkdir(parents=True)
 
+            # Check the required outcomes.
             with self.assertRaisesRegex(ValueError, "workload changed"):
                 run_measurement(
                     run_dir=run_dir,

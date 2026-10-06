@@ -37,14 +37,25 @@ def begin_invocation(database: AnalysisDatabase, invocation_id: str = "9" * 32) 
     return invocation_id
 
 
+def database_inputs(root: Path):
+    """Create an empty repository directory and observed tool files for database tests."""
+    repository = root / "repository"
+    repository.mkdir()
+    srcdiff = observe_executable(executable(root / "srcdiff"))
+    srcmove = observe_executable(executable(root / "srcmove"))
+    return repository, srcdiff, srcmove
+
+
 class AnalysisDatabaseTests(unittest.TestCase):
     def test_frozen_query_json_preserves_container_types(self) -> None:
+        """Preserve JSON arrays and objects when freezing query results."""
         values = ({}, [], {"nested": []}, [["key", 1]])
         for value in values:
             with self.subTest(value=value):
                 self.assertEqual(_thaw_json(_freeze_json(value)), value)
 
     def test_only_truthful_compact_retention_is_supported(self) -> None:
+        """Accept the implemented compact retention mode and reject unsupported retention claims."""
         self.assertEqual(
             RetentionPolicy().record(),
             {
@@ -60,6 +71,8 @@ class AnalysisDatabaseTests(unittest.TestCase):
             RetentionPolicy(mode="full")
 
     def test_invocations_are_append_only_and_reconcile_interrupted_writer(self) -> None:
+        """Append invocation records and reconcile a previously interrupted writer without rewriting history."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = root / "repository"
@@ -86,6 +99,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                     jobs=2,
                     started_at="2026-01-01T00:00:00+00:00",
                 )
+                # Check the required outcomes.
                 self.assertEqual(first.result, "running")
 
                 second = database.begin_invocation(
@@ -131,6 +145,8 @@ class AnalysisDatabaseTests(unittest.TestCase):
                     )
 
     def test_older_schema_root_is_rejected_with_fresh_start_instruction(self) -> None:
+        """Reject an older database schema with guidance to start a fresh analysis."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = root / "repository"
@@ -158,18 +174,17 @@ class AnalysisDatabaseTests(unittest.TestCase):
                     connection.execute(f"PRAGMA user_version = {version}")
                 finally:
                     connection.close()
+                # Check the required outcomes.
                 with self.assertRaisesRegex(
                     ValueError, "start a fresh analysis root"
                 ):
                     AnalysisDatabase.open(analysis)
 
     def test_batches_extend_without_renumbering_completed_pairs(self) -> None:
+        """Append and resume batches without changing previously completed pair numbers."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            repository = root / "repository"
-            repository.mkdir()
-            srcdiff = observe_executable(executable(root / "srcdiff"))
-            srcmove = observe_executable(executable(root / "srcmove"))
+            repository, srcdiff, srcmove = database_inputs(root)
             analysis_root = root / "analysis"
             initial = self._manifest(
                 repository, srcdiff, srcmove, commits=("d", "e", "f")
@@ -184,6 +199,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 reaches_root=False,
                 retention_policy=RetentionPolicy(),
             ) as database:
+                # Check the initial published state and pending manifest.
                 state = database.analysis()
                 self.assertEqual(state.revision, 1)
                 self.assertEqual(state.completed_pair_count, 0)
@@ -196,6 +212,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 )
                 self.assertEqual(database.completed_prefix(batch), 0)
 
+                # Checkpoint one pair and observe its durable, uncommitted coverage.
                 work = build_pair_work_items(initial)
                 invocation_id = begin_invocation(database)
                 database.record_outcome(
@@ -212,6 +229,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 with self.assertRaises(FrozenInstanceError):
                     checkpoint.coverage.committed = 1  # type: ignore[misc]
                 self.assertEqual(reader.show(2).invocation_id, invocation_id)
+                # Record the second outcome and commit the completed batch.
                 second_invocation_id = begin_invocation(database, "7" * 32)
                 database.record_outcome(
                     batch,
@@ -233,6 +251,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 self.assertEqual(details["new_commit"], "e")
                 self.assertEqual(details["moves"], [])
                 self.assertEqual(details["invocation_id"], invocation_id)
+                # Check stable pair numbers, pagination, and outcome filters.
                 first_page = reader.list_pairs(limit=1)
                 self.assertEqual([item.number for item in first_page.items], [1])
                 self.assertEqual(first_page.next_cursor, 0)
@@ -263,6 +282,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 with self.assertRaisesRegex(ValueError, "must be a Boolean"):
                     reader.list_pairs(failed=1)  # type: ignore[arg-type]
 
+                # Append an older batch and check that prior pair numbering stays stable.
                 older = self._manifest(
                     repository, srcdiff, srcmove, commits=("b", "c", "d")
                 )
@@ -285,12 +305,11 @@ class AnalysisDatabaseTests(unittest.TestCase):
                     database.pair_details(2)
 
     def test_pair_outcomes_are_exclusive_and_completion_requires_full_prefix(self) -> None:
+        """Permit one terminal outcome per pair and complete a batch only after its entire ordered prefix is stored."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            repository = root / "repository"
-            repository.mkdir()
-            srcdiff = observe_executable(executable(root / "srcdiff"))
-            srcmove = observe_executable(executable(root / "srcmove"))
+            repository, srcdiff, srcmove = database_inputs(root)
             manifest = self._manifest(
                 repository, srcdiff, srcmove, commits=("a", "b", "c")
             )
@@ -311,6 +330,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 build_pair_work_items(manifest)[0],
                 PairStatus.NO_ANALYZABLE_CHANGE,
             )
+            # Check the required outcomes.
             with self.assertRaisesRegex(ValueError, "no running invocation"):
                 database.record_outcome(
                     batch, outcome, invocation_id="8" * 32
@@ -333,12 +353,11 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 database.commit_pending_batch(batch)
 
     def test_database_reopens_with_canonical_manifest_and_schema_identity(self) -> None:
+        """Reopen a published database with its saved manifest and schema identity intact."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            repository = root / "repository"
-            repository.mkdir()
-            srcdiff = observe_executable(executable(root / "srcdiff"))
-            srcmove = observe_executable(executable(root / "srcmove"))
+            repository, srcdiff, srcmove = database_inputs(root)
             manifest = self._manifest(
                 repository, srcdiff, srcmove, commits=("a", "b")
             )
@@ -355,6 +374,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
 
             with AnalysisDatabase.open(root / "analysis") as reopened:
                 batch = reopened.pending_batch()
+                # Check the required outcomes.
                 self.assertIsNotNone(batch)
                 assert batch is not None
                 self.assertEqual(
@@ -363,12 +383,11 @@ class AnalysisDatabaseTests(unittest.TestCase):
                 )
 
     def test_read_only_status_can_observe_last_committed_snapshot(self) -> None:
+        """Query the last committed snapshot while a writer has uncommitted changes."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
-            repository = root / "repository"
-            repository.mkdir()
-            srcdiff = observe_executable(executable(root / "srcdiff"))
-            srcmove = observe_executable(executable(root / "srcmove"))
+            repository, srcdiff, srcmove = database_inputs(root)
             analysis = root / "analysis"
             manifest = self._manifest(
                 repository, srcdiff, srcmove, commits=("a", "b")
@@ -390,11 +409,14 @@ class AnalysisDatabaseTests(unittest.TestCase):
                     with AnalysisDatabase.open(
                         analysis, read_only=True
                     ) as reader:
+                        # Check the required outcomes.
                         self.assertEqual(reader.analysis().revision, 1)
                 finally:
                     writer.connection.execute("ROLLBACK")
 
     def test_writer_recovers_exact_interrupted_database_publication_link(self) -> None:
+        """Recover an interrupted publication only when its link identifies the expected database exactly."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = root / "repository"
@@ -419,6 +441,7 @@ class AnalysisDatabaseTests(unittest.TestCase):
             interrupted = analysis / ".analysis.sqlite3.tmp-interrupted"
             os.link(analysis / "analysis.sqlite3", interrupted)
 
+            # Check the required outcomes.
             with self.assertRaisesRegex(ValueError, "one owned regular file"):
                 AnalysisDatabase.open(analysis, read_only=True)
             self.assertTrue(interrupted.exists())

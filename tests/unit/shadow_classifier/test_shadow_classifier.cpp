@@ -48,6 +48,7 @@ struct classifier_case {
 
 int main() {
   try {
+    // Baseline: one file, one mapped function, one stable sibling interval.
     const endpoint_location_context baseline =
         mapped("same.cpp", "function:1", "anchor:lower", "anchor:upper");
 
@@ -98,6 +99,8 @@ int main() {
     endpoint_location_context uninterpretable_ancestor = baseline;
     uninterpretable_ancestor.ancestor_summary_interpretable = false;
 
+    // Cases: each row declares before/after evidence, expected kind, and reason.
+    // No row derives its expected classification from classifier output.
     const std::vector<classifier_case> cases{
         {"same stable interval", baseline, {"block"}, baseline, {"block"},
          movement_kind::stationary,
@@ -157,6 +160,7 @@ int main() {
          movement_classification_reason::incompatible_context},
     };
 
+    // Classification: every row must retain both the result and its explanation.
     for (const classifier_case &test : cases) {
       const movement_classification result = classify_movement(
           test.before, test.before_ancestors, test.after, test.after_ancestors);
@@ -174,6 +178,7 @@ int main() {
                   ": the pure classifier must not infer hierarchy evidence");
     }
 
+    // Output vocabulary: diagnostic enum strings are part of the contract.
     require(to_string(movement_kind::stationary) == "stationary",
             "change-kind strings are part of the diagnostic contract");
     require(to_string(movement_classification_reason::same_anchor_interval) ==
@@ -190,6 +195,7 @@ int main() {
     require(to_string(anchor_interval_observation::different) == "different",
             "incomparable interval strings must remain stable");
 
+    // Production eligibility: only independent relocation can emit a move.
     for (movement_kind kind : {movement_kind::stationary,
                                     movement_kind::restructured,
                                     movement_kind::ambiguous}) {

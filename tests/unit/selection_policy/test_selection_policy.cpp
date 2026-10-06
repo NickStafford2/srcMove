@@ -13,19 +13,50 @@ void require(bool condition, const char *message) {
 }
 
 descendant_bundle_metrics weak_parent_bundle() {
-  return descendant_bundle_metrics{
-      25358, 709, 44, 44, 30000, 30, 30000, 30, 30, 2};
+  // A weak parent covering 44 units competes with two stronger children.
+  descendant_bundle_metrics metrics;
+  metrics.parent_utility = 25358;
+  metrics.parent_confidence_milli = 709;
+  metrics.parent_delete_units = 44;
+  metrics.parent_insert_units = 44;
+  metrics.child_utility_sum = 30000;
+  metrics.child_matched_units = 30;
+  metrics.child_weighted_confidence = 30000;
+  metrics.child_delete_units = 30;
+  metrics.child_insert_units = 30;
+  metrics.child_count = 2;
+  return metrics;
 }
 
 } // namespace
 
 int main() {
   try {
-    proposal_rank_key larger{80000, 128, 96, 1, 1, 1000, 1, 1, 2};
-    proposal_rank_key child{85000, 97, 89, 3, 1, 700, 3, 3, 4};
+    // Ranking: coherent coverage wins even when the child has greater utility.
+    proposal_rank_key larger;
+    larger.utility = 80000;
+    larger.explanatory_units = 128;
+    larger.matched_units = 96;
+    larger.evidence_strength = 1;
+    larger.source_construct = 1;
+    larger.covered_span = 1000;
+    larger.minimum_id = 1;
+    larger.delete_id = 1;
+    larger.insert_id = 2;
+    proposal_rank_key child;
+    child.utility = 85000;
+    child.explanatory_units = 97;
+    child.matched_units = 89;
+    child.evidence_strength = 3;
+    child.source_construct = 1;
+    child.covered_span = 700;
+    child.minimum_id = 3;
+    child.delete_id = 3;
+    child.insert_id = 4;
     require(proposal_rank_better(larger, child),
             "structural coverage should favor the coherent parent");
 
+    // Ties: use candidate IDs to make selection deterministic.
     proposal_rank_key first = larger;
     proposal_rank_key second = larger;
     first.minimum_id = 5;
@@ -33,6 +64,7 @@ int main() {
     require(proposal_rank_better(first, second),
             "candidate ids should deterministically break ties");
 
+    // Bundle replacement: independent children need substantial coverage.
     require(descendant_bundle_preferred(weak_parent_bundle()),
             "strong independent children should replace a weak parent");
 
@@ -48,6 +80,7 @@ int main() {
     require(!descendant_bundle_preferred(partition),
             "a near-complete partition should preserve the parent");
 
+    // Confidence and fragmentation: small gains and many pieces do not win.
     auto small_confidence_gain = weak_parent_bundle();
     small_confidence_gain.parent_confidence_milli = 800;
     require(!descendant_bundle_preferred(small_confidence_gain),

@@ -30,6 +30,7 @@ def make_executable(path: Path) -> Path:
 
 class ToolDiscoveryTests(unittest.TestCase):
     def test_explicit_srcmove_wins_over_workspace_build(self) -> None:
+        """Use an explicitly selected srcMove executable ahead of the workspace build."""
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             explicit = make_executable(root / "explicit" / "srcMove")
@@ -41,6 +42,7 @@ class ToolDiscoveryTests(unittest.TestCase):
                 self.assertEqual(find_srcmove(root, explicit), explicit)
 
     def test_srcdiff_uses_workspace_build_before_path(self) -> None:
+        """Prefer the workspace srcDiff build over an executable found on PATH."""
         with tempfile.TemporaryDirectory() as temp_name:
             workspace = Path(temp_name)
             repo_root = workspace / "srcMove"
@@ -56,6 +58,7 @@ class ToolDiscoveryTests(unittest.TestCase):
                 self.assertEqual(find_srcdiff(repo_root), workspace_srcdiff)
 
     def test_environment_override_is_supported(self) -> None:
+        """Honor the executable path supplied through the supported environment override."""
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             override = make_executable(root / "override" / "srcMove")
@@ -66,6 +69,7 @@ class ToolDiscoveryTests(unittest.TestCase):
                 self.assertEqual(find_srcmove(root), override)
 
     def test_invalid_explicit_path_does_not_fall_back(self) -> None:
+        """Reject an invalid explicit executable path rather than silently selecting another tool."""
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             _ = make_executable(root / "build" / "srcMove")
@@ -78,6 +82,7 @@ class ToolDiscoveryTests(unittest.TestCase):
 
 class ProcessHelperTests(unittest.TestCase):
     def test_run_command_captures_text_output(self) -> None:
+        """Capture a subprocess's output as text through the shared command helper."""
         result = run_command(["/bin/sh", "-c", "printf output; printf error >&2"])
 
         self.assertEqual(result.returncode, 0)
@@ -85,6 +90,7 @@ class ProcessHelperTests(unittest.TestCase):
         self.assertEqual(result.stderr, "error")
 
     def test_failure_format_includes_both_streams(self) -> None:
+        """Include stdout and stderr when formatting a failed command."""
         result = run_command(
             ["/bin/sh", "-c", "printf output; printf error >&2; exit 7"]
         )
@@ -96,6 +102,7 @@ class ProcessHelperTests(unittest.TestCase):
         self.assertIn("error", message)
 
     def test_environment_and_log_rendering_preserve_arguments(self) -> None:
+        """Preserve command arguments when preparing the environment and displaying the command log."""
         env = environment_with_tool(
             Path("/tmp/example/tool"), {"PATH": "/usr/bin", "KEEP": "yes"}
         )

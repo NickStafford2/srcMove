@@ -166,6 +166,7 @@ def execute_xml(
     binary: Path | None = None,
     min_granularity: str | None = None,
     modes: tuple[str, ...] = OUTPUT_MODES,
+    extra_args: tuple[str, ...] = (),
 ) -> ExecutionObservation:
     """Observe explicitly requested modes; nonzero statuses remain inspectable.
 
@@ -205,6 +206,7 @@ the existing behavior fixtures' command and input semantics.
             command.append("--results-only")
         if min_granularity is not None:
             command += ["--min-granularity", min_granularity]
+        command.extend(extra_args)
         completed = run_logged(command, artifacts=directory, capture_output=True, text=True, check=False)
         (directory / f"{mode}.stdout.log").write_text(completed.stdout)
         (directory / f"{mode}.stderr.log").write_text(completed.stderr)

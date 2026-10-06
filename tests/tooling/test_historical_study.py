@@ -24,12 +24,14 @@ class HistoricalStudyTests(unittest.TestCase):
                          to_xpaths=[self.prefix+'/diff:insert[1]/src:function[1]'])
 
     def test_wrong_normalized_partner_is_not_true_positive(self):
+        """Refuse true-positive credit when a reported endpoint has the wrong normalized partner."""
         target = ('same.cpp','void f(){use(fpFmt);}')
         self.assertEqual(match_event(self.tree,[self.move],('same.cpp','void f(){use(realFmt);}'),target),[])
         correct = self.move | {'to_xpaths':[self.prefix+'/diff:insert[1]/src:function[2]']}
         self.assertEqual(match_event(self.tree,[correct],('same.cpp','void f(){use(realFmt);}'),target),[0])
 
     def test_descendant_and_repeated_group_do_not_recover_parent(self):
+        """Give no parent-move credit to a descendant match or an ambiguous repeated group."""
         child=self.move | {'from_xpaths':[self.move['from_xpaths'][0]+'/src:expr_stmt[1]'],
                            'to_xpaths':[self.move['to_xpaths'][0]+'/src:expr_stmt[1]']}
         repeated=self.move | {'from_xpaths':self.move['from_xpaths']*2}
@@ -38,6 +40,7 @@ class HistoricalStudyTests(unittest.TestCase):
                                          ('same.cpp','void f(){use(intFmt);}')),[])
 
     def test_revision_filtered_text_preserves_literal_spaces(self):
+        """Preserve literal whitespace while projecting endpoint text for the selected revision."""
         tree=ET.ElementTree(ET.fromstring('''
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff">
 <unit filename="old.cpp|new.cpp"><diff:insert><expr_stmt>log("a b");<comment>//<diff:delete>old</diff:delete><diff:insert>new</diff:insert></comment></expr_stmt></diff:insert></unit></unit>'''))
@@ -46,6 +49,7 @@ class HistoricalStudyTests(unittest.TestCase):
         self.assertNotEqual(value,('new.cpp','log("ab");//new'))
 
     def test_source_range_hash_and_line_endings_are_not_silently_changed(self):
+        """Validate source ranges and hashes against the exact saved line-ending bytes."""
         content=b'void f() {\r\n  use("a b");\r\n}\r\n'
         endpoint=dict(path='same.cpp',start_line=2,end_line=2,
                       text_sha256=hashlib.sha256(b'  use("a b");\r\n').hexdigest())
@@ -57,14 +61,17 @@ class HistoricalStudyTests(unittest.TestCase):
                          'void f() {\n  use("a b");\n}')
 
     def test_repeated_text_requires_occurrence_resolution(self):
+        """Resolve the specific source occurrence before crediting a match with repeated text."""
         with patch('moveSelectionBench.historical_study.study.git',return_value=b'use(x);\nuse(x);\n'):
             self.assertFalse(endpoint_is_unique(None,'revision',{'path':'same.cpp'},'use(x);'))
 
     def test_correct_text_in_wrong_file_does_not_match(self):
+        """Reject matching endpoint text when it comes from the wrong source file."""
         self.assertEqual(match_event(self.tree,[self.move],('other.cpp','void f(){use(realFmt);}'),
                                      ('same.cpp','void f(){use(intFmt);}')),[])
 
     def test_artifact_tampering_and_incomplete_success_are_rejected(self):
+        """Reject tampered artifacts and incomplete successful records during historical scoring."""
         with tempfile.TemporaryDirectory() as folder:
             dest=Path(folder)
             files={name:hashlib.sha256(b'original').hexdigest()
@@ -80,6 +87,7 @@ class HistoricalStudyTests(unittest.TestCase):
             with self.assertRaises(ValueError): verify_execution(dest,receipt,'run',case)
 
     def test_source_positions_resolve_comment_boundary_without_descendant_credit(self):
+        """Resolve a comment-boundary endpoint from source positions without crediting a nested descendant."""
         text='int value; // member\n'
         tree=ET.ElementTree(ET.fromstring('''<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff"><unit filename="a.cpp|b.cpp"><diff:delete><decl_stmt>int value;</decl_stmt> <comment>// member</comment>
 </diff:delete><diff:insert><decl_stmt>int value;</decl_stmt> <comment>// member</comment>
@@ -96,6 +104,7 @@ class HistoricalStudyTests(unittest.TestCase):
         self.assertFalse(unresolved['candidate_ids'])
 
     def test_production_xpath_predicates_with_slashes_and_named_functions(self):
+        """Resolve production XPath predicates containing filename slashes and named functions."""
         root=ET.fromstring('''<unit xmlns="http://www.srcML.org/srcML/src"><unit filename="src/a.cpp|dest/b.cpp"><function><name>first</name></function><function><name>second</name><block/></function></unit></unit>''')
         path="/src:unit[@filename='src/a.cpp|dest/b.cpp']/src:function[src:name='second']/src:block[1]"
         expected=root.find('.//'+SRC_TAG('block'))

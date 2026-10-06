@@ -31,6 +31,8 @@ def completed(item: PairWorkItem) -> PairOutcome:
 
 class RunPairsTests(unittest.TestCase):
     def test_slow_early_pair_does_not_prevent_dynamic_claiming(self) -> None:
+        """Let idle workers claim later pairs while an earlier pair is still running."""
+        # Prepare the inputs and exercise the operation.
         release_first = threading.Event()
         later_progress = threading.Event()
         completed_later: list[int] = []
@@ -69,6 +71,7 @@ class RunPairsTests(unittest.TestCase):
         coordinator_thread = threading.Thread(target=run)
         coordinator_thread.start()
         try:
+            # Check the required outcomes.
             self.assertTrue(later_progress.wait(timeout=10))
         finally:
             release_first.set()
@@ -81,6 +84,8 @@ class RunPairsTests(unittest.TestCase):
         self.assertEqual(published, list(range(8)))
 
     def test_worker_count_is_fixed_and_each_item_executes_once(self) -> None:
+        """Use the requested fixed worker count and execute every work item exactly once."""
+        # Prepare the inputs and exercise the operation.
         worker_count = 4
         first_claims = threading.Barrier(worker_count)
         claims: Counter[int] = Counter()
@@ -102,6 +107,7 @@ class RunPairsTests(unittest.TestCase):
             worker_count=worker_count,
         )
 
+        # Check the required outcomes.
         self.assertEqual(stats.worker_count, worker_count)
         self.assertEqual(len(worker_names), worker_count)
         self.assertEqual(claims, Counter({sequence: 1 for sequence in range(40)}))
@@ -116,6 +122,8 @@ class RunPairsTests(unittest.TestCase):
         )
 
     def test_completion_can_be_out_of_order_but_publication_is_ordered(self) -> None:
+        """Allow workers to finish out of order while publishing their outcomes in pair order."""
+        # Prepare the inputs and exercise the operation.
         release_first = threading.Event()
         second_completed = threading.Event()
         completion_order: list[int] = []
@@ -146,11 +154,14 @@ class RunPairsTests(unittest.TestCase):
         )
         release_thread.join(timeout=10)
 
+        # Check the required outcomes.
         self.assertTrue(second_completed.is_set())
         self.assertLess(completion_order.index(1), completion_order.index(0))
         self.assertEqual(publication_order, [0, 1, 2, 3])
 
     def test_work_and_unpublished_outcome_bounds_apply(self) -> None:
+        """Bound both claimed work and completed outcomes awaiting ordered publication."""
+        # Prepare the inputs and exercise the operation.
         release_first = threading.Event()
         second_completed = threading.Event()
         third_started = threading.Event()
@@ -181,6 +192,7 @@ class RunPairsTests(unittest.TestCase):
         coordinator_thread = threading.Thread(target=run)
         coordinator_thread.start()
         try:
+            # Check the required outcomes.
             self.assertTrue(second_completed.wait(timeout=10))
             self.assertFalse(third_started.wait(timeout=0.2))
         finally:
@@ -193,6 +205,8 @@ class RunPairsTests(unittest.TestCase):
         self.assertEqual(stats.max_unpublished_outcomes, 2)
 
     def test_worker_error_stops_safely_and_propagates(self) -> None:
+        """Stop coordination safely and propagate a worker exception to the caller."""
+        # Prepare the inputs and exercise the operation.
         published: list[int] = []
         result: list[BaseException] = []
 
@@ -219,6 +233,7 @@ class RunPairsTests(unittest.TestCase):
         coordinator_thread.start()
         coordinator_thread.join(timeout=10)
 
+        # Check the required outcomes.
         self.assertFalse(coordinator_thread.is_alive(), "coordinator deadlocked")
         self.assertEqual(len(result), 1)
         self.assertIsInstance(result[0], WorkerExecutionError)
@@ -232,6 +247,7 @@ class RunPairsTests(unittest.TestCase):
         )
 
     def test_acknowledgement_requires_successful_publication(self) -> None:
+        """Acknowledge a completed worker result only after its publication succeeds."""
         events: list[tuple[str, int]] = []
 
         def publish(outcome: PairOutcome) -> None:

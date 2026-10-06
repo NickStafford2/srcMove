@@ -32,6 +32,7 @@ class ShadowContractTests(unittest.TestCase):
         cls.cases = load_shadow_contracts(CATALOG)
 
     def test_catalog_owns_the_reviewed_phase_zero_matrix(self) -> None:
+        """The 12 exact-correspondence cases cover every reviewed location category and production decision."""
         indexed = {case["id"]: case for case in self.cases}
         self.assertEqual(len(indexed), 12)
         self.assertEqual(
@@ -56,6 +57,7 @@ class ShadowContractTests(unittest.TestCase):
         )
 
     def test_checked_in_srcdiff_fixtures_satisfy_their_preconditions(self) -> None:
+        """Checked-in XML must expose the independently reviewed endpoint counts before classification is tested."""
         for case in self.cases:
             fixture = case["fixture"]
             if "srcdiff" not in fixture:
@@ -64,6 +66,7 @@ class ShadowContractTests(unittest.TestCase):
                 validate_srcdiff_precondition(case, fixture["srcdiff"])
 
     def test_source_generated_nodiscard_regression_satisfies_its_precondition(self) -> None:
+        """Regenerated nodiscard-and-unwrapping differences must still admit the reviewed return statement."""
         case = next(case for case in self.cases if "source_pair" in case["fixture"])
         srcdiff = find_srcdiff(REPO_ROOT, None)
         require_tool(srcdiff)
@@ -87,6 +90,7 @@ class ShadowContractTests(unittest.TestCase):
             validate_srcdiff_precondition(case, output)
 
     def test_precondition_validation_rejects_an_upstream_alignment_change(self) -> None:
+        """Reject a fixture whose common markup removes the required deleted and inserted endpoint evidence."""
         case = next(case for case in self.cases if case["id"] == "missing_anchor_ambiguity")
         with artifact_directory(case_id=self.id()) as temporary_directory:
             fixture = Path(temporary_directory) / "common.xml"
@@ -100,6 +104,7 @@ class ShadowContractTests(unittest.TestCase):
                 validate_srcdiff_precondition(case, fixture)
 
     def test_generated_shadow_diagnostics_match_supported_contracts(self) -> None:
+        """Every reviewed exact correspondence must retain its location classification and production decision."""
         srcmove = find_srcmove(REPO_ROOT, None)
         srcdiff = find_srcdiff(REPO_ROOT, None)
         require_tool(srcmove)

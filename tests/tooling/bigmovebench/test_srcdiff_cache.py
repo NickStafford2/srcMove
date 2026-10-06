@@ -12,6 +12,8 @@ CASE_ID = "bcb-generated-input-sha256-" + "a" * 64
 
 class DevelopmentSrcdiffCacheTests(unittest.TestCase):
     def test_round_trip_and_corrupt_entry_miss(self) -> None:
+        """Restore a valid srcDiff cache entry byte-for-byte and treat corrupted cache content as a miss."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             cache = DevelopmentSrcdiffCache(root / "cache")
@@ -24,6 +26,7 @@ class DevelopmentSrcdiffCacheTests(unittest.TestCase):
                 source=source,
             )
             restored = root / "restored.xml"
+            # Check the required outcomes.
             self.assertTrue(
                 cache.restore(
                     case_id=CASE_ID,

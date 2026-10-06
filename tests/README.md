@@ -24,6 +24,31 @@ globs so the shell does not expand them. Each selector must match at least one
 ID in the selected suites. `--list` needs no executable and can write a JSON
 inventory with `--report`.
 
+## Reading the suite
+
+Generate a searchable test index from the repository root:
+
+```bash
+python3 srcMove/tests/describe.py
+```
+
+Open `srcMove/build/readable-suite/catalog.html`. Each entry shows the test's
+purpose, its implementation, and available input and expectation links. Source
+fixtures include before/after previews. This command inventories tests without
+running the detector, so it can also run on the macOS host.
+
+The suite still uses Python `unittest` and explicit assertions. The index and
+extracted fixtures make the cases easier to inspect; detailed output contracts
+remain in their owning tests. Test IDs and independently justified expectations
+are preserved.
+
+Handwritten detector inputs live in `fixtures/handwritten/<topic>/<case>/`.
+Start with their before/after source files and purpose, then read the linked
+assertions. For explicit XML cases, `input.srcdiff.xml` is the actual detector
+input. The runner checks its source views for consistency. These views are a
+simple display of the revisions, not an expected detector result or a general
+source-code parser.
+
 ## Boundaries
 
 | Location | Responsibility |
@@ -54,20 +79,24 @@ representations:
 
 - `fixtures/xml/cases/<case>/`: `input.xml`, `expected.json`, and exact annotated
   `expected.xml`. Tests apply the JSON oracle and preserve the XML serialization
-  snapshot.
+  snapshot. Each `case.json` describes the purpose; checked before/after source
+  views make the XML input readable.
 - `fixtures/source/<case>/`: `oracle.json` and either one
   `original.*`/`modified.*` pair or `original/`/`modified/` archive directories.
   srcDiff regenerates inputs. Single-file sides use the same logical relative
   filename `source.<ext>` beneath separate revision roots, preventing fixture
   labels from becoming rename evidence. Normal and results-only ordinary JSON
   must agree.
-- `fixtures/policy/`: isolated reviewer-owned transfer and archive catalogs.
-  Negative cases require zero moves; positive cases require exactly one move
-  with the declared endpoint text and content relationship. Entries retain
-  language, scenario, and rationale. Unrelated catalog examples never share one
-  comparison archive.
-- `fixtures/selection/`: accepted selection and classifier catalogs plus their
-  XML/source inputs. [Selection-catalog assertions](support/selection_catalog.py)
+- `fixtures/policy/cases/<case>/`: before/after source files and a `case.json`
+  with the purpose and explicit expectation. The four policy catalogs index
+  these 78 cases. Negative cases require zero moves; positive cases require
+  exactly one move with the declared endpoint text and content relationship.
+  Expected endpoint text lives in separate source files. Unrelated examples
+  never share one comparison archive.
+- `fixtures/selection/`: catalogs index 68 individual definitions under
+  `definitions/<catalog>/<case>/case.json`, retaining their independent oracles.
+  XML cases also have checked source views. Referenced detector inputs remain
+  relative to the selection fixture root. [Selection-catalog assertions](support/selection_catalog.py)
   retain required and forbidden interpretations; classifier tests retain
   independent srcDiff admission, context, classification, and production-policy
   expectations.
@@ -86,13 +115,44 @@ occurrence counts with atomic results. Annotation ID sets alone are insufficient
 the annotation helper does not resolve every annotated node's own XPath, so
 same-text occurrences still need independent location expectations.
 
-The interaction contracts explicitly resolve selected origin/destination nodes
-for balanced two-origin/two-added-copy groups, adjacent distinct copy groups,
-and a repeated-text reorder with a stationary occurrence. They require exactly
-those nodes to carry atomic annotations, excluding continuing destinations and
-stationary equal-text occurrences. Source archive contracts also cover identical
-basenames in different subdirectories and retain the full revision-relative
-filename in each admitted correspondence and selected endpoint.
+### Readable scenarios
+
+Start with the before/after C++ files in [`fixtures/scenarios/`](fixtures/scenarios/).
+The four scenarios cover two new copies of an existing call, adjacent distinct
+copies, a reorder beside a stationary identical call, and identical basenames in
+different directories. Their expectations live in
+[`behavior/test_readable_scenarios.py`](behavior/test_readable_scenarios.py):
+
+```python
+def expect_two_new_copies(case):
+    case.expect_copy_group(
+        relationship="type1", reason="continuing_source_copy",
+        origins=["first.repeat_work", "second.repeat_work"],
+        destinations=["extra_a.repeat_work", "extra_b.repeat_work"],
+    )
+    case.expect_group_count(1)
+    case.expect_no_sequences()
+```
+
+`first.repeat_work` means the `repeat_work` call inside `while (first)`.
+The origins are the two existing occurrences; the destinations are only the
+two added occurrences. The copy assertion requires exact Type-1 content and
+the `continuing_source_copy` reason, without assigning individual copy pairs.
+
+[`support/scenarios.py`](support/scenarios.py) resolves these names against the
+input, independently of detector output. The XML interaction fixtures retain
+their explicit `input.srcdiff.xml`: whole-loop replacements and common-loop
+markup exercise different detector inputs. The helper checks that the readable
+source files describe the XML's before/after revisions. The duplicate-basename
+archive instead runs srcDiff on its before/after directories.
+
+Behavior tests check which groups are detected. Separate
+[`output contract tests`](behavior/test_scenario_output_contracts.py) reuse the
+same fixtures and expectations to check all three output modes, report
+conservation, and annotation consistency. The retained XML cases also require
+annotations on the exact expected nodes: continuing and stationary identical
+occurrences must stay unannotated. Both test families remain in the behavior
+suite consumed by moveSelectionBench.
 
 Keep source expectations and reviewer policy independent of current detector
 output. A missed positive remains a failing assertion. Changing or removing a

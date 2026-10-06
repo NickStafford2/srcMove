@@ -12,12 +12,14 @@ from bigMoveBench.contracts import (
 
 class BigMoveBenchContractTests(unittest.TestCase):
     def test_semantic_status_vocabulary(self) -> None:
+        """Keep the four semantic-admission status values explicit and stable."""
         self.assertEqual(
             [status.value for status in SemanticStatus],
             ["eligible", "ineligible", "not_applicable", "not_checked"],
         )
 
     def test_pair_and_semantic_defaults_are_independent(self) -> None:
+        """Construct a source pair and a semantic result with empty metadata and details by default."""
         pair = InputPair("one", Path("old.cpp"), Path("new.cpp"))
         result = SemanticResult(SemanticStatus.NOT_APPLICABLE)
 

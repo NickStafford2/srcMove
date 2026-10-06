@@ -62,6 +62,7 @@ class ProcessAttemptTests(unittest.TestCase):
         return execute_attempt(**arguments)
 
     def test_success_is_admitted_with_atomic_terminal_record(self) -> None:
+        """Publish a successful process attempt with an admitted output and atomic terminal record."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             attempt_dir, attempt = self.run_attempt(
                 Path(temporary_directory), "valid-single"
@@ -79,6 +80,7 @@ class ProcessAttemptTests(unittest.TestCase):
             )
 
     def test_output_validation_key_supports_non_xml_artifacts(self) -> None:
+        """Validate and record a non-XML output under its declared artifact key."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             attempt_dir, attempt = self.run_attempt(
                 Path(temporary_directory),
@@ -96,6 +98,7 @@ class ProcessAttemptTests(unittest.TestCase):
             self.assertEqual(persisted, attempt)
 
     def test_resource_sampler_shares_one_scan_across_active_groups(self) -> None:
+        """Sample multiple active process groups through one shared resource scan."""
         sampler = _ProcessGroupResourceSampler(sample_seconds=0.001)
         observed_groups: list[set[int]] = []
         observation_lock = threading.Lock()
@@ -133,6 +136,7 @@ class ProcessAttemptTests(unittest.TestCase):
         self.assertEqual(sampler._monitors, set())
 
     def test_process_and_xml_failures_remain_distinct(self) -> None:
+        """Record process termination separately from missing, malformed, or invalid XML output."""
         outcomes = {
             "nonzero": ("exited", "missing"),
             "signal": ("signaled", "missing"),
@@ -151,6 +155,8 @@ class ProcessAttemptTests(unittest.TestCase):
                     self.assertEqual(attempt["xml"]["status"], xml)
 
     def test_xml_admission_preserves_namespace_and_shape_contract(self) -> None:
+        """Accept XML only when its namespaces and document shape satisfy the declared contract."""
+        # Prepare the inputs and exercise the operation.
         cases = {
             "valid_single": (
                 "<unit xmlns='http://www.srcML.org/srcML/src' "
@@ -209,6 +215,7 @@ class ProcessAttemptTests(unittest.TestCase):
                     path = root / f"{name}.xml"
                     path.write_text(xml, encoding="utf-8")
                     result = validate_srcdiff_xml(path, shape)
+                    # Check the required outcomes.
                     self.assertEqual(result["status"], status)
                     self.assertEqual(
                         result["sha256"], hashlib.sha256(xml.encode()).hexdigest()
@@ -217,6 +224,7 @@ class ProcessAttemptTests(unittest.TestCase):
                         self.assertEqual(result["error"], error)
 
     def test_sigkill_is_not_assumed_to_be_out_of_memory(self) -> None:
+        """Report SIGKILL without inventing an out-of-memory cause."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             _, attempt = self.run_attempt(Path(temporary_directory), "sigkill")
 
@@ -226,6 +234,7 @@ class ProcessAttemptTests(unittest.TestCase):
             )
 
     def test_spawn_failure_has_a_terminal_record(self) -> None:
+        """Save a terminal attempt record when the process cannot be started."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             attempt_dir, attempt = execute_attempt(
@@ -246,6 +255,7 @@ class ProcessAttemptTests(unittest.TestCase):
             self.assertTrue((attempt_dir / "attempt.json").is_file())
 
     def test_timeout_force_kills_the_process_group(self) -> None:
+        """Kill a timed-out process group that survives graceful termination."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             _, attempt = self.run_attempt(
                 Path(temporary_directory),
@@ -261,6 +271,8 @@ class ProcessAttemptTests(unittest.TestCase):
             )
 
     def test_logs_are_bounded_but_describe_the_full_stream(self) -> None:
+        """Store bounded logs with byte counts and checksums for the complete output streams."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             script = root / "large_output.py"
@@ -288,6 +300,7 @@ class ProcessAttemptTests(unittest.TestCase):
                 log_limit=40,
             )
 
+            # Check the required outcomes.
             self.assertEqual(attempt["stdout"]["total_bytes"], 200)
             self.assertEqual(attempt["stdout"]["retained_bytes"], 40)
             self.assertEqual(attempt["stdout"]["omitted_bytes"], 160)
@@ -299,6 +312,8 @@ class ProcessAttemptTests(unittest.TestCase):
             self.assertEqual(attempt["stderr"]["total_bytes"], 180)
 
     def test_empty_logs_are_described_without_creating_empty_files(self) -> None:
+        """Record empty output streams without publishing unnecessary empty log files."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             script = root / "silent.py"
@@ -321,6 +336,7 @@ class ProcessAttemptTests(unittest.TestCase):
                 output_filename="partial.srcdiff.xml",
             )
 
+            # Check the required outcomes.
             self.assertEqual(attempt["stdout"]["total_bytes"], 0)
             self.assertIsNone(attempt["stdout"]["path"])
             self.assertIsNone(attempt["stderr"]["path"])
@@ -328,6 +344,8 @@ class ProcessAttemptTests(unittest.TestCase):
             self.assertFalse((attempt_dir / "stderr.bin").exists())
 
     def test_abandoned_staging_is_recovered_but_never_admitted(self) -> None:
+        """Recover abandoned process staging as interrupted work rather than admitted success."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             attempts = Path(temporary_directory) / "attempts"
             abandoned = attempts / "attempt-abandoned"
@@ -344,6 +362,7 @@ class ProcessAttemptTests(unittest.TestCase):
                 "<unit/>", encoding="utf-8"
             )
 
+            # Check the required outcomes.
             self.assertEqual(
                 recover_interrupted_attempts(attempts), ["attempt-abandoned"]
             )
@@ -356,6 +375,7 @@ class ProcessAttemptTests(unittest.TestCase):
             self.assertFalse(recovered["admitted"])
 
     def test_recovery_preserves_non_xml_validation_key(self) -> None:
+        """Retain a non-XML artifact's validation key when recovering an interrupted attempt."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             attempts = Path(temporary_directory) / "attempts"
             abandoned = attempts / "attempt-abandoned"

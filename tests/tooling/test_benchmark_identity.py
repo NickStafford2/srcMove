@@ -7,6 +7,7 @@ from benchmarking.identity import canonical_json, content_identifier
 
 class BenchmarkIdentityTests(unittest.TestCase):
     def test_canonical_identity_ignores_object_key_order(self) -> None:
+        """Give JSON objects with equal contents the same identity despite different key ordering."""
         left = {"schema_version": 1, "cases": ["a", "b"], "scope": None}
         right = {"scope": None, "cases": ["a", "b"], "schema_version": 1}
 
@@ -17,6 +18,7 @@ class BenchmarkIdentityTests(unittest.TestCase):
         )
 
     def test_canonical_identity_preserves_array_order_and_content(self) -> None:
+        """Change canonical identity when array order or contents change."""
         baseline = {"schema_version": 1, "checksums": ["one", "two"]}
         reordered = {"schema_version": 1, "checksums": ["two", "one"]}
         changed = {"schema_version": 1, "checksums": ["one", "three"]}

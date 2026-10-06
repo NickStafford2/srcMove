@@ -9,6 +9,7 @@ from bigMoveBench.dataset import extract_lines, source_path
 
 class BigCloneBenchDatasetTests(unittest.TestCase):
     def test_source_path_supports_flat_and_reduced_layouts(self) -> None:
+        """Resolve Java source files in both supported IJaDataset directory layouts."""
         with tempfile.TemporaryDirectory() as temporary:
             bce_dir = Path(temporary) / "BigCloneEval"
             reduced = (
@@ -33,6 +34,7 @@ class BigCloneBenchDatasetTests(unittest.TestCase):
             )
 
     def test_extract_lines_uses_lf_ranges_when_comments_contain_cr(self) -> None:
+        """Extract the declared LF-delimited function lines without treating a carriage return in a comment as a new line."""
         with tempfile.TemporaryDirectory() as temporary:
             source = Path(temporary) / "sample.java"
             source.write_text(

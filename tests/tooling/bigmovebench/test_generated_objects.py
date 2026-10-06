@@ -13,6 +13,8 @@ from bigMoveBench.synthetic import (
 
 class GeneratedObjectStoreTests(unittest.TestCase):
     def test_reuses_stable_objects_across_pair_combinations(self) -> None:
+        """Reuse the same generated fragment objects when their source fragments occur in different pairs."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             store = GeneratedObjectStore(Path(temporary))
             fragments = {
@@ -34,6 +36,7 @@ class GeneratedObjectStoreTests(unittest.TestCase):
                     )
                 )
 
+            # Check the required outcomes.
             self.assertEqual(cases[0][0].object_id, cases[1][0].object_id)
             self.assertEqual(cases[1][3].object_id, cases[2][3].object_id)
             self.assertTrue(all(case[1] == cases[0][1] for case in cases))
@@ -45,6 +48,7 @@ class GeneratedObjectStoreTests(unittest.TestCase):
             )
 
     def test_stable_wrapper_identity_does_not_depend_on_pairing(self) -> None:
+        """Preserve a fragment wrapper's identity and source range independently of its paired fragment."""
         with tempfile.TemporaryDirectory() as temporary:
             store = GeneratedObjectStore(Path(temporary))
             fragment = "void moved() {\n  call();\n}\n"
@@ -64,6 +68,7 @@ class GeneratedObjectStoreTests(unittest.TestCase):
             self.assertFalse(destination.path.stat().st_mode & 0o222)
 
     def test_rejects_corrupted_published_object(self) -> None:
+        """Refuse to reuse a generated source object whose published content has changed."""
         with tempfile.TemporaryDirectory() as temporary:
             store = GeneratedObjectStore(Path(temporary))
             fragment = "void moved() {}\n"
@@ -75,6 +80,7 @@ class GeneratedObjectStoreTests(unittest.TestCase):
                 store.publish(STABLE_SOURCE_ROLE, fragment)
 
     def test_rejects_unknown_role_without_creating_store(self) -> None:
+        """Reject an unsupported wrapper role before creating any object-store directory."""
         with tempfile.TemporaryDirectory() as temporary:
             store = GeneratedObjectStore(Path(temporary))
             with self.assertRaisesRegex(ValueError, "unsupported"):
@@ -82,6 +88,7 @@ class GeneratedObjectStoreTests(unittest.TestCase):
             self.assertFalse(store.directory.exists())
 
     def test_rejects_empty_payload_as_distinct_from_empty_wrapper(self) -> None:
+        """Allow an intentionally empty wrapper but reject an empty string supplied as a fragment payload."""
         with tempfile.TemporaryDirectory() as temporary:
             store = GeneratedObjectStore(Path(temporary))
             empty_wrapper = store.publish(STABLE_SOURCE_ROLE, None)

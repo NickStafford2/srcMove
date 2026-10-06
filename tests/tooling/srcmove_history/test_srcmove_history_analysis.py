@@ -31,6 +31,7 @@ def executable(path: Path) -> Path:
 
 class AnalyzeRepositoryTests(unittest.TestCase):
     def test_total_target_is_idempotent_and_extends_without_renumbering(self) -> None:
+        """Repeat a reached two-pair target without work, then extend it to four pairs with stable ordering."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = self._history(root, 7)
@@ -43,6 +44,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             )
             self.assertEqual(first.summary["completed_pair_count"], 2)
             self.assertEqual(first.summary["oldest_completed_commit"], commits[4])
+            # Leave stale interrupted scratch for the repeated request to clean up.
             stale = analysis / "scratch" / "interrupted" / "large-input.c"
             stale.parent.mkdir(parents=True)
             stale.write_bytes(b"stale materialized input")
@@ -64,6 +66,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             )
             self.assertFalse(stale.exists())
 
+            # Check that both invocations were recorded without changing coverage.
             with AnalysisDatabase.open(analysis, read_only=True) as database:
                 invocations = database.connection.execute(
                     "SELECT result FROM invocations ORDER BY created_order"
@@ -73,6 +76,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
                 ["target_reached", "target_reached"],
             )
 
+            # Extend the existing analysis and check its new committed frontier.
             extended = analyze_repository(
                 analysis_root=analysis,
                 target=AnalysisTarget("total_pairs", 4),
@@ -82,6 +86,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertEqual(extended.summary["oldest_completed_commit"], commits[2])
 
     def test_additional_target_extends_from_locked_committed_frontier(self) -> None:
+        """Add two pairs to the existing committed frontier and record the resolved total target."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = self._history(root, 7)
@@ -108,6 +113,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertEqual(extended.summary["invocation"]["target_value"], "4")
 
     def test_additional_target_creates_analysis_like_total_target(self) -> None:
+        """Create a new analysis from an additional-pairs target and process the requested two pairs."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = self._history(root, 5)
@@ -128,6 +134,8 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertEqual(result.summary["invocation"]["target_value"], "2")
 
     def test_root_bounded_target_records_exhaustion_and_repeats_as_noop(self) -> None:
+        """Stop at repository history exhaustion and repeat the oversized target without opening workers."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = self._history(root, 4)
@@ -138,6 +146,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             result = self._analyze(
                 analysis, repository, srcdiff, srcmove, total_pairs=100
             )
+            # Check the required outcomes.
             self.assertEqual(result.summary["completed_pair_count"], 3)
             self.assertEqual(result.summary["oldest_completed_commit"], commits[0])
             self.assertTrue(result.summary["history_exhausted"])
@@ -156,6 +165,8 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertTrue(repeated.summary["history_exhausted"])
 
     def test_through_target_is_bound_to_frozen_newest_commit(self) -> None:
+        """Resolve a through-commit target against the analysis's frozen newest revision."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = self._history(root, 6)
@@ -170,6 +181,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
                 srcmove,
                 through=commits[2],
             )
+            # Check the required outcomes.
             self.assertEqual(result.summary["completed_pair_count"], 3)
             self.assertEqual(result.summary["oldest_completed_commit"], commits[2])
             self._commit(repository, "branch-moved")
@@ -188,6 +200,8 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertEqual(repeated.execution.submitted_count, 0)
 
     def test_terminal_failure_is_committed_and_retry_is_idempotent(self) -> None:
+        """Commit a terminal pair failure and reuse that outcome on an identical retry."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = root / "repository"
@@ -213,6 +227,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
                 srcdiff_path=srcdiff,
                 srcmove_path=srcmove,
             )
+            # Check the required outcomes.
             self.assertEqual(result.summary["completed_pair_count"], 1)
             self.assertEqual(result.summary["failed"], 1)
             self.assertEqual(result.summary["statuses"], {"srcdiff_failed": 1})
@@ -231,6 +246,8 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertEqual(repeated.execution.submitted_count, 0)
 
     def test_sealed_pending_batch_commits_without_reopening_workers(self) -> None:
+        """Publish an already sealed pending batch without executing its workers again."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, _ = self._history(root, 5)
@@ -242,6 +259,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
                 "commit_pending_batch",
                 side_effect=RuntimeError("injected after sealed outcomes"),
             ):
+                # Check the required outcomes.
                 with self.assertRaisesRegex(RuntimeError, "injected"):
                     self._analyze(
                         analysis, repository, srcdiff, srcmove, total_pairs=2
@@ -280,6 +298,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertEqual(extended.summary["completed_pair_count"], 3)
 
     def test_all_history_is_split_into_bounded_internal_batches(self) -> None:
+        """Analyze all available history through bounded internal batches."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, _ = self._history(root, 7)
@@ -304,6 +323,8 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertEqual([row[0] for row in sizes], [2, 2, 2])
 
     def test_retry_after_final_state_commit_does_not_extend(self) -> None:
+        """Treat a retry after final state publication as a no-op instead of extending coverage."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, _ = self._history(root, 4)
@@ -319,6 +340,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
                 return original_summary(database)
 
             with patch.object(AnalysisDatabase, "summary", fail_first_summary):
+                # Check the required outcomes.
                 with self.assertRaisesRegex(RuntimeError, "final state commit"):
                     self._analyze(
                         analysis,
@@ -342,6 +364,8 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             self.assertEqual(repeated.execution.submitted_count, 0)
 
     def test_lock_contention_precedes_database_load_and_worker_open(self) -> None:
+        """Reject a competing writer before loading the database or opening worker sessions."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, _ = self._history(root, 3)
@@ -365,6 +389,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
                     "open_worker",
                     side_effect=AssertionError("contender opened a worker"),
                 ):
+                    # Check the required outcomes.
                     with self.assertRaises(AnalysisBusyError):
                         analyze_repository(
                             analysis_root=analysis,
@@ -377,6 +402,8 @@ class AnalyzeRepositoryTests(unittest.TestCase):
             )
 
     def test_keyboard_interrupt_is_recorded_as_interrupted_invocation(self) -> None:
+        """Record an interrupted analysis invocation when execution raises KeyboardInterrupt."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, _ = self._history(root, 3)
@@ -389,6 +416,7 @@ class AnalyzeRepositoryTests(unittest.TestCase):
                 total_pairs=1,
             )
 
+            # Check the required outcomes.
             with patch(
                 "srcmove_history.analysis._advance_analysis",
                 side_effect=KeyboardInterrupt,

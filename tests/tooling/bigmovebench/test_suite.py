@@ -24,8 +24,44 @@ def write_executable(path: Path, source: str) -> Path:
     return path
 
 
+def suite_tools(root: Path) -> tuple[Path, Path]:
+    """Create tools that expose a broad diff region and report no selected moves."""
+    srcdiff = write_executable(
+        root / "srcdiff",
+        """#!/usr/bin/env python3
+import sys
+from pathlib import Path
+output = Path(sys.argv[sys.argv.index('-o') + 1])
+output.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
+    "xmlns:diff='http://www.srcML.org/srcDiff/diff' "
+    "xmlns:pos='http://www.srcML.org/srcML/position'>"
+    "<unit language='Java' filename='input.java'>"
+    "<diff:delete><name pos:start='1:1|1:1' pos:end='1000:1|1000:1'/></diff:delete>"
+    "<diff:insert><name pos:start='1:1|1:1' pos:end='1000:1|1000:1'/></diff:insert>"
+    "</unit>"
+    "</unit>")
+""",
+    )
+    srcmove = write_executable(
+        root / "srcmove",
+        """#!/usr/bin/env python3
+import json
+import shutil
+import sys
+from pathlib import Path
+source, output = Path(sys.argv[1]), Path(sys.argv[2])
+shutil.copy2(source, output)
+Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
+    json.dumps({'results_schema_version': 2, 'move_count': 0,
+                'content_relationships': {}, 'moves': []}))
+""",
+    )
+    return srcdiff, srcmove
+
+
 class BigCloneBenchSuiteTests(unittest.TestCase):
     def test_suite_cli_exposes_profiles_without_ignored_sampling_options(self) -> None:
+        """Default the suite to the small profile and reject unsupported mode, seed, and sample-size arguments."""
         with mock.patch("sys.argv", ["suite.py"]):
             args = parse_args()
         self.assertEqual(args.profile, "small")
@@ -47,6 +83,7 @@ class BigCloneBenchSuiteTests(unittest.TestCase):
                 parse_args()
 
     def test_type_three_recall_is_observational_but_errors_fail(self) -> None:
+        """Allow Type-3 recall misses as observations but fail operational evaluation when a tool fails."""
         counts = {
             "selected": 2,
             "oracle_pass": 0,
@@ -61,39 +98,12 @@ class BigCloneBenchSuiteTests(unittest.TestCase):
         self.assertFalse(_pair_set_operational_pass("type3", counts))
 
     def test_suite_uses_normalized_cases_and_preserves_combined_report(self) -> None:
+        """Run all five pair categories twice, reuse normalized cases, and retain reports, progress, profiles, and cache behavior."""
         with tempfile.TemporaryDirectory() as temporary:
+            # Arrange a compiled dataset and tools that report no moves.
             root = Path(temporary)
             bce, compiled = benchmark_case_fixtures.compile_fixture(root)
-            srcdiff = write_executable(
-                root / "srcdiff",
-                """#!/usr/bin/env python3
-import sys
-from pathlib import Path
-output = Path(sys.argv[sys.argv.index('-o') + 1])
-output.write_text("<unit xmlns='http://www.srcML.org/srcML/src' "
-    "xmlns:diff='http://www.srcML.org/srcDiff/diff' "
-    "xmlns:pos='http://www.srcML.org/srcML/position'>"
-    "<unit language='Java' filename='input.java'>"
-    "<diff:delete><name pos:start='1:1|1:1' pos:end='1000:1|1000:1'/></diff:delete>"
-    "<diff:insert><name pos:start='1:1|1:1' pos:end='1000:1|1000:1'/></diff:insert>"
-    "</unit>"
-    "</unit>")
-""",
-            )
-            srcmove = write_executable(
-                root / "srcmove",
-                """#!/usr/bin/env python3
-import json
-import shutil
-import sys
-from pathlib import Path
-source, output = Path(sys.argv[1]), Path(sys.argv[2])
-shutil.copy2(source, output)
-Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
-    json.dumps({'results_schema_version': 2, 'move_count': 0,
-                'content_relationships': {}, 'moves': []}))
-""",
-            )
+            srcdiff, srcmove = suite_tools(root)
             args = SimpleNamespace(
                 cache_root=root / "data",
                 results_root=root / "results",
@@ -107,6 +117,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 profile_runner=root / "profiles" / "first.jsonl",
             )
 
+            # Run the full suite once and capture its progress.
             progress_output = StringIO()
             with mock.patch(
                 "bigMoveBench.suite.ensure_compiled_dataset",
@@ -114,6 +125,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             ), redirect_stdout(StringIO()), redirect_stderr(progress_output):
                 first_dir, first, first_passed = run_suite(args)
 
+            # Repeat the suite with a separate profiling output.
             args.profile_runner = root / "profiles" / "second.jsonl"
             with mock.patch(
                 "bigMoveBench.suite.ensure_compiled_dataset",
@@ -121,6 +133,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             ), redirect_stdout(StringIO()), redirect_stderr(StringIO()):
                 second_dir, second, second_passed = run_suite(args)
 
+            # Check both runs, all five categories, saved artifacts, and case reuse.
             self.assertFalse(first_passed)
             self.assertFalse(second_passed)
             self.assertTrue(first_dir.is_relative_to(args.results_root.resolve()))
@@ -167,6 +180,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             self.assertEqual(
                 len({item["run_id"] for item in first["pair_sets"]}), 5
             )
+            # Check negative-pair rejection and observational Type-3 handling.
             negative = next(
                 item
                 for item in first["pair_sets"]
@@ -183,6 +197,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             )
             self.assertIn("srcmove_miss", progress_report)
             self.assertIn("oracle_pass", progress_report)
+            # Check the human report for the original outcomes.
             output = StringIO()
             with redirect_stdout(output):
                 _print_report(first_dir, first)
@@ -216,6 +231,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             self.assertIn("selected cases 4", report)
             self.assertNotIn("unsuitable for thesis", report)
 
+            # Check a reviewed label without replacing the original result.
             reviewed_suite = copy.deepcopy(first)
             reviewed_pair = next(
                 item for item in reviewed_suite["pair_sets"]
@@ -240,6 +256,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
                 for item in first["pair_sets"]
             ))
 
+            # Check the warning and counts for development-only cache use.
             first["request"]["development_srcdiff_cache"] = {
                 "enabled": True,
                 "refresh": False,
@@ -259,6 +276,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             self.assertIn("srcDiff cache: 5 hits, 0 misses", cached_output.getvalue())
             first["request"]["development_srcdiff_cache"]["enabled"] = False
 
+            # Check per-band reporting for a balanced Type-3 sample.
             type3["assessment"]["sample_interpretation"] = (
                 "balanced_strength_sample"
             )
@@ -286,6 +304,7 @@ Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
             self.assertIn("weak         strict 1/1 (100.0%); detected 1/1", balanced_report)
             self.assertNotIn("Type 3                 OBS   oracle", balanced_report)
 
+            # Run only Type-3 and check its observational completion status.
             args.pair_set = "type3"
             with mock.patch(
                 "bigMoveBench.suite.ensure_compiled_dataset",

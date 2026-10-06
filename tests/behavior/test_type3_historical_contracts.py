@@ -4,6 +4,8 @@ import hashlib
 import json
 from pathlib import Path
 from tests.support.execution import artifact_directory, run_logged
+from tests.support.execution import execute_xml
+from tests.support.contract_catalogs import load_contract_catalog
 import unittest
 
 from benchmarking.tooling import find_srcdiff, find_srcmove
@@ -22,7 +24,8 @@ def text_hash(text):
 
 class HistoricalType3ContractTests(unittest.TestCase):
     def test_reported_moves_match_source_oracles(self):
-        catalog = json.loads((SUITE / 'type3_history_contracts.json').read_text())
+        """Both reviewed repository changes must preserve source identity, stationary regions, and reported moves."""
+        catalog = load_contract_catalog(SUITE / 'type3_history_contracts.json')
         self.assertEqual([c['id'] for c in catalog['cases']],
                          ['functor_competition', 'warp_in_place'])
         srcdiff, srcmove = find_srcdiff(ROOT), find_srcmove(ROOT)
@@ -40,19 +43,13 @@ class HistoricalType3ContractTests(unittest.TestCase):
                     run_logged([str(srcdiff), str(pair / 'before'), str(pair / 'after'),
                                     '-o', str(xml)], check=True, capture_output=True)
                     docs, annotations = [], []
-                    for mode in ('ordinary', 'diagnostic', 'results_only'):
-                        output, annotated = temp / (mode + '.json'), temp / (mode + '.xml')
-                        command = [str(srcmove), str(xml), '--results', str(output)]
-                        if mode != 'ordinary':
-                            command.append('--diagnostics')
-                        if mode == 'results_only':
-                            command.append('--results-only')
-                        else:
-                            command.insert(2, str(annotated))
-                        run_logged(command, check=True, capture_output=True)
-                        docs.append(json.loads(output.read_text()))
-                        if mode != 'results_only':
-                            annotations.append(annotated.read_bytes())
+                    observation = execute_xml(
+                        xml.read_bytes(), case_id=self.id() + '.' + case['id'], binary=srcmove,
+                    )
+                    for mode in observation.modes:
+                        docs.append(mode.payload())
+                        if mode.output_xml is not None:
+                            annotations.append(mode.output_xml.read_bytes())
                     self.assertEqual(annotations[0], annotations[1])
                     self.assertEqual(docs[1], docs[2])
                     self.assertEqual(docs[0], {k: v for k, v in docs[1].items() if k != 'diagnostics'})

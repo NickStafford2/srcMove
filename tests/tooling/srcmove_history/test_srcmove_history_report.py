@@ -13,6 +13,7 @@ from srcmove_history.report import (
 
 class SrcMoveHistoryReportTests(unittest.TestCase):
     def test_report_uses_explicit_commit_pair_terminology(self) -> None:
+        """Describe analyzed work as commit pairs rather than ambiguous commit counts."""
         report = render_report(self._snapshot())
 
         self.assertIn(
@@ -27,6 +28,7 @@ class SrcMoveHistoryReportTests(unittest.TestCase):
         self.assertNotIn("Slowest pair", report)
 
     def test_report_states_scope_concentration_and_detection_limits(self) -> None:
+        """State report scope, concentration of observations, and limits on interpreting detections."""
         report = render_report(self._snapshot())
 
         self.assertIn("140 of 6,360 commit pairs (2.2%)", report)
@@ -42,6 +44,7 @@ class SrcMoveHistoryReportTests(unittest.TestCase):
         self.assertIn("No commit pair processing failures", report)
 
     def test_zero_move_report_does_not_name_an_arbitrary_commit_pair(self) -> None:
+        """Avoid naming a representative pair when the analysis reports no moves."""
         snapshot = replace(
             self._snapshot(),
             move_groups=0,
@@ -67,6 +70,7 @@ class SrcMoveHistoryReportTests(unittest.TestCase):
         self.assertNotIn("commit pair 1:", report)
 
     def test_report_explains_observation_and_timing_semantics(self) -> None:
+        """Explain how move observations and recorded execution timings should be interpreted."""
         report = render_report(self._snapshot())
 
         self.assertIn("path exclusions (observations)", report.lower())
@@ -76,6 +80,7 @@ class SrcMoveHistoryReportTests(unittest.TestCase):
         self.assertIn("Total wall time sums finalized run invocations", report)
 
     def test_report_presents_current_consistent_counts(self) -> None:
+        """Show the current analysis counts consistently throughout the report."""
         snapshot = replace(self._snapshot(), content_relationships=(("type2c", 4),))
         report = render_report(snapshot)
         self.assertIn("Type 2c                     4", report)

@@ -8,21 +8,25 @@ from tests import run
 
 class RunnerTests(unittest.TestCase):
     def test_selection_union_has_no_duplicates(self):
+        """Select the union of overlapping test patterns without executing a test twice."""
         cases = [unittest.FunctionTestCase(lambda: None, description=name) for name in ('a', 'b')]
         with patch.object(cases[0], 'id', return_value='behavior.a'), patch.object(cases[1], 'id', return_value='behavior.b'):
             self.assertEqual(run.select(cases, ['behavior.*', '*a']), cases)
 
     def test_unknown_selector_is_an_error(self):
+        """Reject a test selector that matches no inventory entry."""
         with self.assertRaisesRegex(ValueError, 'matches no tests'):
             run.select([], ['nonexistent'])
 
     def test_duplicate_discovery_is_rejected(self):
+        """Reject inventory discovery when the same test identifier appears twice."""
         case = unittest.FunctionTestCase(lambda: None)
         with patch.object(unittest.TestLoader, 'discover', return_value=unittest.TestSuite([case, case])):
             with self.assertRaisesRegex(ValueError, 'duplicate test IDs'):
                 run.inventory(['tooling'])
 
     def test_subtest_failures_remain_failures_and_errors_remain_errors(self):
+        """Keep assertion and execution failures visible, with execution error taking precedence for a mixed test."""
         class Example(unittest.TestCase):
             def runTest(self):
                 with self.subTest(case='assertion'):
@@ -36,6 +40,7 @@ class RunnerTests(unittest.TestCase):
         self.assertIn('assertion', result.outcomes[0]['details'][0])
 
     def test_setup_failure_has_unexecuted_inventory_not_success(self):
+        """Record class setup failure as an error with the required method still unexecuted."""
         class Example(unittest.TestCase):
             @classmethod
             def setUpClass(cls):
@@ -48,6 +53,7 @@ class RunnerTests(unittest.TestCase):
         self.assertIn('dependency missing', result.outcomes[0]['details'][0])
 
     def test_skip_is_not_accepted_coverage(self):
+        """Record a skipped required case as skipped rather than passing coverage."""
         class Example(unittest.TestCase):
             def runTest(self):
                 self.skipTest('required fixture unavailable')
@@ -55,6 +61,7 @@ class RunnerTests(unittest.TestCase):
         self.assertEqual(result.outcomes[0]['status'], 'skip')
 
     def test_component_build_remains_independent_of_selected_detector(self):
+        """Execute the declared component binary even when a different srcMove detector is selected."""
         import json
         import os
         from pathlib import Path

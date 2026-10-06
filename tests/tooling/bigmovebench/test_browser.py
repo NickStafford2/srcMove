@@ -77,6 +77,7 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
                     "eligible", '{"reason":"payload_exposed"}', '["recorded reason"]', '{}'))
 
     def test_pagination_across_members_and_read_only_queries(self):
+        """Paginate four cases across run members without changing the execution journals."""
         before = [hashlib.sha256(path.read_bytes()).hexdigest() for path in self.journals]
         self.assertEqual(list_runs(self.results)["default_run_id"], "saved-run")
         self.assertEqual(show_run(self.results, "saved-run")["schema_version"], 2)
@@ -89,18 +90,21 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
         self.assertEqual(before, [hashlib.sha256(path.read_bytes()).hexdigest() for path in self.journals])
 
     def test_legacy_execution_journal_is_rejected(self):
+        """Refuse an older execution journal rather than interpreting it as the current schema."""
         with sqlite3.connect(self.journals[0]) as connection:
             connection.execute("UPDATE run_metadata SET schema_version=1")
         with self.assertRaisesRegex(ValueError, "Unsupported benchmark execution journal"):
             list_cases(self.results, self.cache, "saved-run")
 
     def test_incomplete_runs_do_not_hide_completed_runs(self):
+        """List the saved completed run even when an incomplete run is also present."""
         pending = self.results / "pending-run"
         pending.mkdir()
         (pending / "summary.json").write_text(json.dumps({"status": "executing"}))
         self.assertEqual([item["run_id"] for item in list_runs(self.results)["items"]], ["saved-run"])
 
     def test_source_input_is_verified_and_confined_to_member(self):
+        """Read a member's source artifact only when its checksum and containing path are valid."""
         path = self.run / "type1/tool-attempts/srcdiff/attempt-one/srcdiff.xml"
         path.parent.mkdir(parents=True)
         path.write_text('<unit xmlns="http://www.srcML.org/srcML/src"/>')
@@ -121,6 +125,7 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
             show_source(self.results, self.cache, "saved-run", "type1", "type1-1")
 
     def test_wal_pages_are_read_without_changing_original_sidecars(self):
+        """Read committed WAL results without modifying the original SQLite database or sidecars."""
         with sqlite3.connect(self.journals[0]) as connection:
             connection.execute("PRAGMA journal_mode=WAL")
             connection.execute("UPDATE attempts SET outcome='oracle_pass' WHERE case_id='type1-1'")
@@ -131,6 +136,7 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
             self.assertEqual(before, {p.name: p.read_bytes() for p in self.journals[0].parent.glob("execution.sqlite*")})
 
     def test_detection_and_original_reviewed_outcomes_stay_separate(self):
+        """Filter original and reviewed outcomes independently while retaining the complete-detection evidence."""
         original = list_cases(self.results, self.cache, "saved-run", category="type2b", outcome="wrong_classification")
         self.assertEqual(original["matched"], 1)
         case = original["items"][0]
@@ -140,6 +146,7 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
         self.assertEqual(reviewed["items"][0]["case_id"], case["case_id"])
 
     def test_case_details_include_exact_fragments_moves_and_misses(self):
+        """Show exact source fragments, selected moves, and recorded failure reasons for both detections and misses."""
         detail = show_case(self.results, self.cache, "saved-run", "type2b", "type2b-1")
         self.assertEqual(detail["original"]["text"], "int before() { return 1; }")
         self.assertEqual(detail["moves"][0]["from_raw_texts"], ["before"])
@@ -150,6 +157,7 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
         self.assertFalse(miss["case"]["complete_fragment_detected"])
 
     def test_missing_and_corrupt_fragments_are_distinguished(self):
+        """Return absent fragment text as unavailable but reject present text with a bad checksum."""
         digest = self.fragments[0]
         path = self.cache / "bigclonebench/compiled" / self.dataset / "fragments" / digest[:2] / f"{digest}.java"
         path.unlink()
@@ -159,6 +167,7 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
             show_case(self.results, self.cache, "saved-run", "type1", "type1-1")
 
     def test_latest_terminal_attempt_excludes_interrupted_retry(self):
+        """Show the latest terminal retry rather than an interrupted attempt for the same case."""
         with sqlite3.connect(self.journals[0]) as connection:
             connection.execute("INSERT INTO attempts(attempt_id,case_id,attempt_ordinal,status,outcome) VALUES ('retry','type1-1',1,'terminal','srcmove_miss')")
             connection.execute("INSERT INTO attempts(attempt_id,case_id,attempt_ordinal,status) VALUES ('interrupted','type1-1',2,'interrupted')")
@@ -168,6 +177,7 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
         self.assertEqual(page["matched"], 2)
 
     def test_unknown_ids_and_invalid_filters_are_rejected(self):
+        """Reject nonexistent run or case identifiers and unsupported browsing filters."""
         with self.assertRaises(ValueError):
             list_cases(self.results, self.cache, "../saved-run")
         with self.assertRaises(ValueError):

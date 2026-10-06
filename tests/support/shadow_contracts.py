@@ -84,8 +84,9 @@ def load_shadow_contracts(path: Path, correspondence_kind: str = "type1") -> lis
     if correspondence_kind not in {"type1", "type2c"}:
         raise ShadowContractError("unsupported contract correspondence kind")
     try:
-        document = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        from tests.support.contract_catalogs import load_contract_catalog
+        document = load_contract_catalog(path)
+    except (OSError, UnicodeError, ValueError) as error:
         raise ShadowContractError(f"cannot read {path}: {error}") from error
     if not isinstance(document, dict) or document.get("schema_version") != 2:
         raise ShadowContractError("shadow contract schema_version must be 2")

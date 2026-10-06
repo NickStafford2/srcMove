@@ -12,6 +12,7 @@ from bigMoveBench import installation
 
 class BigCloneBenchInstallationTests(unittest.TestCase):
     def test_preflight_reports_manual_prerequisites_without_downloading(self) -> None:
+        """Report missing database, driver, Java, and corpus prerequisites without downloading them."""
         with tempfile.TemporaryDirectory() as temporary, mock.patch.object(
             installation.shutil, "which", return_value=None
         ):
@@ -25,6 +26,7 @@ class BigCloneBenchInstallationTests(unittest.TestCase):
         self.assertIn("Java executable not found on PATH", failures)
 
     def test_preflight_rejects_an_empty_ijadataset_directory(self) -> None:
+        """Reject an empty corpus directory even when the other installation prerequisites exist."""
         with tempfile.TemporaryDirectory() as temporary:
             bce_dir = Path(temporary) / "BigCloneEval"
             (bce_dir / "bigclonebenchdb").mkdir(parents=True)
@@ -41,6 +43,7 @@ class BigCloneBenchInstallationTests(unittest.TestCase):
         self.assertIn("IJaDataset Java corpus not found", failures[0])
 
     def test_preflight_accepts_reduced_ijadataset_layout(self) -> None:
+        """Accept the supported reduced corpus layout when all prerequisites are available."""
         with tempfile.TemporaryDirectory() as temporary:
             bce_dir = Path(temporary) / "BigCloneEval"
             (bce_dir / "bigclonebenchdb").mkdir(parents=True)
@@ -58,6 +61,7 @@ class BigCloneBenchInstallationTests(unittest.TestCase):
         self.assertEqual(failures, [])
 
     def test_successful_cli_lists_every_verified_prerequisite(self) -> None:
+        """Print a successful preflight with the verified database, driver, corpus, and Java locations."""
         with tempfile.TemporaryDirectory() as temporary:
             bce_dir = (Path(temporary) / "BigCloneEval").resolve()
             database = bce_dir / "bigclonebenchdb" / "bcb.h2.db"

@@ -23,6 +23,7 @@ from benchmarking.provenance import sha256_file
 
 class AuditTests(unittest.TestCase):
     def test_directional_row_frames_share_one_unordered_content_pair(self):
+        """Count forward and reverse cases separately while recognizing their single shared content pair."""
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
             frames = [{'frame_id': str(n), 'direction': {
@@ -39,6 +40,7 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(result['distinct_fragment_contents'], 2)
 
     def test_three_way_category_overlap_is_not_counted_as_three_excess_pairs(self):
+        """Count overlapping pairs once even when one pair belongs to three categories."""
         result = overlap_accounting({'type1': 3, 'type2b': 2, 'type3': 4},
             [('a', 'type1', 'type2b'), ('a', 'type1', 'type3'),
              ('a', 'type2b', 'type3'), ('b', 'type1', 'type3')])
@@ -48,6 +50,7 @@ class AuditTests(unittest.TestCase):
         self.assertFalse(result['category_counts_sum_to_distinct_total'])
 
     def test_real_fixture_multiplicity_conflicts_failures_and_readonly(self):
+        """Audit saved selections and conflicting rows without changing their catalog or inventing final selections."""
         with tempfile.TemporaryDirectory() as temporary, redirect_stderr(io.StringIO()):
             root = Path(temporary)
             compile_fixture(root, repetitions=1)
@@ -108,6 +111,7 @@ class AuditTests(unittest.TestCase):
             self.assertEqual(final['represented_functionality_ids'], [101])
 
     def test_optional_query_budget_does_not_return_partial_counts(self):
+        """Omit an over-budget query instead of returning an incomplete count."""
         with sqlite3.connect(':memory:') as connection, redirect_stderr(io.StringIO()):
             queries = Queries(0.000001)
             rows = queries.run(connection, 'expensive',

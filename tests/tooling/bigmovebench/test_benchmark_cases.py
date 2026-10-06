@@ -58,6 +58,7 @@ def compile_fixture(root: Path):
 
 class NormalizedBenchmarkCasesTests(unittest.TestCase):
     def test_type_three_frame_strength_is_conservative_across_rows(self) -> None:
+        """Assign a shared Type-3 frame the weakest contributing similarity and its corresponding strength band."""
         strength, stratum = _type3_frame_strength(
             [
                 {"similarity": {"line": 0.96, "token": 0.94}},
@@ -112,12 +113,15 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
         return compiled, selection, benchmark_cases, disposition
 
     def test_publishes_normalized_immutable_cases_and_reuses_them(self) -> None:
+        """Publish one immutable normalized case with four generated objects and reuse its original identity."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             compiled, selection, benchmark_cases, disposition = self.publish_fixture(
                 root
             )
 
+            # Check the required outcomes.
             self.assertEqual(disposition, "created")
             self.assertEqual(
                 benchmark_cases.manifest["counts"],
@@ -175,6 +179,7 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
             )
 
     def test_full_verification_rejects_corrupted_object(self) -> None:
+        """Reject a normalized case whose saved generated object no longer matches its checksum."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             _, _, benchmark_cases, _ = self.publish_fixture(root)
@@ -201,11 +206,14 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
                 )
 
     def test_serial_runner_reuses_one_four_file_scratch_archive(self) -> None:
+        """Execute two normalized cases in one reusable four-file archive and remove the scratch directory afterward."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             compiled, selection, benchmark_cases, _ = (
                 self.publish_two_case_fixture(root)
             )
+            # Check the required outcomes.
             self.assertEqual(benchmark_cases.manifest["counts"]["cases"], 2)
             self.assertEqual(
                 benchmark_cases.manifest["counts"]["generated_objects"], 6
@@ -259,6 +267,7 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
             self.assertFalse(observed_scratch.exists())
 
     def test_serial_runner_requires_context_manager(self) -> None:
+        """Reject serial execution before the runner has entered its cleanup context."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             _, _, benchmark_cases, _ = self.publish_fixture(root, "type1")
@@ -266,6 +275,8 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
                 next(SerialBenchmarkCaseRunner(benchmark_cases).cases())
 
     def test_serial_archive_passes_the_srcdiff_semantic_gate(self) -> None:
+        """Feed the generated Java archive to srcDiff and require an eligible deletion/insertion pair."""
+        # Prepare the inputs and exercise the operation.
         srcdiff = REPO_ROOT.parent / "srcDiff" / "build" / "bin" / "srcdiff"
         if not srcdiff.is_file():
             discovered = shutil.which("srcdiff")
@@ -296,11 +307,13 @@ class NormalizedBenchmarkCasesTests(unittest.TestCase):
                     )
                 except OSError as error:
                     self.skipTest(f"srcdiff executable cannot run here: {error}")
+                # Check the required outcomes.
                 self.assertEqual(result.returncode, 0, result.stderr)
                 semantic = validate_srcdiff_semantics(case, output)
                 self.assertEqual(semantic.status, SemanticStatus.ELIGIBLE)
 
     def test_all_pair_sets_preserve_case_kind_and_expected_count(self) -> None:
+        """Generate each benchmark category with its declared case kind, clone type, and expected move count."""
         declarations = (
             ("type1", "positive", 1, 1),
             ("type2c", "positive", 2, 1),

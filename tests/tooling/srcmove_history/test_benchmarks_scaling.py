@@ -30,6 +30,8 @@ from srcmove_history.benchmarks.trial import (
 
 class SrcMoveHistoryScalingTests(unittest.TestCase):
     def test_trial_adapter_runs_the_production_analysis_service(self) -> None:
+        """Execute a scaling trial through the production repository-analysis service."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, srcdiff, srcmove = self._fixture(root)
@@ -53,12 +55,15 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
 
             result = run_analysis_trial(args)
 
+            # Check the required outcomes.
             self.assertEqual(result["summary"]["completed_pair_count"], 1)
             self.assertEqual(result["summary"]["completed"], 1)
             self.assertEqual(len(result["pairs"]), 1)
             self.assertEqual(len(result["normalized_results_sha256"]), 64)
 
     def test_scaling_trial_invokes_the_production_adapter(self) -> None:
+        """Route the scaling experiment through the production trial adapter rather than a substitute analysis path."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, srcdiff, srcmove = self._fixture(root)
@@ -95,6 +100,7 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
                 },
             )
 
+            # Check the required outcomes.
             self.assertEqual(result["status"], "success")
             self.assertEqual(result["selected_pairs"], 1)
             self.assertEqual(result["analyzed_pairs"], 1)
@@ -103,6 +109,7 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
             )
 
     def test_jobs_and_schedule_are_validated_and_reproducible(self) -> None:
+        """Reject invalid worker counts and reproduce the scaling schedule from the same seed."""
         self.assertEqual(parse_jobs("1,2,4,8"), [1, 2, 4, 8])
         with self.assertRaisesRegex(Exception, "unique"):
             parse_jobs("1,2,2")
@@ -123,6 +130,7 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
             self.assertEqual(set(selected), {1, 2, 4})
 
     def test_cli_uses_production_compact_retention(self) -> None:
+        """Configure scaling trials with the production compact retention mode."""
         args = parse_args(
             [
                 "sqlite",
@@ -141,6 +149,8 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
         self.assertEqual(args.results_root.name, "benchmark-results")
 
     def test_scratch_trial_data_is_promoted_and_removed(self) -> None:
+        """Publish completed trial data and remove its temporary scratch directory."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             scratch_root = root / "scratch"
@@ -151,6 +161,7 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
             with _trial_data_storage(
                 durable_root, scratch_root, observation
             ) as execution_root:
+                # Check the required outcomes.
                 self.assertTrue(
                     execution_root.is_relative_to(scratch_root.resolve())
                 )
@@ -185,6 +196,8 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
             self.assertEqual(args.scratch_root, scratch_root)
 
     def test_summary_reports_speedup_efficiency_and_conservative_knee(self) -> None:
+        """Derive scaling speedup, worker efficiency, and a conservative saturation point from recorded trials."""
+        # Prepare the inputs and exercise the operation.
         rows = []
         walls = {
             1: [99.0, 100.0, 101.0],
@@ -218,6 +231,7 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
             rows, [1, 2, 4, 8], marginal_threshold=0.10
         )
 
+        # Check the required outcomes.
         self.assertEqual(summary["jobs"]["1"]["wall_seconds"]["median"], 100.0)
         self.assertEqual(summary["jobs"]["2"]["speedup"], 100 / 60)
         self.assertEqual(summary["jobs"]["2"]["parallel_efficiency"], 100 / 120)
@@ -226,6 +240,8 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
         self.assertTrue(summary["definition_equivalent"])
 
     def test_normalization_ignores_invocations_paths_and_timings(self) -> None:
+        """Compare equivalent analysis content independently of invocation records, filesystem paths, and timing noise."""
+        # Prepare the inputs and exercise the operation.
         summary = {
             "completed_pair_count": 1,
             "completed": 1,
@@ -254,6 +270,7 @@ class SrcMoveHistoryScalingTests(unittest.TestCase):
         detail["timings"]["pair_seconds"] = 99.0
         second = normalized_analysis_result(summary, [detail])
 
+        # Check the required outcomes.
         self.assertEqual(
             first["normalized_results_sha256"],
             second["normalized_results_sha256"],

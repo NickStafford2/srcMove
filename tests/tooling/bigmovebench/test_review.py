@@ -12,6 +12,8 @@ from tests.tooling.bigmovebench import test_benchmark_cases
 
 class Type3ReviewTests(unittest.TestCase):
     def test_diagnoses_expected_pair_verification_failure(self) -> None:
+        """Identify the expected pair's below-threshold verification failure and its observed similarity."""
+        # Prepare the inputs and exercise the operation.
         results = {
             "move_count": 0,
             "moves": [],
@@ -53,16 +55,20 @@ class Type3ReviewTests(unittest.TestCase):
         diagnosis = _case_diagnosis(
             "srcmove_miss", results, "void before() {}", "void after() {}"
         )
+        # Check the required outcomes.
         self.assertEqual(diagnosis["stage"], "verification")
         self.assertEqual(diagnosis["reason"], "below_threshold")
         self.assertEqual(diagnosis["token_similarity"], 0.6)
 
     def test_markdown_fence_expands_around_embedded_backticks(self) -> None:
+        """Use a longer Markdown fence when source text itself contains backticks."""
         rendered = _fence("// ``` embedded")
         self.assertTrue(rendered.startswith("````java\n"))
         self.assertTrue(rendered.endswith("\n````"))
 
     def test_writes_deterministic_complete_review_artifacts(self) -> None:
+        """Produce repeatable review records and a complete archive containing source, results, and verdict prompts."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
@@ -120,6 +126,7 @@ class Type3ReviewTests(unittest.TestCase):
             second = write_type3_review(
                 run_dir, journal_path=journal, benchmark_cases=benchmark_cases
             )
+            # Check the required outcomes.
             self.assertEqual(first, second)
             self.assertEqual(first["case_count"], 1)
             records = [

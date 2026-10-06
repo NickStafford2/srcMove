@@ -31,6 +31,8 @@ def item() -> PairWorkItem:
 
 class CompactPairTests(unittest.TestCase):
     def test_path_exclusion_reasons_are_retained_as_compact_counts(self) -> None:
+        """Preserve counts of excluded paths and their reasons in compact pair results."""
+        # Prepare the inputs and exercise the operation.
         paths = (
             ChangedPath(
                 "A",
@@ -59,6 +61,7 @@ class CompactPairTests(unittest.TestCase):
 
         compact = compact_pair_outcome(outcome)
 
+        # Check the required outcomes.
         self.assertEqual(
             json.loads(compact.metrics_json)["path_exclusion_counts"],
             {
@@ -68,6 +71,8 @@ class CompactPairTests(unittest.TestCase):
         )
 
     def test_success_keeps_locations_and_text_digests_without_raw_text(self) -> None:
+        """Retain successful endpoint locations and text digests while omitting raw source text."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             raw_text = "a very large moved source region"
@@ -115,6 +120,7 @@ class CompactPairTests(unittest.TestCase):
 
             compact = compact_pair_outcome(outcome)
 
+            # Check the required outcomes.
             self.assertEqual(len(compact.moves), 1)
             self.assertEqual(
                 json.loads(compact.moves[0].from_xpaths_json),
@@ -132,6 +138,8 @@ class CompactPairTests(unittest.TestCase):
             )
 
     def test_failure_embeds_only_the_bounded_capture(self) -> None:
+        """Store only the bounded captured portion of a failed tool's output."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             retained = b"headtail"
@@ -178,6 +186,7 @@ class CompactPairTests(unittest.TestCase):
             compact = compact_pair_outcome(outcome)
 
             evidence = json.loads(compact.evidence_json)
+            # Check the required outcomes.
             self.assertEqual(
                 evidence["srcdiff"]["stderr"]["durable_retained_bytes"],
                 len(retained),
@@ -186,6 +195,8 @@ class CompactPairTests(unittest.TestCase):
             self.assertNotIn("command", evidence["srcdiff"])
 
     def test_durable_failure_capture_has_a_smaller_storage_cap(self) -> None:
+        """Limit durable failure captures more tightly than the process supervisor's capture buffer."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             retained = b"h" * (COMPACT_FAILURE_LOG_LIMIT // 2) + b"t" * (
@@ -235,6 +246,7 @@ class CompactPairTests(unittest.TestCase):
             )
 
             evidence = json.loads(compact.evidence_json)["srcdiff"]["stderr"]
+            # Check the required outcomes.
             self.assertEqual(
                 evidence["durable_retained_bytes"], COMPACT_FAILURE_LOG_LIMIT
             )
@@ -244,6 +256,8 @@ class CompactPairTests(unittest.TestCase):
             )
 
     def test_success_rejects_results_that_cannot_be_investigated_later(self) -> None:
+        """Reject successful result records missing the evidence needed for later investigation."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             content = json.dumps(
@@ -279,10 +293,12 @@ class CompactPairTests(unittest.TestCase):
                 ),
             )
 
+            # Check the required outcomes.
             with self.assertRaisesRegex(ValueError, "moves do not match"):
                 compact_pair_outcome(outcome)
 
     def test_admission_rejects_results_that_compaction_cannot_store(self) -> None:
+        """Reject result structures at admission when compact storage cannot represent them faithfully."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             path = Path(temporary_directory) / "results.json"
             path.write_text(

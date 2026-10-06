@@ -29,21 +29,18 @@ def has_record(records: list[dict], **expected: str) -> bool:
                for record in records)
 
 
-def main() -> int:
-    if len(sys.argv) != 3:
-        raise SystemExit("usage: check_shadow_diagnostics.py SRCMOVE FIXTURE")
-    srcmove = Path(sys.argv[1])
-    fixture = Path(sys.argv[2])
-    with tempfile.TemporaryDirectory(prefix="srcmove-shadow-") as directory:
-        root = Path(directory)
-        ordinary = run(srcmove, fixture, root / "ordinary.json", False)
-        diagnostic = run(srcmove, fixture, root / "diagnostic.json", True)
-
+def check_output_equivalence(ordinary, diagnostic):
+    """Diagnostics add evidence without changing ordinary detector results."""
     assert "diagnostics" not in ordinary
     diagnostic_without_evidence = dict(diagnostic)
     evidence = diagnostic_without_evidence.pop("diagnostics")
     assert ordinary == diagnostic_without_evidence
     assert evidence["schema_version"] == 4
+    return evidence
+
+
+def check_correspondence_evidence(evidence):
+    """Retain stable IDs and explicit wrapped, stationary, and relocated records."""
     records = evidence["correspondences"]
     correspondence_ids = [
         (record["delete_candidate_id"], record["insert_candidate_id"])
@@ -68,6 +65,20 @@ def main() -> int:
         shadow_change="relocated",
         classification_reason="crossed_stable_sibling",
     )
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        raise SystemExit("usage: check_shadow_diagnostics.py SRCMOVE FIXTURE")
+    srcmove = Path(sys.argv[1])
+    fixture = Path(sys.argv[2])
+    with tempfile.TemporaryDirectory(prefix="srcmove-shadow-") as directory:
+        root = Path(directory)
+        ordinary = run(srcmove, fixture, root / "ordinary.json", False)
+        diagnostic = run(srcmove, fixture, root / "diagnostic.json", True)
+
+    evidence = check_output_equivalence(ordinary, diagnostic)
+    check_correspondence_evidence(evidence)
     print("PASS shadow diagnostics tests")
     return 0
 

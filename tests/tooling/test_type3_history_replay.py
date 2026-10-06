@@ -7,6 +7,7 @@ from moveSelectionBench.replay_type3_history import resolve_candidates
 
 class HistoricalEndpointResolutionTests(unittest.TestCase):
     def test_opposite_comment_text_does_not_hide_or_invent_endpoint(self):
+        """Resolve historical endpoints without treating opposite-revision comment text as endpoint evidence."""
         tree = ET.ElementTree(ET.fromstring('''
 <unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff">
  <unit filename="same.cpp"><diff:delete><function>int f(){<comment>//<diff:delete>old</diff:delete><diff:insert>new</diff:insert></comment>

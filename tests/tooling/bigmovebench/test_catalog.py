@@ -158,6 +158,7 @@ def distinct_false_positive_row(bce: Path) -> dict[str, object]:
 
 class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
     def test_ensure_reuses_sealed_catalog_without_upstream_prerequisites(self) -> None:
+        """Reuse a sealed compiled dataset without demanding unavailable upstream tools or sources."""
         compiled = mock.sentinel.compiled
         missing_bce = Path("/definitely/missing/bigclonebench")
         with patch(
@@ -232,11 +233,14 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
         return bce, compiled
 
     def test_compile_deduplicates_fragments_and_preserves_row_multiplicity(self) -> None:
+        """Compile repeated and reversed rows into shared fragments while preserving multiplicity and label conflicts."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             bce, compiled = self.compile_fixture(root)
 
             counts = compiled.manifest["counts"]
+            # Check the required outcomes.
             self.assertEqual(counts["positive_source_rows"], 2)
             self.assertEqual(counts["known_false_positive_source_rows"], 1)
             self.assertEqual(counts["catalog_pair_rows"], 2)
@@ -297,6 +301,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             )
 
     def test_full_validation_detects_fragment_tampering(self) -> None:
+        """Reject a compiled catalog after its fragment bytes change."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             _, compiled = self.compile_fixture(root)
@@ -308,6 +313,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
                 load_compiled_dataset(compiled.directory, verification="full")
 
     def test_distinct_functions_can_share_one_fragment_object(self) -> None:
+        """Store identical function text once while retaining both extracted function identities and progress counts."""
         with tempfile.TemporaryDirectory() as temporary:
             progress = []
             _, compiled = self.compile_fixture(
@@ -334,6 +340,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             self.assertEqual(fragment_finish[4], "1 unique fragments")
 
     def test_full_upstream_verification_accepts_identical_copy(self) -> None:
+        """Verify a byte-identical copy of the upstream dataset even though it lives at another path."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             bce, compiled = self.compile_fixture(root)
@@ -352,6 +359,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             )
 
     def test_reuse_is_portable_across_catalog_and_upstream_inodes(self) -> None:
+        """Reuse identical dataset content after both catalog and upstream files move to different inodes."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             bce, compiled = self.compile_fixture(root)
@@ -377,6 +385,8 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             self.assertEqual(reused.dataset_id, compiled.dataset_id)
 
     def test_metadata_drift_verifies_checksum_once_then_updates_index(self) -> None:
+        """Check content after timestamp drift, update the reuse index, and avoid repeating the full check."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             bce, compiled = self.compile_fixture(root)
@@ -392,6 +402,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
                 diagnostic_callback=diagnostics.append,
             )
 
+            # Check the required outcomes.
             self.assertIsNotNone(reused)
             self.assertEqual(
                 [item["status"] for item in diagnostics],
@@ -426,6 +437,8 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             )
 
     def test_reuse_stops_when_a_previously_missing_source_appears(self) -> None:
+        """Invalidate a compiled dataset when a source previously recorded as missing becomes available."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             bce = self.create_bce(root)
@@ -445,6 +458,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
                 },
                 compile_scope=scope,
             )
+            # Check the required outcomes.
             self.assertEqual(compiled.manifest["counts"]["extraction_failures"], 1)
             missing.write_text("class B {}\n")
             self.assertIsNone(
@@ -454,6 +468,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             )
 
     def test_catalog_logical_inventory_drift_is_rejected(self) -> None:
+        """Reject catalog contents that disagree with the saved logical inventory or counts."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             _, compiled = self.compile_fixture(root)
@@ -477,6 +492,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
                 load_compiled_dataset(compiled.directory)
 
     def test_full_validation_rejects_extra_fragment_object(self) -> None:
+        """Reject an otherwise valid catalog containing an undeclared fragment object."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             _, compiled = self.compile_fixture(root)
@@ -485,6 +501,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
                 load_compiled_dataset(compiled.directory, verification="full")
 
     def test_dataset_identity_is_independent_of_export_row_order(self) -> None:
+        """Give equivalent upstream rows the same dataset identity regardless of export order."""
         with (
             tempfile.TemporaryDirectory() as left_temporary,
             tempfile.TemporaryDirectory() as right_temporary,
@@ -496,12 +513,15 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             self.assertEqual(left.dataset_id, right.dataset_id)
 
     def test_full_exports_skip_unneeded_global_ordering(self) -> None:
+        """Avoid global sorting for full exports while retaining deterministic ordering for limited exports."""
         self.assertNotIn("ORDER BY", _positive_query(None))
         self.assertNotIn("ORDER BY", _false_positive_query(None))
         self.assertIn("ORDER BY", _positive_query(10))
         self.assertIn("LIMIT 10", _false_positive_query(10))
 
     def test_checked_exports_survive_catalog_retry(self) -> None:
+        """Reuse checked upstream exports when catalog compilation is retried instead of querying H2 again."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             bce = self.create_bce(root)
@@ -510,6 +530,7 @@ class BigCloneBenchCompiledDatasetTests(unittest.TestCase):
             activity = []
 
             def fake_export(export_dir, *, bce_dir, limit_per_kind):
+                # Check the required outcomes.
                 self.assertEqual(bce_dir, bce)
                 self.assertIsNone(limit_per_kind)
                 export_dir.mkdir(parents=True, exist_ok=True)

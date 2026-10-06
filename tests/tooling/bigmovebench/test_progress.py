@@ -15,6 +15,7 @@ from bigMoveBench.progress import ProgressDisplay
 
 class ProgressDisplayTests(unittest.TestCase):
     def test_live_completion_can_name_the_completed_operation(self) -> None:
+        """Render the completed operation name and verified case count in live progress output."""
         class LiveOutput(io.StringIO):
             def isatty(self) -> bool:
                 return True
@@ -31,6 +32,7 @@ class ProgressDisplayTests(unittest.TestCase):
         )
 
     def test_redirected_output_is_sparse_and_durable(self) -> None:
+        """Write bounded, persistent progress lines when output is redirected."""
         output = io.StringIO()
         with ProgressDisplay(
             "srcMove",
@@ -50,6 +52,7 @@ class ProgressDisplayTests(unittest.TestCase):
         self.assertLessEqual(len(lines), 12)
 
     def test_failure_event_names_the_current_case(self) -> None:
+        """Name the failed case and tool while continuing to report accepted and failed totals."""
         output = io.StringIO()
         with ProgressDisplay("srcDiff", total=2, stream=output) as progress:
             progress.update(0, detail="case-bad")
@@ -61,6 +64,7 @@ class ProgressDisplayTests(unittest.TestCase):
         self.assertIn("1 accepted, 1 failed", output.getvalue())
 
     def test_disabled_display_emits_nothing(self) -> None:
+        """Leave the output stream empty when progress display is disabled."""
         output = io.StringIO()
 
         with ProgressDisplay("quiet", stream=output, enabled=False) as progress:

@@ -36,6 +36,7 @@ class Type2AdoptionTests(unittest.TestCase):
             return payloads[1]
 
     def test_unique_identity_reserves_both_endpoint_directions(self) -> None:
+        """Stationary normalized identity reserves both endpoints, preventing competing Type-3 move claims."""
         fixtures = REPO_ROOT / 'tests/fixtures/selection/type2_reservation_cases'
         for side in ('insert', 'delete'):
             for mode in ('reserved', 'control'):
@@ -58,6 +59,7 @@ class Type2AdoptionTests(unittest.TestCase):
                         self.assertNotEqual(pair['insert_candidate_id'], record['insert_candidate_id'])
 
     def test_context_free_xml_retains_normalized_correspondences(self) -> None:
+        """Context-free renamed constructs retain normalized correspondences while producing no selected moves."""
         contracts = json.loads((REPO_ROOT / 'tests/fixtures/selection/type2_normalization_contracts.json').read_text())
         self.assertEqual(len(contracts), 9)
         self.assertEqual(sum(map(len, contracts.values())), 10)

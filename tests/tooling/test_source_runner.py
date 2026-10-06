@@ -9,6 +9,8 @@ from tests.support import fixture_tests as source_runner
 
 class SourceRunnerInputTests(unittest.TestCase):
     def test_single_file_revisions_use_same_logical_relative_filename(self) -> None:
+        """Give both source revisions the same logical relative filename when invoking srcDiff."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             case_dir = root / "case"
@@ -42,6 +44,7 @@ class SourceRunnerInputTests(unittest.TestCase):
                 for path in after_root.rglob("*")
                 if path.is_file()
             ]
+            # Check the required outcomes.
             self.assertIsNone(cwd)
             self.assertNotEqual(before_root, after_root)
             self.assertEqual(before_files, [Path("source.cpp")])

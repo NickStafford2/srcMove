@@ -1,61 +1,146 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "description": "Simple transferred fragments that are too small to count as moves.",
   "cases": [
-    {"id": "direct_numeric_literal", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A numeric literal is not a complete statement.", "from_lines": ["37"], "to_lines": ["37"]},
-    {"id": "direct_identifier", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "An identifier alone is below statement granularity.", "from_lines": ["middle_value"], "to_lines": ["middle_value"]},
-    {"id": "direct_type_keyword", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A type keyword alone is not a declaration.", "from_lines": ["int"], "to_lines": ["int"]},
-    {"id": "direct_type_specifier", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A type specifier alone is not movable code.", "from_lines": ["signed"], "to_lines": ["signed"]},
-    {"id": "direct_string_literal", "language": "Java", "extension": ".java", "scenario": "transfer", "rationale": "A string literal alone is not a statement.", "from_lines": ["\"error\""], "to_lines": ["\"error\""]},
-    {"id": "direct_boolean_literal", "language": "C#", "extension": ".cs", "scenario": "transfer", "rationale": "A boolean literal alone is not a statement.", "from_lines": ["false"], "to_lines": ["false"]},
-    {"id": "direct_operator", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "An operator alone is not a statement.", "from_lines": ["=="], "to_lines": ["=="]},
-    {"id": "direct_template_argument", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A template argument alone is not a complete construct.", "from_lines": ["SharedValue"], "to_lines": ["SharedValue"]},
-    {"id": "direct_member_name", "language": "Java", "extension": ".java", "scenario": "transfer", "rationale": "A member name alone is below statement granularity.", "from_lines": ["length"], "to_lines": ["length"]},
-    {"id": "direct_array_index", "language": "C#", "extension": ".cs", "scenario": "transfer", "rationale": "An array index alone is not a statement.", "from_lines": ["[10]"], "to_lines": ["[10]"]},
-    {"id": "direct_break_statement", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A break statement alone carries too little move identity.", "from_lines": ["break;"], "to_lines": ["break;"]},
-    {"id": "direct_continue_statement", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A continue statement alone carries too little move identity.", "from_lines": ["continue;"], "to_lines": ["continue;"]},
-    {"id": "direct_bare_return_statement", "language": "Java", "extension": ".java", "scenario": "transfer", "rationale": "A bare return statement is not meaningful enough to count as a move.", "from_lines": ["return;"], "to_lines": ["return;"]},
-    {"id": "direct_goto_statement", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A goto statement alone carries too little move identity.", "from_lines": ["goto cleanup;"], "to_lines": ["goto cleanup;"]},
-    {"id": "direct_rethrow_statement", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A bare rethrow is not meaningful enough to count as a move.", "from_lines": ["throw;"], "to_lines": ["throw;"]},
-    {"id": "direct_empty_statement", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "An empty statement contains no movable behavior.", "from_lines": [";"], "to_lines": [";"]},
-    {"id": "direct_empty_block", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "An empty block contains no movable behavior.", "from_lines": ["{}"], "to_lines": ["{}"]},
-    {"id": "direct_empty_include", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "An include directive without a target is incomplete.", "from_lines": ["#include"], "to_lines": ["#include"]},
-    {"id": "direct_empty_define", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A define directive without a macro is incomplete.", "from_lines": ["#define"], "to_lines": ["#define"]},
-    {"id": "direct_incomplete_if_directive", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "An if directive without a condition is incomplete.", "from_lines": ["#if"], "to_lines": ["#if"]},
-    {"id": "direct_endif_directive", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "An endif directive alone does not identify moved code.", "from_lines": ["#endif"], "to_lines": ["#endif"]},
-    {"id": "direct_case_label", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A case label without its behavior is not a move.", "from_lines": ["case 0:"], "to_lines": ["case 0:"]},
-    {"id": "direct_default_label", "language": "Java", "extension": ".java", "scenario": "transfer", "rationale": "A default label without its behavior is not a move.", "from_lines": ["default:"], "to_lines": ["default:"]},
-    {"id": "direct_goto_label", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A label without its associated behavior is not a move.", "from_lines": ["cleanup:"], "to_lines": ["cleanup:"]},
-    {"id": "direct_public_access", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "An access label alone is not a movable construct.", "from_lines": ["public:"], "to_lines": ["public:"]},
-    {"id": "direct_private_access", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "An access label alone is not a movable construct.", "from_lines": ["private:"], "to_lines": ["private:"]},
-    {"id": "direct_protected_access", "language": "C#", "extension": ".cs", "scenario": "transfer", "rationale": "An access modifier alone is not a movable construct.", "from_lines": ["protected"], "to_lines": ["protected"]},
-    {"id": "direct_static_specifier", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A storage specifier alone is not a movable declaration.", "from_lines": ["static"], "to_lines": ["static"]},
-    {"id": "direct_const_specifier", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A type qualifier alone is not a movable declaration.", "from_lines": ["const"], "to_lines": ["const"]},
-    {"id": "direct_short_return_value", "language": "C", "extension": ".c", "scenario": "transfer", "rationale": "A trivial return statement is not meaningful enough to count as a move.", "from_lines": ["return 0;"], "to_lines": ["return 0;"]},
-    {"id": "direct_short_function_call", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A trivial function call is not meaningful enough to count as a move.", "from_lines": ["f();"], "to_lines": ["f();"]},
-    {"id": "direct_short_increment", "language": "Java", "extension": ".java", "scenario": "transfer", "rationale": "A trivial increment is not meaningful enough to count as a move.", "from_lines": ["x++;"], "to_lines": ["x++;"]},
-    {"id": "direct_short_throw", "language": "C++", "extension": ".cpp", "scenario": "transfer", "rationale": "A short throw statement is not meaningful enough to count as a move.", "from_lines": ["throw error;"], "to_lines": ["throw error;"]},
     {
-      "id": "classification_none_unrelated_java_methods", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Unrelated deleted and inserted methods must not be classified as a move.",
-      "original_files": {
-        "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    return doubled;", "  }", "}"],
-        "Destination.java": ["class Destination {}"]
-      },
-      "modified_files": {
-        "Source.java": ["class Source {}"],
-        "Destination.java": ["class Destination {", "  String describe(boolean enabled) {", "    if (enabled) {", "      return \"ready\";", "    }", "    return \"stopped\";", "  }", "}"]
-      }
+      "id": "direct_numeric_literal",
+      "case": "cases/direct_numeric_literal/case.json"
     },
     {
-      "id": "classification_none_similar_java_method_shapes", "language": "Java", "extension": ".java", "scenario": "archive", "rationale": "Similarly shaped methods with unrelated operations must not be classified as a move.",
-      "original_files": {
-        "Source.java": ["class Source {", "  int calculate(int value) {", "    int doubled = value * 2;", "    int limited = Math.min(doubled, 100);", "    return limited;", "  }", "}"],
-        "Destination.java": ["class Destination {}"]
-      },
-      "modified_files": {
-        "Source.java": ["class Source {}"],
-        "Destination.java": ["class Destination {", "  String describe(String input) {", "    String trimmed = input.trim();", "    String message = trimmed.toUpperCase();", "    return message;", "  }", "}"]
-      }
+      "id": "direct_identifier",
+      "case": "cases/direct_identifier/case.json"
+    },
+    {
+      "id": "direct_type_keyword",
+      "case": "cases/direct_type_keyword/case.json"
+    },
+    {
+      "id": "direct_type_specifier",
+      "case": "cases/direct_type_specifier/case.json"
+    },
+    {
+      "id": "direct_string_literal",
+      "case": "cases/direct_string_literal/case.json"
+    },
+    {
+      "id": "direct_boolean_literal",
+      "case": "cases/direct_boolean_literal/case.json"
+    },
+    {
+      "id": "direct_operator",
+      "case": "cases/direct_operator/case.json"
+    },
+    {
+      "id": "direct_template_argument",
+      "case": "cases/direct_template_argument/case.json"
+    },
+    {
+      "id": "direct_member_name",
+      "case": "cases/direct_member_name/case.json"
+    },
+    {
+      "id": "direct_array_index",
+      "case": "cases/direct_array_index/case.json"
+    },
+    {
+      "id": "direct_break_statement",
+      "case": "cases/direct_break_statement/case.json"
+    },
+    {
+      "id": "direct_continue_statement",
+      "case": "cases/direct_continue_statement/case.json"
+    },
+    {
+      "id": "direct_bare_return_statement",
+      "case": "cases/direct_bare_return_statement/case.json"
+    },
+    {
+      "id": "direct_goto_statement",
+      "case": "cases/direct_goto_statement/case.json"
+    },
+    {
+      "id": "direct_rethrow_statement",
+      "case": "cases/direct_rethrow_statement/case.json"
+    },
+    {
+      "id": "direct_empty_statement",
+      "case": "cases/direct_empty_statement/case.json"
+    },
+    {
+      "id": "direct_empty_block",
+      "case": "cases/direct_empty_block/case.json"
+    },
+    {
+      "id": "direct_empty_include",
+      "case": "cases/direct_empty_include/case.json"
+    },
+    {
+      "id": "direct_empty_define",
+      "case": "cases/direct_empty_define/case.json"
+    },
+    {
+      "id": "direct_incomplete_if_directive",
+      "case": "cases/direct_incomplete_if_directive/case.json"
+    },
+    {
+      "id": "direct_endif_directive",
+      "case": "cases/direct_endif_directive/case.json"
+    },
+    {
+      "id": "direct_case_label",
+      "case": "cases/direct_case_label/case.json"
+    },
+    {
+      "id": "direct_default_label",
+      "case": "cases/direct_default_label/case.json"
+    },
+    {
+      "id": "direct_goto_label",
+      "case": "cases/direct_goto_label/case.json"
+    },
+    {
+      "id": "direct_public_access",
+      "case": "cases/direct_public_access/case.json"
+    },
+    {
+      "id": "direct_private_access",
+      "case": "cases/direct_private_access/case.json"
+    },
+    {
+      "id": "direct_protected_access",
+      "case": "cases/direct_protected_access/case.json"
+    },
+    {
+      "id": "direct_static_specifier",
+      "case": "cases/direct_static_specifier/case.json"
+    },
+    {
+      "id": "direct_const_specifier",
+      "case": "cases/direct_const_specifier/case.json"
+    },
+    {
+      "id": "direct_short_return_value",
+      "case": "cases/direct_short_return_value/case.json"
+    },
+    {
+      "id": "direct_short_function_call",
+      "case": "cases/direct_short_function_call/case.json"
+    },
+    {
+      "id": "direct_short_increment",
+      "case": "cases/direct_short_increment/case.json"
+    },
+    {
+      "id": "direct_short_throw",
+      "case": "cases/direct_short_throw/case.json"
+    },
+    {
+      "id": "classification_none_unrelated_java_methods",
+      "case": "cases/classification_none_unrelated_java_methods/case.json"
+    },
+    {
+      "id": "classification_none_similar_java_method_shapes",
+      "case": "cases/classification_none_similar_java_method_shapes/case.json"
     }
   ]
 }

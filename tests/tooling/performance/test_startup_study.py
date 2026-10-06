@@ -11,6 +11,7 @@ from performance.startup_study import (
 
 class StartupStudyParsingTests(unittest.TestCase):
     def test_parses_direct_needed_libraries(self) -> None:
+        """Extract direct shared-library dependencies from the dynamic-loader inspection output."""
         text = """
  0x0000000000000001 (NEEDED) Shared library: [libsrcreader.so]
  0x0000000000000001 (NEEDED) Shared library: [libxml2.so.2]
@@ -20,6 +21,7 @@ class StartupStudyParsingTests(unittest.TestCase):
         )
 
     def test_parses_loaded_library_closure(self) -> None:
+        """Extract loaded library names from resolved paths in loader output."""
         text = """
 linux-vdso.so.1 (0x00007fff)
 libsrcml.so.1 => /workspace/srcML-install/lib/libsrcml.so.1 (0x001)
@@ -30,6 +32,7 @@ libsrcml.so.1 => /workspace/srcML-install/lib/libsrcml.so.1 (0x001)
         )
 
     def test_parses_loader_statistics(self) -> None:
+        """Parse startup loader statistics into their declared measurements."""
         text = """
   11: total startup time in dynamic loader: 6656188 cycles
   11: time needed for relocation: 396880 cycles (5.9%)

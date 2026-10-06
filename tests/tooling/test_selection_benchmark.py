@@ -14,18 +14,21 @@ def report(status):
 
 class SelectionBenchmarkTests(unittest.TestCase):
     def test_summary_reports_baseline_transitions(self):
+        """Report a baseline failure becoming a candidate pass without treating semantic disagreement as a process error."""
         summary = summarize({'base': report('failure'), 'new': report('pass')}, 'base')
         self.assertEqual(summary['transitions_from_baseline']['new'], {'failure_to_pass': 1})
         self.assertEqual(summary['hard_failures'], 0)
         self.assertEqual(summary['semantic_failures'], 1)
 
     def test_inventory_drift_invalidates_comparison(self):
+        """Reject variant comparison when the variants did not execute the same test inventory."""
         changed = report('pass')
         changed['inventory'] = ['other']
         with self.assertRaisesRegex(ValueError, 'inventories differ'):
             summarize({'base': report('pass'), 'new': changed}, 'base')
 
     def test_setup_errors_and_unexecuted_tests_remain_invalid(self):
+        """Count both setup errors and required unexecuted tests as invalid comparison evidence."""
         missing = report('pass')
         missing['outcomes'] = [{'id': 'setUpClass', 'status': 'error'}]
         summary = summarize({'base': missing}, 'base')
@@ -33,6 +36,7 @@ class SelectionBenchmarkTests(unittest.TestCase):
         self.assertEqual(summary['hard_failures'], 2)
 
     def test_comparison_consumes_correctness_runner_and_preserves_miss(self):
+        """Invoke the shared correctness runner and retain its semantic failure and stderr in the comparison."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             binary = root / 'srcMove'
@@ -53,6 +57,7 @@ class SelectionBenchmarkTests(unittest.TestCase):
             self.assertEqual((run_dir/'base/stderr.log').read_bytes(), b'assertion detail')
 
     def test_runner_failure_without_report_cannot_be_success(self):
+        """Mark a comparison invalid when its runner exits without producing the required report."""
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             binary = root/'srcMove'
@@ -63,6 +68,7 @@ class SelectionBenchmarkTests(unittest.TestCase):
             self.assertEqual(json.loads((root/'results/run/manifest.json').read_text())['status'], 'invalid_run')
 
     def test_teardown_error_cannot_be_hidden_by_passing_method(self):
+        """Keep a teardown error as a hard failure even when the test method passed."""
         completed = report('pass')
         completed['outcomes'].append({'id': 'tearDownClass', 'status': 'error'})
         summary = summarize({'base': completed}, 'base')

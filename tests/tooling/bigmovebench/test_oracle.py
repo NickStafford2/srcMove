@@ -10,13 +10,16 @@ from bigMoveBench.oracle import validate_case
 
 class BigMoveBenchOracleTests(unittest.TestCase):
     def test_type_one_requires_type1_classification(self) -> None:
+        """Accept an exact benchmark pair when it is reported as Type-1."""
         self.assertEqual(self._validate_case(1, "type1"), [])
 
     def test_type_two_rejects_wrong_classification(self) -> None:
+        """Reject a Type-2 benchmark pair incorrectly reported as Type-1."""
         failures = self._validate_case(2, "type1")
         self.assertTrue(any("expected 'type2c'" in failure for failure in failures))
 
     def test_type_three_requires_type3_classification(self) -> None:
+        """Accept a Type-3 pair reported as Type-3 and reject the same pair reported as Type-2c."""
         self.assertEqual(self._validate_case(3, "type3"), [])
         failures = self._validate_case(3, "type2c")
         self.assertTrue(any("expected 'type3'" in failure for failure in failures))

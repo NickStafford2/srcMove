@@ -3,393 +3,87 @@
   "cases": [
     {
       "id": "nested_exact_parent_over_child",
-      "status": "contract",
-      "input": "cases/nested_exact_parent_over_child.xml",
-      "category": "same_side_nesting",
-      "rationale": "An exact enclosing move should not be discarded merely because it contains a smaller exact move.",
-      "required": [
-        {
-          "from": "if (ready) { int payload = 7; publish(payload); }",
-          "to": "if (ready) { int payload = 7; publish(payload); }",
-          "content_relationships": ["type1"]
-        }
-      ],
-      "forbidden": [
-        {
-          "from": "int payload = 7;",
-          "to": "int payload = 7;",
-          "reason": "The child alone loses the enclosing control-flow move."
-        }
-      ]
+      "definition": "definitions/catalog/nested_exact_parent_over_child/case.json"
     },
     {
       "id": "nested_near_miss_parent_over_exact_child",
-      "status": "contract",
-      "input": "cases/nested_near_miss_parent_over_exact_child.xml",
-      "category": "cross_type_competition",
-      "rationale": "An enclosing near miss below the conservative Type-3 threshold must not suppress its exact nested move.",
-      "required": [
-        {
-          "from": "int marker = 1;",
-          "to": "int marker = 1;",
-          "content_relationships": ["type1"]
-        }
-      ],
-      "forbidden": [
-        {
-          "from": "if (oldReady) { int marker = 1; publish(oldValue); cleanup(); }",
-          "to": "if (newReady) { int marker = 1; validate(); publish(newValue); cleanup(); }",
-          "reason": "The enclosing construct is below the conservative Type-3 threshold."
-        }
-      ]
+      "definition": "definitions/catalog/nested_near_miss_parent_over_exact_child/case.json"
     },
     {
       "id": "common_content_is_not_a_move",
-      "status": "contract",
-      "input": "cases/common_content_is_not_a_move.xml",
-      "category": "common_ownership",
-      "rationale": "Text carried by diff:common belongs to both revisions and must not become move evidence merely because it is nested inside changed wrappers.",
-      "required": [],
-      "forbidden": [
-        {
-          "from": "checkpoint();",
-          "to": "checkpoint();",
-          "reason": "Common content did not move."
-        },
-        {
-          "from": "if (oldMode) { checkpoint(); removeOld(); }",
-          "to": "if (newMode) { checkpoint(); addNew(); }",
-          "reason": "Similarity supplied only by common content must not justify a wrapper move."
-        }
-      ]
+      "definition": "definitions/catalog/common_content_is_not_a_move/case.json"
     },
     {
       "id": "adjacent_exact_replacement_is_stationary",
-      "status": "contract",
-      "input": "cases/adjacent_exact_replacement_is_stationary.xml",
-      "category": "stationary_correspondence",
-      "rationale": "An exact delete/insert pair at one nested structural location is stationary code exposed by srcDiff, not a move.",
-      "required": [],
-      "forbidden": [
-        {
-          "from": "stable();",
-          "to": "stable();",
-          "reason": "The statement remained between the same siblings in the same function."
-        }
-      ]
+      "definition": "definitions/catalog/adjacent_exact_replacement_is_stationary/case.json"
     },
     {
       "id": "adjacent_type2_replacement_is_not_move",
-      "status": "contract",
-      "input": "cases/adjacent_type2_replacement_is_not_move.xml",
-      "category": "stationary_correspondence",
-      "rationale": "A unique Type-2 correspondence in adjacent nested replacement regions is an in-place modification without positive relocation evidence.",
-      "required": [],
-      "forbidden": [
-        {
-          "from": "int old_count = 1;",
-          "to": "int new_count = 1;",
-          "reason": "Renaming a declaration at one local replacement site is not a relocation."
-        }
-      ]
+      "definition": "definitions/catalog/adjacent_type2_replacement_is_not_move/case.json"
     },
     {
       "id": "adjacent_restructure_is_not_move",
-      "status": "contract",
-      "input": "cases/adjacent_restructure_is_not_move.xml",
-      "category": "stationary_correspondence",
-      "rationale": "Unchanged content exposed under incompatible inner paths in one nested replacement site is locally restructured, not relocated.",
-      "required": [],
-      "forbidden": [
-        {
-          "from": "stable();",
-          "to": "stable();",
-          "reason": "The unchanged statement remained at one local replacement site despite its changed wrapper."
-        }
-      ]
+      "definition": "definitions/catalog/adjacent_restructure_is_not_move/case.json"
     },
     {
       "id": "independent_children_not_false_parent",
-      "status": "contract",
-      "input": "cases/independent_children_not_false_parent.xml",
-      "category": "hierarchical_coherence",
-      "rationale": "Largest wins is not absolute: independently relocated children should remain separate when there is no coherent destination parent.",
-      "required": [
-        {"from": "int alpha = 1;", "to": "int alpha = 1;", "content_relationships": ["type1"]},
-        {"from": "int beta = 2;", "to": "int beta = 2;", "content_relationships": ["type1"]}
-      ],
-      "forbidden": [
-        {
-          "from": "if (enabled) { int alpha = 1; int beta = 2; }",
-          "to": "int alpha = 1; int beta = 2;",
-          "reason": "The children moved to distinct destination contexts."
-        }
-      ]
+      "definition": "definitions/catalog/independent_children_not_false_parent/case.json"
     },
     {
       "id": "unique_parent_over_repeated_children",
-      "status": "contract",
-      "input": "cases/unique_parent_over_repeated_children.xml",
-      "category": "ambiguity_and_granularity",
-      "rationale": "A cross-file transfer with consistent renaming has one identifiable Type-2 parent; repeated small statements must not replace that coherent move.",
-      "required": [
-        {
-          "from": "if (left) { int marker = 0; transferLeft(); int marker = 0; }",
-          "to": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
-          "content_relationships": ["type2c"]
-        }
-      ],
-      "forbidden": [
-        {
-          "from": "int marker = 0;",
-          "to": "int marker = 0;",
-          "reason": "A repeated child is not independently identifiable as the move."
-        }
-      ]
+      "definition": "definitions/catalog/unique_parent_over_repeated_children/case.json"
     },
     {
       "id": "mixed_parent_rejected_inner_survives",
-      "status": "contract",
-      "input": "cases/mixed_parent_rejected_inner_survives.xml",
-      "category": "mixed_polarity",
-      "rationale": "An opposite-side transition invalidates the outer candidate but must not erase an eligible inner move.",
-      "required": [
-        {"from": "int rescued = 9;", "to": "int rescued = 9;", "content_relationships": ["type1"]}
-      ],
-      "forbidden": []
+      "definition": "definitions/catalog/mixed_parent_rejected_inner_survives/case.json"
     },
     {
       "id": "deep_nesting_has_no_two_level_limit",
-      "status": "contract",
-      "input": "cases/deep_nesting_has_no_two_level_limit.xml",
-      "category": "deep_nesting",
-      "rationale": "Candidate semantics should depend on ownership and coherence, not an arbitrary nesting-depth limit.",
-      "required": [
-        {
-          "from": "if (a) { while (b) { int work = 3; } finish(); }",
-          "to": "if (a) { while (b) { int work = 3; } finish(); }",
-          "content_relationships": ["type1"]
-        }
-      ],
-      "forbidden": [
-        {
-          "from": "int work = 3;",
-          "to": "int work = 3;",
-          "reason": "The deepest leaf alone is not the most coherent move."
-        }
-      ]
+      "definition": "definitions/catalog/deep_nesting_has_no_two_level_limit/case.json"
     },
     {
       "id": "delete_common_transition",
-      "status": "contract",
-      "input": "cases/delete_common_transition.xml",
-      "category": "common_ownership",
-      "rationale": "Leaving diff:common must restore delete ownership, while common content itself remains in both revisions.",
-      "required": [
-        {"from": "int after_common = 41;", "to": "int after_common = 41;", "content_relationships": ["type1"]}
-      ],
-      "forbidden": [
-        {
-          "from": "unchanged();",
-          "to": "unchanged();",
-          "reason": "Content under diff:common was not deleted and cannot be the source of a move."
-        }
-      ]
+      "definition": "definitions/catalog/delete_common_transition/case.json"
     },
     {
       "id": "insert_common_transition",
-      "status": "contract",
-      "input": "cases/insert_common_transition.xml",
-      "category": "common_ownership",
-      "rationale": "Leaving diff:common must restore insert ownership, while common content itself remains in both revisions.",
-      "required": [
-        {"from": "int after_common = 42;", "to": "int after_common = 42;", "content_relationships": ["type1"]}
-      ],
-      "forbidden": [
-        {
-          "from": "unchanged();",
-          "to": "unchanged();",
-          "reason": "Content under diff:common was not inserted and cannot be the destination of a move."
-        }
-      ]
+      "definition": "definitions/catalog/insert_common_transition/case.json"
     },
     {
       "id": "delete_insert_transition",
-      "status": "contract",
-      "input": "cases/delete_insert_transition.xml",
-      "category": "mixed_polarity",
-      "rationale": "A nested insert must become an independent destination, then closing it must restore delete ownership.",
-      "required": [
-        {"from": "int nested_insert = 51;", "to": "int nested_insert = 51;", "content_relationships": ["type1"]},
-        {"from": "int restored_delete = 52;", "to": "int restored_delete = 52;", "content_relationships": ["type1"]}
-      ],
-      "forbidden": []
+      "definition": "definitions/catalog/delete_insert_transition/case.json"
     },
     {
       "id": "insert_delete_transition",
-      "status": "contract",
-      "input": "cases/insert_delete_transition.xml",
-      "category": "mixed_polarity",
-      "rationale": "A nested delete must become an independent source, then closing it must restore insert ownership.",
-      "required": [
-        {"from": "int nested_delete = 62;", "to": "int nested_delete = 62;", "content_relationships": ["type1"]},
-        {"from": "int restored_insert = 61;", "to": "int restored_insert = 61;", "content_relationships": ["type1"]}
-      ],
-      "forbidden": []
+      "definition": "definitions/catalog/insert_delete_transition/case.json"
     },
     {
       "id": "equal_score_deterministic",
-      "status": "contract",
-      "input": "cases/equal_score_deterministic.xml",
-      "category": "ambiguity_and_granularity",
-      "rationale": "Four structurally symmetric Type-2 edges have no evidence for one particular pairing and must be rejected deterministically.",
-      "verify_results_only_equivalence": true,
-      "required": [],
-      "forbidden": [
-        {"from": "int alpha = 71;", "to": "int gamma = 71;", "reason": "Document order is not correspondence evidence."},
-        {"from": "int alpha = 71;", "to": "int delta = 71;", "reason": "Document order is not correspondence evidence."},
-        {"from": "int beta = 71;", "to": "int gamma = 71;", "reason": "Document order is not correspondence evidence."},
-        {"from": "int beta = 71;", "to": "int delta = 71;", "reason": "Document order is not correspondence evidence."}
-      ]
+      "definition": "definitions/catalog/equal_score_deterministic/case.json"
     },
     {
       "id": "cross_file_nonlocal_move",
-      "status": "contract",
-      "input": "cases/cross_file_nonlocal_move.xml",
-      "input_shape": "archive",
-      "category": "cross_file",
-      "rationale": "File distance and an intervening unit must not suppress a strong cross-file move.",
-      "required": [
-        {
-          "from": "int relocated() {return 81;}",
-          "to": "int relocated() {return 81;}",
-          "content_relationships": ["type1"]
-        }
-      ],
-      "forbidden": []
+      "definition": "definitions/catalog/cross_file_nonlocal_move/case.json"
     },
     {
       "id": "children_utility_over_weak_parent",
-      "status": "contract",
-      "input": "cases/children_utility_over_weak_parent.xml",
-      "category": "hierarchical_coherence",
-      "rationale": "Two compatible exact child edges provide a better explanation than one weak enclosing edge whose unmatched statements changed independently.",
-      "required": [
-        {
-          "from": "if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); }",
-          "to": "if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); }",
-          "content_relationships": ["type1"]
-        },
-        {
-          "from": "if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); }",
-          "to": "if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); }",
-          "content_relationships": ["type1"]
-        }
-      ],
-      "forbidden": [
-        {
-          "from": "if (old_mode) { if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); } while (old_pending) { drain_old(); } if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); } }",
-          "to": "if (new_mode) { if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); } for (int i = 0; i < 1; ++i) { initialize_new(); } if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); } }",
-          "reason": "The weak parent must not suppress two compatible, independently exact child moves."
-        }
-      ]
+      "definition": "definitions/catalog/children_utility_over_weak_parent/case.json"
     },
     {
       "id": "shared_delete_stronger_edge",
-      "status": "contract",
-      "input": "cases/shared_delete_stronger_edge.xml",
-      "category": "one_sided_overlap",
-      "rationale": "When two plausible edges share one deletion endpoint, the exact edge must suppress the weaker Type-2 alternative.",
-      "required": [
-        {
-          "from": "int selected_value = source + 201;",
-          "to": "int selected_value = source + 201;",
-          "content_relationships": ["type1"]
-        }
-      ],
-      "forbidden": [
-        {
-          "from": "int selected_value = source + 201;",
-          "to": "int weaker_alternative = source + 201;",
-          "reason": "The deletion endpoint is already consumed by stronger exact evidence."
-        }
-      ]
+      "definition": "definitions/catalog/shared_delete_stronger_edge/case.json"
     },
     {
       "id": "coherent_type2_parent_over_partition",
-      "status": "contract",
-      "input": "cases/coherent_type2_parent_over_partition.xml",
-      "category": "hierarchical_coherence",
-      "rationale": "A consistently renamed function transferred to another file is one Type-2 move; its unchanged statements support the whole move rather than replacing it.",
-      "required": [
-        {
-          "from": "void gotoURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
-          "to": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
-          "content_relationships": ["type2c"]
-        }
-      ],
-      "forbidden": [
-        {
-          "from": "if (url != null) {connect(url);}",
-          "to": "if (url != null) {connect(url);}",
-          "reason": "The unchanged body partitions a coherent renamed function."
-        }
-      ]
+      "definition": "definitions/catalog/coherent_type2_parent_over_partition/case.json"
     },
     {
       "id": "coherent_type3_parent_over_partition",
-      "status": "contract",
-      "input": "cases/coherent_type3_parent_over_partition.xml",
-      "category": "hierarchical_coherence",
-      "rationale": "A function below the conservative Type-3 threshold should yield only independently strong descendant matches.",
-      "required": [
-        {
-          "from": "byte[] buffer = new byte[4096];",
-          "to": "byte[] buf = new byte[1024];",
-          "content_relationships": ["type2c"]
-        },
-        {
-          "from": "while ((bytes_read = in.read(buffer)) != -1) out.write(buffer, 0, bytes_read);",
-          "to": "while ((len = in.read(buf)) > 0) out.write(buf, 0, len);",
-          "content_relationships": ["type3"]
-        },
-        {
-          "from": "in.close();",
-          "to": "in.close();",
-          "content_relationships": ["type1"]
-        },
-        {
-          "from": "out.close();",
-          "to": "out.close();",
-          "content_relationships": ["type1"]
-        }
-      ],
-      "forbidden": [
-        {
-          "from": "protected void zipFile(File from, File to) { FileInputStream in = new FileInputStream(from); ZipOutputStream out = new ZipOutputStream(to); byte[] buffer = new byte[4096]; int bytes_read; while ((bytes_read = in.read(buffer)) != -1) out.write(buffer, 0, bytes_read); in.close(); out.close(); }",
-          "to": "public static void copyFile(File src, File dst) { InputStream in = new FileInputStream(src); OutputStream out = new FileOutputStream(dst); byte[] buf = new byte[1024]; int len; while ((len = in.read(buf)) > 0) out.write(buf, 0, len); in.close(); out.close(); }",
-          "reason": "The complete function is below the conservative Type-3 threshold."
-        }
-      ]
+      "definition": "definitions/catalog/coherent_type3_parent_over_partition/case.json"
     },
     {
       "id": "type2_reorder_across_common_conditionals",
-      "status": "contract",
-      "input": "cases/type2_reorder_across_common_conditionals.xml",
-      "input_shape": "archive",
-      "verify_results_only_equivalence": true,
-      "category": "same_parent_reorder",
-      "rationale": "A normalized if block crosses two unchanged conditional siblings in the same function. This reduced source-generated case reproduces the independently reviewed SQLite c799c15 floating-point option block reorder. Absence of common declaration anchors must not erase this genuine Type-2 move. Current shadow classification is a known stationary false negative; expected output comes from source order, not that classification.",
-      "required": [
-        {
-          "from": "if (all || p->realFmt != 0) { const char *format = p->realFmt; append(out, \" --realfmt %s\", format ? format : \"default\"); }",
-          "to": "if (all || p->fpFmt != 0) { const char *format = p->fpFmt; append(out, \" --fpfmt %s\", format ? format : \"empty\"); }",
-          "content_relationships": [
-            "type2c"
-          ]
-        }
-      ],
-      "forbidden": []
+      "definition": "definitions/catalog/type2_reorder_across_common_conditionals/case.json"
     }
   ]
 }

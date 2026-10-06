@@ -21,6 +21,7 @@ from tests.tooling.bigmovebench.test_catalog import pair_row, write_export
 
 class CategoryTests(unittest.TestCase):
     def test_upstream_boundaries_python_and_sql_agree(self):
+        """Classify boundary similarities identically in Python and SQL, including known false-positive pairs."""
         db = sqlite3.connect(":memory:")
         db.execute("CREATE TABLE p(syntactic_type, similarity_line, similarity_token)")
         for kind, line, token, expected in (
@@ -39,6 +40,8 @@ class CategoryTests(unittest.TestCase):
         db.close()
 
     def test_selection_generation_preserves_raw_fields_and_exclusive_membership(self):
+        """Preserve upstream clone labels while assigning each selected frame one derived benchmark category."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             bce = test_catalog.BigCloneBenchCompiledDatasetTests().create_bce(root)
@@ -57,6 +60,7 @@ class CategoryTests(unittest.TestCase):
             from bigMoveBench.selection import create_selection
             for category, raw_type, count in (("type2c", 2, 1), ("type2b", 3, 1), ("type3", 3, 2)):
                 selection, manifest, _ = create_selection(compiled, data_root=root / "data", pair_set=category, mode="census")
+                # Check the required outcomes.
                 self.assertEqual(manifest["counts"]["selected_catalog_rows"], count)
                 frames = [json.loads(line) for line in (selection / "frames.jsonl").read_text().splitlines()]
                 for row in frames[0]["rows"]:
@@ -111,16 +115,19 @@ class CategoryTests(unittest.TestCase):
             return _score_completed_case(metadata=metadata, results_path=path, srcmove_xml=xml)
 
     def test_consistent_output(self):
+        """Accept a Type-2c result for a Type-2c case but flag that classification for a Type-2b case."""
         self.assertEqual(self.score("type2c", "type2c")[0], "oracle_pass")
         self.assertEqual(self.score("type2b", "type2c")[0], "wrong_classification")
 
     def test_negative_oracle_keeps_whole_pair_rejection(self):
+        """Reject a known false-positive pair only when the detector selects its complete source and destination fragments."""
         for reported in ("type2c", "type3"):
             with self.subTest(reported=reported):
                 self.assertEqual(self.score("type2c", reported, negative=True)[0], "srcmove_false_positive")
                 self.assertEqual(self.score("type2c", reported, negative=True, partial=True)[0], "oracle_pass")
 
     def test_complete_blind_detection_with_mismatch_and_partial_miss(self):
+        """Distinguish a complete detection with the wrong class from an incomplete fragment detection."""
         outcome, _, _, evidence = self.score("type2b", "type3")
         self.assertEqual(outcome, "wrong_classification")
         self.assertTrue(evidence["_oracle_complete_detection"])
@@ -130,6 +137,8 @@ class CategoryTests(unittest.TestCase):
         self.assertFalse(evidence["_oracle_complete_detection"])
 
     def test_category_report_journal_csv_and_summary(self):
+        """Preserve derived category and observed classification consistently in reports, journals, CSV, and summaries."""
+        # Prepare the inputs and exercise the operation.
         from tests.tooling.bigmovebench import test_benchmark_cases, test_normalized_execution
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -147,6 +156,7 @@ class CategoryTests(unittest.TestCase):
                 return_value=("oracle_pass", [], {"from": "strict", "to": "strict"}, evidence)):
                 _, summary = execution._runner(cases, run_dir).run()
             report = summary["category_reports"]["type2c"]
+            # Check the required outcomes.
             self.assertEqual(report["denominators"], dict(selected=1, completed=1, srcdiff_eligible=1, complete_detections=1))
             self.assertEqual(report["reported_categories_among_complete_detections"], {"type2c": {"count": 1, "rate": 1.}})
             self.assertEqual(summary["category_membership"], "derived")
@@ -158,6 +168,7 @@ class CategoryTests(unittest.TestCase):
             self.assertEqual(row["category_rules_version"], "1")
 
     def test_denominators_and_distribution(self):
+        """Compute detection and agreement rates from their distinct denominators and leave empty rates undefined."""
         metrics = category_metrics(selected=10, completed=9, eligible=8, detected=4,
             agreed=1, reviewed_agreed=2, reported={"type2c": 1, "type3": 3})
         self.assertEqual(metrics["rates"]["complete_detection_over_selected"], .4)
@@ -168,6 +179,7 @@ class CategoryTests(unittest.TestCase):
             agreed=0, reviewed_agreed=0, reported={})["rates"]["complete_detection_over_selected"])
 
     def test_frozen_profiles_are_not_reinterpreted(self):
+        """Retain frozen profile membership and reject a legacy profile rather than recategorizing it silently."""
         for category in ("type2b", "type2c", "type3"):
             with self.assertRaisesRegex(ValueError, "legacy category membership"):
                 _rows("small", category)

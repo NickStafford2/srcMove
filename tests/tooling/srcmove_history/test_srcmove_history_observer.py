@@ -53,6 +53,8 @@ class RecordingObserver:
 
 class SrcMoveHistoryObserverTests(unittest.TestCase):
     def test_events_follow_durable_publication_and_no_op_baseline(self) -> None:
+        """Emit observer progress after durable publication and use saved coverage as the baseline for a no-op run."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 4)
@@ -61,6 +63,7 @@ class SrcMoveHistoryObserverTests(unittest.TestCase):
 
             result = self._analyze(analysis, repository, observer, pairs=3)
 
+            # Check the required outcomes.
             self.assertEqual(result.summary["completed_pair_count"], 3)
             self.assertEqual(observer.starts[0].covered, 0)
             self.assertEqual(observer.starts[0].target_total, 3)
@@ -86,6 +89,8 @@ class SrcMoveHistoryObserverTests(unittest.TestCase):
             self.assertEqual(no_op.finishes, [("complete", None)])
 
     def test_resume_baseline_includes_durable_pending_prefix(self) -> None:
+        """Include already durable pending results in the observer's resumed baseline."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 4)
@@ -101,6 +106,7 @@ class SrcMoveHistoryObserverTests(unittest.TestCase):
                 return original(database, *arguments, **keywords)
 
             with patch.object(AnalysisDatabase, "record_outcome", fail_second):
+                # Check the required outcomes.
                 with self.assertRaisesRegex(RuntimeError, "publication stop"):
                     self._analyze(
                         analysis,
@@ -122,6 +128,7 @@ class SrcMoveHistoryObserverTests(unittest.TestCase):
             self.assertEqual([event.covered for event in resumed.pairs], [2, 3])
 
     def test_broken_observer_is_disabled_without_failing_analysis(self) -> None:
+        """Disable an observer that raises an exception while allowing analysis to complete."""
         class BrokenObserver:
             def analysis_started(self, event) -> None:
                 raise OSError("broken display")
@@ -144,6 +151,8 @@ class SrcMoveHistoryObserverTests(unittest.TestCase):
         self.assertEqual(result.summary["completed_pair_count"], 2)
 
     def test_all_history_progress_is_monotonic_across_internal_batches(self) -> None:
+        """Keep reported progress increasing across internal all-history batches."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 6)
@@ -164,6 +173,7 @@ class SrcMoveHistoryObserverTests(unittest.TestCase):
                     observer=observer,
                 )
 
+            # Check the required outcomes.
             self.assertTrue(result.summary["history_exhausted"])
             self.assertIsNone(observer.starts[0].target_total)
             self.assertEqual(
@@ -171,6 +181,7 @@ class SrcMoveHistoryObserverTests(unittest.TestCase):
             )
 
     def test_short_history_reports_exhaustion_instead_of_completion(self) -> None:
+        """Report history exhaustion when available pairs cannot satisfy the requested target."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             analysis = root / "analysis"

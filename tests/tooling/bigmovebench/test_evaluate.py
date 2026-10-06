@@ -18,8 +18,27 @@ from bigMoveBench.evaluate import (
 )
 
 
+def write_scoring_artifacts(results_path: Path, srcmove_xml: Path, moves: list, xml_text: str) -> None:
+    """Serialize declared move records and their XML without deriving expected outcomes."""
+    counts: dict[str, int] = {}
+    for observed in moves:
+        kind = str(observed["content_relationship"])
+        counts[kind] = counts.get(kind, 0) + 1
+    results_path.write_text(
+        json.dumps(
+            {
+                "results_schema_version": 2, "move_count": len(moves),
+                "content_relationships": counts,
+                "moves": moves,
+            }
+        )
+    )
+    srcmove_xml.write_text(xml_text)
+
+
 class BigMoveBenchEvaluationTests(unittest.TestCase):
     def test_diagnostic_stage_stays_within_observable_evidence(self) -> None:
+        """Attribute a miss only to the pipeline stage supported by the available candidates and moves."""
         self.assertEqual(diagnostic_stage("oracle_pass", {}), "selected")
         self.assertEqual(
             diagnostic_stage("wrong_classification", {}), "classification"
@@ -46,6 +65,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
         )
 
     def test_results_output_validation_rejects_bad_artifacts(self) -> None:
+        """Distinguish missing, empty, malformed, and invalid result artifacts before scoring them."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             path = Path(temporary_directory) / "results.json"
             self.assertEqual(validate_results_output(path)["status"], "missing")
@@ -68,6 +88,8 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                     )
 
     def test_results_only_scoring_resolves_positions_from_srcdiff(self) -> None:
+        """Resolve results-only endpoints in srcDiff XML and reject a path that identifies no node."""
+        # Prepare the inputs and exercise the operation.
         metadata = {
             "syntactic_type": 1,
             "expected": {
@@ -120,6 +142,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             srcdiff_path = root / "srcdiff.xml"
             srcdiff_path.write_text(srcdiff, encoding="utf-8")
 
+            # Check the required outcomes.
             self.assertEqual(validate_results_output(results_path)["status"], "valid")
             outcome, failures, _, _ = _score_completed_case(
                 metadata=metadata,
@@ -140,6 +163,8 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             self.assertTrue(any("resolved to 0 nodes" in failure for failure in failures))
 
     def test_type_two_scoring_requires_type2_content_relationship(self) -> None:
+        """Score a Type-2 case as passing only for its required Type-2 content relationship."""
+        # Prepare the inputs and exercise the operation.
         metadata = {
             "syntactic_type": 2,
             "expected": {
@@ -194,9 +219,12 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                         results_path=results_path,
                         srcmove_xml=srcmove_xml,
                     )
+                    # Check the required outcomes.
                     self.assertEqual(outcome, expected_outcome)
 
     def test_type_three_scoring_requires_type3_content_relationship(self) -> None:
+        """Score a Type-3 case as passing only when the reported relationship is Type-3."""
+        # Prepare the inputs and exercise the operation.
         metadata = {
             "syntactic_type": 3,
             "expected": {
@@ -251,9 +279,11 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                         results_path=results_path,
                         srcmove_xml=srcmove_xml,
                     )
+                    # Check the required outcomes.
                     self.assertEqual(outcome, expected_outcome)
 
     def test_type_three_dual_oracle_correlates_text_and_positions_per_move(self) -> None:
+        """Require one selected move to satisfy both expected texts and both source ranges together."""
         metadata = {
             "syntactic_type": 3,
             "expected": {
@@ -279,6 +309,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 "to_raw_texts": [to_text],
             }
 
+        # Arrange the intended move and same-run incidental or incorrect alternatives.
         intended = move(
             "intended", "type3", "void before() {}\n", "void after() {}\n"
         )
@@ -297,6 +328,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             "pos:start='{other_to}:1|{other_to}:1' pos:end='{other_to}:20|{other_to}:20'/>"
             "</unit>"
         )
+        # Declare independent outcomes for matching, wrong-text, and wrong-position cases.
         cases = (
             (
                 "intended plus incidental",
@@ -327,21 +359,9 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             root = Path(temporary_directory)
             results_path = root / "results.json"
             srcmove_xml = root / "srcmove.xml"
+            # Score each saved result against both expected text and expected position.
             for label, moves, xml_text, expected_outcome in cases:
-                counts: dict[str, int] = {}
-                for observed in moves:
-                    kind = str(observed["content_relationship"])
-                    counts[kind] = counts.get(kind, 0) + 1
-                results_path.write_text(
-                    json.dumps(
-                        {
-                            "results_schema_version": 2, "move_count": len(moves),
-                            "content_relationships": counts,
-                            "moves": moves,
-                        }
-                    )
-                )
-                srcmove_xml.write_text(xml_text)
+                write_scoring_artifacts(results_path, srcmove_xml, moves, xml_text)
                 with self.subTest(label=label):
                     outcome, _, _, _ = _score_completed_case(
                         metadata=metadata,
@@ -351,6 +371,8 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                     self.assertEqual(outcome, expected_outcome)
 
     def test_malformed_result_and_xml_are_oracle_failures(self) -> None:
+        """Classify malformed JSON, invalid move records, and malformed XML as oracle failures."""
+        # Prepare the inputs and exercise the operation.
         metadata = {
             "syntactic_type": 1,
             "expected": {
@@ -373,6 +395,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 results_path=results_path,
                 srcmove_xml=srcmove_xml,
             )
+            # Check the required outcomes.
             self.assertEqual(outcome, "oracle_failure")
 
             results_path.write_text(
@@ -410,6 +433,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             self.assertEqual(outcome, "oracle_failure")
 
     def test_known_false_positive_scoring_rejects_only_whole_fragment_move(self) -> None:
+        """Treat a complete known false-positive fragment match as failure while allowing partial incidental moves."""
         metadata = {
             "case_kind": "known_false_positive",
             # Descriptive dataset taxonomy only; it is not a positive oracle.

@@ -18,6 +18,7 @@ void require(bool condition, const char *message) {
 
 int main() {
   try {
+    // Inputs: ten tokens, then one changed token and two changed tokens.
     const std::vector<std::uint64_t> baseline{0, 1, 2, 3, 4,
                                                5, 6, 7, 8, 9};
     const std::vector<std::uint64_t> ninety_percent{0, 1, 2, 3, 4,
@@ -25,10 +26,12 @@ int main() {
     const std::vector<std::uint64_t> eighty_percent{0, 1, 2, 3, 4,
                                                      5, 6, 7, 98, 99};
 
+    // Size screening: reject pairs that cannot reach the 90% threshold.
     require(can_reach_type3_threshold(9, 10),
             "a 9:10 size ratio should reach the Type-3 threshold");
     require(!can_reach_type3_threshold(8, 10),
             "an 8:10 size ratio should not reach the Type-3 threshold");
+    // Content screening: accept nine shared tokens, reject eight shared tokens.
     require(type3_lcs_length(baseline, ninety_percent) == 9,
             "90% sequence similarity should be accepted");
     require(type3_lcs_length(baseline, eighty_percent) == 0,

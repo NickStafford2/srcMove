@@ -82,6 +82,7 @@ def write_receipt(path: Path, artifact: Path, checksum: str) -> None:
 
 class RepositoryObservationTests(unittest.TestCase):
     def test_clean_dirty_and_missing_repositories_are_distinct(self) -> None:
+        """Distinguish clean, modified, and unavailable source repositories in provenance observations."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = create_repository(root)
@@ -102,6 +103,7 @@ class RepositoryObservationTests(unittest.TestCase):
             self.assertEqual(missing["status"], "unavailable")
 
     def test_relevant_untracked_sources_include_content_checksums(self) -> None:
+        """Include content checksums for relevant untracked source files in repository provenance."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = create_repository(Path(temporary_directory))
             (repository / "new.hpp").write_text("int added;\n", encoding="utf-8")
@@ -121,6 +123,8 @@ class RepositoryObservationTests(unittest.TestCase):
 
 class ExecutableProvenanceTests(unittest.TestCase):
     def test_verified_stale_unverified_unavailable_and_malformed(self) -> None:
+        """Distinguish verified, stale, unverified, unavailable, and malformed executable provenance."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             executable = root / "srcMove"
@@ -128,6 +132,7 @@ class ExecutableProvenanceTests(unittest.TestCase):
             receipt = root / "receipt.json"
 
             no_receipt = observe_executable(executable, receipt)
+            # Check the required outcomes.
             self.assertEqual(no_receipt["provenance_status"], "unverified")
             self.assertEqual(no_receipt["receipt_validation"], "missing")
 
@@ -150,6 +155,8 @@ class ExecutableProvenanceTests(unittest.TestCase):
 
 class BuildReceiptTests(unittest.TestCase):
     def test_emitter_creates_a_stable_valid_receipt_atomically(self) -> None:
+        """Publish a reproducible valid build receipt through atomic replacement."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = create_repository(root)
@@ -182,6 +189,7 @@ class BuildReceiptTests(unittest.TestCase):
             ]
 
             first = subprocess.run(command, capture_output=True, text=True, check=False)
+            # Check the required outcomes.
             self.assertEqual(first.returncode, 0, first.stderr)
             first_receipt = json.loads(receipt.read_text(encoding="utf-8"))
             self.assertEqual(
@@ -202,6 +210,8 @@ class BuildReceiptTests(unittest.TestCase):
             self.assertEqual(list(root.glob(".*.tmp-*")), [])
 
     def test_run_observation_keeps_binary_verification_separate_from_sources(self) -> None:
+        """Report executable verification independently of the current source-repository state."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = create_repository(root)
@@ -242,6 +252,7 @@ class BuildReceiptTests(unittest.TestCase):
             )
 
             binary = observation["executables"]["srcMove"]
+            # Check the required outcomes.
             self.assertEqual(binary["provenance_status"], "verified")
             self.assertEqual(
                 binary["current_source_relationships"]["srcMove"], "differs"

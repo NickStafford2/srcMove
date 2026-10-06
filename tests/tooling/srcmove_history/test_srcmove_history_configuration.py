@@ -15,6 +15,7 @@ from srcmove_history.inputs import AnalysisConfiguration
 
 class SrcMoveHistoryConfigurationTests(unittest.TestCase):
     def test_configuration_round_trips_analysis_and_run_settings(self) -> None:
+        """Save and reload both frozen analysis settings and mutable run settings."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             configuration = HistoryConfiguration(
@@ -37,6 +38,7 @@ class SrcMoveHistoryConfigurationTests(unittest.TestCase):
             self.assertIn("jobs = 6", rendered)
 
     def test_default_directory_round_trips_through_dot(self) -> None:
+        """Preserve the default repository directory through its dot-based configuration representation."""
         configuration = HistoryConfiguration()
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
@@ -49,6 +51,7 @@ class SrcMoveHistoryConfigurationTests(unittest.TestCase):
             self.assertEqual(load_history_configuration(root), configuration)
 
     def test_loader_rejects_unknown_missing_and_invalid_values(self) -> None:
+        """Reject configuration with unsupported fields, missing required values, or invalid settings."""
         baseline = render_history_configuration(HistoryConfiguration())
         mutations = {
             "unknown": baseline + "unknown = true\n",
@@ -75,6 +78,7 @@ class SrcMoveHistoryConfigurationTests(unittest.TestCase):
                     load_history_configuration(root)
 
     def test_create_never_overwrites_existing_configuration(self) -> None:
+        """Refuse to replace an existing configuration file during creation."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             path = create_history_configuration(root, HistoryConfiguration())

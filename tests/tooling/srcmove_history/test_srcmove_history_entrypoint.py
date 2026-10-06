@@ -13,6 +13,7 @@ ENTRYPOINT = REPOSITORY_ROOT / "bin" / "srcmove-history"
 
 class SrcMoveHistoryEntrypointTests(unittest.TestCase):
     def test_entrypoint_runs_from_outside_the_checkout(self) -> None:
+        """Run the history entry point successfully from a directory outside the repository checkout."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             result = subprocess.run(
                 [str(ENTRYPOINT), "--help"],
@@ -27,6 +28,7 @@ class SrcMoveHistoryEntrypointTests(unittest.TestCase):
         self.assertEqual(result.stderr, "")
 
     def test_entrypoint_is_executable(self) -> None:
+        """Require executable permission on the checked-in history entry-point script."""
         self.assertTrue(os.access(ENTRYPOINT, os.X_OK))
 
 

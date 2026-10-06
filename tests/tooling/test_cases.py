@@ -27,6 +27,7 @@ def touch(path: Path) -> Path:
 
 class XmlCaseDiscoveryTests(unittest.TestCase):
     def test_complete_case_is_discovered(self) -> None:
+        """Discover an XML case containing input XML and both expected output artifacts."""
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             case_dir = root / "complete"
@@ -40,6 +41,7 @@ class XmlCaseDiscoveryTests(unittest.TestCase):
             self.assertEqual(cases[0].input_xml, case_dir / "input.xml")
 
     def test_incomplete_case_is_rejected(self) -> None:
+        """Reject an XML case missing its expected JSON and XML artifacts."""
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             case_dir = root / "incomplete"
@@ -53,6 +55,7 @@ class XmlCaseDiscoveryTests(unittest.TestCase):
 
 class SourceCaseDiscoveryTests(unittest.TestCase):
     def test_single_file_case_is_discovered(self) -> None:
+        """Discover matching original and modified single-file sources with their oracle."""
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             case_dir = root / "single"
@@ -67,6 +70,7 @@ class SourceCaseDiscoveryTests(unittest.TestCase):
             self.assertFalse(cases[0].is_archive)
 
     def test_archive_case_is_discovered(self) -> None:
+        """Recognize original and modified source directories as an archive case."""
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             case_dir = root / "archive"
@@ -80,6 +84,7 @@ class SourceCaseDiscoveryTests(unittest.TestCase):
             self.assertEqual(cases[0].original, case_dir / "original")
 
     def test_malformed_case_is_rejected_instead_of_ignored(self) -> None:
+        """Reject a source case missing its modified revision instead of silently skipping it."""
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             case_dir = root / "malformed"
@@ -123,6 +128,8 @@ class PolicyCaseDiscoveryTests(unittest.TestCase):
         )
 
     def test_catalog_cases_are_discovered_and_classified(self) -> None:
+        """Discover policy catalog cases with their declared positive or negative expectations."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             negative = {
@@ -174,6 +181,7 @@ class PolicyCaseDiscoveryTests(unittest.TestCase):
 
             cases = discover_policy_cases(root)
 
+            # Check the required outcomes.
             self.assertEqual(
                 [case.name for case in cases],
                 [
@@ -188,6 +196,8 @@ class PolicyCaseDiscoveryTests(unittest.TestCase):
             self.assertTrue(cases[1].expect_move)
 
     def test_duplicate_ids_across_catalogs_are_rejected(self) -> None:
+        """Reject policy cases whose identifiers collide across catalog files."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
             shared = {
@@ -215,6 +225,7 @@ class PolicyCaseDiscoveryTests(unittest.TestCase):
             )
             self._write_contextual_catalogs(root)
 
+            # Check the required outcomes.
             with self.assertRaisesRegex(CaseDefinitionError, "duplicate policy"):
                 discover_policy_cases(root)
 

@@ -32,6 +32,7 @@ class ThesisWorkflowTests(unittest.TestCase):
         return directory, manifest
 
     def test_same_pairs_publish_latest_and_preserve_baseline(self):
+        """Publish a new preparation for the same selected pairs while preserving the previous manifest and identity."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             old, _ = self.experiment(root, 'old')
@@ -45,6 +46,7 @@ class ThesisWorkflowTests(unittest.TestCase):
             self.assertEqual(before, (old / 'manifest.json').read_bytes())
 
     def test_changed_pair_or_direction_cannot_enable_run(self):
+        """Reject preparation changes to selected pairs or directions before enabling execution."""
         for original, modified in [('a', 'c'), ('b', 'a')]:
             with self.subTest(original=original, modified=modified), tempfile.TemporaryDirectory() as temporary:
                 root = Path(temporary)
@@ -56,6 +58,7 @@ class ThesisWorkflowTests(unittest.TestCase):
                 self.assertFalse((root / 'results/bigMoveBench/latest-thesis-preparation.json').exists())
 
     def test_changed_frames_are_rejected_even_if_pair_still_parses(self):
+        """Reject changed selected frame content even when the saved pair record still parses."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             old, _ = self.experiment(root, 'old')
@@ -65,6 +68,7 @@ class ThesisWorkflowTests(unittest.TestCase):
                 workflow.selected_endpoints(old, root / 'cache')
 
     def test_failed_refresh_disables_previous_convenience_pointer(self):
+        """Remove the runnable preparation pointer after a failed refresh instead of leaving stale preparation enabled."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             pointer = root / 'bigMoveBench/latest-thesis-preparation.json'
@@ -78,6 +82,7 @@ class ThesisWorkflowTests(unittest.TestCase):
             self.assertNotIn('experiment_id', workflow.read_json(pointer))
 
     def test_validation_failure_never_publishes_a_passing_record(self):
+        """Publish no validation record when preparation tests fail."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             with patch.object(workflow, 'run_logged', side_effect=ValueError('test failed')):
@@ -86,6 +91,7 @@ class ThesisWorkflowTests(unittest.TestCase):
             self.assertFalse(list(root.rglob('validation.json')))
 
     def test_run_uses_latest_preparation_without_resuming_old_results(self):
+        """Execute the latest preparation as a fresh run rather than resuming older result directories."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             directory, manifest = self.experiment(root, 'new')
@@ -105,6 +111,7 @@ class ThesisWorkflowTests(unittest.TestCase):
             self.assertEqual(execute.call_args.kwargs, {})
 
     def test_run_rejects_new_corrections_before_executing_any_cases(self):
+        """Reject correction drift before executing any case from a prepared experiment."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             directory, manifest = self.experiment(root, 'new')

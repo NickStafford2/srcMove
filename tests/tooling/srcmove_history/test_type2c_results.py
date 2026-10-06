@@ -17,6 +17,7 @@ class Type2cResultsTests(unittest.TestCase):
                     group_kinds={'move_1_to_1': 1}, content_relationships={'type2c': 1})
 
     def test_admission_and_scorer_accept_current_classification(self):
+        """Admit and score results using the current Type-2c classification vocabulary."""
         payload = self.payload()
         moves, counts = normalize_compactable_results(payload)
         self.assertEqual(moves[0]['content_relationship'], 'type2c')
@@ -24,6 +25,7 @@ class Type2cResultsTests(unittest.TestCase):
         self.assertEqual(validate_results_schema(payload), [])
 
     def test_incompatible_reporting_and_counts_are_rejected(self):
+        """Reject obsolete classification fields and inconsistent summary counts."""
         baseline = self.payload()
         mutations = [
             lambda p: p.update(results_schema_version=1),
@@ -44,5 +46,6 @@ class Type2cResultsTests(unittest.TestCase):
                 self.assertTrue(validate_results_schema(payload))
 
     def test_text_presents_current_category_counts(self):
+        """Render the current content-category counts in human-readable output."""
         text = render_status(dict(move_group_count=3, content_relationships={'type2c': 3}))
         self.assertIn('3 Type 2c', text)

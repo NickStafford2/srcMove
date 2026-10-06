@@ -107,6 +107,8 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
         )
 
     def test_census_dedupes_direction_and_preserves_rows(self) -> None:
+        """Select one direction per content pair while retaining all contributing catalog rows and source multiplicity."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             compiled = self.compile_fixture(root)
@@ -120,6 +122,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 mode="census",
             )
 
+            # Check the required outcomes.
             self.assertFalse(reused)
             self.assertEqual(sha256_file(catalog), catalog_sha)
             self.assertEqual(manifest["request"]["eligibility"]["minimum_tokens"], None)
@@ -162,6 +165,8 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
             load_selection(directory, expected_dataset_id=compiled.dataset_id)
 
     def test_content_label_conflicts_are_audit_only_for_every_dedupe_mode(self) -> None:
+        """Exclude conflicting positive and negative content labels from scored selections in every deduplication mode."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             fixture = catalog_fixture.BigCloneBenchCompiledDatasetTests(
@@ -202,6 +207,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                     mode="census",
                     dedupe=dedupe,
                 )
+                # Check the required outcomes.
                 self.assertEqual(manifest["counts"]["selected_frames"], 0)
                 self.assertEqual(
                     manifest["counts"]["content_label_conflict_excluded_frames"], 1
@@ -257,6 +263,8 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 )
 
     def test_pair_sets_and_sample_identity_are_separate(self) -> None:
+        """Give each pair category its own selection identity and make sampled identities depend on the seed."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             compiled = self.compile_fixture(root)
@@ -287,6 +295,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 mode="census",
             )
 
+            # Check the required outcomes.
             self.assertEqual(
                 len({type1_dir.name, type2_dir.name, type3_dir.name, negative_dir.name}),
                 4,
@@ -299,6 +308,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
             self.assertNotEqual(_sample_rank(1, "frame"), _sample_rank(2, "frame"))
 
     def test_audit_dedupe_none_retains_both_catalog_directions(self) -> None:
+        """Retain both directional frames when the explicit audit mode disables deduplication."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             compiled = self.compile_fixture(root)
@@ -315,6 +325,8 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
             )
 
     def test_type3_sample_is_stratified_reproducible_and_compact(self) -> None:
+        """Repeat a seeded Type-3 sample with one frame in each strength band and no conflicting content pairs."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             compiled = self.compile_type3_fixture(root)
@@ -335,6 +347,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 seed=73,
             )
 
+            # Check the required outcomes.
             self.assertEqual(first["selection_id"], second["selection_id"])
             self.assertEqual(
                 (first_dir / "frames.jsonl").read_bytes(),
@@ -363,6 +376,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
             )
 
     def test_type3_sample_smaller_than_the_strata_is_rejected(self) -> None:
+        """Reject a Type-3 sample too small to include all four strength bands."""
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             compiled = self.compile_type3_fixture(root)
@@ -376,6 +390,7 @@ class BigCloneBenchSelectionTests(unittest.TestCase):
                 )
 
     def test_type3_allocation_rejects_empty_strata_and_redistributes_caps(self) -> None:
+        """Redistribute capped strength-band allocations and reject an empty required band."""
         with self.assertRaisesRegex(ValueError, "empty: weak"):
             _equal_type3_allocation(
                 {"very_strong": 2, "strong": 2, "moderate": 2, "weak": 0}, 4

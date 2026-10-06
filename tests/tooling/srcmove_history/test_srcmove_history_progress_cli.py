@@ -36,6 +36,7 @@ def executable(path: Path) -> Path:
 
 class SrcMoveHistoryProgressCliTests(unittest.TestCase):
     def test_human_run_reports_immediate_sparse_redirected_progress(self) -> None:
+        """Begin redirected human-run progress immediately and retain only sparse updates."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             arguments = self._creation_arguments(root, pairs=4)
@@ -52,6 +53,7 @@ class SrcMoveHistoryProgressCliTests(unittest.TestCase):
             self.assertLessEqual(len(lines), 4)
 
     def test_json_auto_suppresses_progress_and_keeps_stdout_valid(self) -> None:
+        """Suppress automatic progress for JSON output so stdout remains valid JSON."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             arguments = self._creation_arguments(root, pairs=2)
@@ -66,6 +68,7 @@ class SrcMoveHistoryProgressCliTests(unittest.TestCase):
             self.assertEqual(document["coverage"]["durable_commit_pairs"], 2)
 
     def test_progress_always_uses_stderr_without_contaminating_json(self) -> None:
+        """Send explicitly enabled progress to stderr while keeping JSON stdout clean."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             arguments = self._creation_arguments(root, pairs=2)
@@ -89,6 +92,7 @@ class SrcMoveHistoryProgressCliTests(unittest.TestCase):
             self.assertNotIn(error, output)
 
     def test_progress_never_suppresses_human_run_progress(self) -> None:
+        """Respect the never-progress option while still displaying the human run result."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             arguments = self._creation_arguments(root, pairs=2)
@@ -102,9 +106,12 @@ class SrcMoveHistoryProgressCliTests(unittest.TestCase):
             self.assertEqual(error, "")
 
     def test_no_op_run_finishes_cleanly_without_opening_workers(self) -> None:
+        """Finish a reached target without opening worker sessions."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             creation = self._creation_arguments(root, pairs=2)
+            # Check the required outcomes.
             self.assertEqual(
                 self._main([*creation, "--progress", "never"])[0], 0
             )
@@ -132,6 +139,7 @@ class SrcMoveHistoryProgressCliTests(unittest.TestCase):
             self.assertNotIn("error", error.lower())
 
     def test_keyboard_interrupt_renders_one_non_failure_message(self) -> None:
+        """Display one interruption message for KeyboardInterrupt without labeling it a tool failure."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             arguments = self._creation_arguments(
                 Path(temporary_directory), pairs=1

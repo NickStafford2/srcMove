@@ -87,6 +87,7 @@ def item(
 
 class PairExecutorTests(unittest.TestCase):
     def test_cleanup_unlinks_symlinks_without_crossing_analysis_root(self) -> None:
+        """Remove worker scratch symlinks without deleting files outside the analysis root."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             analysis = root / "analysis"
@@ -107,6 +108,8 @@ class PairExecutorTests(unittest.TestCase):
             self.assertTrue(outside.exists())
 
     def test_publication_acknowledgement_removes_worker_scratch(self) -> None:
+        """Delete worker scratch only after the outcome is acknowledged as published."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = create_history(root)
@@ -124,6 +127,7 @@ class PairExecutorTests(unittest.TestCase):
                     for artifact in outcome.artifacts
                     if artifact.kind == "json_results"
                 )
+                # Check the required outcomes.
                 self.assertTrue(results.is_file())
                 published_results.append(results)
 
@@ -142,6 +146,7 @@ class PairExecutorTests(unittest.TestCase):
             )
 
     def test_worker_session_setup_failure_propagates_without_deadlock(self) -> None:
+        """Propagate failure while opening a worker session without leaving coordination blocked."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             invalid_root = root / "not-a-directory"
@@ -163,6 +168,8 @@ class PairExecutorTests(unittest.TestCase):
                 )
 
     def test_worker_reuses_one_git_batch_and_runs_tools_in_order(self) -> None:
+        """Reuse one Git batch session while running srcDiff before srcMove for every pair."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = create_history(root)
@@ -191,6 +198,7 @@ class PairExecutorTests(unittest.TestCase):
                     worker_count=1,
                 )
 
+            # Check the required outcomes.
             self.assertEqual(len(starts), 1)
             self.assertEqual([outcome.status for outcome in outcomes], [
                 PairStatus.COMPLETED,
@@ -226,6 +234,8 @@ class PairExecutorTests(unittest.TestCase):
             self.assertFalse(any(_process_exists(pid) for pid in starts))
 
     def test_special_git_modes_do_not_fail_an_otherwise_analyzable_pair(self) -> None:
+        """Skip special Git file modes while allowing the remaining analyzable pair to succeed."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = create_history(root)
@@ -265,6 +275,7 @@ class PairExecutorTests(unittest.TestCase):
                 worker_count=1,
             )
 
+            # Check the required outcomes.
             self.assertEqual(outcomes[0].status, PairStatus.COMPLETED)
             self.assertEqual(
                 [path.path for path in outcomes[0].analyzable_paths],
@@ -296,6 +307,8 @@ class PairExecutorTests(unittest.TestCase):
             )
 
     def test_materialization_failure_has_export_failed_status(self) -> None:
+        """Record export_failed when source materialization fails."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = create_history(root)
@@ -320,12 +333,14 @@ class PairExecutorTests(unittest.TestCase):
                 )
 
             outcome = outcomes[0]
+            # Check the required outcomes.
             self.assertEqual(outcome.status, PairStatus.EXPORT_FAILED)
             self.assertIn("injected materialization failure", outcome.error)
             self.assertIsNone(outcome.srcdiff_process)
             self.assertIsNone(outcome.srcmove_process)
 
     def test_incomplete_work_item_has_orchestration_failed_status(self) -> None:
+        """Record orchestration_failed for a work item missing required inputs."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             outcomes = []
             work_item = PairWorkItem(
@@ -349,6 +364,8 @@ class PairExecutorTests(unittest.TestCase):
             self.assertIsNone(outcome.srcmove_process)
 
     def test_srcdiff_process_failures_are_terminal_and_skip_srcmove(self) -> None:
+        """Record terminal srcDiff process failures and never invoke srcMove for those attempts."""
+        # Prepare the inputs and exercise the operation.
         cases = {
             "nonzero": ("exited", 23, None, "exited with code 23"),
             "signal": ("signaled", None, signal.SIGTERM, "terminated by signal"),
@@ -392,6 +409,7 @@ class PairExecutorTests(unittest.TestCase):
                     )
 
                 outcome = outcomes[0]
+                # Check the required outcomes.
                 self.assertEqual(outcome.status, PairStatus.SRCDIFF_FAILED)
                 self.assertEqual(
                     outcome.srcdiff_process.termination_status, termination
@@ -405,6 +423,8 @@ class PairExecutorTests(unittest.TestCase):
                 self.assertFalse(marker.exists())
 
     def test_srcdiff_validation_failure_does_not_run_srcmove(self) -> None:
+        """Stop after invalid srcDiff XML instead of invoking srcMove."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = create_history(root)
@@ -428,6 +448,7 @@ class PairExecutorTests(unittest.TestCase):
                 )
 
             outcome = outcomes[0]
+            # Check the required outcomes.
             self.assertEqual(outcome.status, PairStatus.SRCDIFF_FAILED)
             self.assertIn("malformed", outcome.error)
             self.assertIsNone(outcome.srcmove_process)
@@ -439,6 +460,8 @@ class PairExecutorTests(unittest.TestCase):
             self.assertFalse(marker.exists())
 
     def test_missing_results_is_a_srcmove_failure(self) -> None:
+        """Record srcMove failure when its required results artifact is absent."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository, commits = create_history(root)
@@ -465,11 +488,14 @@ class PairExecutorTests(unittest.TestCase):
             )
 
             outcome = outcomes[0]
+            # Check the required outcomes.
             self.assertEqual(outcome.status, PairStatus.SRCMOVE_FAILED)
             self.assertTrue(outcome.srcmove_process.admitted)
             self.assertIn("results JSON is missing", outcome.error)
 
     def test_srcmove_process_failures_have_srcmove_failed_status(self) -> None:
+        """Classify srcMove process failures as srcmove_failed terminal outcomes."""
+        # Prepare the inputs and exercise the operation.
         cases = {
             "nonzero": ("exited", 23, None, "exited with code 23"),
             "signal": ("signaled", None, signal.SIGTERM, "terminated by signal"),
@@ -507,6 +533,7 @@ class PairExecutorTests(unittest.TestCase):
                 )
 
                 outcome = outcomes[0]
+                # Check the required outcomes.
                 self.assertEqual(outcome.status, PairStatus.SRCMOVE_FAILED)
                 self.assertTrue(outcome.srcdiff_process.admitted)
                 self.assertEqual(
@@ -521,6 +548,8 @@ class PairExecutorTests(unittest.TestCase):
 
 class ProcessSupervisorTests(unittest.TestCase):
     def test_bounded_capture_records_full_checksum(self) -> None:
+        """Bound stored process output while retaining the checksum of the complete stream."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             output = root / "output.xml"
@@ -545,6 +574,7 @@ class ProcessSupervisorTests(unittest.TestCase):
                 log_limit=20,
             )
 
+            # Check the required outcomes.
             self.assertTrue(outcome.admitted)
             self.assertEqual(outcome.stdout.retained_bytes, 20)
             self.assertEqual(outcome.stdout.omitted_bytes, 180)
@@ -555,6 +585,7 @@ class ProcessSupervisorTests(unittest.TestCase):
 
     @unittest.skipUnless(os.name == "posix", "requires POSIX process groups")
     def test_timeout_force_kills_process_group(self) -> None:
+        """Kill the whole process group after a timed-out child ignores graceful termination."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             tool = executable_copy(root, "timeout-tree")

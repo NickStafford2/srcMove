@@ -202,6 +202,60 @@ def _validate_file_map(value: Any, field: str, context: str) -> None:
         _validate_lines(lines, f"{field}.{relative_name}", context)
 
 
+def _readable_policy_definition(catalog: Path, reference: dict, expect_move: bool) -> dict:
+    """Read the source files and explicit expectation belonging to one case."""
+    relative = reference.get("case")
+    if not isinstance(relative, str) or Path(relative).is_absolute() or ".." in Path(relative).parts:
+        raise CaseDefinitionError(f"{catalog.name}: unsafe case reference {relative!r}")
+    path = (catalog.parent / relative).resolve()
+    if not path.is_relative_to(catalog.parent.resolve()):
+        raise CaseDefinitionError(f"{catalog.name}: case reference escapes the catalog")
+    try:
+        case = json.loads(path.read_text())
+        if not isinstance(case, dict) or case.get("id") != reference.get("id"):
+            raise CaseDefinitionError(f"{path}: case id disagrees with its catalog")
+        expectation = case["expect"]
+        if type(expectation["move_count"]) is not int or expectation["move_count"] != int(expect_move):
+            raise CaseDefinitionError(f"{path}: move count disagrees with the case family")
+
+        def source_files(side):
+            directory = path.parent / side
+            if not directory.resolve().is_relative_to(path.parent):
+                raise CaseDefinitionError(f"{path}: source directory escapes its case")
+            files = {}
+            for file in sorted(directory.rglob('*')):
+                if not file.resolve().is_relative_to(directory.resolve()):
+                    raise CaseDefinitionError(f"{path}: source file escapes its revision directory")
+                if file.is_file():
+                    files[str(file.relative_to(directory))] = file.read_text().splitlines()
+            _validate_file_map(files, side, str(path))
+            return files
+
+        before, after = source_files("before"), source_files("after")
+        definition = {"id": case["id"], "language": case["language"],
+                      "extension": case["extension"], "scenario": case["scenario"],
+                      "rationale": case["purpose"], "case_path": str(path)}
+        if case["scenario"] == "transfer":
+            if len(before) != 1 or len(after) != 1:
+                raise CaseDefinitionError(f"{path}: a transfer needs one source file per side")
+            definition.update(from_lines=next(iter(before.values())), to_lines=next(iter(after.values())))
+        else:
+            definition.update(original_files=before, modified_files=after)
+        if expect_move:
+            definition["expected_content_relationship"] = expectation["content_relationship"]
+            for side in ("from", "to"):
+                expected = expectation[side]
+                if Path(expected).is_absolute() or ".." in Path(expected).parts:
+                    raise CaseDefinitionError(f"{path}: unsafe expected source path")
+                expected_path = (path.parent / expected).resolve()
+                if not expected_path.is_relative_to(path.parent):
+                    raise CaseDefinitionError(f"{path}: expected source file escapes its case")
+                definition["expected_" + side + "_lines"] = expected_path.read_text().splitlines()
+        return definition
+    except (OSError, UnicodeError, json.JSONDecodeError, KeyError, TypeError) as error:
+        raise CaseDefinitionError(f"invalid readable policy case {path}: {error}") from error
+
+
 def _load_policy_catalog(
     path: Path, expect_move: bool, contextual: bool
 ) -> list[PolicyCaseSpec]:
@@ -210,8 +264,8 @@ def _load_policy_catalog(
     except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise CaseDefinitionError(f"unreadable policy catalog {path}: {error}") from error
 
-    if not isinstance(value, dict) or value.get("schema_version") != 1:
-        raise CaseDefinitionError(f"{path.name}: schema_version must be 1")
+    if not isinstance(value, dict) or value.get("schema_version") not in (1, 2):
+        raise CaseDefinitionError(f"{path.name}: schema_version must be 1 or 2")
     raw_cases = value.get("cases")
     if not isinstance(raw_cases, list) or not raw_cases:
         raise CaseDefinitionError(f"{path.name}: cases must be a non-empty array")
@@ -221,6 +275,8 @@ def _load_policy_catalog(
         context = f"{path.name} case {ordinal}"
         if not isinstance(raw_case, dict):
             raise CaseDefinitionError(f"{context}: case must be an object")
+        if value["schema_version"] == 2:
+            raw_case = _readable_policy_definition(path, raw_case, expect_move)
         name = _require_string(raw_case, "id", context)
         if POLICY_CASE_ID.fullmatch(name) is None:
             raise CaseDefinitionError(

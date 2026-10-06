@@ -18,6 +18,8 @@ from srcmove_history.snapshot import export_snapshot
 
 class SnapshotTests(unittest.TestCase):
     def test_snapshot_is_immutable_and_extension_does_not_change_prior_export(self):
+        """Keep a saved snapshot unchanged when the live analysis is subsequently extended."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             helper = analysis_fixture.AnalyzeRepositoryTests()
@@ -27,6 +29,7 @@ class SnapshotTests(unittest.TestCase):
             create_history_configuration(state, HistoryConfiguration(AnalysisConfiguration(excluded_suffixes=(".txt",))))
             first = export_snapshot(state)
             content = Path(first["path"]).read_bytes()
+            # Check the required outcomes.
             self.assertEqual(first, export_snapshot(state))
             with zipfile.ZipFile(first["path"]) as archive:
                 manifest = json.loads(archive.read("manifest.json"))

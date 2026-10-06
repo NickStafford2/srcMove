@@ -41,6 +41,7 @@ class _LiveOutput(io.StringIO):
 
 class SrcMoveHistoryProgressTests(unittest.TestCase):
     def test_events_are_frozen_and_validate_counters(self) -> None:
+        """Keep progress events immutable and reject invalid counter combinations."""
         event = _start()
         with self.assertRaises(FrozenInstanceError):
             event.covered = 1  # type: ignore[misc]
@@ -50,12 +51,14 @@ class SrcMoveHistoryProgressTests(unittest.TestCase):
             AnalysisProgressStart("sqlite", 10, 0, 0, 0, 0, 0, 0)
 
     def test_null_observer_accepts_all_events(self) -> None:
+        """Accept every supported progress event with the no-op observer."""
         observer = NullAnalysisObserver()
         observer.analysis_started(_start())
         observer.pair_published(PairPublished(1, PairStatus.COMPLETED, 2))
         observer.analysis_finished(detail="done")
 
     def test_context_entry_immediately_reports_preparation(self) -> None:
+        """Report preparation immediately upon entering the progress-display context."""
         output = io.StringIO()
         observer = TerminalAnalysisObserver(stream=output)
 
@@ -65,6 +68,7 @@ class SrcMoveHistoryProgressTests(unittest.TestCase):
         self.assertIn("[history] complete:", output.getvalue())
 
     def test_redirected_progress_is_durable_and_sparse(self) -> None:
+        """Emit persistent but bounded progress lines for redirected analysis output."""
         output = io.StringIO()
         with TerminalAnalysisObserver(
             stream=output, log_interval_seconds=30
@@ -93,6 +97,8 @@ class SrcMoveHistoryProgressTests(unittest.TestCase):
         self.assertEqual(len(lines), 3)
 
     def test_live_progress_has_spinner_bar_and_delayed_eta(self) -> None:
+        """Show a live spinner and progress bar, introducing an ETA only after enough timing evidence."""
+        # Prepare the inputs and exercise the operation.
         class Clock:
             now = 100.0
 
@@ -111,6 +117,7 @@ class SrcMoveHistoryProgressTests(unittest.TestCase):
                     observer.pair_published(
                         PairPublished(covered, PairStatus.COMPLETED)
                     )
+                # Check the required outcomes.
                 self.assertIn("ETA 00:03", output.getvalue())
 
         rendered = output.getvalue()
@@ -121,6 +128,7 @@ class SrcMoveHistoryProgressTests(unittest.TestCase):
         self.assertIn("✓ Analysis sqlite complete", rendered)
 
     def test_unknown_target_never_invents_percentage_or_eta(self) -> None:
+        """Omit both percentage and ETA for an analysis with unknown total work."""
         output = io.StringIO()
         with TerminalAnalysisObserver(stream=output) as observer:
             observer.analysis_started(_start(target=None))
@@ -131,6 +139,7 @@ class SrcMoveHistoryProgressTests(unittest.TestCase):
         self.assertNotIn("ETA", output.getvalue())
 
     def test_disabled_and_broken_streams_cannot_affect_analysis(self) -> None:
+        """Keep analysis unaffected by disabled progress output or a stream that fails while writing."""
         quiet = io.StringIO()
         with TerminalAnalysisObserver(stream=quiet, enabled=False) as observer:
             observer.analysis_started(_start())
@@ -146,6 +155,7 @@ class SrcMoveHistoryProgressTests(unittest.TestCase):
             observer.pair_published(PairPublished(1, PairStatus.COMPLETED))
 
     def test_context_exception_emits_one_failure_line(self) -> None:
+        """Emit one failure line when the progress context exits through an exception."""
         output = io.StringIO()
         with self.assertRaisesRegex(RuntimeError, "boom"):
             with TerminalAnalysisObserver(stream=output) as observer:
@@ -157,6 +167,7 @@ class SrcMoveHistoryProgressTests(unittest.TestCase):
         self.assertNotIn("[sqlite] complete:", output.getvalue())
 
     def test_completed_with_failures_and_exceeded_target_are_explicit(self) -> None:
+        """State completed-with-failures and exceeded-target outcomes explicitly in progress output."""
         output = io.StringIO()
         with TerminalAnalysisObserver(stream=output) as observer:
             observer.analysis_started(

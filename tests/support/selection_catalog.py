@@ -46,8 +46,9 @@ def _validate_expectation(value: Any, context: str) -> dict[str, Any]:
 
 def load_catalog(path: Path) -> list[dict[str, Any]]:
     try:
-        document = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        from tests.support.contract_catalogs import load_contract_catalog
+        document = load_contract_catalog(path)
+    except (OSError, UnicodeError, ValueError) as error:
         raise CatalogError(f"cannot read catalog {path}: {error}") from error
     if not isinstance(document, dict) or document.get("schema_version") != CATALOG_SCHEMA_VERSION:
         raise CatalogError("catalog schema_version must be 3")

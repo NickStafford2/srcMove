@@ -39,8 +39,11 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
         }
 
     def test_status_uses_human_terms_and_actionable_failure_summary(self) -> None:
+        """Render status with understandable counts and a useful summary of failed pairs."""
+        # Prepare the inputs and exercise the operation.
         rendered = render_status(self.summary)
 
+        # Check the required outcomes.
         self.assertTrue(rendered.startswith("Repository history — completed with failures"))
         self.assertIn(
             "Commit pairs 300 processed (target 300; more history remains)",
@@ -70,6 +73,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
         )
 
     def test_run_uses_the_same_compact_summary(self) -> None:
+        """Use the same compact summary for run output and status output."""
         rendered = render_run(self.summary)
 
         self.assertTrue(rendered.startswith("Repository history — completed with failures"))
@@ -78,6 +82,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
         self.assertIn("Time       5m 01s elapsed", rendered)
 
     def test_nested_planned_shape_and_clean_singular_counts(self) -> None:
+        """Render nested planning counts and singular values without awkward pluralization."""
         rendered = render_run(
             {
                 "analysis": {"name": "fixture", "root": "/tmp/fixture"},
@@ -103,6 +108,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
         self.assertNotIn("Inspect:", rendered)
 
     def test_sparse_current_snapshot_remains_readable(self) -> None:
+        """Render a useful status summary when optional current-state fields are absent."""
         rendered = render_status(
             {
                 "completed_pair_count": 4,
@@ -121,6 +127,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
         self.assertNotIn("Analysis  ", rendered)
 
     def test_unknown_target_size_does_not_invent_a_percentage(self) -> None:
+        """Omit a completion percentage when the target's size is unknown."""
         rendered = render_status(
             {
                 "analysis_root": "/tmp/all-history",
@@ -139,6 +146,7 @@ class SrcMoveHistoryPresentationTests(unittest.TestCase):
     def test_already_exceeded_target_does_not_render_over_one_hundred_percent(
         self,
     ) -> None:
+        """Cap displayed completion at 100 percent when completed coverage exceeds the target."""
         summary = dict(self.summary)
         summary["durable_pair_count"] = 300
         summary["completed_pair_count"] = 300

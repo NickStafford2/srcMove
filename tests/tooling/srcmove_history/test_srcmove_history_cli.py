@@ -62,6 +62,8 @@ def fake_executable(path: Path, outcome: str = "valid-archive") -> Path:
 
 class SrcMoveHistoryCliTests(unittest.TestCase):
     def test_status_json_schema_3_uses_explicit_research_terms(self) -> None:
+        """Emit schema-3 status JSON using explicit analysis and commit-pair terminology."""
+        # Prepare the inputs and exercise the operation.
         document = _status_document(
             {
                 "completed_pair_count": 8,
@@ -92,6 +94,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             }
         )
 
+        # Check the required outcomes.
         self.assertEqual(document["schema_version"], 3)
         self.assertEqual(
             document["coverage"],
@@ -142,6 +145,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
         self.assertNotIn("pair_seconds", document["timings"])
 
     def test_compare_requires_canonical_analysis_without_creating_state(self) -> None:
+        """Reject comparison without canonical analysis state and create no replacement state."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = self._history(Path(temporary_directory), 2)
             commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
@@ -162,6 +166,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertFalse((repository / ".srcmove").exists())
 
     def test_compare_does_not_change_canonical_results(self) -> None:
+        """Compare tool outputs without modifying the saved canonical analysis results."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 5, filename="fixture.cpp")
@@ -180,6 +186,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "--progress",
                 "never",
             ]
+            # Check the required outcomes.
             self.assertEqual(self._main(creation)[0], 0)
             database = repository / ".srcmove" / "analysis.sqlite3"
             before = database.read_bytes()
@@ -221,11 +228,14 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             )
 
     def test_compare_can_save_only_one_tool_artifact_family(self) -> None:
+        """Save the requested comparison tool's artifacts without creating the other artifact family."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 4, filename="fixture.cpp")
             self._init(repository, excluded_suffixes=())
             commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
+            # Check the required outcomes.
             self.assertEqual(
                 self._main(
                     [
@@ -271,11 +281,14 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 )
 
     def test_compare_single_commit_uses_its_first_parent(self) -> None:
+        """Compare a single commit against its first parent."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
             self._init(repository, excluded_suffixes=())
             commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
+            # Check the required outcomes.
             self.assertEqual(
                 self._main(
                     [
@@ -314,11 +327,14 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertEqual(comparison["new_commit"], commits[1])
 
     def test_compare_accepts_a_stable_pair_number(self) -> None:
+        """Resolve comparison input from a saved stable commit-pair number."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 4)
             self._init(repository, excluded_suffixes=())
             commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
+            # Check the required outcomes.
             self.assertEqual(
                 self._main(
                     [
@@ -361,6 +377,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertEqual(database.read_bytes(), before)
 
     def test_compare_rejects_pair_number_with_commit_revisions(self) -> None:
+        """Reject a comparison that mixes pair-number selection with explicit commit revisions."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = self._history(Path(temporary_directory), 2)
 
@@ -381,11 +398,14 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertIn("either --pair or commit revisions", error)
 
     def test_compare_rejects_a_root_commit_without_a_first_parent(self) -> None:
+        """Reject single-commit comparison for a root commit lacking a first parent."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 2)
             self._init(repository, excluded_suffixes=())
             commits = git(repository, "rev-list", "--reverse", "HEAD").splitlines()
+            # Check the required outcomes.
             self.assertEqual(
                 self._main(
                     [
@@ -420,11 +440,13 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertIn("commit has no first parent", error)
 
     def test_run_status_list_and_show_use_one_idempotent_interface(self) -> None:
+        """Run analysis, query status, list pairs, and show a pair through the same idempotent CLI state."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 5)
             analysis = repository / ".srcmove"
             self._init(repository, excluded_suffixes=(".py", ".txt"))
+            # Arrange a two-pair request and its creation-only tool arguments.
             common = [
                 "--pairs",
                 "2",
@@ -441,6 +463,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 str(executable(root / "srcmove")),
             ]
 
+            # Run the two-pair analysis.
             status, output, error = self._main(["-C", str(repository), "run", *creation])
             self.assertEqual((status, error), (0, ""))
             self.assertEqual(
@@ -464,6 +487,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 ["-C", str(repository), "status", "--format", "json"]
             )
             self.assertEqual((status, error), (0, ""))
+            # Check the saved status and resolved target.
             report = json.loads(output)
             self.assertEqual(report["schema_version"], 3)
             self.assertEqual(report["coverage"]["committed_commit_pairs"], 2)
@@ -486,6 +510,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 ]
             )
             self.assertEqual((status, error), (0, ""))
+            # Check the newest pair details.
             details = json.loads(output)["pair"]
             self.assertEqual(details["distance_from_newest"], 0)
             self.assertEqual(details["status"], "no_analyzable_change")
@@ -501,6 +526,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertIn("Commit pairs 2 processed (target 2", output)
             self.assertIn("2 without analyzable changes", output)
 
+            # Observe status while another operation holds the lock.
             with AnalysisOperationLock(analysis, command="background-run"):
                 status, output, error = self._main(
                     ["-C", str(repository), "status", "--format", "json"]
@@ -508,6 +534,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 self.assertEqual((status, error), (0, ""))
                 self.assertEqual(json.loads(output)["state"], "running")
 
+            # Check pagination in both newest-first and oldest-first order.
             for ordering in ([], ["--oldest-first"]):
                 status, output, error = self._main(
                     [
@@ -548,6 +575,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 )
 
     def test_human_show_hides_diagnostic_move_evidence(self) -> None:
+        """Display human-readable move results without exposing diagnostic evidence fields."""
+        # Prepare the inputs and exercise the operation.
         output = _render_pair(
             {
                 "number": 9,
@@ -573,12 +602,14 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             }
         )
 
+        # Check the required outcomes.
         self.assertIn("1. type1 · 1 source region → 1 destination region", output)
         self.assertIn("1 unsupported_git_mode: symlink", output)
         self.assertNotIn("/secret", output)
         self.assertNotIn("sha256", output)
 
     def test_target_options_are_mutually_exclusive_and_required(self) -> None:
+        """Require exactly one supported analysis target option."""
         parser = build_parser()
         with contextlib.redirect_stderr(io.StringIO()):
             with self.assertRaises(SystemExit):
@@ -604,6 +635,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 )
 
     def test_report_reads_committed_results_and_is_plain_text_only(self) -> None:
+        """Generate a plain-text report from committed analysis results."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 4)
@@ -630,6 +663,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                     "never",
                 ]
             )
+            # Check the required outcomes.
             self.assertEqual((status, error), (0, ""))
             database = repository / ".srcmove" / "analysis.sqlite3"
             before = database.read_bytes()
@@ -652,6 +686,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                     build_parser().parse_args(["report", "--format", "json"])
 
     def test_more_extends_existing_coverage_without_counting_it_manually(self) -> None:
+        """Extend existing analysis by the requested additional pair count through the CLI."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 5, filename="fixture.cpp")
@@ -669,6 +705,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "--progress",
                 "never",
             ]
+            # Check the required outcomes.
             self.assertEqual(self._main(creation)[0], 0)
 
             status, output, error = self._main(
@@ -693,6 +730,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             )
 
     def test_missing_creation_inputs_do_not_create_partial_database(self) -> None:
+        """Reject missing analysis-creation inputs without leaving a partial database."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
 
@@ -711,6 +749,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertFalse((root / ".srcmove" / "analysis.sqlite3").exists())
 
     def test_non_executable_tool_stops_analysis_creation(self) -> None:
+        """Reject a tool file without executable permission before creating analysis state."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 2)
@@ -735,11 +775,14 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 ]
             )
 
+            # Check the required outcomes.
             self.assertEqual(status, 2)
             self.assertIn("executable is not executable", error)
             self.assertFalse((repository / ".srcmove" / "analysis.sqlite3").exists())
 
     def test_frozen_configuration_cannot_be_overridden(self) -> None:
+        """Reject attempts to replace configuration already frozen into an analysis."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
@@ -758,6 +801,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "--srcmove",
                 str(executable(root / "srcmove")),
             ]
+            # Check the required outcomes.
             self.assertEqual(self._main(arguments)[0], 0)
 
             before = json.loads(
@@ -789,6 +833,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertEqual(after, before)
 
     def test_run_recovers_interrupted_initial_database_publication(self) -> None:
+        """Recover a run whose initial database publication was interrupted."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
@@ -805,6 +851,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "--srcmove",
                 str(executable(root / "srcmove")),
             ]
+            # Check the required outcomes.
             self.assertEqual(self._main(creation)[0], 0)
             interrupted = analysis / ".analysis.sqlite3.tmp-interrupted"
             os.link(analysis / "analysis.sqlite3", interrupted)
@@ -825,12 +872,15 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertFalse(interrupted.exists())
 
     def test_legacy_state_is_rejected_instead_of_mixed_with_sqlite(self) -> None:
+        """Reject legacy analysis state rather than combining it with the SQLite representation."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 2)
             analysis = repository / ".srcmove"
             analysis.mkdir()
             (analysis / "current.json").write_text("{}", encoding="utf-8")
+            # Check the required outcomes.
             self.assertEqual(self._main(["-C", str(repository), "init"])[0], 0)
 
             status, _, error = self._main(
@@ -852,6 +902,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertFalse((analysis / "analysis.sqlite3").exists())
 
     def test_status_typo_does_not_create_an_analysis_directory(self) -> None:
+        """Report an invalid status path without creating a new analysis directory."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             repository = self._history(Path(temporary_directory), 2)
 
@@ -864,6 +915,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertFalse((repository / ".srcmove").exists())
 
     def test_nested_directory_discovers_repository_local_state(self) -> None:
+        """Discover repository-local analysis state when invoked from a nested directory."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
@@ -887,11 +940,14 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 ]
             )
 
+            # Check the required outcomes.
             self.assertEqual((status, error), (0, ""))
             self.assertEqual(json.loads(output)["analysis"]["name"], "repository")
             self.assertTrue((repository / ".srcmove" / "analysis.sqlite3").is_file())
 
     def test_renamed_state_is_inert_but_explicitly_queryable_and_ignored(self) -> None:
+        """Keep renamed state out of automatic discovery while allowing explicit queries and preserving ignore rules."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
@@ -907,6 +963,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "--srcmove",
                 str(executable(root / "srcmove")),
             ]
+            # Check the required outcomes.
             self.assertEqual(self._main(creation)[0], 0)
             active = repository / ".srcmove"
             self.assertEqual((active / ".gitignore").read_text(), "*\n")
@@ -933,6 +990,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             )
 
     def test_analysis_extends_after_repository_is_moved(self) -> None:
+        """Continue an existing analysis after its repository moves to another filesystem path."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 4)
@@ -950,6 +1009,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "--srcmove",
                 str(executable(root / "srcmove")),
             ]
+            # Check the required outcomes.
             self.assertEqual(self._main(creation)[0], 0)
 
             moved = root / "moved-repository"
@@ -972,6 +1032,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             )
 
     def test_no_op_run_verifies_frozen_executable_bytes(self) -> None:
+        """Check frozen tool bytes even when the requested analysis target needs no further work."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
@@ -987,6 +1049,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "--srcmove",
                 str(executable(root / "srcmove")),
             ]
+            # Check the required outcomes.
             self.assertEqual(self._main(creation)[0], 0)
             admitted = next((repository / ".srcmove" / "tools").glob("*/srcmove"))
             admitted.chmod(0o700)
@@ -1000,6 +1063,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertIn("analysis-owned srcMove executable drift", error)
 
     def test_python_changes_are_skipped_by_default_and_can_be_enabled(self) -> None:
+        """Skip Python changes under default CLI exclusions and analyze them when explicitly enabled."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 2, filename="fixture.py")
@@ -1019,6 +1084,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             ]
 
             status, output, error = self._main(base)
+            # Check the required outcomes.
             self.assertEqual((status, error), (0, ""))
             self.assertEqual(
                 json.loads(output)["outcomes"]["without_analyzable_changes"],
@@ -1035,6 +1101,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             )
 
     def test_non_srcml_extensions_are_skipped_before_tool_execution(self) -> None:
+        """Skip unsupported source extensions before invoking either analysis tool."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 2, filename="translations.xml")
@@ -1056,12 +1124,15 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 ]
             )
 
+            # Check the required outcomes.
             self.assertEqual((status, error), (0, ""))
             result = json.loads(output)
             self.assertEqual(result["outcomes"]["without_analyzable_changes"], 1)
             self.assertEqual(result["outcomes"]["failed_commit_pairs"], 0)
 
     def test_run_requires_init_and_init_does_not_create_database(self) -> None:
+        """Require initialization before running while keeping initialization itself free of database creation."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 2)
@@ -1069,6 +1140,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             status, _, error = self._main(
                 ["-C", str(repository), "run", "--pairs", "1"]
             )
+            # Check the required outcomes.
             self.assertEqual(status, 2)
             self.assertIn("run srcmove-history init first", error)
             self.assertFalse((repository / ".srcmove").exists())
@@ -1094,6 +1166,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             )
 
     def test_mutable_jobs_setting_applies_after_first_run(self) -> None:
+        """Apply a changed worker-count setting to a subsequent analysis run."""
+        # Prepare the inputs and exercise the operation.
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
@@ -1109,6 +1183,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
                 "--srcmove",
                 str(executable(root / "srcmove")),
             ]
+            # Check the required outcomes.
             self.assertEqual(self._main(creation)[0], 0)
             analysis = repository / ".srcmove"
             configuration = load_history_configuration(analysis)
@@ -1151,6 +1226,7 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             self.assertEqual(report["invocation"]["jobs"], 5)
 
     def test_init_backfills_configuration_for_existing_database(self) -> None:
+        """Create missing configuration for an existing initialized analysis database."""
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             repository = self._history(root, 3)
