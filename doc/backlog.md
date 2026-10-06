@@ -80,7 +80,16 @@ settled.
   - Group categories `moves_many` → `repeated_equal_counts` and
     `copy_or_repeat` → `repeated_unequal_counts`: describe endpoint counts
     without implying independently established moves or copies.
-- Improve Type-2 move detection.
+- Extend continuing-name corroboration beyond standalone declarations. Current
+  checks reject contradictions and unsupported changed-name declarations, but
+  larger isolated normalized matches still lack independent identity support;
+  see [the architecture](architecture.md#location-classification-vocabulary).
+- Investigate the existing `coherent_type3_parent_over_partition` selection
+  contract miss without weakening its whole-function target. Before and after
+  the continuing-name slice, the parent verifier matches only 59/80 tokens and
+  1/9 lines; no parent proposal reaches selection. The fixture and source oracle
+  remain in `moveSelectionBench`. Check normalization stability and verifier
+  coverage with both true transfers and unrelated same-shaped functions.
 - Explore Type-3 matching for constructs containing mixed common, deleted, and
   inserted text. The default candidate filter currently rejects such enclosing
   candidates before matching, although eligible constructs inside them can

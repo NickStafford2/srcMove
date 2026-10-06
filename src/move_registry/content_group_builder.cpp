@@ -257,6 +257,110 @@ std::string_view relative_order_observation(
   return "unknown";
 }
 
+// Normalization proposes identity; only independent continuing-source pairs
+// can establish concrete name replacements. Never learn from a proposed move.
+std::string normalized_identity_reason(const move_candidate &deleted,
+                                       const move_candidate &inserted,
+                                       bool exact_normalized) {
+  const auto &old_names = deleted.identifier_names;
+  const auto &new_names = inserted.identifier_names;
+  bool supported = false;
+  bool changed = false;
+  bool unsupported_change = false;
+  auto observe = [&](const auto &map, const std::string &old_name,
+                     const std::string &new_name) {
+    auto found = map.find(old_name);
+    if (found == map.end()) return 0;
+    if (found->second.empty()) return 2;
+    return found->second == new_name ? 1 : -1;
+  };
+  if (exact_normalized && deleted.member_accesses.size() == inserted.member_accesses.size()) {
+    for (std::size_t i = 0; i < deleted.member_accesses.size(); ++i) {
+      const auto &old_member = deleted.member_accesses[i];
+      const auto &new_member = inserted.member_accesses[i];
+      if (old_member.second != new_member.second) continue;
+      int forward = deleted.continuing_fields ? observe(deleted.continuing_fields->forward, old_member.first, new_member.first) : 0;
+      int reverse = inserted.continuing_fields ? observe(inserted.continuing_fields->reverse, new_member.first, old_member.first) : 0;
+      if (forward < 0 || reverse < 0) return "continuing_name_conflict";
+    }
+  }
+  if (exact_normalized && old_names.size() == new_names.size()) {
+    for (std::size_t i = 0; i < old_names.size(); ++i) {
+      if (builtin_type_name(old_names[i]) || builtin_type_name(new_names[i])) continue;
+      changed |= old_names[i] != new_names[i];
+      const bool plain = i < deleted.identifier_qualifiers.size() &&
+          i < inserted.identifier_qualifiers.size() &&
+          deleted.identifier_qualifiers[i].empty() && inserted.identifier_qualifiers[i].empty();
+      int forward = plain && deleted.continuing_names
+          ? observe(deleted.continuing_names->forward, old_names[i], new_names[i]) : 0;
+      int reverse = plain && inserted.continuing_names
+          ? observe(inserted.continuing_names->reverse, new_names[i], old_names[i]) : 0;
+      if (i < deleted.identifier_qualifiers.size() &&
+          i < inserted.identifier_qualifiers.size() &&
+          !deleted.identifier_qualifiers[i].empty() &&
+          deleted.identifier_qualifiers[i] != "$ambiguous" &&
+          deleted.identifier_qualifiers[i] == inserted.identifier_qualifiers[i]) {
+        const auto &prefix = deleted.identifier_qualifiers[i];
+        int field_forward = deleted.continuing_fields ?
+            observe(deleted.continuing_fields->forward, prefix + old_names[i], prefix + new_names[i]) : 0;
+        int field_reverse = inserted.continuing_fields ?
+            observe(inserted.continuing_fields->reverse, prefix + new_names[i], prefix + old_names[i]) : 0;
+        if (field_forward < 0 || field_reverse < 0) return "continuing_name_conflict";
+        if (forward == 0) forward = field_forward;
+        if (reverse == 0) reverse = field_reverse;
+      }
+      if (forward < 0 || reverse < 0) return "continuing_name_conflict";
+      if (old_names[i] != new_names[i] && forward != 2 && reverse != 2 &&
+          (forward == 1 || reverse == 1)) supported = true;
+      if (old_names[i] != new_names[i] &&
+          (forward == 2 || reverse == 2 || (forward != 1 && reverse != 1)))
+        unsupported_change = true;
+    }
+  } else {
+    // Type-3 ordinal placeholders can shift after inserted identifiers. Do not
+    // invent a pairwise substitution from their ordinal position; require a
+    // known continuation of a missing name to occur in the target instead.
+    auto check_missing_names = [&](const move_candidate &source,
+                                   const move_candidate &target,
+                                   bool forward) {
+      for (std::size_t i = 0; i < source.identifier_names.size(); ++i) {
+        const auto &name = source.identifier_names[i];
+        if (builtin_type_name(name) ||
+            std::find(target.identifier_names.begin(), target.identifier_names.end(), name) != target.identifier_names.end()) continue;
+        changed = true;
+        const auto &prefix = source.identifier_qualifiers[i];
+        const auto *evidence = prefix.empty() ? source.continuing_names.get()
+                                              : source.continuing_fields.get();
+        if (!evidence || prefix == "$ambiguous") { unsupported_change = true; continue; }
+        const auto &map = forward ? evidence->forward : evidence->reverse;
+        auto found = map.find(prefix + name);
+        if (found == map.end() || found->second.empty()) { unsupported_change = true; continue; }
+        bool present = false;
+        for (std::size_t j = 0; j < target.identifier_names.size(); ++j)
+          if (target.identifier_qualifiers[j] == prefix &&
+              prefix + target.identifier_names[j] == found->second) present = true;
+        if (!present) return false;
+        supported = true;
+      }
+      return true;
+    };
+    if (!check_missing_names(deleted, inserted, true) ||
+        !check_missing_names(inserted, deleted, false)) return "continuing_name_conflict";
+  }
+
+  // A standalone renamed declaration has no internal use correspondence. A
+  // size threshold cannot turn its normalized skeleton into reliable identity.
+  if (changed && deleted.full_name == "decl_stmt" &&
+      inserted.full_name == "decl_stmt" && (!supported || unsupported_change))
+    return "uncorroborated_declaration";
+  return supported ? "continuing_name_corroborated" : "";
+}
+
+bool identity_rejected(std::string_view reason) {
+  return reason == "continuing_name_conflict" ||
+         reason == "uncorroborated_declaration";
+}
+
 struct correspondence_decision {
   candidate_id delete_candidate_id = 0;
   candidate_id insert_candidate_id = 0;
@@ -266,6 +370,7 @@ struct correspondence_decision {
   candidate_id parent_insert_candidate_id = 0;
   std::size_t delete_verified_partner_count = 1;
   std::size_t insert_verified_partner_count = 1;
+  std::string identity_reason;
 };
 
 correspondence_decision classify_correspondence(
@@ -273,11 +378,15 @@ correspondence_decision classify_correspondence(
     candidate_id ins_id, match_kind match) {
   const move_candidate &deleted = registry.candidate(del_id);
   const move_candidate &inserted = registry.candidate(ins_id);
-  return correspondence_decision{
+  correspondence_decision decision{
       del_id, ins_id, match,
       classify_movement(deleted.location, ancestor_summary(registry, deleted),
                         inserted.location, ancestor_summary(registry, inserted)),
   };
+  if (match != match_kind::type1)
+    decision.identity_reason = normalized_identity_reason(
+        deleted, inserted, match == match_kind::type2);
+  return decision;
 }
 
 std::vector<correspondence_decision>
@@ -339,6 +448,7 @@ void materialize_correspondence_diagnostics(
         decision.delete_verified_partner_count,
         decision.insert_verified_partner_count,
     });
+    diagnostics.correspondences.back().identity_reason = decision.identity_reason;
   }
 }
 
@@ -1022,7 +1132,8 @@ void apply_correspondence_output_policy(
         proposal.group.ins_ids.front());
     assert(decision != nullptr);
     if (decision != nullptr &&
-        !move_eligible(decision->classification)) {
+        (!move_eligible(decision->classification) ||
+         identity_rejected(decision->identity_reason))) {
       proposal.disabled = true;
       if (stats != nullptr && proposal.group.match == match_kind::type1) {
         ++stats->type1_policy_rejected;
@@ -1572,10 +1683,11 @@ content_groups build_content_groups(const candidate_registry &registry,
     }
 
     auto type2_decisions = classify_unique_correspondences(registry, type2_groups);
-    // A unique normalized correspondence establishes identity independently of
-    // output eligibility. Do not reopen either endpoint for weaker partners.
+    // Reserve only unique normalized correspondences that pass the independent
+    // identity gate, even when location evidence does not support reporting.
     // Reserve IDs only: distinct enclosing/descendant proposals still compete.
     for (const correspondence_decision &decision : type2_decisions) {
+      if (identity_rejected(decision.identity_reason)) continue;
       type2_reserved[decision.delete_candidate_id] = true;
       type2_reserved[decision.insert_candidate_id] = true;
     }

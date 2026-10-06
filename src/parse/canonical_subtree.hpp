@@ -6,6 +6,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <utility>
 
 #include "srcml_node.hpp"
 
@@ -28,6 +29,11 @@ struct canonical_options {
 struct canonical_forms {
   std::string                exact;
   std::string                type2_canonical;
+  bool fragmented_identifier = false;
+  std::vector<std::pair<std::string, std::string>> member_accesses; // path,prefix by occurrence
+  std::string                names_only_canonical; // exact structure/literals
+  std::vector<std::string>   identifier_qualifiers; // exact member access prefix
+  std::vector<std::string>   identifier_names; // consistent ordinal order
   std::string                type2b_canonical; // diagnostics only
   std::vector<std::uint64_t> normalized_lines;
   std::vector<std::uint64_t> normalized_tokens;
@@ -35,7 +41,8 @@ struct canonical_forms {
 
 class canonical_forms_builder {
 public:
-  explicit canonical_forms_builder(bool collect_type2b = false);
+  explicit canonical_forms_builder(bool collect_type2b = false,
+                                   bool collect_identity_projection = false);
   ~canonical_forms_builder();
 
   canonical_forms_builder(canonical_forms_builder &&) noexcept;

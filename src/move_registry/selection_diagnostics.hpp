@@ -70,6 +70,7 @@ struct correspondence_diagnostic {
   std::size_t parent_insert_candidate_id = 0;
   std::size_t delete_verified_partner_count = 1;
   std::size_t insert_verified_partner_count = 1;
+  std::string identity_reason;
 };
 
 struct selection_diagnostics {

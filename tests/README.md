@@ -115,6 +115,11 @@ selection, generated objects, benchmark-case publication, progress, the
 execution journal, resume and retry behavior, semantic eligibility, and oracle
 outcomes without downloading or installing BigCloneBench.
 
+`tests/unit/test_continuing_identity.py` checks independent continuing-name
+evidence, ambiguous substitutions, scope separation, and ordinary/diagnostic/
+results-only parity. It includes C++ source pairs regenerated through srcDiff
+and checks endpoint availability before asserting detection or rejection.
+
 Performance-runner fixtures compare fake srcMove builds over checked-in srcDiff
 XML. They verify reproducible position-balanced schedules, immutable workload
 checksums, paired summaries, append-only artifacts, and preservation of failed

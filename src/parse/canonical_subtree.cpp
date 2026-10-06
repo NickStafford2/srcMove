@@ -205,6 +205,7 @@ public:
         literal_value_emitted    = false;
       }
       element_stack.push_back(full_name);
+      if (full_name == "name") { name_prefixes.emplace_back(); name_text_counts.push_back(0); }
     } else if (node.is_end()) {
       if (opt.normalize_literals && node.name == "literal" &&
           literal_depth > 0) {
@@ -219,10 +220,29 @@ public:
         out += full_name;
         out += ")";
       }
+      if (full_name == "name" && !name_prefixes.empty()) { name_prefixes.pop_back(); name_text_counts.pop_back(); }
       if (!element_stack.empty()) {
         element_stack.pop_back();
       }
     }
+  }
+
+  bool fragmented_identifier() const { return fragmented; }
+  const auto &member_accesses() const { return members; }
+
+  std::vector<std::string> identifier_names() const {
+    std::vector<std::string> names(normalized_names.size());
+    for (const auto &entry : normalized_names) names[entry.second - 1] = entry.first;
+    return names;
+  }
+
+  std::vector<std::string> identifier_qualifiers() const {
+    std::vector<std::string> result(normalized_names.size());
+    for (const auto &entry : normalized_names) {
+      auto found = name_qualifiers.find(entry.first);
+      if (found != name_qualifiers.end()) result[entry.second - 1] = found->second;
+    }
+    return result;
   }
 
   std::string finish() {
@@ -253,6 +273,17 @@ private:
         normalizable_name) {
       const auto [it, inserted] =
           normalized_names.emplace(text, normalized_names.size() + 1);
+      std::string prefix;
+      if (name_prefixes.size() > 1) {
+        prefix = name_prefixes[name_prefixes.size() - 2];
+        while (!prefix.empty() && std::isspace(static_cast<unsigned char>(prefix.back()))) prefix.pop_back();
+        if (!(prefix.size() >= 1 && prefix.back() == '.') &&
+            !(prefix.size() >= 2 && prefix.substr(prefix.size() - 2) == "->")) prefix.clear();
+      }
+      if (++name_text_counts.back() > 1) fragmented = true;
+      if (!prefix.empty()) members.emplace_back(prefix + text, prefix);
+      auto [qualifier, first] = name_qualifiers.emplace(text, prefix);
+      if (!first && qualifier->second != prefix) qualifier->second = "$ambiguous";
       (void)inserted;
       normalized_text = "$name" + std::to_string(it->second);
       similarity_text = normalized_text;
@@ -285,6 +316,7 @@ private:
     if (collect_output && opt.include_structure) {
       out += ")";
     }
+    for (auto &prefix : name_prefixes) prefix += text;
     append_normalized_code(normalized_line, lines, normalized_text);
     append_normalized_token(tokens,
                             similarity_text.empty() ? normalized_text
@@ -303,16 +335,26 @@ private:
   std::string current_literal_category;
   std::unordered_map<std::string, std::size_t> normalized_names;
   std::vector<std::string> element_stack;
+  bool fragmented = false;
+  std::vector<std::size_t> name_text_counts;
+  std::vector<std::pair<std::string, std::string>> members;
+  std::vector<std::string> name_prefixes;
+  std::unordered_map<std::string, std::string> name_qualifiers;
 };
 
 } // namespace
 
 struct canonical_forms_builder::implementation {
-  explicit implementation(bool collect_type2b)
+  explicit implementation(bool collect_type2b, bool collect_identity_projection)
       : exact(exact_options, true), normalized(normalized_options(), false,
                                                &forms.normalized_lines,
                                                &forms.normalized_tokens),
         lexical(lexical_options(), true) {
+    if (collect_identity_projection) {
+      auto options = normalized_options();
+      options.normalize_literals = false;
+      identity = std::make_unique<canonical_builder>(options, true);
+    }
     if (collect_type2b) {
       auto options = lexical_options();
       options.identifiers = identifier_normalization::blind;
@@ -338,13 +380,15 @@ struct canonical_forms_builder::implementation {
   canonical_options exact_options;
   canonical_forms   forms;
   std::unique_ptr<canonical_builder> blind;
+  std::unique_ptr<canonical_builder> identity;
   canonical_builder exact;
   canonical_builder normalized;
   canonical_builder lexical;
 };
 
-canonical_forms_builder::canonical_forms_builder(bool collect_type2b)
-    : impl(std::make_unique<implementation>(collect_type2b)) {}
+canonical_forms_builder::canonical_forms_builder(bool collect_type2b,
+                                                bool collect_identity_projection)
+    : impl(std::make_unique<implementation>(collect_type2b, collect_identity_projection)) {}
 
 canonical_forms_builder::~canonical_forms_builder() = default;
 
@@ -360,9 +404,15 @@ void canonical_forms_builder::consume(const srcml_node &node) {
   impl->normalized.consume(node, full_name);
   impl->lexical.consume(node, full_name);
   if (impl->blind) impl->blind->consume(node, full_name);
+  if (impl->identity) impl->identity->consume(node, full_name);
 }
 
 canonical_forms canonical_forms_builder::finish() {
+  impl->forms.fragmented_identifier = impl->lexical.fragmented_identifier();
+  impl->forms.member_accesses = impl->lexical.member_accesses();
+  impl->forms.identifier_names = impl->lexical.identifier_names();
+  impl->forms.identifier_qualifiers = impl->lexical.identifier_qualifiers();
+  if (impl->identity) impl->forms.names_only_canonical = impl->identity->finish();
   impl->forms.exact = impl->exact.finish();
   (void)impl->normalized.finish();
   impl->forms.type2_canonical = impl->lexical.finish();

@@ -444,6 +444,13 @@ No production algorithm, VERSION, or expected output was changed in this slice.
 
 ## Type-2 production adoption
 
+Current production also checks independent continuing-name evidence; see the
+[architecture](../doc/architecture.md#location-classification-vocabulary).
+Four standalone declaration contracts retain their `relocated` location oracle
+but now expect `uncorroborated_declaration` and no report. The catalog's optional
+`expected_identity_reason` is checked separately from location and selection.
+The adoption comparisons below describe their original builds.
+
 Phase 4.1 is complete. The [architecture](../doc/architecture.md) describes the
 shared eligibility/diagnostic decisions and endpoint reservation. Phase 4.2 is
 observation-only; repeated-group policy remains deferred.

@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <iostream>
+#include <memory>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -19,6 +20,34 @@
 namespace srcmove {
 
 enum srcml_node_type : unsigned int { OTHER = 0, START = 1, END = 2, TEXT = 3 };
+
+// srcML represents built-in type keywords as names too. They do not provide
+// evidence for a program-identifier replacement.
+inline bool builtin_type_name(std::string_view name) {
+  bool found = false;
+  std::size_t start = 0;
+  while (start < name.size()) {
+    const auto first = name.find_first_not_of(" \t\n\r", start);
+    if (first == std::string_view::npos) break;
+    const auto end = name.find_first_of(" \t\n\r", first);
+    const auto word = name.substr(first, end == std::string_view::npos ? end : end - first);
+    if (!(word == "void" || word == "bool" || word == "char" ||
+          word == "short" || word == "int" || word == "long" ||
+          word == "float" || word == "double" || word == "signed" ||
+          word == "unsigned" || word == "auto" || word == "wchar_t" ||
+          word == "char8_t" || word == "char16_t" || word == "char32_t")) return false;
+    found = true;
+    if (end == std::string_view::npos) break;
+    start = end + 1;
+  }
+  return found;
+}
+
+// Independent continuing-source evidence; empty values denote inconsistent maps.
+struct continuing_name_evidence {
+  std::unordered_map<std::string, std::string> forward;
+  std::unordered_map<std::string, std::string> reverse;
+};
 
 class move_candidate {
 public:
@@ -68,6 +97,12 @@ public:
   std::string type2_canonical_text; // compact, consistently normalized identity
   std::vector<std::uint64_t> type2_normalized_lines; // cached Type-3 sequence
   std::vector<std::uint64_t> type3_normalized_tokens; // consistent name tokens
+  std::vector<std::pair<std::string, std::string>> member_accesses;
+  std::vector<std::string> identifier_names;
+  std::vector<std::string> identifier_qualifiers;
+  std::string identity_scope; // mapped lexical block, never inferred from moves
+  std::shared_ptr<const continuing_name_evidence> continuing_names;
+  std::shared_ptr<const continuing_name_evidence> continuing_fields;
   bool type2_eligible; // true for statement-level-or-larger type 2 matching
   Role role = Role::diff_wrapper;
   std::uint64_t hash;

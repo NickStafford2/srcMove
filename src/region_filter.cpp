@@ -271,6 +271,9 @@ extract_preferred_child_candidates(const diff_region           &region,
                              std::move(forms.normalized_lines),
                              std::move(forms.normalized_tokens),
                              is_type2_eligible_name(first.node.name));
+    candidate.member_accesses = std::move(forms.member_accesses);
+  candidate.identifier_names = std::move(forms.identifier_names);
+  candidate.identifier_qualifiers = std::move(forms.identifier_qualifiers);
     candidate.xpath     = first.xpath;
     candidate.full_name = first.node.full_name();
     candidate.end_idx   = last.index;
@@ -308,6 +311,7 @@ struct streamed_child {
   std::size_t              start_idx      = 0;
   int                      depth          = 0;
   bool                     type2_eligible = false;
+  std::string              identity_scope;
   std::size_t substantive_same_side = 0;
   std::size_t substantive_common = 0;
   std::size_t substantive_opposite = 0;
@@ -421,6 +425,33 @@ std::optional<std::size_t> nearest_common_container_index(
   }
   return std::nullopt;
 }
+
+// Restrict lexical evidence to a mapped container and its nearest continuing
+// block. Nested scopes never establish bindings for their enclosing scope.
+std::string continuing_scope(const std::vector<source_element_frame> &elements,
+                             std::size_t count) {
+  auto container = nearest_common_container_index(elements, count);
+  if (!container) return {};
+  std::string scope = elements[*container].container_id;
+  for (std::size_t i = *container + 1; i < count; ++i) {
+    if (elements[i].membership != revision_membership::both ||
+        elements[i].semantic_container || elements[i].name == "for" ||
+        elements[i].name == "catch" || elements[i].name == "lambda") return {};
+    if (elements[i].name == "block")
+      scope = elements[*container].container_id + ":block:" +
+              std::to_string(elements[i].start_idx);
+  }
+  return scope;
+}
+
+struct continuing_statement {
+  canonical_forms_builder original{false, true};
+  canonical_forms_builder modified{false, true};
+  std::string scope;
+  std::string container;
+  int depth = 0;
+  bool invalid = false;
+};
 
 endpoint_location_context snapshot_location_context(
     move_candidate::Kind kind, std::string_view filename,
@@ -613,6 +644,10 @@ void finish_streamed_child(streamed_region             &region,
       std::move(forms.exact), std::move(forms.type2_canonical),
       std::move(forms.normalized_lines), std::move(forms.normalized_tokens),
       child.type2_eligible);
+  candidate.member_accesses = std::move(forms.member_accesses);
+  candidate.identifier_names = std::move(forms.identifier_names);
+  candidate.identifier_qualifiers = std::move(forms.identifier_qualifiers);
+  candidate.identity_scope = std::move(child.identity_scope);
   candidate.type2b_canonical_text = std::move(forms.type2b_canonical);
   candidate.xpath     = std::move(child.xpath);
   candidate.full_name = std::move(child.full_name);
@@ -679,6 +714,7 @@ void consume_streamed_children(
     child.start_idx      = node_index;
     child.depth          = 1;
     child.type2_eligible = is_type2_eligible_name(node.name);
+    child.identity_scope = continuing_scope(source_elements, source_elements.size() - 1);
     child.location = snapshot_location_context(
         region.kind, region.filename, source_elements, ancestor_summaries, true);
     if (!source_elements.empty()) {
@@ -779,6 +815,9 @@ collect_candidates_streaming(srcml_reader                &reader,
   // canonicalization work; only one construct per kind is captured at a time.
   std::optional<pending_common_anchor> pending_anchors[3];
   std::vector<common_anchor> common_anchors;
+  std::optional<continuing_statement> continuing;
+  std::unordered_map<std::string, std::shared_ptr<continuing_name_evidence>> name_evidence;
+  std::unordered_map<std::string, std::shared_ptr<continuing_name_evidence>> field_evidence;
   std::size_t ignored_evidence_depth = 0;
   std::size_t sequence_comment_depth = 0;
   std::size_t sequence_ws_depth = 0;
@@ -962,6 +1001,76 @@ collect_candidates_streaming(srcml_reader                &reader,
         if (effective != revision_membership::both) {
           pending_anchor->mixed = true;
         }
+      }
+    }
+
+    // A source statement present in both revisions supplies independent
+    // evidence even when its names live inside delete/insert fragments.
+    if (!continuing && node.is_start() &&
+        (node.name == "decl_stmt" || node.name == "expr_stmt" ||
+         node.name == "return") && effective == revision_membership::both &&
+        sequence_exclusive_depths[0] == 0 && sequence_exclusive_depths[1] == 0 &&
+        ignored_evidence_depth == 0 && sequence_unknown_diff_depth == 0) {
+      auto scope = continuing_scope(source_elements, source_elements.size());
+      auto field_container = nearest_common_container_index(source_elements, source_elements.size());
+      bool fields_safe = field_container.has_value();
+      if (field_container) for (std::size_t i = *field_container + 1; i < source_elements.size(); ++i)
+        if (source_elements[i].membership != revision_membership::both ||
+            source_elements[i].semantic_container || source_elements[i].name == "lambda") fields_safe = false;
+      if (!scope.empty() || fields_safe) {
+        continuing.emplace();
+        continuing->scope = std::move(scope);
+        auto container = nearest_common_container_index(source_elements, source_elements.size());
+        continuing->container = source_elements[*container].container_id;
+      }
+    }
+    if (continuing) {
+      if (node.is_start()) ++continuing->depth;
+      if (unknown_diff_element || full_name.rfind("cpp:", 0) == 0 ||
+          (node.is_start() && is_semantic_container_name(node.name)))
+        continuing->invalid = true;
+      if (effective != revision_membership::modified_only &&
+          sequence_exclusive_depths[1] == 0)
+        continuing->original.consume(node);
+      if (effective != revision_membership::original_only &&
+          sequence_exclusive_depths[0] == 0)
+        continuing->modified.consume(node);
+      if (node.is_end() && --continuing->depth == 0) {
+        auto original = continuing->original.finish();
+        auto modified = continuing->modified.finish();
+        if (!continuing->invalid && !original.fragmented_identifier &&
+            !modified.fragmented_identifier &&
+            original.names_only_canonical == modified.names_only_canonical &&
+            original.identifier_names.size() == modified.identifier_names.size()) {
+          auto &evidence = name_evidence[continuing->scope];
+          if (!evidence) evidence = std::make_shared<continuing_name_evidence>();
+          auto add = [](auto &map, const std::string &key, const std::string &value) {
+            auto [it, inserted] = map.emplace(key, value);
+            if (!inserted && it->second != value) it->second.clear();
+          };
+          for (std::size_t i = 0; i < original.identifier_names.size(); ++i) {
+            if (builtin_type_name(original.identifier_names[i]) ||
+                builtin_type_name(modified.identifier_names[i])) continue;
+            const auto &prefix = original.identifier_qualifiers[i];
+            const auto &modified_prefix = modified.identifier_qualifiers[i];
+            if (!continuing->scope.empty() && prefix.empty() && modified_prefix.empty()) {
+              add(evidence->forward, original.identifier_names[i], modified.identifier_names[i]);
+              add(evidence->reverse, modified.identifier_names[i], original.identifier_names[i]);
+            }
+          }
+          if (original.member_accesses.size() == modified.member_accesses.size()) {
+            for (std::size_t i = 0; i < original.member_accesses.size(); ++i) {
+              const auto &old_member = original.member_accesses[i];
+              const auto &new_member = modified.member_accesses[i];
+              if (old_member.second != new_member.second) continue;
+              auto &fields = field_evidence[continuing->container];
+              if (!fields) fields = std::make_shared<continuing_name_evidence>();
+              add(fields->forward, old_member.first, new_member.first);
+              add(fields->reverse, new_member.first, old_member.first);
+            }
+          }
+        }
+        continuing.reset();
       }
     }
 
@@ -1303,6 +1412,12 @@ collect_candidates_streaming(srcml_reader                &reader,
     }
   }
   resolve_anchor_intervals(result.candidates, common_anchors);
+  for (auto &candidate : result.candidates) {
+    auto found = name_evidence.find(candidate.identity_scope);
+    if (found != name_evidence.end()) candidate.continuing_names = found->second;
+    auto fields = field_evidence.find(candidate.location.semantic_container_id);
+    if (fields != field_evidence.end()) candidate.continuing_fields = fields->second;
+  }
 
   if (profile != nullptr) {
     profile->add_ms("parse.xpath", profile_storage.xpath_ms);

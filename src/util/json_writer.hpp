@@ -223,6 +223,10 @@ inline void write_selection_diagnostics(std::ostream &out,
     write_string(out, item.shadow_change); out << ",\n";
     out << "        \"classification_reason\": ";
     write_string(out, item.classification_reason); out << ",\n";
+    if (!item.identity_reason.empty()) {
+      out << "        \"identity_reason\": ";
+      write_string(out, item.identity_reason); out << ",\n";
+    }
     out << "        \"file_observation\": ";
     write_string(out, item.file_observation); out << ",\n";
     out << "        \"semantic_container_observation\": ";

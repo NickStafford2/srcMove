@@ -132,12 +132,33 @@ decision records materialize the opt-in diagnostics, so production eligibility
 and diagnostic interpretation cannot diverge.
 Unique Type-2c groups are classified once after exact grouping has removed Type-1
 correspondences. The same decisions control eligibility and diagnostics: only
-`relocated` pairs enter selection. Each unique Type-2c pair reserves its endpoint
+`relocated` pairs that pass the continuing-name identity checks enter selection.
+Each accepted unique Type-2c correspondence reserves its endpoint
 IDs before Type-3 retrieval, regardless of location outcome or final selection.
 Reservation prevents weaker alternate partners without reserving spans, so
 distinct enclosing and descendant proposals still compete normally.
 Type-2c decisions do not participate in exact-parent carrying, since containment
 inside an edited parent does not establish stable relative position.
+
+Before selecting normalized correspondences, the streaming collector projects
+continuing `decl_stmt`, `expr_stmt`, and `return` shells into their original and
+modified revisions. Only pairs with identical structure, literals, and other
+non-name content supply concrete name substitutions. Wholly deleted/inserted
+statements cannot supply evidence for their own proposed matches. Unknown diff
+elements, preprocessor content, nested semantic containers, and unsupported local
+scope boundaries exclude local-name evidence. Fragmented identifier text cannot
+supply replacement evidence. Conflicting substitutions remain ambiguous.
+Local-name evidence stays within the mapped lexical block; qualified member
+paths can supply evidence across blocks of the same mapped container only when
+the access prefix is unchanged. Built-in type keywords provide no rename support.
+
+Normalized pairs that contradict this independent evidence are suppressed.
+Standalone Type-2c and edited Type-3 declarations with changed names also
+require independent rename corroboration; normalized shape and crossed location anchors alone are
+insufficient. Larger isolated constructs retain the existing policy when there
+is no contradictory evidence. This is lexical corroboration, not resolved
+binding or behavioral analysis, and cannot recover whole endpoints absent from
+srcDiff. It is not a general proof of identity.
 Every verified Type-3 edge is likewise classified before selection in every
 output mode. Only positive relocation decisions enter production selection;
 stationary, restructured, and ambiguous edges remain available in diagnostics.
@@ -416,6 +437,9 @@ pairs and whether a verified edge was selected. Each correspondence also says
 whether current selection emitted it as a move. The legacy `shadow_change` field
 names the location outcome for all three evidence types. File, mapped-container,
 anchor-interval, relative-order, and ancestor observations are explicit.
+An optional `identity_reason` separately records continuing-name corroboration,
+contradiction, or an unsupported changed-name declaration. Location can remain
+`relocated` while identity checks prevent a move report.
 Container-local anchor intervals are `different`, not crossed, when their
 mapped containers differ. Diagnostics require `--results` and are not emitted
 during ordinary runs.
