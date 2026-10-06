@@ -156,7 +156,7 @@ def controls(out):
     ET.register_namespace('diff', diff)
     results = []
     for scenario in ['competing_insertions', 'competing_deletions']:
-        original = ET.parse(ROOT / 'moveSelectionBench/type3_cases' / (scenario + '.xml')).getroot()
+        original = ET.parse(ROOT / 'tests/fixtures/selection/type3_cases' / (scenario + '.xml')).getroot()
         archive = ET.Element('{' + src + '}unit')
         same = ET.SubElement(archive, '{' + src + '}unit', filename='same.cpp', language='C++')
         other = ET.SubElement(archive, '{' + src + '}unit', filename='other.cpp', language='C++')

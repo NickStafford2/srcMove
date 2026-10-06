@@ -16,22 +16,17 @@ REFRESH_CACHE ?= 0
 TYPE3_REVIEW ?= 0
 THESIS_PREVIOUS_EXPERIMENT ?=
 .PHONY: bigmovebench-thesis-prepare bigmovebench-thesis-run
-.PHONY: help configure build test test-unit test-bigmovebench test-move-selection test-performance test-srcmove-history test-xml test-source test-policy test-classification move-selection-benchmark history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-normalized-run bigmovebench-suite
+.PHONY: help configure build test test-unit test-behavior test-tooling test-classification move-selection-benchmark history-scaling bigmovebench-preflight bigmovebench-compile bigmovebench-conflicts bigmovebench-select bigmovebench-benchmark-cases bigmovebench-normalized-run bigmovebench-suite
 
 help:
 	@printf '%s\n' 'Available targets:'
 	@printf '  %-28s %s\n' 'make build' 'Configure and build srcMove'
 	@printf '  %-28s %s\n' 'make test' 'Build and run every correctness suite'
-	@printf '  %-28s %s\n' 'make test-unit' 'Run all Python unit tests'
-	@printf '  %-28s %s\n' 'make test-bigmovebench' 'Run focused BigMoveBench unit tests'
-	@printf '  %-28s %s\n' 'make test-move-selection' 'Run move-selection unit tests and contracts'
-	@printf '  %-28s %s\n' 'make test-performance' 'Run performance workload runner unit tests'
-	@printf '  %-28s %s\n' 'make test-srcmove-history' 'Run srcmove-history unit tests'
-	@printf '  %-28s %s\n' 'make test-xml' 'Build and run XML regression tests'
-	@printf '  %-28s %s\n' 'make test-source' 'Build and run source-pair regression tests'
-	@printf '  %-28s %s\n' 'make test-policy' 'Build and run reviewer-editable move-policy tests'
+	@printf '  %-28s %s\n' 'make test-unit' 'Run isolated helpers and C++ component contracts'
+	@printf '  %-28s %s\n' 'make test-behavior' 'Run accepted detector behavior and fixtures'
+	@printf '  %-28s %s\n' 'make test-tooling' 'Run history, benchmark, and test infrastructure contracts'
 	@printf '  %-28s %s\n' 'make test-classification' 'Run the focused Type-1/2/3/none contracts'
-	@printf '  %-28s %s\n' 'make move-selection-benchmark' 'Characterize current parent/child selection behavior'
+	@printf '  %-28s %s\n' 'make move-selection-benchmark' 'Compare builds on the accepted behavior suite'
 	@printf '  %-28s %s\n' 'make history-scaling' 'Measure history throughput across JOBS'
 	@printf '  %-28s %s\n' 'make history-more' 'Extend workspace history; REPO=notepadpp COUNT=100'
 	@printf '  %-28s %s\n' 'make history-status' 'Inspect workspace history coverage'
@@ -55,46 +50,17 @@ build: configure
 test: build
 	$(PYTHON) tests/run.py
 
-test-unit:
-	$(PYTHON) tests/run.py --suite unit --suite bigmovebench --suite move-selection --suite performance
+test-unit: build
+	$(PYTHON) tests/run.py --suite unit
 
-test-bigmovebench:
-	$(PYTHON) tests/run.py --suite bigmovebench
+test-behavior: build
+	$(PYTHON) tests/run.py --suite behavior
 
-test-move-selection:
-	$(PYTHON) tests/run.py --suite move-selection
-
-test-performance:
-	$(PYTHON) tests/run.py --suite performance
-
-test-srcmove-history:
-	$(PYTHON) tests/run.py --suite srcmove-history
-
-test-xml: build
-	$(PYTHON) tests/run.py --suite xml
-
-test-source: build
-	$(PYTHON) tests/run.py --suite source
-
-test-policy: build
-	$(PYTHON) tests/run.py --suite policy
+test-tooling:
+	$(PYTHON) tests/run.py --suite tooling
 
 test-classification: build
-	$(PYTHON) tests/run.py --suite policy \
-		--case classification_type1_java_method_whitespace \
-		--case classification_type1_java_method_comments \
-		--case classification_type2_java_method_identifiers \
-		--case classification_type2_java_method_literal \
-		--case classification_type2_java_method_identifiers_and_literal \
-		--case classification_type2_java_method_retained_empty_statement \
-		--case classification_type3_java_method_added_empty_statement \
-		--case classification_type3_java_method_removed_empty_statement \
-		--case classification_conservative_type3_java_method_added_statement \
-		--case classification_conservative_type3_java_method_removed_statement \
-		--case classification_type3_java_method_modified_statement \
-		--case classification_conservative_type3_java_method_inconsistent_renaming \
-		--case classification_none_unrelated_java_methods \
-		--case classification_none_similar_java_method_shapes
+	$(PYTHON) tests/run.py --suite behavior --test 'fixtures.policy.classification_*'
 
 move-selection-benchmark: build
 	$(PYTHON) moveSelectionBench/benchmark.py \

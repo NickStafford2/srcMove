@@ -1,43 +1,60 @@
-# Move-selection semantic benchmark
+# Move-selection comparison and research evidence
 
-This suite measures the parent/child, nesting, `diff:common`, ambiguity, and
-cross-Type decisions that the redesign is intended to improve. It complements
-rather than replaces BigMoveBench and the performance runner:
+`benchmark.py` compares named srcMove builds by running the complete accepted
+`behavior` suite through `tests/run.py`. Each variant executes the same unittest
+callbacks, input adapters, preconditions, fixtures, and independent assertions
+used by correctness. This includes correspondence, classification, annotations,
+reporting, source-generation, and CLI contracts. Accepted fixture ownership and
+selection syntax are documented in the [canonical test guide](../tests/README.md).
 
-- this suite asks whether a build chose the intended *explanation* of a move;
-- BigMoveBench measures detection and Type-1/2/3 classification over a larger
-  clone-derived population;
-- `performance/` measures time, memory, and internal work over fixed inputs.
+From the repository root inside Docker:
 
-Every catalog case declares a `status`: an accepted `contract` or an
-exploratory `hypothesis`. Normal benchmark runs record every semantic miss as
-an observation so variants can be compared. The deterministic test suite runs
-contracts with `--contracts-only --enforce-contracts`, making a contract miss a
-test failure. Tool crashes, timeouts, malformed output, and invalid XML are
-always hard failures.
+```bash
+python3 moveSelectionBench/benchmark.py \
+  --variant current=build/srcMove --run-id current-behavior
 
-The current catalog contains accepted contracts; the `hypothesis` status is
-available for future questions that have not yet earned regression status.
-This benchmark's status is independent of BigMoveBench's observational Type-3
-population recall.
+python3 moveSelectionBench/benchmark.py \
+  --variant baseline=/path/to/baseline/srcMove \
+  --variant candidate=/path/to/candidate/srcMove \
+  --baseline baseline --run-id selection-comparison
 
-The separate `shadow_contracts.json` catalog is the reviewer-owned oracle for
-the correspondence classifier and unique Type-1 production policy. Each entry
-records five independent parts:
+python3 moveSelectionBench/benchmark.py \
+  --variant current=build/srcMove --test 'fixtures.xml.*' \
+  --test '*CorrespondenceInteractionTests*' --run-id focused-behavior
+```
 
-- the required srcDiff delete/insert precondition and Type-1 cardinality;
-- the structural context observations the future extractor must produce;
-- the expected classification;
-- its stable machine-readable reason; and
-- the expected Type-1 production disposition.
+Repeat `--test` for a union of full IDs or quoted shell globs. `--srcdiff` selects
+the upstream generator shared by variants. `--output-root` defaults to ignored
+`benchmark-results/move-selection`; `--run-id` must name a fresh directory.
+`--timeout` bounds each variant's entire behavior run (default 600 seconds).
+The runner requires an existing detector build.
 
-The move-selection unit suite validates the catalog schema and verifies the
-declared srcDiff endpoint counts. Most inputs are small checked-in srcDiff XML
-fixtures. The `nodiscard_signature_and_unwrap` case is regenerated from its
-checked-in source pair so an upstream srcDiff alignment change cannot let the
-contract pass without exposing the exact return as both deleted and inserted.
-Raw path incompatibility without a reliable wrapper interpretation remains
-`ambiguous`; paths alone never establish relocation or restructuring.
+Each run retains a manifest with executable identities and selectors, each
+variant's command, stdout/stderr, correctness report, and execution artifacts,
+plus a summary of per-ID outcomes and baseline-to-candidate transitions. Variant
+inventories must agree. Semantic assertion failures are observations in this
+comparison and remain failures in `make test`. Errors, skips, missing executions,
+and incomplete or timed-out runs fail comparison execution. Inspect failure
+details and source rationale before interpreting an apparent improvement.
+
+The comparison has no separate accepted-contract matcher or catalog selector.
+Accepted XML, source, policy, and selection/classifier fixtures live under
+[`tests/fixtures/`](../tests/fixtures/), while their tests and oracles live under
+[`tests/behavior/`](../tests/behavior/) and [`tests/support/`](../tests/support/).
+Methods can contain several subtests; method/fixture outcome totals are neither
+unique independent scenarios nor population precision/recall.
+
+This comparison complements [BigMoveBench](../bigMoveBench/README.md), which
+measures clone-derived detection/classification, and the
+[performance runner](../performance/README.md), which measures resource use.
+Exploratory hypotheses, historical studies, population experiments, and isolated
+algorithm trials remain research work. Promote expectations into correctness
+only after independent review.
+
+The research sections below preserve observations at their stated revisions,
+including earlier catalog inventories and production policies. Those counts and
+commands describe the retained experiments; they do not describe the current
+correctness inventory. The restructuring does not rewrite historical evidence.
 
 ### Type-1 adoption baseline
 
@@ -331,7 +348,7 @@ of stationarity. This is a context/classification error, not poor normalized
 matching or a threshold problem.
 
 The new accepted output contract
-[`type2_reorder_across_common_conditionals`](cases/type2_reorder_across_common_conditionals.xml)
+[`type2_reorder_across_common_conditionals`](../tests/fixtures/selection/cases/type2_reorder_across_common_conditionals.xml)
 is a small source-generated reduction of that scenario, with a common function,
 two common conditional siblings, and one reordered/renamed conditional. It
 requires the whole Type-2 move and normal/results-only equivalence. Its oracle
@@ -460,7 +477,7 @@ Validation against clean baseline `64be665` used all 172 retained inputs: 41 XML
 21 source, 75 policy, 21 selection, and 14 history cases. Only the nine reviewed
 normalization XML cases change output, removing ten context-free Type-2 moves.
 Their endpoint paths and raw texts remain explicitly tested in
-[`type2_normalization_contracts.json`](type2_normalization_contracts.json) as
+[`type2_normalization_contracts.json`](../tests/fixtures/selection/type2_normalization_contracts.json) as
 `ambiguous/insufficient_context`, not stationary. Without a selected enclosing
 function, the local- and parameter-rename fixtures also expose unmatched child
 declarations; their result counts include those children.
@@ -476,7 +493,7 @@ unchanged output must not be read as recovery of that reviewed target.
 The full Docker correctness run passes all 13 steps: 41 XML, 21 source, 75 policy,
 and 21 selection cases, with 17 move-selection unit tests including all 18 Type-2
 oracle cases. The four previously experimental reservation controls now run in
-[`tests/test_type2_adoption.py`](tests/test_type2_adoption.py): both endpoint
+[`tests/test_type2_adoption.py`](../tests/behavior/test_type2_adoption.py): both endpoint
 directions retain their unique stationary Type-2 correspondence without an
 alternate Type-3 move, while removing that identity permits the Type-3 control.
 The suite also checks ordinary/diagnostic/results-only equivalence and retained
@@ -509,9 +526,9 @@ Type-3 edge. The [architecture](../doc/architecture.md) defines diagnostics sche
 4, endpoint partner counts, and their separation from location and selection.
 Production Type-3 eligibility, hierarchy, and repeated-group policy are unchanged.
 
-[`type3_contracts.json`](type3_contracts.json) contains fifteen independently
+[`type3_contracts.json`](../tests/fixtures/selection/type3_contracts.json) contains fifteen independently
 specified synthetic scenarios, executed by
-[`tests/test_type3_contracts.py`](tests/test_type3_contracts.py). Exact endpoint
+[`tests/test_type3_contracts.py`](../tests/behavior/test_type3_contracts.py). Exact endpoint
 text and srcDiff revision membership identify the oracle constructs. The matrix
 covers edits in place, cross-file/container edits, same-container reorder,
 missing context, wrapping/unwrapping, a reordered child in a renamed parent,
@@ -570,7 +587,7 @@ The strict-ancestor snapshot repair described in the
 without changing the prefix classifier. The original `restructured` expectations
 in `type3_contracts.json` are unchanged; the known-gap overrides are removed.
 All fifteen Type-3 scenarios now satisfy their independent location oracle.
-[`test_structural_context.py`](tests/test_structural_context.py) adds 21 checks:
+[`test_structural_context.py`](../tests/behavior/test_structural_context.py) adds 21 checks:
 Type-1/Type-2/Type-3 crossed with same location, wrap, unwrap, incompatible
 `while`/`for` ancestry, crossing a stable declaration while wrapping, transfer
 between mapped functions, and cross-file transfer. They assert exact enclosing
@@ -770,9 +787,9 @@ Phase 5, VERSION, staging, and commits are untouched.
 
 ## Historical Type-3 reporting checks
 
-[`type3_history_contracts.json`](type3_history_contracts.json) preserves six
+[`type3_history_contracts.json`](../tests/fixtures/selection/type3_history_contracts.json) preserves six
 reviewed edge observations from the historical evaluation in two source pairs.
-[`test_type3_historical_contracts.py`](tests/test_type3_historical_contracts.py)
+[`test_type3_historical_contracts.py`](../tests/behavior/test_type3_historical_contracts.py)
 regenerates srcDiff during the correctness suite, verifies fixture hashes and
 unique source endpoints, and checks ordinary/diagnostic/results-only equivalence.
 No downloaded repositories or ignored history artifacts are needed to run them.
@@ -971,51 +988,20 @@ remaining move outside the unique Type-1 diagnostic decisions. Normal and
 conservative fallback under missing context, not evidence that the 17
 correspondences are stationary.
 
-Run the current build:
+## Adding accepted cases
 
-```bash
-python3 moveSelectionBench/benchmark.py \
-  --variant current=build/srcMove \
-  --run-id current-characterization
-```
+Add accepted detector tests and fixtures following the
+[canonical test guide](../tests/README.md#accepted-fixtures-and-oracles). The
+comparison automatically discovers them through the behavior suite. Source-level
+alignment cases should regenerate srcDiff from checked-in revision pairs and
+assert endpoint admission independently. Preserve declared granularity and output
+modes, endpoint association and multiplicity, and source-review rationale.
 
-Compare a redesign with a baseline:
-
-```bash
-python3 moveSelectionBench/benchmark.py \
-  --variant baseline=/path/to/baseline/srcMove \
-  --variant candidate=/path/to/candidate/srcMove \
-  --baseline baseline \
-  --run-id parent-aware-selection
-```
-
-The append-only run directory contains a provenance manifest, sealed attempt
-records and logs, per-case semantic outcomes, profiler metrics, a summary, and
-baseline-to-candidate transition counts. Do not report only a pass total: review
-the individual rationale and forbidden interpretations for changed cases.
-
-## Adding cases
-
-Add one isolated srcDiff XML input under `cases/` and one catalog entry. A
-required expectation says that a move pair should exist. A forbidden
-expectation says that an interpretation should not be selected. Raw text is
-compared after whitespace normalization; match kinds remain explicit.
-
-Archive fixtures declare `"input_shape": "archive"`; single-file fixtures may
-omit the field. Set `"verify_results_only_equivalence": true` when a case must
-also confirm that normal and `--results-only` executions select identical move
-endpoints and match kinds.
-
-Cases with no required moves are useful negative controls. Keep uncertain
-examples as `hypothesis` cases. Change the status to `contract` only after the
-expected behavior has been reviewed and accepted; contracts run under
-`make test`.
-
-Type-1 classifier contracts belong in `shadow_contracts.json`. Add a
-single-purpose input under `shadow_cases/`, declare the exact srcDiff
-precondition, fill every context dimension, select a classification reason and
-production disposition from the stable vocabulary enforced by
-`shadow_contracts.py`, and keep expected output independent of current results.
-A source-level alignment regression should use an `original`/`modified` pair
-and be generated by the test instead of checking in a large real-world srcDiff
-artifact.
+The accepted selection catalog at
+[`tests/fixtures/selection/catalog.json`](../tests/fixtures/selection/catalog.json)
+retains required/forbidden text interpretations and explicit content relationships.
+Classifier catalogs additionally declare upstream endpoint preconditions,
+structural context, classification reason, and production disposition. Keep
+uncertain expectations in separately identified research studies until reviewed;
+an accepted positive that the detector misses remains an ordinary correctness
+failure.

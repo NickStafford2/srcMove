@@ -7,6 +7,8 @@ from pathlib import Path
 from typing import Any
 import xml.etree.ElementTree as ET
 
+from benchmarking.results import validate_results_schema
+
 
 def load_json(path: Path) -> Any:
     with path.open("r", encoding="utf-8") as f:
@@ -415,9 +417,7 @@ def validate_results(
     expected: dict[str, Any], results_json: dict[str, Any]
 ) -> list[str]:
     failures: list[str] = []
-    from bigMoveBench.oracle import _validate_results_schema
-
-    failures.extend(_validate_results_schema(results_json, require_xpaths=True))
+    failures.extend(validate_results_schema(results_json, require_xpaths=True))
     failures.extend(check_summary_fields(results_json, expected))
     failures.extend(validate_moves(expected, results_json))
     return failures

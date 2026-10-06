@@ -269,7 +269,7 @@ preparation:
 
 ```bash
 ./bin/srcml-dev-shell bash -lc 'cd /workspace/srcMove && python3 -m unittest bigMoveBench.tests.test_thesis_experiment bigMoveBench.tests.test_selection_index bigMoveBench.tests.test_benchmark_cases bigMoveBench.tests.test_normalized_execution -v'
-./bin/srcml-dev-shell python3 srcMove/bigMoveBench/tests/run_thesis_smoke.py --output-dir srcMove/benchmark-results/bigMoveBench/thesis-fixture-smoke-<new-name>
+./bin/srcml-dev-shell python3 srcMove/tests/tooling/bigmovebench/run_thesis_smoke.py --output-dir srcMove/benchmark-results/bigMoveBench/thesis-fixture-smoke-<new-name>
 ```
 
 The smoke uses an eight-case synthetic fixture and a `fixture-smoke` designation,

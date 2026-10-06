@@ -1,210 +1,149 @@
-# srcMove Tests
+# srcMove correctness tests
 
-The repository `Makefile` is the developer interface. From the repository root:
+`make test` builds srcMove and runs every correctness test. In the macOS
+workspace, run it inside Docker through `./bin/srcml-dev-shell make -C srcMove test`
+from the workspace root, or use the workspace's `make test`. The
+[build guide](../README.md) owns dependency and build instructions.
 
-```bash
-make test                         # build, then run every correctness suite
-make test-unit                    # all Python unit tests
-make test-bigmovebench            # BigMoveBench unit tests only
-make test-move-selection          # move-selection benchmark unit tests only
-make test-performance             # performance workload runner unit tests only
-make test-srcmove-history         # srcmove-history unit tests only
-make test-xml                     # build, then run XML regressions
-make test-source                  # build, then run source-pair regressions
-make test-policy                  # build, then run move-policy catalogs
-make test-classification          # focused Type-1, Type-2c, Type-3, and none contracts
-```
-
-`tests/run.py` is the underlying test selector and expects an existing build.
-Use it directly for case-level selection and inventory:
+`tests/run.py` expects an existing build. It inventories and selects individual
+Python methods, accepted fixtures, and C++ component contracts:
 
 ```bash
 python3 tests/run.py --list
-python3 tests/run.py --case 1x1_basic
-python3 tests/run.py --case 1x1_basic --case blocks_swapped
-python3 tests/run.py --suite policy --case direct_numeric_literal
-python3 tests/regression/source/run.py --diagnostics
-python3 tests/regression/policy/list.py
-python3 tests/regression/policy/list.py --catalog false-positive
-python3 tests/regression/policy/list.py --catalog contextual
+python3 tests/run.py --suite behavior
+python3 tests/run.py --test 'fixtures.xml.*' --test 'fixtures.source.blocks_swapped'
+python3 tests/run.py --test '*CorrespondenceInteractionTests*' --list
+python3 tests/run.py --test 'components.canonical_forms'
+python3 tests/run.py --suite tooling --report build/tooling-report.json \
+  --artifacts build/tooling-artifacts
 ```
 
-`--case` finds the owning regression suite automatically. Combine it with
-`--suite` if the same case name ever exists in multiple regression suites.
+Run these commands in Docker when using the workspace. Repeat `--suite` to
+combine suites and `--test` to select a union of full IDs or shell globs. Quote
+globs so the shell does not expand them. Each selector must match at least one
+ID in the selected suites. `--list` needs no executable and can write a JSON
+inventory with `--report`.
 
-## Suites
+## Boundaries
 
-- [Ordered move sequence contracts](unit/test_move_sequences.py) run in the
-  `unit` suite. They check adjacency, reordering, filtered/common gaps,
-  preprocessor and revision-ownership barriers, explicit member links, and
-  ordinary/diagnostic/results-only agreement while preserving atomic annotations.
-- [Expression anchors](unit/test_expression_anchors.py),
-  [exact neighbor correspondence](unit/test_exact_neighbor_correspondence.py), and
-  [repeated-group location](unit/test_repeated_group_location.py) check unchanged
-  call crossings, contextual repeated pairing, wrapper aliases, copy preservation,
-  and location-gated unresolved groups across all output modes.
-- `unit`: core Python unit tests.
-- `bigmovebench`: focused tests under `bigMoveBench/tests/`; run explicitly
-  with `make test-bigmovebench` and included by `make test-unit`.
-- `performance`: focused workload-runner tests under `performance/tests/`; run
-  explicitly with `make test-performance` and included by `make test-unit`.
-- `move-selection`: focused runner unit tests plus accepted semantic contracts,
-  including stationary exact correspondences exposed as adjacent delete/insert
-  regions. It also executes the separate shadow-classifier oracle against
-  opt-in diagnostics, including every fixture's srcDiff membership, endpoint
-  cardinality, context observations, classification, stable reason, and Type-1
-  production disposition. Unique Type-1 output uses this oracle: only supported
-  relocations are moves. A separate Type-2c catalog checks classification and
-  production disposition, equivalent ordinary/diagnostic/results-only output,
-  repeated-group guards, and edited-parent child movement. Type-2b diagnostics
-  check blind-only evidence, mixed/repeated ambiguity, syntax guards, and
-  ordinary/diagnostic/results-only equivalence. Type-2c reservation
-  controls protect both endpoint directions from alternate Type-3 matching;
-  normalization contracts retain ten ambiguous correspondences from nine XML
-  fixtures. Type-3 contracts check relocation-gated output, verified
-  partner counts and nontransitive edges. Historical Type-3 source checks
-  require reporting to agree with source review; known incorrect reports are
-  ordinary failures. See [the reporting checks](../moveSelectionBench/README.md#historical-type-3-reporting-checks).
-  Hypotheses remain observational benchmark cases. Run with
-  `make test-move-selection`; it is also included by `make test-unit`.
-- `srcmove-history`: focused unit tests under
-  `tests/unit/srcmove_history/`; run explicitly with
-  `make test-srcmove-history`.
-- `xml`: checked-in srcDiff XML fixtures run directly through `srcMove`.
-- `source`: checked-in source pairs regenerated with `srcdiff`, then run through
-  `srcMove`. Single-file fixture sides are materialized beneath separate
-  revision roots with the shared logical filename `source.<ext>` so fixture
-  names such as `original.cpp` and `modified.cpp` cannot become rename evidence.
-  The runner also requires normal annotated output and `--results-only` to
-  produce identical ordinary JSON fields.
-- `policy`: reviewer-owned main and contextual move-policy catalogs.
-  Every entry generates an isolated before/after archive, then runs through
-  `srcdiff` and `srcMove`. Negative cases require zero moves; positive cases
-  require exactly one move with the declared raw text and content relationship.
+| Location | Responsibility |
+| --- | --- |
+| `unit/` | Isolated Python helpers and C++ component contracts. |
+| `behavior/` | Detector correspondence, location, classification, representation, annotations, sequences, and CLI contracts. |
+| `tooling/` | History analysis, benchmark infrastructure, and test infrastructure. |
+| `fixtures/` | Accepted XML/source inputs, reviewer-owned catalogs, expectations, and source-review rationale. |
+| `support/` | Execution, input construction, fixture discovery, structural validation, and explicit oracle functions. |
 
-The canonicalization unit fixture and historical source-pair fixtures use
-fragment granularity because they isolate low-level normalization and grouping
-mechanics. XML and policy regressions use the product default of
-statement-or-larger moves.
+The behavior suite includes dynamically generated fixture and selection-catalog
+tests, each with its own ID. It covers normal, diagnostic, and results-only
+output where the owning test requests those modes. Pure helper, component, and
+tooling tests remain separate. Discovery rejects duplicate IDs and import
+errors. The active `canonical_forms_test` remains a unit component; the obsolete
+canonical-subtree workflow and inactive legacy tests are retired.
 
-Fixture discovery and layout validation are defined once in
-`tests/support/cases.py`. XML cases contain `input.xml`, `expected.xml`, and
-`expected.json`. Source cases contain `oracle.json` plus either one
-`original.*`/`modified.*` file pair or `original/`/`modified/` directories for
-archive comparisons. Malformed case directories are errors rather than being
-silently ignored.
+Large BigCloneBench populations, repository studies, and performance measurements
+are separate [experiments](../benchmarking/README.md). Their small offline
+infrastructure tests belong to `tooling`; running correctness never starts a
+population experiment.
 
-Generated artifacts never live beside checked-in fixtures. Regression
-suites write to `build/test-results/<suite>/<case>/`, using `srcdiff.xml`,
-`srcmove.xml`, and `results.json` where applicable.
+## Accepted fixtures and oracles
 
-Policy catalog entries support `transfer` for compact whole-file relocations and
-`archive` for explicit multi-file before/after examples. Each entry includes a
-stable ID, language, extension, and reviewer rationale. Keep cases isolated:
-combining the catalog into one srcDiff archive would allow unrelated examples
-to cross-match.
+[Fixture discovery](support/cases.py) rejects malformed layouts instead of
+silently dropping cases. [Fixture tests](support/fixture_tests.py) execute these
+representations:
 
-`list.py` shows only the simple `false_positive.json` and `real_move.json`
-catalogs by default. Use `--catalog contextual` for multi-file replacement and
-within-context statement cases, or `--catalog all` for everything.
+- `fixtures/xml/cases/<case>/`: `input.xml`, `expected.json`, and exact annotated
+  `expected.xml`. Tests apply the JSON oracle and preserve the XML serialization
+  snapshot.
+- `fixtures/source/<case>/`: `oracle.json` and either one
+  `original.*`/`modified.*` pair or `original/`/`modified/` archive directories.
+  srcDiff regenerates inputs. Single-file sides use the same logical relative
+  filename `source.<ext>` beneath separate revision roots, preventing fixture
+  labels from becoming rename evidence. Normal and results-only ordinary JSON
+  must agree.
+- `fixtures/policy/`: isolated reviewer-owned transfer and archive catalogs.
+  Negative cases require zero moves; positive cases require exactly one move
+  with the declared endpoint text and content relationship. Entries retain
+  language, scenario, and rationale. Unrelated catalog examples never share one
+  comparison archive.
+- `fixtures/selection/`: accepted selection and classifier catalogs plus their
+  XML/source inputs. [Selection-catalog assertions](support/selection_catalog.py)
+  retain required and forbidden interpretations; classifier tests retain
+  independent srcDiff admission, context, classification, and production-policy
+  expectations.
 
-The core unit suite exercises generic process execution, XML validation,
-provenance, content identities, timeout cleanup, bounded logs, and interrupted
-attempt recovery. BigMoveBench's focused suite covers catalog compilation,
-selection, generated objects, benchmark-case publication, progress, the
-execution journal, resume and retry behavior, semantic eligibility, and oracle
-outcomes without downloading or installing BigCloneBench.
+XML, policy, and selection-catalog executions explicitly use `statement`
+granularity. Source fixtures use `fragment`. Python behavior tests declare their
+own granularity and requested modes; low-level normalization and historical
+source checks sometimes require fragments. These differences are part of the
+case contract, not interchangeable benchmark settings.
 
-`tests/unit/test_continuing_identity.py` checks independent continuing-name
-evidence, ambiguous substitutions, scope separation, tentative weighting,
-competition with stronger partners, and ordinary/diagnostic/results-only parity.
-It includes C++ source pairs regenerated through srcDiff
-and checks endpoint availability before asserting detection or rejection.
+[JSON validation](support/validation.py) compares `(XPath, raw text)` endpoint
+records together and preserves occurrence multiplicity. Schema/conservation
+validation has the neutral owner [`benchmarking/results.py`](../benchmarking/results.py).
+Sequence tests additionally compare annotation side, text, partner links, and
+occurrence counts with atomic results. Annotation ID sets alone are insufficient;
+the annotation helper does not resolve every annotated node's own XPath, so
+same-text occurrences still need independent location expectations.
 
-Performance-runner fixtures compare fake srcMove builds over checked-in srcDiff
-XML. They verify reproducible position-balanced schedules, immutable workload
-checksums, paired summaries, append-only artifacts, and preservation of failed
-measurements without running large workloads.
+Keep source expectations and reviewer policy independent of current detector
+output. A missed positive remains a failing assertion. Changing or removing a
+behavior expectation requires review of its rationale; do not regenerate goldens
+from a failing executable. Hypotheses and population Type-3 recall remain
+observations outside accepted correctness fixtures. A Type-3 fixture is still a
+hard contract for its declared example.
 
-CTest is retired for this project. The Makefile owns building; `tests/run.py`
-owns deterministic correctness-test selection and execution.
+The restructuring baseline reproduced three ordinary failures: the padded
+reorder inside a paired replaced loop, the unchanged try/catch crossing, and the
+edited control-header/body reorder. Their independent expectations remain
+visible in `behavior/test_correspondence_interactions.py` and
+`behavior/test_source_correspondence_variants.py`. The coarse hand-authored loop
+encoding and its passing source-generated counterpart both remain covered.
 
-## Contracts versus characterization
+## Outcomes, artifacts, and tool identities
 
-Exact XML/source goldens protect accepted behavior and reproducibility, but
-they are not evidence that every current granularity or selection decision is
-ideal. Change a golden deliberately when a reviewed algorithm improvement
-changes the product contract; do not preserve an inferior result solely to
-keep an old fixture green.
+`--report` writes inventory, per-method/fixture/component outcomes, status counts,
+tool identities, component build directory, and unexecuted IDs. It defaults to
+`ARTIFACTS/report.json`. Subtest failures remain in their parent method's details;
+a method total is neither a count of independent scenarios nor an accuracy
+measurement. Setup errors and unexecuted required tests stay visible. Failures,
+errors, skips, and unexecuted tests make correctness exit nonzero.
 
-Parent/child, nested-region, and `diff:common` decisions live in the
-[move-selection benchmark](../moveSelectionBench/README.md). Each case declares
-whether it is an accepted contract or an exploratory hypothesis. Contract
-misses fail `make test`; hypothesis misses remain observations. Promote a
-hypothesis only after its expected behavior is accepted as stable.
+`--artifacts` defaults to ignored `build/test-results`. Shared execution retains
+inputs, commands, stdout/stderr, JSON/XML, and executable identities. Fixture
+invocations use unique directories so later runs preserve earlier evidence.
+Tool execution and malformed output errors are distinct from semantic assertion
+failures. Inspect the paths named in failure details and the JSON report.
 
-Unsupported repeated exact fragments retain one multi-endpoint equivalence group
-when positive possible-displacement evidence exists. Independently supported
-portions can instead yield explicit pairs, including inside unequal groups.
-`test_partial_correspondence.py`, `test_anchor_crossing.py`, and
-`test_correspondence_recall_review.py` check continuing-region resolution,
-retained copy provenance, and real relocation across controls and wrappers.
-`test_correspondence_interactions.py` checks multiple continuing copy origins,
-ambiguous parent mappings, and reorders inside replaced loops, with a
-source-generated counterpart for the coarser hand-authored XML representation.
-`test_source_correspondence_variants.py` regenerates controls, wrapper crossings,
-and archive isolation cases through srcDiff. Positive source expectations remain
-ordinary failures when detection misses them; they are not current-output goldens.
-`test_correspondence_metamorphic.py` checks endpoint associations and multiplicity
-under whitespace, comments, and consistent renaming. The
-`1x2_basic` and `2x1_basic` cases are therefore positive copy/repeat-group
-contracts with explicit distinct revision paths supplying displacement evidence.
-The same-file examples without positive location evidence are negative contracts
-in the repeated-group location suite. Unequal `NxM` groups have the same
-meaning; balanced many-to-many groups normally use `moves_many`. Explicit
-continuing-source copies and unresolved residuals use `copy_or_repeat`, including
-one-to-one residuals that cannot supply ordered sequence partners. `move_pair_count`
-records the maximum non-reusing pair count (`min(deletes, inserts)`), but the
-group does not claim which indistinguishable endpoint pairs with which.
-Ambiguous Type-2c fragments remain unresolved because normalization removed
-their distinguishing content; document order alone must not manufacture a
-pairing.
+Executable discovery uses [`benchmarking/tooling.py`](../benchmarking/tooling.py):
+explicit `--srcmove`/`--srcdiff`, then `SRCMOVE_BIN`/`SRCDIFF_BIN`, workspace build
+outputs, then `PATH`. Missing required tools are errors. C++ components use
+`build/` or `--component-build-dir`; their build identity is independent of an
+alternate detector executable.
 
-Type-3 policy fixtures are hard contracts for the small examples they declare.
-Only population Type-3 recall in BigMoveBench is observational. A Type-3 miss
-there measures current coverage and does not silently redefine a fixture as a
-negative case.
+[moveSelectionBench](../moveSelectionBench/README.md) invokes this same behavior
+suite for every named detector build. It shares fixtures, unittest callbacks,
+preconditions, and oracles rather than maintaining a weaker benchmark copy.
 
-## Tool Selection
+## Restructure coverage accounting
 
-All test and benchmark entry points use `benchmarking/tooling.py` for executable
-discovery and command execution. Explicit CLI paths take precedence, followed
-by `SRCMOVE_BIN` or `SRCDIFF_BIN`, workspace build outputs, and finally `PATH`.
-Override either tool when needed:
+The fresh baseline at `4b5256b` executed 542 Python method instances but only
+518 unique methods. Module imports caused 11 repeated history methods and 13
+repeated BigMoveBench methods; both imports were corrected, and discovery now
+rejects duplicates. Fixture inputs and independent expectations were relocated
+without regeneration.
 
-```bash
-python3 tests/run.py --srcmove /path/to/srcMove --srcdiff /path/to/srcdiff
-SRCMOVE_BIN=/path/to/srcMove python3 tests/run.py --suite xml
-```
+The revised complete Docker run on 2026-10-06 executed 687 unique entries: 520
+Python methods, 140 XML/source/policy fixtures, 21 selection catalog fixtures,
+and six component checks. Of these, 684 passed and the three detector failures
+listed above remained visible. The old runner and comparison modules contained
+15 methods; their replacement has 17, including four preserved catalog-oracle
+contracts and updated inventory, selection, provenance, execution-error, and
+comparison contracts. Counts describe this bounded suite, not population accuracy.
 
-Resolved tools are passed to child test processes. C++ component executables
-come from `build/` or `--component-build-dir`; that build is explicitly independent
-of an alternate `--srcmove` executable. The active `canonical_forms_test` exercises
-the production streaming builder with finite identity, literal, syntax, wrapper,
-fragmentation, and qualifier fixtures. The legacy generated-directory canonical
-test is not part of the active suite.
-
-JSON oracles compare `(XPath, raw text)` endpoint records together, preserving
-duplicate multiplicity. Ordered-sequence fixtures also check each XML annotation's
-side, text, partner links, and occurrence count against atomic results; matching
-annotation ID sets alone is insufficient.
-The annotation check does not resolve each annotated node's own XPath; distinct
-same-text occurrences still need explicit source/location expectations.
-
-## Benchmarks
-
-BigCloneBench, performance measurements, and repository-scale workloads are
-experiments, not correctness test suites. Their small offline unit tests are
-included above, but benchmark executions use separate commands and are never
-started implicitly by `tests/run.py`. See the
-[benchmark index](../benchmarking/README.md).
+Deliberate retirements are the three separate fixture CLIs, overlapping suite
+selectors, duplicate execution, inactive `tests/legacy` examples, and the unused
+generated canonical-subtree workflow. The production `canonical_forms_test` and
+all other active component checks remain covered. No detector behavior
+expectation was removed or weakened. Original completed research observations
+remain in the benchmark research directories.

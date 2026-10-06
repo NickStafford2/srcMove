@@ -7,11 +7,11 @@ import xml.etree.ElementTree as ET
 from pathlib import Path
 from typing import Any, Mapping
 
+from benchmarking.results import validate_results_schema
 from benchmarking.contracts import XmlStatus
 from benchmarking.provenance import observe_file
 from bigMoveBench.label_corrections import LabelCorrections
 from bigMoveBench.oracle import (
-    _validate_results_schema,
     assess_positive_case,
     expected_generated_text,
     text_matches_with_status,
@@ -92,7 +92,7 @@ def validate_results_output(path: Path) -> dict[str, Any]:
             "error": str(error),
             **base,
         }
-    failures = _validate_results_schema(results, require_xpaths=True)
+    failures = validate_results_schema(results, require_xpaths=True)
     if failures:
         return {
             "status": XmlStatus.INVALID_STRUCTURE.value,
@@ -121,7 +121,7 @@ def _score_completed_case(
         )
     if metadata.get("case_kind") == "known_false_positive":
         text_validation = {"from": "not_checked", "to": "not_checked"}
-        failures = _validate_results_schema(results)
+        failures = validate_results_schema(results)
         moves = results.get("moves")
         if srcmove_xml is not None and (
             results.get("move_count") != 0 or srcmove_xml.exists()

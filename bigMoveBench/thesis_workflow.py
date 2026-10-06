@@ -41,7 +41,7 @@ def validate_current_code(results_root):
     command = ['make', 'test-bigmovebench', 'test-classification']
     run_logged(command, directory / 'tests.log')
     smoke = directory / 'smoke'
-    run_logged([sys.executable, str(REPO_ROOT / 'bigMoveBench/tests/run_thesis_smoke.py'),
+    run_logged([sys.executable, str(REPO_ROOT / 'tests/tooling/bigmovebench/run_thesis_smoke.py'),
                 '--output-dir', str(smoke)], directory / 'smoke.log')
     record = read_json(smoke / 'smoke-validation.json')
     if record['status'] != 'completed':

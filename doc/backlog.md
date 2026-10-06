@@ -7,10 +7,10 @@ settled.
 ## Next
 
 - Fix the two failing historical Type-3 reporting checks. In
-  [the historical Type-3 test](../moveSelectionBench/tests/test_type3_historical_contracts.py),
+  [the historical Type-3 test](../tests/behavior/test_type3_historical_contracts.py),
   `test_reported_moves_match_source_oracles` now requires srcMove not to report
   the `warp_in_place` constructs (`affine_worker` and `affine_try`) as moves,
-  following their [source judgments](../moveSelectionBench/type3_history_contracts.json).
+  following their [source judgments](../tests/fixtures/selection/type3_history_contracts.json).
   Both checks fail as of October 4, 2026. Retain the source fixtures and judgments;
   do not change expectations to accept the incorrect reports. Address the
   underlying Type-3 policy, which currently permits selection without positive

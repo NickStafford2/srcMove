@@ -459,7 +459,7 @@ an entire method from a run of its interior statements. The primary reporting
 projection adds expected linear indexing/copying work in selected member
 references and their serialized endpoint/text sizes. See the
 [sequence plan](plans/adjacent_move_sequences.md) for proposed changed-sequence
-matching and the [semantic tests](../tests/unit/test_move_sequences.py) for
+matching and the [semantic tests](../tests/behavior/test_move_sequences.py) for
 implemented boundary checks.
 
 ### Diagnostics

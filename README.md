@@ -107,8 +107,7 @@ make test
 ```
 
 The Makefile is the canonical developer interface when the dependency paths use
-the expected sibling layout. Run `make help` for focused unit and
-regression-suite targets.
+the expected sibling layout. Run `make help` for focused unit, behavior, and tooling targets.
 
 For any other layout, configure the paths explicitly:
 
@@ -218,7 +217,7 @@ see [location classification vocabulary](doc/architecture.md#location-classifica
 - [Benchmarks](benchmarking/README.md)
 - [BigMoveBench](bigMoveBench/README.md)
 
-Small deterministic XML fixtures live under `tests/regression/xml/cases/`.
+Small deterministic XML fixtures live under `tests/fixtures/xml/cases/`.
 Generated source-pair tests and BigCloneBench evaluation are documented by the
 test and benchmark entry points above.
 

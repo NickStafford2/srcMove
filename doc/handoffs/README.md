@@ -4,8 +4,8 @@ This directory contains task briefs for concrete unfinished work that a future
 session is expected to resume. It is not an archive or a second documentation
 system.
 
-No active handoffs. Type-2 adoption is complete; future correspondence work
-remains in the [roadmap](../plans/correspondence.md).
+No active handoffs. Future correspondence work remains in the
+[roadmap](../plans/correspondence.md).
 
 When adding one, give it a specific objective and link it from the issue,
 backlog item, or user request that makes it relevant. Include current evidence,

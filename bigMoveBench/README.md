@@ -39,7 +39,7 @@ machine-facing pair-set identifiers use `type1`, `type2b`, `type2c`, `type3`, an
 - `reviewed_label_corrections.json` records reviewed content-label corrections;
   matching and reporting rules are in the [methodology](docs/methodology.md#conversion-model).
 - `suite.py` is the benchmark entry point.
-- `tests/` and `docs/` contain BigMoveBench-specific verification and
+- [`../tests/tooling/bigmovebench/`](../tests/tooling/bigmovebench/) and `docs/` contain BigMoveBench-specific verification and
   documentation. Generic execution, provenance, identity, and serialization
   infrastructure remains in `benchmarking/`.
 

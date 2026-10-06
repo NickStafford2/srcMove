@@ -6,7 +6,7 @@ move-detection accuracy.
 
 - `benchmark.py` implements scheduling, measurement, and result summaries.
 - `run.py` is the command-line entry point.
-- `tests/` contains this component's focused unit tests.
+- [`../tests/tooling/performance/`](../tests/tooling/performance/) contains this component's focused correctness tests.
 
 The component reuses generic process-execution, provenance, atomic JSON, and
 statistical infrastructure from [`benchmarking/`](../benchmarking/README.md). Its
@@ -81,8 +81,8 @@ files before drawing complexity conclusions:
 python3 performance/run.py \
   --variant baseline=/path/to/baseline/srcMove \
   --variant candidate=/path/to/candidate/srcMove \
-  --workload nested=moveSelectionBench/cases/nested_exact_parent_over_child.xml \
-  --workload cross-type=moveSelectionBench/cases/nested_near_miss_parent_over_exact_child.xml \
+  --workload nested=tests/fixtures/selection/cases/nested_exact_parent_over_child.xml \
+  --workload cross-type=tests/fixtures/selection/cases/nested_near_miss_parent_over_exact_child.xml \
   --warmups 1 --repetitions 6
 ```
 

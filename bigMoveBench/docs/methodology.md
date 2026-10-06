@@ -331,7 +331,7 @@ Focused fixture validation, from the workspace root:
 
 ```bash
 ./bin/srcml-dev-shell bash -lc 'cd srcMove && python3 -m unittest bigMoveBench.tests.test_selection_index bigMoveBench.tests.test_categories bigMoveBench.tests.test_selection bigMoveBench.tests.test_progress -v'
-./bin/srcml-dev-shell bash -lc 'cd srcMove && python3 -m unittest discover -s bigMoveBench/tests -v'
+./bin/srcml-dev-shell bash -lc 'cd srcMove && python3 -m unittest discover -s tests/tooling/bigmovebench -v'
 ```
 
 The tests print `EXPLAIN QUERY PLAN` evidence: position sampling uses

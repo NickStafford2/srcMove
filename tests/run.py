@@ -1,432 +1,207 @@
 #!/usr/bin/env python3
-"""Unified entry point for deterministic srcMove correctness tests."""
-
+"""Inventory and run all correctness contracts; benchmarks use this same suite."""
 from __future__ import annotations
 
 import argparse
+from collections import Counter
+import fnmatch
+import hashlib
+import json
 import os
-import sys
-from dataclasses import dataclass
 from pathlib import Path
+import sys
+import time
+import unittest
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO_ROOT))
+from benchmarking.tooling import find_srcdiff, find_srcmove, run_command
+
+SUITES = ("unit", "behavior", "tooling")
+COMPONENTS = ("canonical_forms", "selection_policy", "sequence_similarity", "shadow_classifier", "location_context")
 
 
-TESTS_ROOT = Path(__file__).resolve().parent
-REPO_ROOT = TESTS_ROOT.parent
-for import_root in (REPO_ROOT, TESTS_ROOT):
-    if str(import_root) not in sys.path:
-        sys.path.insert(0, str(import_root))
-
-from support.cases import REGRESSION_SUITES, regression_case_names
-from benchmarking.tooling import command_text, find_srcdiff, find_srcmove, run_command
+def flatten(suite):
+    for item in suite:
+        if isinstance(item, unittest.TestSuite):
+            yield from flatten(item)
+        else:
+            yield item
 
 
-SUITE_DESCRIPTIONS = {
-    "unit": "core Python unit tests",
-    "bigmovebench": "focused BigMoveBench unit tests",
-    "move-selection": "move-selection unit tests and semantic contracts",
-    "performance": "focused performance workload runner unit tests",
-    "srcmove-history": "focused srcmove-history unit tests",
-    "xml": "checked-in srcDiff XML regression fixtures",
-    "source": "checked-in source pairs regenerated through srcdiff",
-    "policy": "reviewer-editable move and not-move catalogs regenerated through srcdiff",
-}
+class ComponentTest(unittest.TestCase):
+    def __init__(self, name, build_dir):
+        super().__init__()
+        self.name, self.build_dir = name, build_dir
 
-DEFAULT_SUITES = (
-    "unit",
-    "bigmovebench",
-    "move-selection",
-    "performance",
-    "xml",
-    "source",
-    "policy",
-)
+    def id(self):
+        return "components." + self.name
+
+    def __str__(self):
+        return self.id()
+
+    def runTest(self):
+        fixture = REPO_ROOT / "tests/unit/location_context/semantic_containers.xml"
+        if self.name == "shadow_diagnostics":
+            binary = find_srcmove(REPO_ROOT)
+            if binary is None:
+                raise RuntimeError("srcMove required for shadow diagnostics")
+            command = [sys.executable, str(REPO_ROOT / "tests/unit/shadow_classifier/check_shadow_diagnostics.py"), str(binary), str(fixture)]
+        else:
+            command = [str(self.build_dir / (self.name + "_test"))]
+            if self.name == "location_context":
+                command.append(str(fixture))
+        artifact = Path(os.environ["SRCMOVE_TEST_ARTIFACTS"]) / self.id()
+        artifact.mkdir(parents=True, exist_ok=True)
+        (artifact / "command.json").write_text(json.dumps(command, indent=2))
+        executable = Path(command[0])
+        (artifact / "executable.json").write_text(json.dumps(tool_identity(executable), indent=2))
+        result = run_command(command, cwd=REPO_ROOT)
+        (artifact / "stdout.txt").write_text(result.stdout)
+        (artifact / "stderr.txt").write_text(result.stderr)
+        self.assertEqual(result.returncode, 0, f"component failed; see {artifact}\n{result.stderr}\n{result.stdout}")
 
 
-@dataclass(frozen=True)
-class TestStep:
-    name: str
-    command: list[str]
+def inventory(suites=SUITES, component_build_dir=None):
+    loader = unittest.TestLoader()
+    tests = []
+    for name in dict.fromkeys(suites):
+        tests.extend(flatten(loader.discover(str(REPO_ROOT / "tests" / name), top_level_dir=str(REPO_ROOT))))
+        if name == "unit":
+            build = (component_build_dir or REPO_ROOT / "build").resolve()
+            tests.extend(ComponentTest(component, build) for component in (*COMPONENTS, "shadow_diagnostics"))
+        if name == "behavior":
+            from tests.support.fixture_tests import load_fixture_tests
+            tests.extend(flatten(load_fixture_tests()))
+            from tests.support.selection_catalog import load_selection_tests
+            tests.extend(flatten(load_selection_tests()))
+    duplicates = [name for name, count in Counter(test.id() for test in tests).items() if count != 1]
+    if duplicates:
+        raise ValueError("duplicate test IDs: " + ", ".join(duplicates))
+    if loader.errors:
+        raise ValueError("discovery failed:\n" + "\n".join(loader.errors))
+    return sorted(tests, key=lambda test: test.id())
 
 
-def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(
-        description="Run srcMove's deterministic correctness tests."
-    )
-    parser.add_argument(
-        "--suite",
-        action="append",
-        choices=tuple(SUITE_DESCRIPTIONS),
-        help="Run only this suite; repeat to select multiple suites.",
-    )
-    parser.add_argument(
-        "--case",
-        action="append",
-        dest="cases",
-        metavar="NAME",
-        help="Run one regression case; repeat to select multiple cases.",
-    )
-    parser.add_argument(
-        "--list",
-        action="store_true",
-        help="List suites and regression cases without running them.",
-    )
-    parser.add_argument(
-        "--srcmove",
-        type=Path,
-        help="srcMove executable; overrides SRCMOVE_BIN and workspace discovery.",
-    )
-    parser.add_argument(
-        "--srcdiff",
-        type=Path,
-        help="srcdiff executable; overrides SRCDIFF_BIN and workspace discovery.",
-    )
-    parser.add_argument(
-        "--component-build-dir", type=Path, default=REPO_ROOT / "build",
-        help="Directory containing C++ component test executables; independent of --srcmove.",
-    )
+def select(tests, patterns):
+    if not patterns:
+        return tests
+    for pattern in patterns:
+        if not any(fnmatch.fnmatchcase(test.id(), pattern) for test in tests):
+            raise ValueError(f"selector matches no tests: {pattern}")
+    return [test for test in tests if any(fnmatch.fnmatchcase(test.id(), pattern) for pattern in patterns)]
+
+
+class RecordedResult(unittest.TextTestResult):
+    """One outcome per method/case, including subtest and setup failures."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.outcomes = []
+        self.active = None
+
+    def startTest(self, test):
+        super().startTest(test)
+        self.started = time.monotonic()
+        self.active = {"id": test.id(), "status": "pass", "details": []}
+
+    def record(self, test, status, detail):
+        if self.active is not None:
+            # An error remains an error even if another subtest asserts unsuccessfully.
+            rank = {"pass": 0, "skip": 1, "failure": 2, "error": 3}
+            if rank[status] > rank[self.active["status"]]:
+                self.active["status"] = status
+            self.active["details"].append(detail)
+        else:
+            self.outcomes.append({"id": test.id(), "status": status, "details": [detail], "seconds": 0})
+
+    def addFailure(self, test, err):
+        super().addFailure(test, err)
+        self.record(test, "failure", self._exc_info_to_string(err, test))
+
+    def addError(self, test, err):
+        super().addError(test, err)
+        self.record(test, "error", self._exc_info_to_string(err, test))
+
+    def addSubTest(self, test, subtest, err):
+        super().addSubTest(test, subtest, err)
+        if err is not None:
+            self.record(test, "failure" if issubclass(err[0], test.failureException) else "error", str(subtest) + "\n" + self._exc_info_to_string(err, test))
+
+    def addSkip(self, test, reason):
+        super().addSkip(test, reason)
+        self.record(test, "skip", reason)
+
+    def addExpectedFailure(self, test, err):
+        super().addExpectedFailure(test, err)
+        self.record(test, "failure", "expected-failure contracts are not accepted coverage\n" + self._exc_info_to_string(err, test))
+
+    def addUnexpectedSuccess(self, test):
+        super().addUnexpectedSuccess(test)
+        self.record(test, "failure", "unexpected success")
+
+    def stopTest(self, test):
+        self.active["seconds"] = time.monotonic() - self.started
+        self.outcomes.append(self.active)
+        self.active = None
+        super().stopTest(test)
+
+
+def tool_identity(path):
+    if path is None:
+        return None
+    return {"path": str(path), "sha256": hashlib.sha256(path.read_bytes()).hexdigest() if path.is_file() else None}
+
+
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--suite", action="append", choices=SUITES)
+    parser.add_argument("--test", action="append", default=[], metavar="ID_OR_GLOB", help="Select methods, fixtures, or components by full ID or shell glob; repeat for a union.")
+    parser.add_argument("--list", action="store_true")
+    parser.add_argument("--srcmove", type=Path)
+    parser.add_argument("--srcdiff", type=Path)
+    parser.add_argument("--component-build-dir", type=Path, default=REPO_ROOT / "build")
+    parser.add_argument("--artifacts", type=Path, default=REPO_ROOT / "build/test-results")
+    parser.add_argument("--report", type=Path, help="JSON inventory/outcomes; defaults to ARTIFACTS/report.json")
     return parser.parse_args()
 
 
-def print_inventory() -> None:
-    for suite, description in SUITE_DESCRIPTIONS.items():
-        if suite not in REGRESSION_SUITES:
-            print(f"{suite}: {description}")
-            continue
-
-        cases = regression_case_names(suite)
-        print(f"{suite}: {description} ({len(cases)} cases)")
-        for case_name in cases:
-            print(f"  {case_name}")
-
-
-def select_regression_cases(
-    suites: list[str], requested_cases: list[str]
-) -> dict[str, list[str]]:
-    available = {
-        suite: set(regression_case_names(suite))
-        for suite in REGRESSION_SUITES
-        if suite in suites
-    }
-    selected = {suite: [] for suite in available}
-
-    for case_name in requested_cases:
-        matches = [suite for suite, cases in available.items() if case_name in cases]
-        if not matches:
-            raise ValueError(
-                f"case not found in selected regression suites: {case_name}"
-            )
-        if len(matches) > 1:
-            joined = ", ".join(matches)
-            raise ValueError(
-                f"case name is ambiguous across suites ({joined}): {case_name}; "
-                "select one suite with --suite"
-            )
-        selected[matches[0]].append(case_name)
-
-    return {suite: cases for suite, cases in selected.items() if cases}
-
-
-def resolved_tool_environment(srcmove: Path | None, srcdiff: Path | None) -> dict[str, str]:
-    """Propagate CLI-resolved tools to tests that discover tools in subprocesses."""
-    env = dict(os.environ)
-    if srcmove is not None:
-        env["SRCMOVE_BIN"] = str(srcmove)
-    if srcdiff is not None:
-        env["SRCDIFF_BIN"] = str(srcdiff)
-    return env
-
-
-def run_step(step: TestStep, env: dict[str, str] | None = None) -> bool:
-    print()
-    print(f"=== {step.name} ===", flush=True)
-    print(command_text(step.command), flush=True)
-    result = run_command(step.command, cwd=REPO_ROOT, env=env, capture_output=False)
-    if result.returncode == 0:
-        print(f"PASS {step.name}")
-        return True
-    print(f"FAIL {step.name} (exit code {result.returncode})")
-    return False
-
-
-def test_steps(
-    args: argparse.Namespace,
-    suites: list[str],
-    selected_cases: dict[str, list[str]],
-    srcmove: Path | None,
-    srcdiff: Path | None,
-) -> list[TestStep]:
-    steps: list[TestStep] = []
-    component_dir = getattr(args, "component_build_dir", REPO_ROOT / "build").resolve()
-    if not args.cases and "unit" in suites:
-        steps.append(
-            TestStep(
-                "unit",
-                [
-                    sys.executable,
-                    "-m",
-                    "unittest",
-                    "discover",
-                    "-s",
-                    "tests/unit",
-                    "-t",
-                    ".",
-                    "-p",
-                    "test_*.py",
-                ],
-            )
-        )
-        steps.append(TestStep("canonical forms component", [str(component_dir / "canonical_forms_test")]))
-        steps.append(
-            TestStep(
-                "selection policy component",
-                [str(component_dir / "selection_policy_test")],
-            )
-        )
-        steps.append(
-            TestStep(
-                "sequence similarity component",
-                [str(component_dir / "sequence_similarity_test")],
-            )
-        )
-        steps.append(
-            TestStep(
-                "shadow classifier component",
-                [str(component_dir / "shadow_classifier_test")],
-            )
-        )
-        steps.append(
-            TestStep(
-                "shadow diagnostics component",
-                [
-                    sys.executable,
-                    str(
-                        REPO_ROOT
-                        / "tests"
-                        / "unit"
-                        / "shadow_classifier"
-                        / "check_shadow_diagnostics.py"
-                    ),
-                    str(srcmove),
-                    str(
-                        REPO_ROOT
-                        / "tests"
-                        / "unit"
-                        / "location_context"
-                        / "semantic_containers.xml"
-                    ),
-                ],
-            )
-        )
-        steps.append(
-            TestStep(
-                "location context component",
-                [
-                    str(component_dir / "location_context_test"),
-                    str(
-                        REPO_ROOT
-                        / "tests"
-                        / "unit"
-                        / "location_context"
-                        / "semantic_containers.xml"
-                    ),
-                ],
-            )
-        )
-
-    if not args.cases and "bigmovebench" in suites:
-        steps.append(
-            TestStep(
-                "BigMoveBench unit",
-                [
-                    sys.executable,
-                    "-m",
-                    "unittest",
-                    "discover",
-                    "-s",
-                    "bigMoveBench/tests",
-                    "-t",
-                    ".",
-                    "-p",
-                    "test_*.py",
-                ],
-            )
-        )
-
-    if not args.cases and "move-selection" in suites:
-        assert srcmove is not None
-        steps.append(
-            TestStep(
-                "move-selection unit",
-                [
-                    sys.executable,
-                    "-m",
-                    "unittest",
-                    "discover",
-                    "-s",
-                    "moveSelectionBench/tests",
-                    "-t",
-                    ".",
-                    "-p",
-                    "test_*.py",
-                ],
-            )
-        )
-        steps.append(
-            TestStep(
-                "move-selection contracts",
-                [
-                    sys.executable,
-                    "moveSelectionBench/benchmark.py",
-                    "--variant",
-                    f"current={srcmove}",
-                    "--contracts-only",
-                    "--enforce-contracts",
-                ],
-            )
-        )
-
-    if not args.cases and "performance" in suites:
-        steps.append(
-            TestStep(
-                "performance workload runner unit",
-                [
-                    sys.executable,
-                    "-m",
-                    "unittest",
-                    "discover",
-                    "-s",
-                    "performance/tests",
-                    "-t",
-                    ".",
-                    "-p",
-                    "test_*.py",
-                ],
-            )
-        )
-
-    if not args.cases and "srcmove-history" in suites:
-        steps.append(
-            TestStep(
-                "srcmove-history unit",
-                [
-                    sys.executable,
-                    "-m",
-                    "unittest",
-                    "discover",
-                    "-s",
-                    "tests/unit/srcmove_history",
-                    "-t",
-                    ".",
-                    "-p",
-                    "test_*.py",
-                ],
-            )
-        )
-
-    if "xml" in suites and (not args.cases or "xml" in selected_cases):
-        assert srcmove is not None
-        command = [
-            sys.executable,
-            "tests/regression/xml/run.py",
-            "--srcmove",
-            str(srcmove),
-        ]
-        for case_name in selected_cases.get("xml", []):
-            command.extend(["--case", case_name])
-        steps.append(TestStep("xml regression", command))
-
-    if "source" in suites and (not args.cases or "source" in selected_cases):
-        assert srcmove is not None
-        assert srcdiff is not None
-        command = [
-            sys.executable,
-            "tests/regression/source/run.py",
-            "--srcmove",
-            str(srcmove),
-            "--srcdiff",
-            str(srcdiff),
-        ]
-        for case_name in selected_cases.get("source", []):
-            command.extend(["--case", case_name])
-        steps.append(TestStep("source regression", command))
-
-    if "policy" in suites and (not args.cases or "policy" in selected_cases):
-        assert srcmove is not None
-        assert srcdiff is not None
-        command = [
-            sys.executable,
-            "tests/regression/policy/run.py",
-            "--srcmove",
-            str(srcmove),
-            "--srcdiff",
-            str(srcdiff),
-        ]
-        for case_name in selected_cases.get("policy", []):
-            command.extend(["--case", case_name])
-        steps.append(TestStep("policy regression", command))
-
-    return steps
-
-
-def main() -> int:
+def main():
     args = parse_args()
-    if args.list:
-        try:
-            print_inventory()
-            return 0
-        except ValueError as error:
-            print(f"error: {error}", file=sys.stderr)
-            return 2
-
-    suites = list(dict.fromkeys(args.suite or DEFAULT_SUITES))
-    if args.cases:
-        suites = [
-            suite
-            for suite in suites
-            if suite not in ("unit", "srcmove-history")
-        ]
-
+    suites = args.suite or list(SUITES)
     try:
-        selected_cases = select_regression_cases(suites, args.cases or [])
-    except ValueError as error:
+        tests = select(inventory(suites, args.component_build_dir), args.test)
+        if not tests:
+            raise ValueError("no tests selected")
+        if args.list:
+            for test in tests:
+                print(test.id())
+            if args.report:
+                args.report.parent.mkdir(parents=True, exist_ok=True)
+                args.report.write_text(json.dumps({"inventory": [test.id() for test in tests]}, indent=2) + "\n")
+            return 0
+        srcmove = find_srcmove(REPO_ROOT, args.srcmove)
+        srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff)
+        for name, tool, explicit in (("SRCMOVE_BIN", srcmove, args.srcmove), ("SRCDIFF_BIN", srcdiff, args.srcdiff)):
+            if explicit is not None and tool is None:
+                raise ValueError(f"executable not found: {explicit}")
+            if tool is not None:
+                os.environ[name] = str(tool)
+        args.artifacts.mkdir(parents=True, exist_ok=True)
+        os.environ["SRCMOVE_TEST_ARTIFACTS"] = str(args.artifacts.resolve())
+        result = unittest.TextTestRunner(verbosity=2, resultclass=RecordedResult).run(unittest.TestSuite(tests))
+        counts = Counter(item["status"] for item in result.outcomes)
+        report = {"inventory": [test.id() for test in tests], "outcomes": result.outcomes, "counts": dict(counts), "tools": {"srcmove": tool_identity(srcmove), "srcdiff": tool_identity(srcdiff)}, "component_build_dir": str(args.component_build_dir.resolve()), "artifacts": str(args.artifacts.resolve())}
+        # Suite/class setup errors are separate outcomes, and their unexecuted IDs stay visible.
+        executed = {item["id"] for item in result.outcomes}
+        report["not_executed"] = sorted(set(report["inventory"]) - executed)
+        report_path = args.report or args.artifacts / "report.json"
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        report_path.write_text(json.dumps(report, indent=2) + "\n")
+        print(f"Outcomes: {dict(counts)}; report: {report_path}")
+        return int(bool(counts["failure"] or counts["error"] or counts["skip"] or report["not_executed"]))
+    except (ValueError, OSError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-
-    needs_srcmove = any(
-        suite in suites for suite in ("unit", "move-selection", "xml", "source", "policy")
-    )
-    needs_srcdiff = any(suite in suites for suite in ("source", "policy"))
-
-    srcmove: Path | None = None
-    if needs_srcmove or args.srcmove is not None:
-        srcmove = find_srcmove(REPO_ROOT, args.srcmove)
-        if srcmove is None:
-            print("error: srcMove not found; run make build or pass --srcmove", file=sys.stderr)
-            return 2
-
-    srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff) if needs_srcdiff or "unit" in suites or args.srcdiff is not None else None
-    if (needs_srcdiff or args.srcdiff is not None) and srcdiff is None:
-        print("error: srcdiff not found; build it or pass --srcdiff", file=sys.stderr)
-        return 2
-
-    if srcdiff is not None:
-        print(f"using srcdiff: {srcdiff}")
-    if srcmove is not None:
-        print(f"using srcMove: {srcmove}")
-
-    steps = test_steps(args, suites, selected_cases, srcmove, srcdiff)
-    env = resolved_tool_environment(srcmove, srcdiff)
-    if "unit" in suites:
-        print(f"C++ component executables: {args.component_build_dir.resolve()}")
-        print("Component build provenance is independent of the selected srcMove executable.")
-    failures = sum(not run_step(step, env) for step in steps)
-
-    print()
-    print("=== Test Summary ===")
-    print(f"steps run: {len(steps)}")
-    print(f"failures : {failures}")
-    print("population benchmarks: excluded; run benchmark commands separately")
-    return 1 if failures else 0
 
 
 if __name__ == "__main__":

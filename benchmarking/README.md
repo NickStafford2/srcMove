@@ -75,3 +75,5 @@ as data instead of silently dropping them from denominators.
 For current commands and interpretation rules, use the suite documentation
 linked above. Large benchmark executions are never started by the normal test
 runner.
+
+`results.py` owns structural validation of srcMove schema-2 JSON independently of dataset scoring and semantic test oracles.

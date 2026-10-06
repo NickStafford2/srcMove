@@ -1,4 +1,4 @@
-"""Canonical discovery and shape validation for regression cases."""
+"""Canonical discovery and shape validation for accepted fixtures."""
 
 from __future__ import annotations
 
@@ -11,10 +11,10 @@ from pathlib import Path
 
 TESTS_ROOT = Path(__file__).resolve().parents[1]
 TEST_RESULTS_ROOT = TESTS_ROOT.parent / "build" / "test-results"
-XML_CASES_ROOT = TESTS_ROOT / "regression" / "xml" / "cases"
-SOURCE_CASES_ROOT = TESTS_ROOT / "regression" / "source"
-POLICY_CASES_ROOT = TESTS_ROOT / "regression" / "policy"
-REGRESSION_SUITES = ("xml", "source", "policy")
+XML_CASES_ROOT = TESTS_ROOT / "fixtures" / "xml" / "cases"
+SOURCE_CASES_ROOT = TESTS_ROOT / "fixtures" / "source"
+POLICY_CASES_ROOT = TESTS_ROOT / "fixtures" / "policy"
+FIXTURE_SUITES = ("xml", "source", "policy")
 POLICY_CATALOGS = (
     ("false_positive.json", False, False),
     ("real_move.json", True, False),
@@ -99,7 +99,7 @@ def discover_xml_cases(root: Path = XML_CASES_ROOT) -> list[XmlCaseSpec]:
     if errors:
         raise CaseDefinitionError("invalid XML regression case(s):\n  " + "\n  ".join(errors))
     if not cases:
-        raise CaseDefinitionError(f"no XML regression cases found under {root}")
+        raise CaseDefinitionError(f"no XML accepted fixtures found under {root}")
     return cases
 
 
@@ -166,7 +166,7 @@ def discover_source_cases(root: Path = SOURCE_CASES_ROOT) -> list[SourceCaseSpec
             "invalid source regression case(s):\n  " + "\n  ".join(errors)
         )
     if not cases:
-        raise CaseDefinitionError(f"no source regression cases found under {root}")
+        raise CaseDefinitionError(f"no source accepted fixtures found under {root}")
     return cases
 
 
@@ -298,7 +298,7 @@ def discover_policy_cases(root: Path = POLICY_CASES_ROOT) -> list[PolicyCaseSpec
     return cases
 
 
-def regression_case_names(suite: str) -> list[str]:
+def fixture_case_names(suite: str) -> list[str]:
     if suite == "xml":
         return [case.name for case in discover_xml_cases()]
     if suite == "source":
