@@ -1,4 +1,4 @@
-"""Move identity needs evidence from independent continuing statement shells.
+"""Continuing statement shells distinguish supported and tentative move identity.
 
 The exact flush call establishes displacement independently of the edited use.
 These fixtures deliberately distinguish identity evidence from location evidence,
@@ -70,14 +70,34 @@ class ContinuingIdentityTests(unittest.TestCase):
         # Includes Type-3: lowering the identity tier must not bypass the gate.
         self.assertEqual(self.declaration_moves(payload), [])
 
+    def assert_report_identity(self, payload: dict, move: dict) -> None:
+        reports = [report for report in payload['reported_moves']
+                   if move['move_id'] in report['member_move_ids']]
+        self.assertEqual(len(reports), 1)
+        self.assertEqual(reports[0]['identity_status'], move['identity_status'])
+        self.assertEqual(reports[0]['identity_reason'], move['identity_reason'])
+
+    def assert_tentative(self, payload: dict) -> dict:
+        moves = self.declaration_moves(payload)
+        self.assertEqual(len(moves), 1)
+        move = moves[0]
+        self.assertEqual(move['identity_status'], 'tentative')
+        self.assertEqual(move['identity_reason'], 'uncorroborated_declaration')
+        self.assert_report_identity(payload, move)
+        return move
+
     def test_independent_continuing_use_corroborates_small_renamed_move(self):
-        moves = self.declaration_moves(self.evaluate(use(OLD, replacement=NEW)))
+        payload = self.evaluate(use(OLD, replacement=NEW))
+        moves = self.declaration_moves(payload)
         self.assertEqual(len(moves), 1)
         self.assertEqual(moves[0]['content_relationship'], 'type2c')
         self.assertEqual(moves[0]['to_raw_texts'], [f'int {NEW} = 1;'])
+        self.assertEqual(moves[0]['identity_status'], 'corroborated')
+        self.assertEqual(moves[0]['identity_reason'], 'continuing_name_corroborated')
+        self.assert_report_identity(payload, moves[0])
 
     def test_crossed_anchor_alone_does_not_establish_renamed_identity(self):
-        self.assert_rejected(self.evaluate())
+        self.assert_tentative(self.evaluate())
 
     def test_unchanged_uses_contradict_unrelated_same_shape_declarations(self):
         self.assert_rejected(self.evaluate(use(OLD) + use(NEW, 'publish')))
@@ -86,15 +106,15 @@ class ContinuingIdentityTests(unittest.TestCase):
         self.assert_rejected(self.evaluate(use(OLD, replacement='actual_count')))
 
     def test_conflicting_replacements_cannot_corroborate_weak_declaration(self):
-        self.assert_rejected(self.evaluate(use(OLD, replacement=NEW) +
-                                          use(OLD, 'publish', replacement='other_count')))
+        self.assert_tentative(self.evaluate(use(OLD, replacement=NEW) +
+                                           use(OLD, 'publish', replacement='other_count')))
 
     def test_many_to_one_replacement_evidence_is_not_independent_identity(self):
-        self.assert_rejected(self.evaluate(use(OLD, replacement=NEW) +
-                                          use('other_count', 'publish', replacement=NEW)))
+        self.assert_tentative(self.evaluate(use(OLD, replacement=NEW) +
+                                           use('other_count', 'publish', replacement=NEW)))
 
     def test_evidence_from_other_function_cannot_corroborate_move(self):
-        self.assert_rejected(self.evaluate(foreign=function(
+        self.assert_tentative(self.evaluate(foreign=function(
             use(OLD, replacement=NEW), 'other')))
 
     def test_shadow_scope_evidence_cannot_override_local_correspondence(self):
@@ -106,7 +126,7 @@ class ContinuingIdentityTests(unittest.TestCase):
 
     def test_separate_deleted_inserted_uses_do_not_supply_continuing_evidence(self):
         evidence = fixture.run('delete', [use(OLD)]) + fixture.run('insert', [use(NEW)])
-        self.assert_rejected(self.evaluate(evidence))
+        self.assert_tentative(self.evaluate(evidence))
 
     def test_changed_literal_use_is_not_reliable_rename_evidence(self):
         changed = use(OLD, replacement=NEW).replace(
@@ -114,7 +134,7 @@ class ContinuingIdentityTests(unittest.TestCase):
             '</argument>, <argument><expr><diff:delete><literal type="number">1</literal>'
             '</diff:delete><diff:insert><literal type="number">2</literal>'
             '</diff:insert></expr></argument>)')
-        self.assert_rejected(self.evaluate(changed))
+        self.assert_tentative(self.evaluate(changed))
 
     def test_contradiction_gate_also_rejects_larger_normalized_statement(self):
         def guard(name: str) -> str:
@@ -147,7 +167,7 @@ class ContinuingIdentityTests(unittest.TestCase):
         self.assertEqual(payload['moves'][0]['content_relationship'], 'type2c')
 
     def test_member_evidence_cannot_corroborate_same_spelled_local_declaration(self):
-        self.assert_rejected(self.evaluate(member_use(OLD, replacement=NEW)))
+        self.assert_tentative(self.evaluate(member_use(OLD, replacement=NEW)))
 
     def test_qualified_member_contradiction_inside_for_rejects_outer_match(self):
         evidence = ('<for>for <control>(;;)</control><block>{<block_content>' +
@@ -163,7 +183,54 @@ class ContinuingIdentityTests(unittest.TestCase):
             f'<diff:insert>{NEW}</diff:insert></name>')
         # Actual continuing identifiers are Aold_count and Anew_count, not the
         # standalone names used by the two declarations under consideration.
-        self.assert_rejected(self.evaluate(fragmented))
+        self.assert_tentative(self.evaluate(fragmented))
+
+    def test_corroborated_move_has_stronger_utility_than_tentative_same_content(self):
+        tentative = self.assert_tentative(self.evaluate())
+        supported = self.declaration_moves(self.evaluate(use(OLD, replacement=NEW)))[0]
+        self.assertEqual(tentative['matched_units'], supported['matched_units'])
+        self.assertEqual(tentative['confidence_milli'], supported['confidence_milli'])
+        self.assertLess(tentative['selection_utility'], supported['selection_utility'])
+
+    def test_tentative_identity_still_requires_displacement(self):
+        body = (fixture.run('delete', [fixture.decl(OLD)]) +
+                fixture.run('insert', [fixture.decl(NEW)]) + ANCHOR)
+        xml = fixture.PREFIX.replace('before.cpp|after.cpp', 'same.cpp')
+        payload = fixture.MoveSequenceTests().evaluate(xml + function(body) + '</unit>')
+        self.assert_rejected(payload)
+
+    def test_exact_alternative_wins_shared_endpoint_over_tentative_rename(self):
+        body = (fixture.run('delete', [fixture.decl(OLD)]) + ANCHOR +
+                fixture.run('insert', [fixture.decl(NEW), fixture.decl(OLD)]))
+        xml = fixture.PREFIX.replace('before.cpp|after.cpp', 'same.cpp')
+        payload = fixture.MoveSequenceTests().evaluate(xml + function(body) + '</unit>')
+        moves = self.declaration_moves(payload)
+        self.assertEqual(len(moves), 1)
+        self.assertEqual(moves[0]['content_relationship'], 'type1')
+        self.assertEqual(moves[0]['to_raw_texts'], [f'int {OLD} = 1;'])
+        self.assertEqual(moves[0]['identity_status'], 'exact')
+        self.assert_report_identity(payload, moves[0])
+
+    def test_tentative_type2_does_not_reserve_endpoint_against_stronger_type3(self):
+        arguments = ','.join(f'<argument><expr><literal type="number">{i}</literal>'
+                             '</expr></argument>' for i in range(1, 13))
+        initializer = ('<call><name>compute</name><argument_list>(' + arguments +
+                       ')</argument_list></call>')
+        original = fixture.decl(OLD).replace('<literal type="number">1</literal>', initializer)
+        tentative = original.replace(f'<name>{OLD}</name>', f'<name>{NEW}</name>')
+        edited = original.replace('</expr></init>',
+                                  ' <operator>+</operator> <literal type="number">1</literal>'
+                                  '</expr></init>')
+        body = (fixture.run('delete', [original]) + ANCHOR +
+                fixture.run('insert', [tentative, edited]))
+        xml = fixture.PREFIX.replace('before.cpp|after.cpp', 'same.cpp')
+        payload = fixture.MoveSequenceTests().evaluate(xml + function(body) + '</unit>')
+        moves = [move for move in payload['moves']
+                 if any(text.startswith(f'int {OLD} = compute(') for text in move['from_raw_texts'])]
+        self.assertEqual(len(moves), 1)
+        self.assertEqual(moves[0]['content_relationship'], 'type3')
+        self.assertTrue(moves[0]['to_raw_texts'][0].startswith(f'int {OLD} = compute('))
+        self.assertIn('+ 1;', moves[0]['to_raw_texts'][0])
 
 
 class ContinuingIdentitySourceTests(unittest.TestCase):

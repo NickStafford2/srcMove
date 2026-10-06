@@ -24,6 +24,8 @@ struct move_entry {
   std::vector<std::string> to_xpaths;
   std::vector<std::string> from_raw_texts;
   std::vector<std::string> to_raw_texts;
+  std::string identity_status = "unassessed";
+  std::string identity_reason;
 };
 
 struct group_kind_counts {
@@ -52,6 +54,8 @@ struct reported_move_entry {
   std::vector<std::string> to_xpaths;
   std::vector<std::string> from_raw_texts;
   std::vector<std::string> to_raw_texts;
+  std::string identity_status = "unassessed";
+  std::string identity_reason;
 };
 
 struct summary {

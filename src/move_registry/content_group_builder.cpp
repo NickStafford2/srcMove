@@ -77,7 +77,9 @@ void add_group(content_groups                  &out,
                std::uint32_t confidence_milli = 0,
                std::uint64_t selection_utility = 0,
                std::uint32_t matched_units = 0,
-               std::string selection_reason = {}) {
+               std::string selection_reason = {},
+               std::string identity_status = {},
+               std::string identity_reason = {}) {
   const std::uint32_t group_id  = static_cast<std::uint32_t>(out.group_count());
   const std::uint32_t del_begin = out.append_delete_ids(del_ids);
   const std::uint32_t del_size  = static_cast<std::uint32_t>(del_ids.size());
@@ -86,6 +88,9 @@ void add_group(content_groups                  &out,
   const std::uint32_t ins_size  = static_cast<std::uint32_t>(ins_ids.size());
   const std::uint32_t ins_end   = ins_begin + ins_size;
   const group_kind    kind = classify_counts(del_ids.size(), ins_ids.size());
+
+  if (identity_status.empty())
+    identity_status = match == match_kind::type1 ? "exact" : "unassessed";
 
   out.append_group(content_group{
       content_hash,
@@ -100,6 +105,8 @@ void add_group(content_groups                  &out,
       selection_utility,
       matched_units,
       std::move(selection_reason),
+      std::move(identity_status),
+      std::move(identity_reason),
   });
 }
 
@@ -137,10 +144,13 @@ void add_selected_group(content_groups           &out,
                         std::uint32_t confidence_milli = 0,
                         std::uint64_t selection_utility = 0,
                         std::uint32_t matched_units = 0,
-                        std::string selection_reason = "greedy_utility") {
+                        std::string selection_reason = "greedy_utility",
+                        std::string identity_status = {},
+                        std::string identity_reason = {}) {
   add_group(out, group.content_hash, group.del_ids, group.ins_ids, group.match,
             confidence_milli, selection_utility, matched_units,
-            std::move(selection_reason));
+            std::move(selection_reason), std::move(identity_status),
+            std::move(identity_reason));
   selection.mark_selected(group, registry);
 }
 
@@ -357,8 +367,15 @@ std::string normalized_identity_reason(const move_candidate &deleted,
 }
 
 bool identity_rejected(std::string_view reason) {
-  return reason == "continuing_name_conflict" ||
-         reason == "uncorroborated_declaration";
+  return reason == "continuing_name_conflict";
+}
+
+std::string identity_status_for(match_kind match, std::string_view reason) {
+  if (match == match_kind::type1) return "exact";
+  if (reason == "continuing_name_conflict") return "contradicted";
+  if (reason == "uncorroborated_declaration") return "tentative";
+  if (reason == "continuing_name_corroborated") return "corroborated";
+  return "unassessed";
 }
 
 struct correspondence_decision {
@@ -449,6 +466,7 @@ void materialize_correspondence_diagnostics(
         decision.insert_verified_partner_count,
     });
     diagnostics.correspondences.back().identity_reason = decision.identity_reason;
+    diagnostics.correspondences.back().identity_status = identity_status_for(decision.match, decision.identity_reason);
   }
 }
 
@@ -551,6 +569,8 @@ struct match_proposal {
   std::uint32_t confidence_milli = 0;
   bool          disabled = false;
   std::string   selection_reason = "greedy_utility";
+  std::string   identity_status = "exact";
+  std::string   identity_reason;
 };
 
 std::size_t candidate_units(const move_candidate &candidate) {
@@ -1131,6 +1151,14 @@ void apply_correspondence_output_policy(
         decisions, proposal.group.del_ids.front(),
         proposal.group.ins_ids.front());
     assert(decision != nullptr);
+    if (decision != nullptr) {
+      proposal.identity_status = identity_status_for(decision->match, decision->identity_reason);
+      proposal.identity_reason = decision->identity_reason;
+      if (proposal.identity_status == "tentative") {
+        proposal.utility = proposal.utility * tentative_identity_utility_milli / 1000;
+        proposal.evidence_strength = 0;
+      }
+    }
     if (decision != nullptr &&
         (!move_eligible(decision->classification) ||
          identity_rejected(decision->identity_reason))) {
@@ -1683,11 +1711,12 @@ content_groups build_content_groups(const candidate_registry &registry,
     }
 
     auto type2_decisions = classify_unique_correspondences(registry, type2_groups);
-    // Reserve only unique normalized correspondences that pass the independent
-    // identity gate, even when location evidence does not support reporting.
+    // Tentative hypotheses compete at selection time; they must not reserve
+    // endpoints before stronger alternatives are discovered.
     // Reserve IDs only: distinct enclosing/descendant proposals still compete.
     for (const correspondence_decision &decision : type2_decisions) {
-      if (identity_rejected(decision.identity_reason)) continue;
+      if (identity_rejected(decision.identity_reason) ||
+          identity_status_for(decision.match, decision.identity_reason) == "tentative") continue;
       type2_reserved[decision.delete_candidate_id] = true;
       type2_reserved[decision.insert_candidate_id] = true;
     }
@@ -1727,6 +1756,8 @@ content_groups build_content_groups(const candidate_registry &registry,
         registry, exact_groups, type2_groups, type3_edges, neighbor_refined,
         suppressed_aliases);
     apply_correspondence_output_policy(registry, proposals, decisions, stats);
+    // Identity weights change utility, so rank again before bundle selection.
+    std::sort(proposals.begin(), proposals.end(), proposal_better);
     prefer_stronger_descendant_bundles(proposals, registry);
     for (const match_proposal &proposal : proposals) {
       if (proposal.disabled) {
@@ -1741,7 +1772,8 @@ content_groups build_content_groups(const candidate_registry &registry,
       add_selected_group(
           out, registry, proposal.group, selection, proposal.confidence_milli,
           proposal.utility, static_cast<std::uint32_t>(proposal.matched_units),
-          proposal.selection_reason);
+          proposal.selection_reason, proposal.identity_status,
+          proposal.identity_reason);
       if (stats == nullptr)
         continue;
       switch (proposal.group.match) {

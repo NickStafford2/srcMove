@@ -71,6 +71,7 @@ struct correspondence_diagnostic {
   std::size_t delete_verified_partner_count = 1;
   std::size_t insert_verified_partner_count = 1;
   std::string identity_reason;
+  std::string identity_status;
 };
 
 struct selection_diagnostics {

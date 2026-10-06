@@ -89,6 +89,8 @@ MOVE_SCORE_FIELDS = (
     "selection_utility",
     "matched_units",
     "selection_reason",
+    "identity_status",
+    "identity_reason",
 )
 
 
@@ -117,6 +119,12 @@ def validate_move_record_shape(move: Any, index: int) -> list[str]:
         failures.append(
             f"results.json moves[{index}].selection_reason must be non-empty text"
         )
+    if "identity_status" in move and move["identity_status"] not in {
+        "exact", "corroborated", "tentative", "unassessed"
+    }:
+        failures.append(f"results.json moves[{index}].identity_status is invalid")
+    if "identity_reason" in move and not isinstance(move["identity_reason"], str):
+        failures.append(f"results.json moves[{index}].identity_reason must be text")
     return failures
 
 
@@ -131,6 +139,8 @@ def normalize_move_record(move: dict[str, Any]) -> dict[str, Any]:
         "selection_utility": move.get("selection_utility"),
         "matched_units": move.get("matched_units"),
         "selection_reason": move.get("selection_reason"),
+        "identity_status": move.get("identity_status"),
+        "identity_reason": move.get("identity_reason"),
         "from_xpaths": from_xpaths,
         "to_xpaths": to_xpaths,
         "from_files": xpaths_to_files(from_xpaths),

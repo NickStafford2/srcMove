@@ -81,7 +81,8 @@ settled.
     `copy_or_repeat` → `repeated_unequal_counts`: describe endpoint counts
     without implying independently established moves or copies.
 - Extend continuing-name corroboration beyond standalone declarations. Current
-  checks reject contradictions and unsupported changed-name declarations, but
+  checks reject contradictions and mark unsupported changed-name declarations
+  tentative with lower ranking weight, but
   larger isolated normalized matches still lack independent identity support;
   see [the architecture](architecture.md#location-classification-vocabulary).
 - Investigate the existing `coherent_type3_parent_over_partition` selection

@@ -173,6 +173,8 @@ build_reported_moves(const std::vector<move_entry> &moves,
     report.move_id = sequence ? sequence->sequence_id : move.move_id;
     report.report_kind = sequence ? "ordered_sequence" : "atomic";
     report.content_relationship = move.content_relationship;
+    report.identity_status = move.identity_status;
+    report.identity_reason = move.identity_reason;
     report.member_move_ids = sequence ? sequence->member_move_ids
                                      : std::vector<std::string>{move.move_id};
     for (const auto &id : report.member_move_ids) {

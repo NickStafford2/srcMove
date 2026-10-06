@@ -7,6 +7,10 @@
 
 namespace srcmove {
 
+// Ranking weight for structurally plausible but uncorroborated identity.
+// This is an explicit policy choice, not a calibrated probability.
+inline constexpr std::uint32_t tentative_identity_utility_milli = 650;
+
 struct proposal_rank_key {
   std::uint64_t utility          = 0;
   std::size_t   explanatory_units = 0;

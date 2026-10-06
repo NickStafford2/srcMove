@@ -30,6 +30,8 @@ struct move_tag {
   std::vector<std::string> partner_xpaths;
   std::string              xpath;
   std::string              raw_text;
+  std::string              identity_status = "unassessed";
+  std::string              identity_reason;
 };
 
 // Map: start_idx (node index where diff:insert/delete START occurs) -> move tag

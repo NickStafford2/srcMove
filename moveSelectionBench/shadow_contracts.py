@@ -220,13 +220,14 @@ def load_shadow_contracts(path: Path, correspondence_kind: str = "type1") -> lis
             )
             identity_reason = raw_case.get("expected_identity_reason")
             if identity_reason is not None and identity_reason not in {
-                "continuing_name_conflict", "uncorroborated_declaration"
+                "continuing_name_conflict", "uncorroborated_declaration",
+                "continuing_name_corroborated"
             }:
-                raise ShadowContractError(f"{case_id}: unknown identity rejection")
+                raise ShadowContractError(f"{case_id}: unknown identity reason")
             identity_rejection = (
                 correspondence_kind == "type2c"
                 and expected_output == "not_move"
-                and identity_reason is not None
+                and identity_reason == "continuing_name_conflict"
             )
             if expected_output != policy_output and not selection_loser and not identity_rejection:
                 raise ShadowContractError(
@@ -521,7 +522,11 @@ def evaluate_shadow_diagnostics(
     if case.get("expected_identity_reason") is not None and (
         record.get("identity_reason") != case["expected_identity_reason"]
     ):
-        raise ShadowContractError(f"{case['id']}: incorrect identity rejection reason")
+        raise ShadowContractError(f"{case['id']}: incorrect identity reason")
+    if case.get("expected_identity_status") is not None and (
+        record.get("identity_status") != case["expected_identity_status"]
+    ):
+        raise ShadowContractError(f"{case['id']}: incorrect identity status")
     anchor_interval = record.get("anchor_interval_observation")
     ancestor_change = {
         "same": "none",

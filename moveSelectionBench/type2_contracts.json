@@ -6,7 +6,7 @@
       "fixture": {
         "srcdiff": "type2_cases/cross_container_rename.xml"
       },
-      "rationale": "Two distinct reliably mapped functions are positive relocation evidence within one file. Normalized equality proposes correspondence, but this standalone renamed declaration has no independent continuing-use corroboration. Location remains relocated; identity is unresolved, so output is suppressed.",
+      "rationale": "Two distinct reliably mapped functions are positive relocation evidence within one file. Normalized equality proposes correspondence, but this standalone renamed declaration has no independent continuing-use corroboration. Location remains relocated; identity is tentative, so the eligible report carries a lower selection utility.",
       "srcdiff_precondition": {
         "element": "decl_stmt",
         "before_text": "int old_count = 1;",
@@ -28,15 +28,16 @@
         "change_kind": "relocated",
         "classification_reason": "different_semantic_container"
       },
-      "expected_type2_output": "not_move",
-      "expected_identity_reason": "uncorroborated_declaration"
+      "expected_type2_output": "move",
+      "expected_identity_reason": "uncorroborated_declaration",
+      "expected_identity_status": "tentative"
     },
     {
       "id": "reorder_rename",
       "fixture": {
         "srcdiff": "type2_cases/reorder_rename.xml"
       },
-      "rationale": "Reversing order across a unique common sibling is positive relocation evidence inside one mapped container. Normalized equality proposes correspondence, but this standalone renamed declaration has no independent continuing-use corroboration. Location remains relocated; identity is unresolved, so output is suppressed.",
+      "rationale": "Reversing order across a unique common sibling is positive relocation evidence inside one mapped container. Normalized equality proposes correspondence, but this standalone renamed declaration has no independent continuing-use corroboration. Location remains relocated; identity is tentative, so the eligible report carries a lower selection utility.",
       "srcdiff_precondition": {
         "element": "decl_stmt",
         "before_text": "int old_count = 1;",
@@ -60,8 +61,9 @@
         "change_kind": "relocated",
         "classification_reason": "crossed_stable_sibling"
       },
-      "expected_type2_output": "not_move",
-      "expected_identity_reason": "uncorroborated_declaration"
+      "expected_type2_output": "move",
+      "expected_identity_reason": "uncorroborated_declaration",
+      "expected_identity_status": "tentative"
     },
     {
       "id": "stationary_identifier",
@@ -326,7 +328,7 @@
       "fixture": {
         "srcdiff": "type2_cases/edited_parent_internal_reorder.xml"
       },
-      "rationale": "A mapped function has a renamed signature while its normalized child crosses a stable sibling. The edited parent must not hide the independent child relocation. The location oracle remains relocated, but the standalone renamed declaration lacks independent continuing-use corroboration and is not reported.",
+      "rationale": "A mapped function has a renamed signature while its normalized child crosses a stable sibling. The edited parent must not hide the independent child relocation. The location oracle remains relocated, but the standalone renamed declaration lacks independent continuing-use corroboration and is reported as tentative with lower selection utility.",
       "srcdiff_precondition": {
         "element": "decl_stmt",
         "before_text": "int old_count = 1;",
@@ -350,8 +352,9 @@
         "change_kind": "relocated",
         "classification_reason": "crossed_stable_sibling"
       },
-      "expected_type2_output": "not_move",
-      "expected_identity_reason": "uncorroborated_declaration"
+      "expected_type2_output": "move",
+      "expected_identity_reason": "uncorroborated_declaration",
+      "expected_identity_status": "tentative"
     },
     {
       "id": "relocated_child_loses_to_normalized_parent",
@@ -389,7 +392,7 @@
       "fixture": {
         "srcdiff": "type2_cases/reorder_past_common_conditional.xml"
       },
-      "rationale": "Inside an edited outer conditional, a renamed declaration crosses an unchanged inner conditional sibling in the same mapped function. A mixed outer wrapper must not hide the genuine displacement evidence. The location oracle remains relocated, but the standalone renamed declaration lacks independent continuing-use corroboration and is not reported.",
+      "rationale": "Inside an edited outer conditional, a renamed declaration crosses an unchanged inner conditional sibling in the same mapped function. A mixed outer wrapper must not hide the genuine displacement evidence. The location oracle remains relocated, but the standalone renamed declaration lacks independent continuing-use corroboration and is reported as tentative with lower selection utility.",
       "srcdiff_precondition": {
         "element": "decl_stmt",
         "before_text": "int old_count = 1;",
@@ -414,8 +417,9 @@
         "change_kind": "relocated",
         "classification_reason": "crossed_stable_sibling"
       },
-      "expected_type2_output": "not_move",
-      "expected_identity_reason": "uncorroborated_declaration"
+      "expected_type2_output": "move",
+      "expected_identity_reason": "uncorroborated_declaration",
+      "expected_identity_status": "tentative"
     },
     {
       "id": "historical_reduced_conditional_reorder",

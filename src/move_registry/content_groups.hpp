@@ -65,6 +65,8 @@ struct content_group {
   std::uint64_t selection_utility = 0;
   std::uint32_t matched_units = 0;
   std::string selection_reason;
+  std::string identity_status = "unassessed";
+  std::string identity_reason;
 
   std::size_t del_count() const noexcept {
     return static_cast<std::size_t>(del_end - del_begin);

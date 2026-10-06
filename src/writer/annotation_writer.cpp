@@ -70,6 +70,8 @@ void append_move_result(move_entry_map &moves, const move_tag &tag,
   entry.selection_utility = tag.selection_utility;
   entry.matched_units = tag.matched_units;
   entry.selection_reason = tag.selection_reason;
+  entry.identity_status = tag.identity_status;
+  entry.identity_reason = tag.identity_reason;
 
   if (tag.kind == move_candidate::Kind::del) {
     entry.from_xpaths.push_back(xpath);

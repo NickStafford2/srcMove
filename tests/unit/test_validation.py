@@ -42,6 +42,22 @@ class ResultValidationTests(unittest.TestCase):
         )
         self.assertTrue(any("content_relationship must be type1" in item for item in failures))
 
+    def test_optional_identity_fields_are_compared_when_declared(self) -> None:
+        expected = {"moves": [move(identity_status="tentative",
+                                   identity_reason="uncorroborated_declaration")]}
+        actual = {"moves": [move(identity_status="corroborated",
+                                 identity_reason="continuing_name_corroborated")]}
+        failures = validate_moves(expected, actual)
+        self.assertTrue(any("identity_status mismatch" in item for item in failures))
+        actual["moves"][0]["identity_status"] = "tentative"
+        failures = validate_moves(expected, actual)
+        self.assertTrue(any("identity_reason mismatch" in item for item in failures))
+
+    def test_contradicted_identity_cannot_be_a_selected_move(self) -> None:
+        failures = validate_moves({"moves": [move()]},
+                                  {"moves": [move(identity_status="contradicted")]})
+        self.assertTrue(any("identity_status is invalid" in item for item in failures))
+
     def test_type3_summary_count_is_required_and_compared(self) -> None:
         expected = {"content_relationships": {"type1": 0, "type2c": 0, "type3": 1}}
         actual = {"content_relationships": {"type1": 0, "type2c": 0}}

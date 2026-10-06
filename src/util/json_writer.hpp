@@ -80,6 +80,10 @@ inline void write_move_entry(std::ostream     &out,
   out << field_pad << "\"selection_utility\": " << m.selection_utility
       << ",\n";
   out << field_pad << "\"matched_units\": " << m.matched_units << ",\n";
+  out << field_pad << "\"identity_status\": ";
+  write_string(out, m.identity_status); out << ",\n";
+  out << field_pad << "\"identity_reason\": ";
+  write_string(out, m.identity_reason); out << ",\n";
   out << field_pad << "\"selection_reason\": ";
   write_string(out, m.selection_reason);
   out << ",\n";
@@ -223,6 +227,8 @@ inline void write_selection_diagnostics(std::ostream &out,
     write_string(out, item.shadow_change); out << ",\n";
     out << "        \"classification_reason\": ";
     write_string(out, item.classification_reason); out << ",\n";
+    out << "        \"identity_status\": ";
+    write_string(out, item.identity_status); out << ",\n";
     if (!item.identity_reason.empty()) {
       out << "        \"identity_reason\": ";
       write_string(out, item.identity_reason); out << ",\n";
@@ -301,6 +307,10 @@ inline void write_reported_move(std::ostream &out, const reported_move_entry &re
   write_string(out, report.report_kind);
   out << ",\n      \"content_relationship\": ";
   write_string(out, report.content_relationship);
+  out << ",\n      \"identity_status\": ";
+  write_string(out, report.identity_status);
+  out << ",\n      \"identity_reason\": ";
+  write_string(out, report.identity_reason);
   out << ",\n      \"member_move_ids\": ";
   write_string_array(out, report.member_move_ids, 6);
   out << ",\n      \"from_xpaths\": ";

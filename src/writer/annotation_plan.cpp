@@ -69,6 +69,8 @@ move_tag make_move_tag(const std::string              &move_id,
   tag.selection_utility = group.selection_utility;
   tag.matched_units = group.matched_units;
   tag.selection_reason = group.selection_reason;
+  tag.identity_status = group.identity_status;
+  tag.identity_reason = group.identity_reason;
   return tag;
 }
 

@@ -133,8 +133,10 @@ and diagnostic interpretation cannot diverge.
 Unique Type-2c groups are classified once after exact grouping has removed Type-1
 correspondences. The same decisions control eligibility and diagnostics: only
 `relocated` pairs that pass the continuing-name identity checks enter selection.
-Each accepted unique Type-2c correspondence reserves its endpoint
-IDs before Type-3 retrieval, regardless of location outcome or final selection.
+Each non-tentative, non-contradicted unique Type-2c correspondence reserves its
+endpoint IDs before Type-3 retrieval, regardless of location outcome or final
+selection. Tentative pairs do not reserve endpoints, so stronger alternatives
+can compete.
 Reservation prevents weaker alternate partners without reserving spans, so
 distinct enclosing and descendant proposals still compete normally.
 Type-2c decisions do not participate in exact-parent carrying, since containment
@@ -153,10 +155,17 @@ paths can supply evidence across blocks of the same mapped container only when
 the access prefix is unchanged. Built-in type keywords provide no rename support.
 
 Normalized pairs that contradict this independent evidence are suppressed.
-Standalone Type-2c and edited Type-3 declarations with changed names also
-require independent rename corroboration; normalized shape and crossed location anchors alone are
-insufficient. Larger isolated constructs retain the existing policy when there
-is no contradictory evidence. This is lexical corroboration, not resolved
+Standalone Type-2c and edited Type-3 declarations with unsupported changed
+names remain eligible as `tentative` when location evidence is positive. They
+are not rejected merely for lacking continuing-use corroboration. Their selection
+utility is multiplied by 650/1000 with integer truncation, and their evidence
+tie-break strength is lowered. The structural coverage bonus is unchanged. The
+named constant lives in `selection_policy.hpp`; it is a ranking heuristic, not an accuracy
+estimate. Content-based `confidence_milli` and matched-unit counts stay unchanged.
+Proposals are ranked again after this adjustment and before descendant-bundle
+selection. With no stronger competitor, a tentative pair may be reported.
+Larger isolated constructs retain the existing policy when there is no
+contradictory evidence. This is lexical corroboration, not resolved
 binding or behavioral analysis, and cannot recover whole endpoints absent from
 srcDiff. It is not a general proof of identity.
 Every verified Type-3 edge is likewise classified before selection in every
@@ -438,8 +447,15 @@ whether current selection emitted it as a move. The legacy `shadow_change` field
 names the location outcome for all three evidence types. File, mapped-container,
 anchor-interval, relative-order, and ancestor observations are explicit.
 An optional `identity_reason` separately records continuing-name corroboration,
-contradiction, or an unsupported changed-name declaration. Location can remain
-`relocated` while identity checks prevent a move report.
+contradiction, or an unsupported changed-name declaration. `identity_status`
+is explicit in correspondence diagnostics, selected atomic moves, and primary
+reported moves: `exact` describes Type-1 content equality (not resolved repeated
+pairing), `corroborated` records independent replacement support, `tentative`
+marks unsupported changed-name declarations, and `unassessed` marks other
+normalized matches without independent corroboration. `contradicted` occurs
+only in diagnostics. These states describe evidence, not semantic proof or
+probabilities. Positive location remains required even for tentative matches;
+contradictions remain a reporting veto.
 Container-local anchor intervals are `different`, not crossed, when their
 mapped containers differ. Diagnostics require `--results` and are not emitted
 during ordinary runs.
