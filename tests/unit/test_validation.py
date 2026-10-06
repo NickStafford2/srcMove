@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from tests.support.validation import check_summary_fields, validate_moves
+from tests.support.validation import check_summary_fields, validate_moves, xpaths_to_files
 
 
 def move(**overrides: object) -> dict[str, object]:
@@ -57,6 +57,41 @@ class ResultValidationTests(unittest.TestCase):
         failures = validate_moves({"moves": [move()]},
                                   {"moves": [move(identity_status="contradicted")]})
         self.assertTrue(any("identity_status is invalid" in item for item in failures))
+
+    def test_endpoint_text_binding_cannot_be_swapped(self) -> None:
+        expected = move(from_xpaths=["/a", "/b"],
+                        from_raw_texts=["foo();", "foo( );"])
+        actual = dict(expected, from_raw_texts=["foo( );", "foo();"])
+        self.assertTrue(validate_moves({"moves": [expected]}, {"moves": [actual]}))
+
+    def test_paired_endpoint_permutation_is_allowed(self) -> None:
+        expected = move(from_xpaths=["/b", "/a"], from_raw_texts=["b();", "a();"])
+        actual = dict(expected, from_xpaths=["/a", "/b"], from_raw_texts=["a();", "b();"])
+        self.assertEqual(validate_moves({"moves": [expected]}, {"moves": [actual]}), [])
+
+    def test_duplicate_endpoint_multiplicity_is_preserved(self) -> None:
+        expected = move(from_xpaths=["/a", "/a"], from_raw_texts=["a();", "a();"])
+        actual = move(from_xpaths=["/a"], from_raw_texts=["a();"])
+        self.assertTrue(validate_moves({"moves": [expected]}, {"moves": [actual]}))
+        self.assertEqual(validate_moves({"moves": [expected]}, {"moves": [expected]}), [])
+
+    def test_duplicate_move_records_are_not_collapsed(self) -> None:
+        self.assertTrue(validate_moves({"moves": [move(), move()]}, {"moves": [move()]}))
+        self.assertEqual(validate_moves({"moves": [move(), move()]},
+                                        {"moves": [move(), move()]}), [])
+
+    def test_both_actual_and_expected_length_mismatches_are_rejected(self) -> None:
+        malformed = move(from_raw_texts=[])
+        for expected, actual in ((move(), malformed), (malformed, move())):
+            with self.subTest(expected=expected):
+                failures = validate_moves({"moves": [expected]}, {"moves": [actual]})
+                self.assertTrue(any("endpoint lengths differ" in failure for failure in failures))
+
+    def test_filename_predicates_support_both_quote_styles(self) -> None:
+        self.assertEqual(xpaths_to_files(["/unit[@filename='a.cpp']/function",
+                                         '/unit[@filename="b.cpp"]/function',
+                                         "/unit[@filename='a.cpp']/function"]),
+                         ["a.cpp", "b.cpp"])
 
     def test_type3_summary_count_is_required_and_compared(self) -> None:
         expected = {"content_relationships": {"type1": 0, "type2c": 0, "type3": 1}}

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -79,6 +80,10 @@ def parse_args() -> argparse.Namespace:
         type=Path,
         help="srcdiff executable; overrides SRCDIFF_BIN and workspace discovery.",
     )
+    parser.add_argument(
+        "--component-build-dir", type=Path, default=REPO_ROOT / "build",
+        help="Directory containing C++ component test executables; independent of --srcmove.",
+    )
     return parser.parse_args()
 
 
@@ -121,11 +126,21 @@ def select_regression_cases(
     return {suite: cases for suite, cases in selected.items() if cases}
 
 
-def run_step(step: TestStep) -> bool:
+def resolved_tool_environment(srcmove: Path | None, srcdiff: Path | None) -> dict[str, str]:
+    """Propagate CLI-resolved tools to tests that discover tools in subprocesses."""
+    env = dict(os.environ)
+    if srcmove is not None:
+        env["SRCMOVE_BIN"] = str(srcmove)
+    if srcdiff is not None:
+        env["SRCDIFF_BIN"] = str(srcdiff)
+    return env
+
+
+def run_step(step: TestStep, env: dict[str, str] | None = None) -> bool:
     print()
     print(f"=== {step.name} ===", flush=True)
     print(command_text(step.command), flush=True)
-    result = run_command(step.command, cwd=REPO_ROOT, capture_output=False)
+    result = run_command(step.command, cwd=REPO_ROOT, env=env, capture_output=False)
     if result.returncode == 0:
         print(f"PASS {step.name}")
         return True
@@ -141,6 +156,7 @@ def test_steps(
     srcdiff: Path | None,
 ) -> list[TestStep]:
     steps: list[TestStep] = []
+    component_dir = getattr(args, "component_build_dir", REPO_ROOT / "build").resolve()
     if not args.cases and "unit" in suites:
         steps.append(
             TestStep(
@@ -159,22 +175,23 @@ def test_steps(
                 ],
             )
         )
+        steps.append(TestStep("canonical forms component", [str(component_dir / "canonical_forms_test")]))
         steps.append(
             TestStep(
                 "selection policy component",
-                [str(REPO_ROOT / "build" / "selection_policy_test")],
+                [str(component_dir / "selection_policy_test")],
             )
         )
         steps.append(
             TestStep(
                 "sequence similarity component",
-                [str(REPO_ROOT / "build" / "sequence_similarity_test")],
+                [str(component_dir / "sequence_similarity_test")],
             )
         )
         steps.append(
             TestStep(
                 "shadow classifier component",
-                [str(REPO_ROOT / "build" / "shadow_classifier_test")],
+                [str(component_dir / "shadow_classifier_test")],
             )
         )
         steps.append(
@@ -189,7 +206,7 @@ def test_steps(
                         / "shadow_classifier"
                         / "check_shadow_diagnostics.py"
                     ),
-                    str(REPO_ROOT / "build" / "srcMove"),
+                    str(srcmove),
                     str(
                         REPO_ROOT
                         / "tests"
@@ -204,7 +221,7 @@ def test_steps(
             TestStep(
                 "location context component",
                 [
-                    str(REPO_ROOT / "build" / "location_context_test"),
+                    str(component_dir / "location_context_test"),
                     str(
                         REPO_ROOT
                         / "tests"
@@ -376,19 +393,19 @@ def main() -> int:
         return 2
 
     needs_srcmove = any(
-        suite in suites for suite in ("move-selection", "xml", "source", "policy")
+        suite in suites for suite in ("unit", "move-selection", "xml", "source", "policy")
     )
     needs_srcdiff = any(suite in suites for suite in ("source", "policy"))
 
     srcmove: Path | None = None
-    if needs_srcmove:
+    if needs_srcmove or args.srcmove is not None:
         srcmove = find_srcmove(REPO_ROOT, args.srcmove)
         if srcmove is None:
             print("error: srcMove not found; run make build or pass --srcmove", file=sys.stderr)
             return 2
 
-    srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff) if needs_srcdiff else None
-    if needs_srcdiff and srcdiff is None:
+    srcdiff = find_srcdiff(REPO_ROOT, args.srcdiff) if needs_srcdiff or "unit" in suites or args.srcdiff is not None else None
+    if (needs_srcdiff or args.srcdiff is not None) and srcdiff is None:
         print("error: srcdiff not found; build it or pass --srcdiff", file=sys.stderr)
         return 2
 
@@ -398,7 +415,11 @@ def main() -> int:
         print(f"using srcMove: {srcmove}")
 
     steps = test_steps(args, suites, selected_cases, srcmove, srcdiff)
-    failures = sum(not run_step(step) for step in steps)
+    env = resolved_tool_environment(srcmove, srcdiff)
+    if "unit" in suites:
+        print(f"C++ component executables: {args.component_build_dir.resolve()}")
+        print("Component build provenance is independent of the selected srcMove executable.")
+    failures = sum(not run_step(step, env) for step in steps)
 
     print()
     print("=== Test Summary ===")

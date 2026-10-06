@@ -148,7 +148,15 @@ when positive possible-displacement evidence exists. Independently supported
 portions can instead yield explicit pairs, including inside unequal groups.
 `test_partial_correspondence.py`, `test_anchor_crossing.py`, and
 `test_correspondence_recall_review.py` check continuing-region resolution,
-retained copy provenance, and real relocation across controls and wrappers. The
+retained copy provenance, and real relocation across controls and wrappers.
+`test_correspondence_interactions.py` checks multiple continuing copy origins,
+ambiguous parent mappings, and reorders inside replaced loops, with a
+source-generated counterpart for the coarser hand-authored XML representation.
+`test_source_correspondence_variants.py` regenerates controls, wrapper crossings,
+and archive isolation cases through srcDiff. Positive source expectations remain
+ordinary failures when detection misses them; they are not current-output goldens.
+`test_correspondence_metamorphic.py` checks endpoint associations and multiplicity
+under whitespace, comments, and consistent renaming. The
 `1x2_basic` and `2x1_basic` cases are therefore positive copy/repeat-group
 contracts with explicit distinct revision paths supplying displacement evidence.
 The same-file examples without positive location evidence are negative contracts
@@ -178,6 +186,20 @@ Override either tool when needed:
 python3 tests/run.py --srcmove /path/to/srcMove --srcdiff /path/to/srcdiff
 SRCMOVE_BIN=/path/to/srcMove python3 tests/run.py --suite xml
 ```
+
+Resolved tools are passed to child test processes. C++ component executables
+come from `build/` or `--component-build-dir`; that build is explicitly independent
+of an alternate `--srcmove` executable. The active `canonical_forms_test` exercises
+the production streaming builder with finite identity, literal, syntax, wrapper,
+fragmentation, and qualifier fixtures. The legacy generated-directory canonical
+test is not part of the active suite.
+
+JSON oracles compare `(XPath, raw text)` endpoint records together, preserving
+duplicate multiplicity. Ordered-sequence fixtures also check each XML annotation's
+side, text, partner links, and occurrence count against atomic results; matching
+annotation ID sets alone is insufficient.
+The annotation check does not resolve each annotated node's own XPath; distinct
+same-text occurrences still need explicit source/location expectations.
 
 ## Benchmarks
 

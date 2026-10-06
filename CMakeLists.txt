@@ -124,6 +124,12 @@ add_executable(location_context_test
 )
 configure_srcmove_target(location_context_test)
 
+add_executable(canonical_forms_test
+  tests/unit/canonical/test_canonical_forms.cpp
+  src/parse/canonical_subtree.cpp
+)
+configure_srcmove_target(canonical_forms_test)
+
 set(SRCMOVE_RECEIPT_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/scripts/emit_build_receipt.py")
 set(SRCMOVE_SOURCE_LOCK "${WORKSPACE_ROOT}/workspace.lock.json")
 set(SRCMOVE_BUILD_ENTRY_POINT "cmake --build ${CMAKE_BINARY_DIR} --target srcMove")

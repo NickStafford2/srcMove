@@ -18,6 +18,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 from benchmarking.tooling import find_srcmove
+from tests.support.annotations import validate_annotations
 
 PREFIX = '<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:cpp="http://www.srcML.org/srcML/cpp" language="C++" filename="before.cpp|after.cpp">'
 
@@ -127,6 +128,7 @@ class MoveSequenceTests(unittest.TestCase):
             annotated = {node.attrib[mv] for node in tree.iter() if mv in node.attrib}
             self.assertEqual(annotated, atomic_ids)
             self.assertFalse(any(value.startswith('sequence:') for value in annotated))
+            validate_annotations(annotations[0], payload['moves'])
             return payload
 
     def assert_runs(self, payload: dict, expected: list[list[str]]) -> None:

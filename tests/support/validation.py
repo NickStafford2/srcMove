@@ -2,8 +2,9 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
-from typing import Any, cast
+from typing import Any
 import xml.etree.ElementTree as ET
 
 
@@ -66,17 +67,11 @@ def xpaths_to_files(xpaths: list[str] | None) -> list[str]:
     files: list[str] = []
     seen: set[str] = set()
 
-    needle = '[@filename="'
     for xpath in xpaths:
-        start = xpath.find(needle)
-        if start == -1:
+        match = re.search(r"\[@filename=(['\"])(.*?)\1\]", xpath)
+        if match is None:
             continue
-        start += len(needle)
-        end = xpath.find('"]', start)
-        if end == -1:
-            continue
-
-        filename = xpath[start:end]
+        filename = match.group(2)
         if filename not in seen:
             seen.add(filename)
             files.append(filename)
@@ -92,6 +87,19 @@ MOVE_SCORE_FIELDS = (
     "identity_status",
     "identity_reason",
 )
+
+
+def endpoint_pairs(move: dict[str, Any], side: str) -> list[tuple[str, str]]:
+    """Canonicalize endpoint records together, retaining duplicate occurrences."""
+    paths = move.get(f"{side}_xpaths")
+    texts = move.get(f"{side}_raw_texts")
+    if not isinstance(paths, list) or not isinstance(texts, list):
+        raise ValueError(f"{side} endpoints require XPath and raw-text lists")
+    if len(paths) != len(texts):
+        raise ValueError(f"{side} endpoint lengths differ: {len(paths)} XPaths, {len(texts)} raw texts")
+    if any(not isinstance(value, str) for value in paths + texts):
+        raise ValueError(f"{side} endpoint values must be strings")
+    return sorted(zip(paths, texts))
 
 
 def validate_move_record_shape(move: Any, index: int) -> list[str]:
@@ -125,12 +133,19 @@ def validate_move_record_shape(move: Any, index: int) -> list[str]:
         failures.append(f"results.json moves[{index}].identity_status is invalid")
     if "identity_reason" in move and not isinstance(move["identity_reason"], str):
         failures.append(f"results.json moves[{index}].identity_reason must be text")
+    for side in ("from", "to"):
+        try:
+            endpoint_pairs(move, side)
+        except ValueError as error:
+            failures.append(f"results.json moves[{index}]: {error}")
     return failures
 
 
 def normalize_move_record(move: dict[str, Any]) -> dict[str, Any]:
-    from_xpaths = normalize_xpath_list(move.get("from_xpaths"))
-    to_xpaths = normalize_xpath_list(move.get("to_xpaths"))
+    from_pairs = endpoint_pairs(move, "from")
+    to_pairs = endpoint_pairs(move, "to")
+    from_xpaths = [path for path, _ in from_pairs]
+    to_xpaths = [path for path, _ in to_pairs]
 
     return {
         "move_id": move.get("move_id"),
@@ -145,8 +160,8 @@ def normalize_move_record(move: dict[str, Any]) -> dict[str, Any]:
         "to_xpaths": to_xpaths,
         "from_files": xpaths_to_files(from_xpaths),
         "to_files": xpaths_to_files(to_xpaths),
-        "from_raw_texts": sorted(str(v) for v in move.get("from_raw_texts", [])),
-        "to_raw_texts": sorted(str(v) for v in move.get("to_raw_texts", [])),
+        "from_raw_texts": [text for _, text in from_pairs],
+        "to_raw_texts": [text for _, text in to_pairs],
     }
 
 
@@ -209,15 +224,16 @@ def move_matches_expectation(
                 f"  actual:   {actual[key]!r}",
             )
 
-    for key in ("from_xpaths", "to_xpaths", "from_raw_texts", "to_raw_texts"):
-        expected_list = sorted(str(v) for v in expected[key])
-        actual_list = cast(list[str], actual[key])
-
-        if actual_list != expected_list:
-            lines = [f"{key} mismatch:"]
-            lines.extend(format_list_block("  expected", expected_list))
-            lines.extend(format_list_block("  actual", actual_list))
-            return False, "\n".join(lines)
+    for side in ("from", "to"):
+        try:
+            expected_pairs = endpoint_pairs(expected, side)
+            actual_pairs = endpoint_pairs(actual, side)
+        except ValueError as error:
+            return False, str(error)
+        if actual_pairs != expected_pairs:
+            return False, (f"{side} endpoints mismatch:\n"
+                           f"  expected: {expected_pairs!r}\n"
+                           f"  actual:   {actual_pairs!r}")
 
     return True, ""
 

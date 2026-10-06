@@ -1,0 +1,156 @@
+"""Hand-authored alternative XML interaction contracts.
+
+Whole-loop replacements are legal coarse encodings, not assertions about default
+srcDiff output. Common markup and regenerated source provide paired controls.
+"""
+from __future__ import annotations
+
+from pathlib import Path
+import subprocess
+import tempfile
+import unittest
+import xml.etree.ElementTree as ET
+
+from benchmarking.tooling import find_srcdiff
+
+from tests.unit import test_move_sequences as fixture
+
+R = fixture.expression('repeat_work')
+TEXT = 'repeat_work(state);'
+A, B, C, D = (fixture.expression(name) for name in
+               ('unique_a', 'unique_b', 'unique_c', 'unique_d'))
+PAD = fixture.expression('padding_work')
+
+
+def loop(nodes: list[str], condition: str) -> str:
+    return ('<while>while<condition>(<expr><name>' + condition +
+            '</name></expr>)</condition><block>{<block_content>' +
+            ''.join(nodes) + '</block_content>}</block></while>')
+
+
+def document(body: str) -> str:
+    function = ('<function><type><name>void</name></type><name>worker</name>'
+                '<parameter_list>()</parameter_list><block>{<block_content>' +
+                body + '</block_content>}</block></function>')
+    return fixture.PREFIX.replace('before.cpp|after.cpp', 'same.cpp') + function + '</unit>'
+
+
+class CorrespondenceInteractionTests(unittest.TestCase):
+    def evaluate(self, before, after):
+        return fixture.MoveSequenceTests().evaluate(document(
+            fixture.run('delete', before) + fixture.run('insert', after)))
+
+    def targets(self, payload):
+        return [m for m in payload['moves'] if m['from_raw_texts'] == [TEXT] or
+                (m['from_raw_texts'] and all(t == TEXT for t in m['from_raw_texts']))]
+
+    def test_two_continuing_origins_preserve_only_added_copy_destination(self):
+        payload = self.evaluate([loop([A, B, R], 'first'), loop([C, D, R], 'second')],
+                                [loop([A, B, R], 'first'), loop([C, D, R], 'second'),
+                                 loop([R], 'new_copy')])
+        copies = self.targets(payload)
+        self.assertEqual(len(copies), 1)
+        copy = copies[0]
+        self.assertEqual(copy['selection_reason'], 'continuing_source_copy')
+        self.assertEqual(copy['from_raw_texts'], [TEXT, TEXT])
+        self.assertEqual(copy['to_raw_texts'], [TEXT])
+        self.assertEqual(len(set(copy['from_xpaths'])), 2)
+        self.assertEqual({index for index in (1, 2)
+                          if any(f'diff:delete[{index}]' in path
+                                 for path in copy['from_xpaths'])}, {1, 2})
+        self.assertEqual(len(copy['to_xpaths']), 1)
+        self.assertIn('diff:insert[3]', copy['to_xpaths'][0])
+        self.assertEqual(payload['move_sequences'], [])
+
+    def test_padded_reorder_inside_paired_replaced_loop_remains_a_move(self):
+        # Only R crosses A and B. Padding prevents immediate-neighbor seeds
+        # from conflating identity with unchanged sibling order.
+        before = loop([R, PAD, A, PAD, B, PAD], 'first')
+        after = loop([PAD, A, PAD, B, PAD, R], 'first')
+        payload = self.evaluate([before, loop([C, D, R], 'second')],
+                                [after, loop([C, D, R], 'second')])
+        moves = self.targets(payload)
+        self.assertEqual(len(moves), 1, 'R crosses two continuing calls in the first loop')
+        self.assertEqual(moves[0]['from_raw_texts'], [TEXT])
+        self.assertEqual(moves[0]['to_raw_texts'], [TEXT])
+        self.assertIn('diff:delete[1]', moves[0]['from_xpaths'][0])
+        self.assertIn('diff:insert[1]', moves[0]['to_xpaths'][0])
+
+    def test_padded_stationary_replaced_loops_do_not_claim_moves_or_copies(self):
+        loops = [loop([R, PAD, A, PAD, B, PAD], 'first'), loop([C, D, R], 'second')]
+        self.assertEqual(self.targets(self.evaluate(loops, loops)), [])
+
+    def test_same_reorder_with_common_loop_structure_has_endpoint_evidence(self):
+        first = loop([fixture.run('delete', [R]), PAD, A, PAD, B, PAD,
+                      fixture.run('insert', [R])], 'first')
+        second = loop([C, D, R], 'second')
+        payload = fixture.MoveSequenceTests().evaluate(document(first + second))
+        moves = self.targets(payload)
+        self.assertEqual(len(moves), 1)
+        self.assertEqual(moves[0]['from_raw_texts'], [TEXT])
+        self.assertEqual(moves[0]['to_raw_texts'], [TEXT])
+        self.assertIn('src:while[1]', moves[0]['from_xpaths'][0])
+        self.assertIn('src:while[1]', moves[0]['to_xpaths'][0])
+
+    def test_default_srcdiff_pipeline_preserves_padded_loop_reorder(self):
+        before = ('void worker() {\nwhile(first) { repeat_work(state); '
+                  'padding_work(state); unique_a(state); padding_work(state); '
+                  'unique_b(state); padding_work(state); }\n'
+                  'while(second) { unique_c(state); unique_d(state); repeat_work(state); }\n}\n')
+        after = ('void worker() {\nwhile(first) { padding_work(state); '
+                 'unique_a(state); padding_work(state); unique_b(state); '
+                 'padding_work(state); repeat_work(state); }\n'
+                 'while(second) { unique_c(state); unique_d(state); repeat_work(state); }\n}\n')
+        srcdiff = find_srcdiff(fixture.REPO_ROOT)
+        self.assertIsNotNone(srcdiff, 'This source contract requires srcDiff')
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for side, source in [('before', before), ('after', after)]:
+                (root / side).mkdir()
+                (root / side / 'source.cpp').write_text(source)
+            output = root / 'srcdiff.xml'
+            result = subprocess.run([str(srcdiff), str(root / 'before'), str(root / 'after'),
+                                     '-o', str(output)], capture_output=True, text=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            xml = output.read_text()
+        tree = ET.fromstring(xml)
+        src, diff = '{http://www.srcML.org/srcML/src}', '{http://www.srcML.org/srcDiff}'
+        for side in ('delete', 'insert'):
+            targets = [node for wrapper in tree.iter(diff + side)
+                       for node in wrapper.iter(src + 'expr_stmt')
+                       if ''.join(node.itertext()) == TEXT]
+            self.assertEqual(len(targets), 1, 'Upstream must retain the whole reordered statement')
+        moves = self.targets(fixture.MoveSequenceTests().evaluate(xml))
+        self.assertEqual(len(moves), 1)
+        self.assertEqual(moves[0]['from_raw_texts'], [TEXT])
+        self.assertEqual(moves[0]['to_raw_texts'], [TEXT])
+        self.assertIn('src:while[1]', moves[0]['from_xpaths'][0])
+        self.assertIn('src:while[1]', moves[0]['to_xpaths'][0])
+
+    def assert_no_invented_partial_partner(self, before, after):
+        payload = self.evaluate(before, after)
+        for move in self.targets(payload):
+            self.assertNotEqual(move['selection_reason'], 'continuing_source_copy')
+            self.assertNotEqual(move['selection_reason'], 'exact_neighbor_correspondence')
+        target_ids = {move['move_id'] for move in self.targets(payload)}
+        self.assertTrue(all(target_ids.isdisjoint(sequence['member_move_ids'])
+                            for sequence in payload['move_sequences']))
+
+    def test_split_unique_seeds_cannot_establish_one_parent_partner(self):
+        self.assert_no_invented_partial_partner(
+            [loop([A, PAD, R, PAD, B], 'original'), loop([R], 'other')],
+            [loop([A, PAD, R], 'left'), loop([PAD, B, R], 'right')])
+
+    def test_merged_unique_seeds_cannot_establish_two_parent_partners(self):
+        self.assert_no_invented_partial_partner(
+            [loop([A, PAD, R], 'left'), loop([PAD, B, R], 'right')],
+            [loop([A, PAD, R, PAD, B], 'merged'), loop([R], 'other')])
+
+    def test_crossed_unique_seed_order_is_not_stationary_identity_evidence(self):
+        self.assert_no_invented_partial_partner(
+            [loop([A, PAD, R, PAD, B], 'first'), loop([C, PAD, R, PAD, D], 'second')],
+            [loop([B, PAD, R, PAD, A], 'first'), loop([D, PAD, R, PAD, C], 'second')])
+
+
+if __name__ == '__main__':
+    unittest.main()
