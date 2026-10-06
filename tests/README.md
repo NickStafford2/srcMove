@@ -49,6 +49,22 @@ population experiment.
 For a focused explanation of selection expectations and their limits, read the
 [selection coverage map](selection-coverage.md).
 
+## Writing readable tests
+
+Use a named scenario function for a small independent check. Assign constructed
+metrics by field name, and keep the expected behavior beside its setup. The
+[selection-policy](unit/selection_policy/test_selection_policy.cpp) and
+[sequence-similarity](unit/sequence_similarity/test_sequence_similarity.cpp)
+components illustrate this pattern. Keep useful named case tables, as in the
+[classifier component](unit/shadow_classifier/test_shadow_classifier.cpp), and
+separate their responsibilities from output-format and eligibility checks.
+
+Share mechanical execution and validation, while keeping independently justified
+semantic expectations visible. Keep compact inputs inline; use fixture files when
+size or a particular XML encoding makes a file easier to inspect. A readability
+change must preserve inputs and expectations. Add coverage in a separate slice
+with its rationale, and update the relevant coverage map when one exists.
+
 ## Accepted fixtures and oracles
 
 [Fixture discovery](support/cases.py) rejects malformed layouts instead of
