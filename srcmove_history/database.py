@@ -700,6 +700,7 @@ class AnalysisDatabase:
         statuses: Counter[str] = Counter()
         timings: Counter[str] = Counter()
         totals: Counter[str] = Counter()
+        reported_types: Counter[str] = Counter()
         rows = self.connection.execute(
             """
             SELECT p.status, p.changed_path_count, p.analyzable_path_count,
@@ -735,6 +736,9 @@ class AnalysisDatabase:
                         f"stored commit pair metric {name!r} is malformed"
                     )
                 totals[name] += value
+            totals["reported_move_count"] += _nonnegative_integer(metrics.get("reported_move_count", metrics.get("move_group_count", 0)), "reported move count")
+            for kind, count in metrics.get("reported_content_relationships", metrics.get("content_relationships", {})).items():
+                reported_types[kind] += _nonnegative_integer(count, "reported content relationship count")
             for name, value in pair_timings.items():
                 if (
                     isinstance(value, bool)
@@ -788,6 +792,8 @@ class AnalysisDatabase:
             "move_pair_count": totals["move_pair_count"],
             "annotated_region_count": totals["annotated_region_count"],
             "content_relationships": content_relationships,
+            "reported_move_count": totals["reported_move_count"],
+            "reported_content_relationships": dict(sorted(reported_types.items())),
             "timings": dict(sorted(timings.items())),
         }
 
@@ -890,6 +896,7 @@ class AnalysisDatabase:
             "analyzable_path_count": _nonnegative_integer(
                 row["analyzable_path_count"], "analyzable path count"
             ),
+            **{name: metrics[name] for name in ("reported_moves", "move_sequences", "reported_move_count", "reported_content_relationships") if name in metrics},
             "metrics": metrics,
             "timings": _json_object(
                 bytes(row["timings_json"]), "commit pair timings"

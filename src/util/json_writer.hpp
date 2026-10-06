@@ -290,6 +290,26 @@ inline void write_move_sequence(std::ostream &out, const move_sequence &sequence
   out << "\n" << pad << "}";
 }
 
+inline void write_reported_move(std::ostream &out, const reported_move_entry &report) {
+  out << "    {\n      \"move_id\": ";
+  write_string(out, report.move_id);
+  out << ",\n      \"report_kind\": ";
+  write_string(out, report.report_kind);
+  out << ",\n      \"content_relationship\": ";
+  write_string(out, report.content_relationship);
+  out << ",\n      \"member_move_ids\": ";
+  write_string_array(out, report.member_move_ids, 6);
+  out << ",\n      \"from_xpaths\": ";
+  write_string_array(out, report.from_xpaths, 6);
+  out << ",\n      \"to_xpaths\": ";
+  write_string_array(out, report.to_xpaths, 6);
+  out << ",\n      \"from_raw_texts\": ";
+  write_string_array(out, report.from_raw_texts, 6);
+  out << ",\n      \"to_raw_texts\": ";
+  write_string_array(out, report.to_raw_texts, 6);
+  out << "\n    }";
+}
+
 inline void write_summary(std::ostream &out, const summary &summ) {
   out << "{\n";
   out << "  \"results_schema_version\": " << results_schema_version << ",\n";
@@ -305,6 +325,18 @@ inline void write_summary(std::ostream &out, const summary &summ) {
     out << "\n";
   }
 
+  out << "  ],\n";
+  out << "  \"reported_move_count\": " << summ.reported_move_count << ",\n";
+  out << "  \"reported_content_relationships\": {\n";
+  out << "    \"type1\": " << summ.reported_content_relationships.type1 << ",\n";
+  out << "    \"type2c\": " << summ.reported_content_relationships.type2c << ",\n";
+  out << "    \"type3\": " << summ.reported_content_relationships.type3 << "\n  },\n";
+  out << "  \"reported_moves\": [\n";
+  for (std::size_t i = 0; i < summ.reported_moves.size(); ++i) {
+    write_reported_move(out, summ.reported_moves[i]);
+    if (i + 1 < summ.reported_moves.size()) out << ",";
+    out << "\n";
+  }
   out << "  ],\n";
   out << "  \"sequence_cluster_count\": " << summ.sequence_cluster_count << ",\n";
   out << "  \"sequence_reporting_unit_count\": "

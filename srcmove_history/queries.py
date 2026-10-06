@@ -67,6 +67,8 @@ class MoveCounts:
     pairs: int
     annotated_regions: int
     by_type: tuple[NamedCount, ...]
+    reported: int = 0
+    reported_by_type: tuple[NamedCount, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +159,8 @@ class StatusSnapshot:
             "content_relationships": {
                 item.name: item.count for item in self.moves.by_type
             },
+            "reported_move_count": self.moves.reported,
+            "reported_content_relationships": {item.name: item.count for item in self.moves.reported_by_type},
             "cumulative_wall_seconds": self.cumulative_wall_seconds,
             "timings": {item.name: item.seconds for item in self.timings},
             "pending": (
@@ -186,6 +190,7 @@ class PairListItem:
     elapsed_seconds: float
     checkpointed: bool
     invocation_id: str
+    reported_move_count: int | None = None
 
     def record(self) -> dict[str, Any]:
         return {
@@ -235,6 +240,7 @@ class PairDetailSnapshot:
             "invocation_id": self.invocation_id,
             "changed_path_count": self.changed_path_count,
             "analyzable_path_count": self.analyzable_path_count,
+            **{name: value for name, value in _thaw_json(self.metrics).items() if name in {"reported_moves", "move_sequences", "reported_move_count", "reported_content_relationships"}},
             "metrics": _thaw_json(self.metrics),
             "timings": _thaw_json(self.timings),
             "error": self.error,
@@ -274,6 +280,7 @@ class AnalysisReader:
                 )
                 statuses: Counter[str] = Counter()
                 totals: Counter[str] = Counter()
+                reported_types: Counter[str] = Counter()
                 timings: Counter[str] = Counter()
                 checkpointed = 0
                 for row in rows:
@@ -291,6 +298,9 @@ class AnalysisReader:
                         "annotated_region_count",
                     ):
                         totals[name] += _count(metrics.get(name, 0), name)
+                    totals["reported_move_count"] += _count(metrics.get("reported_move_count", metrics.get("move_group_count", 0)), "reported_move_count")
+                    for kind, count in metrics.get("reported_content_relationships", metrics.get("content_relationships", {})).items():
+                        reported_types[kind] += _count(count, "reported content relationship count")
                     for name, value in pair_timings.items():
                         timings[name] += _seconds(value, name)
                 if sum(statuses.values()) != state.completed_pair_count + checkpointed:
@@ -332,6 +342,8 @@ class AnalysisReader:
                         totals["move_count"], totals["move_group_count"],
                         totals["move_pair_count"], totals["annotated_region_count"],
                         content_relationships,
+                        totals["reported_move_count"],
+                        tuple(NamedCount(name, count) for name, count in sorted(reported_types.items())),
                     ),
                     cumulative_wall_seconds=database.cumulative_wall_seconds(),
                     timings=tuple(
@@ -466,6 +478,7 @@ def _pair_list_item(row: Any) -> PairListItem:
             row["analyzable_path_count"], "analyzable paths"
         ),
         move_count=_count(metrics.get("move_count", 0), "move count"),
+        reported_move_count=metrics.get("reported_move_count"),
         elapsed_seconds=_seconds(timings.get("pair_seconds", 0.0), "pair_seconds"),
         checkpointed=row["batch_status"] == "pending",
         invocation_id=_text(row["outcome_invocation_id"], "outcome invocation ID"),

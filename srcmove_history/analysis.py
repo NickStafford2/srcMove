@@ -623,7 +623,8 @@ def _progress_start(
 
 
 def _published_move_count(outcome) -> int:
-    value = dict(outcome.metrics).get("move_count", 0)
+    metrics = dict(outcome.metrics)
+    value = metrics.get("reported_move_count", metrics.get("move_count", 0))
     return value if isinstance(value, int) and not isinstance(value, bool) else 0
 
 

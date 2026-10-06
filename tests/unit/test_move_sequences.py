@@ -76,6 +76,32 @@ class MoveSequenceTests(unittest.TestCase):
             self.assertEqual(payload['sequence_cluster_count'], len(payload['move_sequences']))
             saved = sum(len(s['member_move_ids']) - 1 for s in payload['move_sequences'])
             self.assertEqual(payload['sequence_reporting_unit_count'], len(payload['moves']) - saved)
+            reports = payload['reported_moves']
+            self.assertEqual(payload['reported_move_count'], len(reports))
+            self.assertEqual(len(reports), payload['sequence_reporting_unit_count'])
+            atomic_by_id = {move['move_id']: move for move in payload['moves']}
+            reported_members = [mid for report in reports for mid in report['member_move_ids']]
+            self.assertCountEqual(reported_members, atomic_by_id)
+            self.assertEqual(len(reported_members), len(set(reported_members)))
+            for report in reports:
+                members = [atomic_by_id[mid] for mid in report['member_move_ids']]
+                self.assertEqual(report['report_kind'],
+                                 'ordered_sequence' if len(members) > 1 else 'atomic')
+                for field in ('from_xpaths', 'to_xpaths', 'from_raw_texts', 'to_raw_texts'):
+                    self.assertEqual(report[field], [item for member in members for item in member[field]])
+                self.assertTrue(all(member['content_relationship'] == report['content_relationship']
+                                    for member in members))
+                if len(members) > 1:
+                    self.assertEqual(report['content_relationship'], 'type1')
+                    self.assertEqual(len(report['from_xpaths']), len(members))
+                    self.assertEqual(len(report['to_xpaths']), len(members))
+                    self.assertTrue(report['move_id'].startswith('sequence:'))
+                else:
+                    self.assertEqual(report['move_id'], members[0]['move_id'])
+            self.assertEqual(payload['reported_content_relationships'], {
+                kind: sum(report['content_relationship'] == kind for report in reports)
+                for kind in ('type1', 'type2c', 'type3')
+            })
             atomic_ids = {m['move_id'] for m in payload['moves']}
             used = []
             for sequence in payload['move_sequences']:
@@ -120,6 +146,23 @@ class MoveSequenceTests(unittest.TestCase):
         self.assertEqual(payload['annotated_region_count'], 10)
         self.assert_runs(payload, [[f'int {name} = 1;' for name in names]])
         self.assertEqual(payload['sequence_reporting_unit_count'], 1)
+        self.assertEqual(payload['reported_move_count'], 1)
+        self.assertEqual(len(payload['reported_moves'][0]['member_move_ids']), 5)
+
+    def test_partial_source_run_reports_only_shared_middle(self):
+        before = [decl(name) for name in 'abcdefg']
+        after = [decl(name) for name in 'cdef']
+        payload = self.evaluate(document(before, after))
+        self.assert_runs(payload, [[f'int {name} = 1;' for name in 'cdef']])
+        compound = [report for report in payload['reported_moves']
+                    if report['report_kind'] == 'ordered_sequence']
+        self.assertEqual(len(compound), 1)
+        self.assertEqual(compound[0]['from_raw_texts'], [f'int {name} = 1;' for name in 'cdef'])
+
+    def test_overlapping_runs_report_only_shared_suffix_prefix(self):
+        payload = self.evaluate(document([decl(name) for name in 'abcdefg'],
+                                         [decl(name) for name in 'efghij']))
+        self.assert_runs(payload, [[f'int {name} = 1;' for name in 'efg']])
 
     def test_cyclic_reordering_keeps_ordered_pair_and_singleton(self):
         a, b, c = [decl(name) for name in ('a', 'b', 'c')]

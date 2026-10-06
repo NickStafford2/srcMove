@@ -204,7 +204,7 @@ class _SummaryView:
         )
 
         self.move_groups = _nonnegative_int(
-            self.moves.get("groups", summary.get("move_group_count"))
+            self.moves.get("detections", self.moves.get("groups", summary.get("reported_move_count", summary.get("move_group_count"))))
         )
         self.move_pairs = _nonnegative_int(
             self.moves.get("pairs", summary.get("move_pair_count"))
@@ -213,7 +213,7 @@ class _SummaryView:
             self.moves.get("annotated_regions", summary.get("annotated_region_count"))
         )
         move_types = _mapping(
-            self.moves.get("by_content_relationship", summary.get("content_relationships"))
+            self.moves.get("by_content_relationship", summary.get("reported_content_relationships", summary.get("content_relationships")))
         )
         self.move_types = {
             str(name): _nonnegative_int(count)

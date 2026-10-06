@@ -118,6 +118,26 @@ def _compact_results(
     compact_moves = tuple(
         _compact_move(move, ordinal) for ordinal, move in enumerate(moves)
     )
+    for name in ("sequence_cluster_count", "sequence_reporting_unit_count", "reported_move_count", "reported_content_relationships"):
+        if name in value:
+            nested[name] = value[name]
+    if "move_sequences" in value:
+        nested["move_sequences"] = [
+            {
+                **{key: sequence[key] for key in ("sequence_id", "content_relationship", "policy", "member_move_ids")},
+                **{side: {key: sequence[side][key] for key in ("revision_file", "parent_id", "first_child_ordinal", "last_child_ordinal", "member_xpaths")} for side in ("from", "to")},
+            }
+            for sequence in value["move_sequences"]
+        ]
+    if "reported_moves" in value:
+        nested["reported_moves"] = [
+            {
+                **{key: report[key] for key in ("move_id", "report_kind", "content_relationship", "member_move_ids", "from_xpaths", "to_xpaths")},
+                "from_text_digests": _text_digests(report["from_raw_texts"]),
+                "to_text_digests": _text_digests(report["to_raw_texts"]),
+            }
+            for report in value["reported_moves"]
+        ]
     return compact_moves, nested
 
 

@@ -64,6 +64,26 @@ Move evidence belongs directly to the pair's canonical outcome. Normalized
 evidence is queryable from SQLite; larger retained artifacts follow the
 analysis retention policy.
 
+For current srcMove results, compact pair metrics retain the additive
+`reported_moves`, `reported_move_count`, `reported_content_relationships`, and
+`move_sequences` metadata. Reported source bodies become ordered SHA-256/size
+observations, like atomic evidence; no raw source bodies are stored. Sequence
+records retain only their known identity, policy, member IDs, and endpoint
+fields. This uses the existing metrics JSON column without a database migration.
+
+Reported moves partition the atomic groups: a verified ordered run becomes one
+Type-1 report, while other groups retain one atomic report each. Compound
+endpoints represent corresponding ordered members, never a Cartesian product.
+Admission validates member coverage, endpoint order, relationships, and counts.
+Atomic `moves` rows and original `move_*` counts remain available as evidence.
+
+Human status, pair listings, and research reports prefer reported counts and
+relationships; JSON retains explicit atomic counts. Pair details expose compact
+`reported_moves` and sequence metadata when available. Older analyses use their
+atomic groups as reporting units and do not invent sequence records. A fresh
+analysis is required to obtain compound records for old results. Snapshot
+exports preserve these fields because they preserve the canonical database.
+
 ## Deferred retries
 
 Attempt history and in-place retries are intentionally excluded until there is

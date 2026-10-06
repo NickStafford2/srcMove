@@ -230,6 +230,17 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     for (const move_sequence &sequence : result.move_sequences) {
       result.sequence_reporting_unit_count -= sequence.member_move_ids.size() - 1;
     }
+    result.reported_moves = build_reported_moves(result.moves, result.move_sequences);
+    result.reported_move_count = result.reported_moves.size();
+    for (const auto &report : result.reported_moves) {
+      if (report.content_relationship == "type1") {
+        ++result.reported_content_relationships.type1;
+      } else if (report.content_relationship == "type2c") {
+        ++result.reported_content_relationships.type2c;
+      } else if (report.content_relationship == "type3") {
+        ++result.reported_content_relationships.type3;
+      }
+    }
     result.move_pair_count        = estimate_move_pairs(result.moves);
     result.annotated_region_count = count_annotated_regions(result.moves);
     result.annotated_regions      = result.annotated_region_count;

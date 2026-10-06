@@ -314,8 +314,8 @@ runs. Each run requires a fixed source file/parent and destination file/parent,
 immediate sibling adjacency in both revisions, and disjoint endpoint spans.
 The streaming collector counts all meaningful direct children, including common
 and filtered children. Diff wrappers, comments, and whitespace are transparent;
-preprocessor constructs, unstructured substantive text, and unreliable nested
-revision ownership prevent grouping. The metadata does not supply new
+preprocessor constructs, unknown diff tags, unstructured substantive text,
+and unreliable nested revision ownership prevent grouping. The metadata does not supply new
 relocation evidence.
 
 Results schema 2 adds `move_sequences` alongside `moves`. Each sequence records
@@ -331,15 +331,45 @@ the sum of `(member count - 1)` over those runs. Residual ambiguous groups each
 remain one reporting unit, without resolving their pairings. Neither count
 establishes the number of developer editing actions.
 
+The primary reporting projection is `reported_moves`, with
+`reported_move_count` and `reported_content_relationships`. Every selected
+atomic group belongs to exactly one report. An ungrouped report has
+`report_kind: atomic`, its original `move_id`, and a singleton
+`member_move_ids`. A grouped report has `report_kind: ordered_sequence`, its
+sequence ID as `move_id`, `content_relationship: type1`, and ordered member
+IDs. Both kinds provide `from_xpaths`, `to_xpaths`, `from_raw_texts`, and
+`to_raw_texts`. For a sequence those arrays concatenate each member's single
+endpoint in member order: index i on the source matches index i on the
+destination. They are not Cartesian partner sets. Atomic repeated groups
+retain their existing equivalence/ambiguity semantics.
+
+One qualifying run is therefore one Type-1 reported move, even when it has no
+enclosing AST construct. XML continues to annotate the original member
+endpoints and their exact partner links. No synthetic block or enclosing
+method detection is implied. Legacy `moves`, group/pair/annotation counts,
+and `content_relationships` retain their meanings for existing consumers and
+benchmark scoring. `reported_move_count` equals
+`sequence_reporting_unit_count`; category counts in
+`reported_content_relationships` count primary reports, rather than members.
+
+Whole-run Type-1 equality follows from ordered equality of complete sibling
+canonical streams and the absence of intervening meaningful content. Exact
+canonicalization has no cross-member identifier mapping; whitespace-only text
+and comments are ignored, while each member's source structure remains.
+Substantive content inside a purported `diff:ws` wrapper is a conservative sequence
+barrier because canonicalization still consumes that content. This is
+reporting aggregation of existing selected evidence, without new matching
+search or similarity checks.
+
 Aggregation sorts and scans eligible selected links, with expected
 O(G + M log M) extra work for G result groups and M selected links, and O(M)
 index/output storage. It adds no similarity comparisons. The collector adds
 per-revision counters to its existing source stack and context to retained
 candidates. Key-string storage/comparison costs also depend on their lengths.
 This reporting stage cannot recover an unmatched edited statement or detect
-an entire method from a run of its interior statements. The History compact
-records and srcDiffVisual interface currently continue to use atomic groups;
-the new sequences are available in raw results JSON. See the
+an entire method from a run of its interior statements. The primary reporting
+projection adds expected linear indexing/copying work in selected member
+references and their serialized endpoint/text sizes. See the
 [sequence plan](plans/adjacent_move_sequences.md) for proposed changed-sequence
 matching and the [semantic tests](../tests/unit/test_move_sequences.py) for
 implemented boundary checks.

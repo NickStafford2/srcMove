@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <tuple>
 #include <unordered_map>
+#include <unordered_set>
 
 #include "move_registry/candidate_registry.hpp"
 #include "move_registry/content_groups.hpp"
@@ -142,6 +143,52 @@ build_move_sequences(const candidate_registry &registry,
     begin = end;
   }
   return sequences;
+}
+
+std::vector<reported_move_entry>
+build_reported_moves(const std::vector<move_entry> &moves,
+                     const std::vector<move_sequence> &sequences) {
+  std::unordered_map<std::string, const move_entry *> by_id;
+  std::unordered_map<std::string, const move_sequence *> sequence_by_member;
+  by_id.reserve(moves.size());
+  sequence_by_member.reserve(moves.size());
+  for (const auto &move : moves) by_id.emplace(move.move_id, &move);
+  for (const auto &sequence : sequences) {
+    for (const auto &id : sequence.member_move_ids) {
+      sequence_by_member.emplace(id, &sequence);
+    }
+  }
+
+  std::vector<reported_move_entry> reports;
+  reports.reserve(moves.size());
+  std::unordered_set<std::string> emitted_sequences;
+  for (const auto &move : moves) {
+    const auto found = sequence_by_member.find(move.move_id);
+    const move_sequence *sequence = found == sequence_by_member.end()
+                                        ? nullptr : found->second;
+    if (sequence && !emitted_sequences.insert(sequence->sequence_id).second) {
+      continue;
+    }
+    reported_move_entry report;
+    report.move_id = sequence ? sequence->sequence_id : move.move_id;
+    report.report_kind = sequence ? "ordered_sequence" : "atomic";
+    report.content_relationship = move.content_relationship;
+    report.member_move_ids = sequence ? sequence->member_move_ids
+                                     : std::vector<std::string>{move.move_id};
+    for (const auto &id : report.member_move_ids) {
+      const auto &member = *by_id.at(id);
+      report.from_xpaths.insert(report.from_xpaths.end(), member.from_xpaths.begin(),
+                               member.from_xpaths.end());
+      report.to_xpaths.insert(report.to_xpaths.end(), member.to_xpaths.begin(),
+                             member.to_xpaths.end());
+      report.from_raw_texts.insert(report.from_raw_texts.end(), member.from_raw_texts.begin(),
+                                  member.from_raw_texts.end());
+      report.to_raw_texts.insert(report.to_raw_texts.end(), member.to_raw_texts.begin(),
+                                member.to_raw_texts.end());
+    }
+    reports.push_back(std::move(report));
+  }
+  return reports;
 }
 
 } // namespace srcmove

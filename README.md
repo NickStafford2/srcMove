@@ -153,7 +153,10 @@ srcMove --version
   `results_schema_version` is currently `2`.
   Additive `move_sequences` records group adjacent unique Type-1 moves that
   preserve order on both sides. Existing move counts retain their meanings;
-  `sequence_reporting_unit_count` reports the grouped granularity. See
+  `reported_moves` reports each qualifying run once as a Type-1 move, retaining
+  ordered member references. `reported_move_count` and
+  `reported_content_relationships` count that primary reporting view;
+  `sequence_reporting_unit_count` reports the same grouped granularity. See
   [ordered move sequences](doc/architecture.md#ordered-move-sequences).
 - `--results-only` writes the JSON result without reparsing and writing annotated
   XML. It requires `--results <file>` and does not accept an output XML path.

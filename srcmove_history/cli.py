@@ -426,10 +426,12 @@ def _status_document(summary: Mapping[str, Any]) -> dict[str, Any]:
             "by_status": statuses,
         },
         "moves": {
-            "detections": summary.get("move_group_count", 0),
+            "detections": summary.get("reported_move_count", summary.get("move_group_count", 0)),
+            "atomic_groups": summary.get("move_group_count", 0),
+            "atomic_content_relationships": dict(summary.get("content_relationships", {})),
             "source_destination_pairings": summary.get("move_pair_count", 0),
             "annotated_regions": summary.get("annotated_region_count", 0),
-            "by_content_relationship": dict(summary.get("content_relationships", {})),
+            "by_content_relationship": dict(summary.get("reported_content_relationships", summary.get("content_relationships", {}))),
         },
         "history": {
             "newest_commit": summary.get("newest_commit"),
@@ -462,7 +464,7 @@ def _render_pair_list(page: Mapping[str, Any]) -> str:
         paths = f"{item['analyzable_path_count']}/{item['changed_path_count']}"
         lines.append(
             f"{item['number']:>11}  {old} → {new}  {status:<22} "
-            f"{paths:>7} {item['move_count']:>7} {item['elapsed_seconds']:>6.1f}s"
+            f"{paths:>7} {item.get('reported_move_count') if item.get('reported_move_count') is not None else item['move_count']:>7} {item['elapsed_seconds']:>6.1f}s"
         )
     if page.get("next_cursor") is not None:
         lines.append(f"\nMore: --after {int(page['next_cursor']) + 1}")
@@ -498,7 +500,7 @@ def _render_pair(detail: Mapping[str, Any]) -> str:
         lines.append(f"Excluded   {exclusions}")
     if detail.get("error"):
         lines.extend(("", f"Failure: {detail['error']}"))
-    moves = detail.get("moves")
+    moves = detail.get("reported_moves", detail.get("moves"))
     if moves:
         lines.extend(("", "Moves"))
         for index, move in enumerate(moves, start=1):

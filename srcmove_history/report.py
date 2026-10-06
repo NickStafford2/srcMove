@@ -76,6 +76,7 @@ class ReportSnapshot:
     srcmove_sha256: str
     fingerprint_schemas: tuple[tuple[str, int], ...]
     history_exhausted: bool
+    atomic_move_groups: int | None = None
 
 
 def build_report(analysis_root: Path) -> ReportSnapshot:
@@ -87,7 +88,7 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
             manifest = database.initial_manifest()
             rows = database.connection.execute(
                 """
-                SELECT p.distance_from_newest, p.old_commit, p.new_commit,
+                SELECT p.batch_id, p.batch_sequence, p.distance_from_newest, p.old_commit, p.new_commit,
                        p.status, p.changed_path_count, p.analyzable_path_count,
                        p.metrics_json, p.timings_json
                 FROM pairs AS p
@@ -98,7 +99,7 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
             ).fetchall()
             move_rows = database.connection.execute(
                 """
-                SELECT m.content_relationship, m.from_xpaths_json, m.to_xpaths_json
+                SELECT m.batch_id, m.batch_sequence, m.content_relationship, m.from_xpaths_json, m.to_xpaths_json
                 FROM moves AS m
                 JOIN batches AS b ON b.batch_id = m.batch_id
                 WHERE b.status = 'completed'
@@ -118,6 +119,8 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
     srcdiff_seconds = 0.0
     srcmove_seconds = 0.0
     maximum: CommitPairMaximum | None = None
+    compound_pairs: set[tuple[str, int]] = set()
+    compound_rows: list[dict[str, Any]] = []
 
     for row in rows:
         status = _text(row["status"], "commit pair status")
@@ -130,7 +133,15 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
         )
         metrics = _object(row["metrics_json"], "commit pair metrics")
         timings = _object(row["timings_json"], "commit pair timings")
-        moves = _count(metrics.get("move_group_count", 0), "move groups")
+        moves = _count(metrics.get("reported_move_count", metrics.get("move_group_count", 0)), "reported moves")
+        if "reported_moves" in metrics:
+            compound_pairs.add((row["batch_id"], row["batch_sequence"]))
+            compound_rows.extend({
+                "content_relationship": report["content_relationship"],
+                "from_xpaths_json": json.dumps(report["from_xpaths"]).encode(),
+                "to_xpaths_json": json.dumps(report["to_xpaths"]).encode(),
+            } for report in metrics["reported_moves"])
+
         _add_counts(group_kinds, metrics.get("group_kinds", {}), "group kinds")
         _add_counts(
             exclusions, metrics.get("path_exclusion_counts", {}), "path exclusions"
@@ -158,6 +169,8 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
                 if maximum is None or candidate.moves > maximum.moves:
                     maximum = candidate
 
+    atomic_move_groups = len(move_rows)
+    move_rows = [row for row in move_rows if (row["batch_id"], row["batch_sequence"]) not in compound_pairs] + compound_rows
     content_relationships: Counter[str] = Counter()
     within_file = 0
     cross_file = 0
@@ -207,6 +220,7 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
         changed_paths=changed_paths,
         analyzable_paths=analyzable_paths,
         move_groups=move_groups,
+        atomic_move_groups=atomic_move_groups,
         move_bearing_commit_pairs=sum(count > 0 for count in move_counts),
         content_relationships=tuple(sorted(content_relationships.items())),
         within_file_moves=within_file,
@@ -346,7 +360,7 @@ def render_report(report: ReportSnapshot) -> str:
             _field("Unclassified", f"{report.unclassified_location_moves:,}")
         )
 
-    lines.extend(("", "Group topology"))
+    lines.extend(("", "Atomic group topology"))
     for name in ("move_1_to_1", "moves_many", "copy_or_repeat", "ambiguous"):
         lines.append(_field(_group_label(name), f"{group_kinds.get(name, 0):,}"))
 
@@ -456,6 +470,8 @@ def render_report(report: ReportSnapshot) -> str:
             f"of {report.move_groups:,} detections "
             f"({_ratio(report.maximum.moves, report.move_groups)})."
         )
+    if report.atomic_move_groups is not None and report.atomic_move_groups != report.move_groups:
+        lines.append(f"Compound reporting combines {report.atomic_move_groups:,} atomic groups into {report.move_groups:,} reported moves.")
     type3 = dict(report.content_relationships).get("type3", 0)
     if type3:
         lines.append(

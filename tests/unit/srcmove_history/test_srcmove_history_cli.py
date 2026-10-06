@@ -115,6 +115,8 @@ class SrcMoveHistoryCliTests(unittest.TestCase):
             document["moves"],
             {
                 "detections": 4,
+                "atomic_groups": 4,
+                "atomic_content_relationships": {"type1": 3, "type3": 1},
                 "source_destination_pairings": 5,
                 "annotated_regions": 9,
                 "by_content_relationship": {"type1": 3, "type3": 1},

@@ -1,7 +1,8 @@
 # Adjacent moved sequences
 
-Status: Stage 1 implemented and verified, October 5, 2026, with the two known
-Type-3 edits-in-place failures retained.
+Status: Stage 1 and its compound reporting projection implemented October 5,
+2026; consumer automated checks and live History verification passed. The two known
+Type-3 edits-in-place failures are retained.
 Stages 2a/2b remain proposed. The initial code inspection used srcMove
 `e04186d1946088ed682680346c5f5329cfe60d8f` (clean working tree at inspection).
 
@@ -26,18 +27,18 @@ This narrowly scoped plan extends the broader
 [move-detection redesign](move_detection_redesign.md). Location eligibility
 remains governed by the [correspondence plan](correspondence.md).
 
-## Recommended next slice: one reported Type-1 move per ordered run
+## Compound reporting slice: one reported Type-1 move per ordered run
 
-Proposed October 5, 2026; not implemented. The user's intended outcome is one
+Implemented October 5, 2026. The user's intended outcome is one
 larger Type-1 move for an unchanged contiguous run, rather than a primary list
 of its individual moves. Stage 1 supplies the conservative grouping evidence;
 its additive sequence records are an intermediate representation.
 
-Recommend a srcMove-owned reporting projection after selection: replace each
+The srcMove-owned reporting projection after selection replaces each
 qualifying run with one compound Type-1 report in the primary reporting view,
-and keep each ungrouped selected move as one report. Retain the atomic selected
-matches underneath for provenance, exact member correspondence, and expansion.
-History and srcDiffVisual should consume that projection, rather than inventing
+and keeps each ungrouped selected move as one report. It retains the atomic
+selected matches underneath for provenance, exact member correspondence, and expansion.
+History and srcDiffVisual consume that projection, rather than inventing
 their own grouping. This gives one larger reported move without changing which
 matches the detector selects or introducing window search.
 
@@ -48,14 +49,14 @@ It is a sequence endpoint, not an invented enclosing AST block. An unmatched
 statement, meaningful intervening child, different parent, or reordered member
 continues to stop aggregation under the existing conservative rules.
 
-Represent this as a distinct report kind (for example `ordered_sequence`) with
+This uses the distinct report kind `ordered_sequence` with
 `content_relationship: type1`, an ordered endpoint on each side, and member
 references. The internal report kind need not appear in the primary UI label:
 the viewer can say “Type 1” and highlight the complete run, with optional member
 expansion. Do not flatten its members into an existing content-equivalence
 group, whose endpoint sets imply possible partners across those sets.
 
-Use the existing `sequence_reporting_unit_count` as the basis for the primary
+The existing `sequence_reporting_unit_count` is the basis for the primary
 report count, and expose the atomic group count separately with an explicit
 label. This is a count of reported relocation units, not developer actions.
 Keep whole-method benchmark coverage separate: an interior sequence does not
@@ -66,30 +67,32 @@ become a detection of its enclosing method.
 | Option | Assessment |
 | --- | --- |
 | Display a sequence alongside all its members as primary moves | Preserves compatibility, but leaves the user's counting and presentation problem unresolved. Keep this only as a diagnostic view. |
-| Emit one compound report, retaining atomic matches internally | Recommended next slice. Uses existing evidence, provides the intended count and appearance, and avoids changing selection. Requires an explicit consumer/output contract. |
+| Emit one compound report, retaining atomic matches internally | Implemented slice. Uses existing evidence, provides the intended count and appearance, and avoids changing selection. Uses an explicit consumer/output contract. |
 | Flatten different statements into an existing equivalence group | Reject: can imply incorrect cross-member partner links. |
 | Detect whole sequence candidates before selection | Potential later recall improvement. Can recover unmatched/renamed interior code, but changes detection and requires competition, bounds, and renewed evaluation. Not necessary merely to report existing runs once. |
 
-### Questions for independent review
+### Independent review decisions and consumer acceptance gates
 
-The recommendation is firm at the behavioral level; the serialized contract
-and aggregate classification proof still need review before implementation:
+An independent child agent reviewed the canonicalization and reporting
+contract during implementation. The decisions and acceptance gates are:
 
-1. Confirm that ordered member Type-1 equality plus reliable, barrier-free
-   adjacency implies whole-endpoint Type-1 equality under srcMove's canonical
-   representation. Check inter-member text and XML context, not just member
-   labels. If that implication has exceptions, require a bounded linear
-   whole-endpoint equality check before promoting a run to a Type-1 report;
-   preserve atomic fallback when it fails.
-2. Choose an explicit output migration. A compatible candidate is a new
-   primary `reported_moves` collection while preserving legacy `moves` as
-   atomic evidence; replacing the semantics of `moves` requires a deliberate
-   schema migration. Decide the exact names/version boundary before coding.
-   Do not leave consumers to guess whether both collections should be counted.
-3. Decide how ordered endpoints expose source spans, member XPaths, and XML
-   annotations. Preserve original partner links and avoid wrapping siblings in
-   a synthetic AST node. A single displayed span must not imply detection of
-   the enclosing block or silently include an intervening unmatched statement.
+1. Ordered member Type-1 equality plus reliable, barrier-free adjacency
+   establishes aggregate ordered canonical equality. Exact canonicalization
+   has no cross-member rename mapping and retains each complete child root.
+   Review identified substantive descendants inside `diff:ws` and unknown
+   diff wrappers as exceptions to the previous transparency assumptions;
+   these now stop sequence grouping conservatively. No extra LCS or whole-run
+   comparison is needed once these evidence barriers hold.
+2. The additive schema-2 contract is `reported_moves`, `reported_move_count`,
+   and `reported_content_relationships`. Legacy `moves` and its counts remain
+   atomic evidence. Count one collection at a time. The canonical implemented
+   contract is in [architecture](../architecture.md#ordered-move-sequences).
+   Software `VERSION` is unchanged.
+3. Ordered endpoints retain member XPaths and original XML partner links,
+   without wrapping siblings in a synthetic AST node. The primary viewer item
+   represents the run; its detailed connections remain one per member pair.
+   This does not imply detection of the enclosing block or include an
+   intervening unmatched statement.
 4. Verify that reported units partition selected groups exactly once, that
    compound endpoints have equal ordered canonical content, and that gaps,
    repeats, barriers, and permutations retain the expected smaller reports.
@@ -281,7 +284,12 @@ That consumer work is a separate task in its owning repository.
 ### Cost
 
 Let `N` be input XML events and `M` selected eligible links. Child metadata adds
-O(N) traversal work and O(N) retained metadata in the conservative bound.
+O(N) counter updates, plus O(B) conservative barrier propagation, where `B`
+counts visits to active source frames/children when malformed whitespace or
+unknown wrappers invalidate their contexts. `B` depends on active nesting;
+do not claim strict linear traversal for arbitrary malformed nested XML.
+Retained context uses O(N) record slots in the conservative bound, plus the
+actual stored parent-ID strings.
 Sort/index links in O(M log M) time and O(M) extra space; scan chains in O(M).
 Hash lookup is expected constant time, not a worst-case guarantee. Do not scan
 all pairs. These are incremental bounds, not claims that existing detection
@@ -454,8 +462,8 @@ the success criterion.
 
 Stage 1 adds revision-specific direct-child metadata and strict chaining after
 selection. The canonical implemented contract is now in
-[architecture](../architecture.md#ordered-move-sequences); existing History
-compact records and the browser do not display these sequences yet.
+[architecture](../architecture.md#ordered-move-sequences); the compound consumer
+slice uses that producer-defined projection in History and the browser.
 Stage 2 remains a separate decision, with caps and relocation policy made
 concrete before coding. User handles all Git staging/commits.
 
@@ -512,3 +520,74 @@ binary hashes, schedules, resource measurements, and environment. An earlier
 run (`baseline-v-sequence`) overlapped correctness checks and is not the basis
 for this table. Candidate executable SHA-256 is
 `b7aa1d160210e64f9ff2d0f34a038b243e0d3dbd240ddbe37879d25204df8fbf`.
+
+## Compound reporting verification record
+
+The compound projection and conservative malformed-wrapper barriers were
+reviewed independently during implementation. Seventeen sequence tests and
+13 barrier tests cover all three output modes, partitions, exact member
+links, partial source runs, reordering, ambiguity, and adjacency boundaries.
+The final complete core Python unit suite passed 251 tests. The authoritative
+History suite passed 174 tests; later focused checks covered report/CLI output
+and malformed IDs. Legacy source/XML/policy regressions, BigMoveBench's 134
+unit tests, C++ components, 21 selection contracts, and nine performance
+runner tests passed. The two known `warp_in_place` Type-3 source-oracle
+failures remain unchanged.
+
+The same 42 fixed inputs used for Stage 1 retain byte-identical annotated XML
+and identical original JSON fields after excluding the six additive sequence
+and reporting fields. Primary reports partition their atomic groups exactly
+once. The retained OpenCV comparison 5 contains 71 atomic groups and 40 primary
+reports. Four 128/1,024-statement ordered/reversed workloads preserve atomic
+JSON/XML; ordered runs report once and reversals remain separate.
+
+Artifacts and scripts are under the ignored local
+`benchmark-results/compound-reporting-slice2-20261005/` directory. Candidate
+executable SHA-256 at verification is
+`0071be20208611f4926228fd4ca72479098239cbc879247cfe593d8a6ed7c9dd`.
+
+An exploratory development timing check compared the retained Stage-1 binary
+against the compound binary with one warmup and six seeded interleaved
+repetitions per variant/workload, declared warm OS cache, XML/JSON output,
+and profiling enabled. All 36 measured attempts succeeded. Other local viewer
+services remained running; this is not a controlled population experiment.
+
+| Workload | Stage-1 median (s) | Compound median (s) | Stage-1 peak RSS (MiB) | Compound peak RSS (MiB) |
+| --- | ---: | ---: | ---: | ---: |
+| OpenCV comparison 5 | 0.7224 | 0.7660 | 34.34 | 34.25 |
+| Ordered 1,024 declarations | 0.4785 | 0.5133 | 19.20 | 19.05 |
+| Reversed 1,024 declarations | 0.4856 | 0.5060 | 19.02 | 18.89 |
+
+These small development workloads show approximately 4–7% median runtime
+overhead in this run and similar peak memory, not general performance bounds.
+The manifest, raw attempts, and summary are retained at
+`performance/performance/runs/stage1-v-compound/` beneath that verification
+directory. Projection serializes additional primary endpoint/text arrays, so
+output sizes increase even though matching and selection are unchanged.
+
+Final consumer verification passed 260 srcDiffVisual backend tests against the
+rebuilt native executable and 72 frontend
+tests, backend lint, TypeScript checks, and the production build. Two additional
+complete artifact pipeline tests passed for standalone and archive inputs,
+including primary counts, retained member IDs, ordered source/destination node
+arrays, and access to atomic details. The in-app browser connection was
+unavailable, so visual inspection is not claimed; automated UI checks and the
+live API provide the consumer evidence. The rebuilt-native checks exposed and
+resolved a compatibility issue with annotations inherited from input XML:
+these remain separate, unclassified records outside the producer report
+partition, whose validation remains strict.
+
+OpenCV was regenerated for the same 210 adjacent pairs with the verified
+compound binary: 183 compared pairs, 27 without analyzable changes, zero
+failures. The original 341 atomic groups remain (292 Type 1, 13 Type 2c,
+36 Type 3); the primary view reports 241 moves (192 Type 1, 13 Type 2c,
+36 Type 3). The previous checksum-bound analysis was archived beside the
+repository's active `.srcmove` directory. The exported immutable snapshot is
+`thesis-workspace/data/srcMove-history/opencv/6c753bd2088d197276dee74bfe09c4fedcbb8471c6353473c6257e0b5f6fdd03.zip`.
+
+After the final viewer rebuild and service restart, the live API published
+OpenCV pair 5 as artifact `e7dc778df12940c1bf6a257f45e4a8db`: History and the
+artifact agree on 40 primary reports from 71 atomic groups. A five-member
+compound detail retains five source nodes, five destination nodes, five raw
+texts per side, and accessible atomic details. The receipt is
+`live-api-verification.json` in the local verification directory above.

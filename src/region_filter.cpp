@@ -779,6 +779,11 @@ collect_candidates_streaming(srcml_reader                &reader,
   std::optional<pending_common_anchor> pending_anchors[2];
   std::vector<common_anchor> common_anchors;
   std::size_t ignored_evidence_depth = 0;
+  std::size_t sequence_comment_depth = 0;
+  std::size_t sequence_ws_depth = 0;
+  std::size_t sequence_unknown_diff_depth = 0;
+  std::size_t sequence_ws_parent_depth = 0;
+  bool sequence_ws_barrier[2] = {false, false};
   std::vector<std::vector<move_candidate>> candidate_sets;
   regions.reserve(256);
   open_regions.reserve(32);
@@ -837,8 +842,23 @@ collect_candidates_streaming(srcml_reader                &reader,
     const std::string full_name = node.full_name();
     const auto        kind      = diff_kind_from_full_name(full_name);
     const auto state = revision_membership_from_full_name(full_name);
+    const bool unknown_diff_element = full_name.rfind("diff:", 0) == 0 &&
+        !state && full_name != "diff:ws";
     const bool ignored_evidence_container =
         node.name == "comment" || full_name == "diff:ws";
+    if (node.is_start() && node.name == "comment") {
+      ++sequence_comment_depth;
+    }
+    if (node.is_start() && full_name == "diff:ws") {
+      if (sequence_ws_depth == 0) {
+        sequence_ws_parent_depth = source_elements.size();
+        sequence_ws_barrier[0] = sequence_ws_barrier[1] = false;
+      }
+      ++sequence_ws_depth;
+    }
+    if (node.is_start() && unknown_diff_element) {
+      ++sequence_unknown_diff_depth;
+    }
     if (node.is_start() && ignored_evidence_container) {
       ++ignored_evidence_depth;
     }
@@ -862,6 +882,59 @@ collect_candidates_streaming(srcml_reader                &reader,
     const revision_membership effective =
         revision_states.empty() ? revision_membership::both
                                 : revision_states.back();
+    // A diff:ws tag is transparent in exact canonicalization, but its
+    // non-whitespace descendants are not. Do not let malformed whitespace
+    // containers hide content between members or inside a complete child.
+    const bool substantive_ws = sequence_ws_depth != 0 &&
+        sequence_comment_depth == 0 &&
+        ((node.is_text() && node.content && any_non_ws(*node.content)) ||
+         (node.is_start() && full_name.rfind("diff:", 0) != 0));
+    if (substantive_ws) {
+      for (std::size_t side = 0; side < 2; ++side) {
+        const auto revision = side == 0 ? revision_membership::original_only
+                                        : revision_membership::modified_only;
+        if (!sequence_ws_barrier[side] &&
+            (effective == revision_membership::both || effective == revision) &&
+            (sequence_ws_parent_depth == 0 ||
+             source_elements[sequence_ws_parent_depth - 1].sequence_present[side])) {
+          auto &count = sequence_ws_parent_depth == 0
+                            ? sequence_root_child_counts[side]
+                            : source_elements[sequence_ws_parent_depth - 1]
+                                  .sequence_child_counts[side];
+          ++count;
+          sequence_ws_barrier[side] = true;
+        }
+      }
+      for (auto &frame : source_elements) {
+        frame.sequence_context[0].reliable = false;
+        frame.sequence_context[1].reliable = false;
+      }
+      for (std::size_t region_id : open_regions) {
+        for (auto &child : regions[region_id].children) {
+          child.sequence_context.reliable = false;
+        }
+      }
+    }
+    if (node.is_start() && unknown_diff_element && sequence_comment_depth == 0) {
+      // Unknown diff tags are source structure to exact canonicalization;
+      // only the known revision wrappers and whitespace tags are transparent.
+      for (std::size_t side = 0; side < 2; ++side) {
+        const auto revision = side == 0 ? revision_membership::original_only
+                                        : revision_membership::modified_only;
+        if ((effective == revision_membership::both || effective == revision) &&
+            (source_elements.empty() || source_elements.back().sequence_present[side])) {
+          auto &count = source_elements.empty()
+                            ? sequence_root_child_counts[side]
+                            : source_elements.back().sequence_child_counts[side];
+          ++count;
+        }
+      }
+      for (std::size_t region_id : open_regions) {
+        for (auto &child : regions[region_id].children) {
+          child.sequence_context.reliable = false;
+        }
+      }
+    }
     for (std::size_t slot = 0; slot < 2; ++slot) {
       auto &pending_anchor = pending_anchors[slot];
       const bool anchor_start = slot == 0 ? node.name == "decl_stmt"
@@ -908,7 +981,8 @@ collect_candidates_streaming(srcml_reader                &reader,
             (effective == revision_membership::both || effective == revision);
         frame.sequence_allowed[side] = frame.sequence_present[side] &&
             parent_allowed && sequence_exclusive_depths[1 - side] == 0 &&
-            ignored_evidence_depth == 0 && !cpp_element;
+            ignored_evidence_depth == 0 && sequence_unknown_diff_depth == 0 &&
+            !cpp_element;
         if (frame.sequence_present[side] && ignored_evidence_depth == 0) {
           auto &count = source_elements.empty()
                             ? sequence_root_child_counts[side]
@@ -1076,6 +1150,15 @@ collect_candidates_streaming(srcml_reader                &reader,
         throw std::runtime_error("mismatched ignored evidence container");
       }
       --ignored_evidence_depth;
+    }
+    if (node.is_end() && full_name == "diff:ws") {
+      --sequence_ws_depth;
+    }
+    if (node.is_end() && node.name == "comment") {
+      --sequence_comment_depth;
+    }
+    if (node.is_end() && unknown_diff_element) {
+      --sequence_unknown_diff_depth;
     }
   };
 

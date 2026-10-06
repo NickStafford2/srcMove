@@ -11,6 +11,7 @@ namespace srcmove {
 class candidate_registry;
 class content_groups;
 struct move_entry;
+struct reported_move_entry;
 
 struct move_sequence_endpoint {
   std::string revision_file;
@@ -35,6 +36,12 @@ std::vector<move_sequence>
 build_move_sequences(const candidate_registry &registry,
                      const content_groups &groups,
                      const std::vector<move_entry> &moves);
+
+// Partition selected groups into primary reports, each group used exactly once.
+// This projection does not alter matching, selection, or XML annotation.
+std::vector<reported_move_entry>
+build_reported_moves(const std::vector<move_entry> &moves,
+                     const std::vector<move_sequence> &sequences);
 
 } // namespace srcmove
 #endif

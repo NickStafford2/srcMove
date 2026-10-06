@@ -41,6 +41,19 @@ struct content_relationship_counts {
   std::size_t type3 = 0;
 };
 
+// Primary reporting units. Ordered sequences retain positional member links;
+// their endpoint arrays are not content-equivalence partner sets.
+struct reported_move_entry {
+  std::string move_id;
+  std::string report_kind;
+  std::string content_relationship;
+  std::vector<std::string> member_move_ids;
+  std::vector<std::string> from_xpaths;
+  std::vector<std::string> to_xpaths;
+  std::vector<std::string> from_raw_texts;
+  std::vector<std::string> to_raw_texts;
+};
+
 struct summary {
   std::size_t             move_count = 0; // Backward-compatible alias for move_group_count.
   std::size_t             move_group_count = 0;
@@ -50,6 +63,9 @@ struct summary {
   std::vector<move_sequence> move_sequences;
   std::size_t sequence_cluster_count = 0;
   std::size_t sequence_reporting_unit_count = 0;
+  std::vector<reported_move_entry> reported_moves;
+  std::size_t reported_move_count = 0;
+  content_relationship_counts reported_content_relationships;
 
   std::size_t annotated_regions = 0; // Backward-compatible alias for annotated_region_count.
   std::size_t annotated_region_count = 0;
