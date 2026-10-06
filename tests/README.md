@@ -46,6 +46,9 @@ are separate [experiments](../benchmarking/README.md). Their small offline
 infrastructure tests belong to `tooling`; running correctness never starts a
 population experiment.
 
+For a focused explanation of selection expectations and their limits, read the
+[selection coverage map](selection-coverage.md).
+
 ## Accepted fixtures and oracles
 
 [Fixture discovery](support/cases.py) rejects malformed layouts instead of
