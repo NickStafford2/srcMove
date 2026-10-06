@@ -1,0 +1,17 @@
+{
+  "id": "mixed_parent_rejected_inner_survives",
+  "status": "contract",
+  "input": "cases/mixed_parent_rejected_inner_survives.xml",
+  "category": "mixed_polarity",
+  "rationale": "An opposite-side transition invalidates the outer candidate but must not erase an eligible inner move.",
+  "required": [
+    {
+      "from": "int rescued = 9;",
+      "to": "int rescued = 9;",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": []
+}

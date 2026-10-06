@@ -1,0 +1,7 @@
+{
+  "purpose": "Report the function transferred into a new file, retaining exact-content classification across the supplied formatting or comment changes.",
+  "input_kind": "source_archive",
+  "before": "original",
+  "after": "modified",
+  "expectations": "oracle.json"
+}

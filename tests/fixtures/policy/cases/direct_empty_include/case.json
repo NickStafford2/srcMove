@@ -1,0 +1,10 @@
+{
+  "id": "direct_empty_include",
+  "purpose": "An include directive without a target is incomplete.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

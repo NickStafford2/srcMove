@@ -1,0 +1,29 @@
+{
+  "id": "repeated_exact_ambiguity",
+  "fixture": {
+    "srcdiff": "shadow_cases/repeated_ambiguity.xml"
+  },
+  "rationale": "Repeated exact content without distinguishing context remains a group; document order must not manufacture pairs.",
+  "srcdiff_precondition": {
+    "element": "expr_stmt",
+    "before_text": "repeat_work();",
+    "after_text": "repeat_work();",
+    "before_count": 2,
+    "after_count": 2,
+    "correspondence_kind": "type1",
+    "cardinality": "many_to_many"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "same_mapped",
+    "anchor_interval": "unknown",
+    "ancestor_change": "none",
+    "relative_order": "symmetric"
+  },
+  "expected_shadow": {
+    "change_kind": "ambiguous",
+    "classification_reason": "non_unique_correspondence"
+  },
+  "expected_type1_output": "unchanged_group_policy"
+}

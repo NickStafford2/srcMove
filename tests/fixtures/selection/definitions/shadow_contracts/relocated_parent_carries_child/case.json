@@ -1,0 +1,35 @@
+{
+  "id": "relocated_parent_carries_child",
+  "fixture": {
+    "srcdiff": "shadow_cases/carried_child.xml"
+  },
+  "rationale": "A child stable relative to a relocated parent is not an independent relocation.",
+  "srcdiff_precondition": {
+    "element": "expr_stmt",
+    "before_text": "carried_work();",
+    "after_text": "carried_work();",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type1",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {
+    "corresponding_parent": {
+      "element": "if_stmt",
+      "text": "if (ready) {carried_work();}"
+    }
+  },
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "different_mapped",
+    "anchor_interval": "same_within_parent",
+    "ancestor_change": "none",
+    "relative_order": "unchanged"
+  },
+  "expected_shadow": {
+    "change_kind": "stationary",
+    "classification_reason": "stable_relative_to_relocated_parent",
+    "carried_by_parent": true
+  },
+  "expected_type1_output": "not_move"
+}

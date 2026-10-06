@@ -1,0 +1,44 @@
+{
+  "id": "coherent_type3_parent_over_partition",
+  "status": "contract",
+  "input": "cases/coherent_type3_parent_over_partition.xml",
+  "category": "hierarchical_coherence",
+  "rationale": "A function below the conservative Type-3 threshold should yield only independently strong descendant matches.",
+  "required": [
+    {
+      "from": "byte[] buffer = new byte[4096];",
+      "to": "byte[] buf = new byte[1024];",
+      "content_relationships": [
+        "type2c"
+      ]
+    },
+    {
+      "from": "while ((bytes_read = in.read(buffer)) != -1) out.write(buffer, 0, bytes_read);",
+      "to": "while ((len = in.read(buf)) > 0) out.write(buf, 0, len);",
+      "content_relationships": [
+        "type3"
+      ]
+    },
+    {
+      "from": "in.close();",
+      "to": "in.close();",
+      "content_relationships": [
+        "type1"
+      ]
+    },
+    {
+      "from": "out.close();",
+      "to": "out.close();",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "protected void zipFile(File from, File to) { FileInputStream in = new FileInputStream(from); ZipOutputStream out = new ZipOutputStream(to); byte[] buffer = new byte[4096]; int bytes_read; while ((bytes_read = in.read(buffer)) != -1) out.write(buffer, 0, bytes_read); in.close(); out.close(); }",
+      "to": "public static void copyFile(File src, File dst) { InputStream in = new FileInputStream(src); OutputStream out = new FileOutputStream(dst); byte[] buf = new byte[1024]; int len; while ((len = in.read(buf)) > 0) out.write(buf, 0, len); in.close(); out.close(); }",
+      "reason": "The complete function is below the conservative Type-3 threshold."
+    }
+  ]
+}

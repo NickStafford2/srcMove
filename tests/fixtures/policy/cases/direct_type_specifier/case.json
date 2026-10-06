@@ -1,0 +1,10 @@
+{
+  "id": "direct_type_specifier",
+  "purpose": "A type specifier alone is not movable code.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "id": "missing_context_edit",
+  "fixture": "type3_cases/missing_context_edit.xml",
+  "rationale": "File-root snippets establish similarity but lack a mapped semantic container.",
+  "construct": "if_stmt",
+  "expected_edges": [
+    {
+      "before_text": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "after_text": "if (ready) { value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "change": "ambiguous",
+      "reason": "insufficient_context",
+      "delete_partners": 1,
+      "insert_partners": 1,
+      "expected_current_result": "not_move"
+    }
+  ]
+}

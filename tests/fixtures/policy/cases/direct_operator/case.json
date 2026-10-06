@@ -1,0 +1,10 @@
+{
+  "id": "direct_operator",
+  "purpose": "An operator alone is not a statement.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

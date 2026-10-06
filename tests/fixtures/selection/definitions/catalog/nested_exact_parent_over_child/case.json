@@ -1,0 +1,23 @@
+{
+  "id": "nested_exact_parent_over_child",
+  "status": "contract",
+  "input": "cases/nested_exact_parent_over_child.xml",
+  "category": "same_side_nesting",
+  "rationale": "An exact enclosing move should not be discarded merely because it contains a smaller exact move.",
+  "required": [
+    {
+      "from": "if (ready) { int payload = 7; publish(payload); }",
+      "to": "if (ready) { int payload = 7; publish(payload); }",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "int payload = 7;",
+      "to": "int payload = 7;",
+      "reason": "The child alone loses the enclosing control-flow move."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "direct_protected_access",
+  "purpose": "An access modifier alone is not a movable construct.",
+  "language": "C#",
+  "extension": ".cs",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

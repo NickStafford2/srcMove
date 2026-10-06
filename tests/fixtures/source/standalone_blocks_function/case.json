@@ -1,0 +1,7 @@
+{
+  "purpose": "Report the complete standalone block containing foo().",
+  "input_kind": "source_pair",
+  "before": "original.cpp",
+  "after": "modified.cpp",
+  "expectations": "oracle.json"
+}

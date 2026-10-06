@@ -1,0 +1,17 @@
+{
+  "id": "wrapper_added_edit",
+  "fixture": "type3_cases/wrapper_added_edit.xml",
+  "rationale": "A new while wrapper adds meaningful ancestry within the same interval.",
+  "construct": "if_stmt",
+  "expected_edges": [
+    {
+      "before_text": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "after_text": "if (ready) { value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "change": "restructured",
+      "reason": "ancestor_wrapped",
+      "delete_partners": 1,
+      "insert_partners": 1,
+      "expected_current_result": "not_move"
+    }
+  ]
+}

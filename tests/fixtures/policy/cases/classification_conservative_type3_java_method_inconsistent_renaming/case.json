@@ -1,0 +1,13 @@
+{
+  "id": "classification_conservative_type3_java_method_inconsistent_renaming",
+  "purpose": "A method with inconsistent identifier correspondence falls below the conservative Type-3 threshold, while its exact return statement remains detectable.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type1",
+    "from": "expected-from.java",
+    "to": "expected-to.java"
+  }
+}

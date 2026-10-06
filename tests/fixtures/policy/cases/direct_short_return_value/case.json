@@ -1,0 +1,10 @@
+{
+  "id": "direct_short_return_value",
+  "purpose": "A trivial return statement is not meaningful enough to count as a move.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

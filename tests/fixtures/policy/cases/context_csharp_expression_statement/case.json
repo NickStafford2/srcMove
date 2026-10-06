@@ -1,0 +1,13 @@
+{
+  "id": "context_csharp_expression_statement",
+  "purpose": "A complete invocation moves between methods.",
+  "language": "C#",
+  "extension": ".cs",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type1",
+    "from": "expected-from.cs",
+    "to": "expected-to.cs"
+  }
+}

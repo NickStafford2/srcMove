@@ -1,0 +1,10 @@
+{
+  "id": "csharp_property_name_fragment",
+  "purpose": "A property name alone is not a moved statement.",
+  "language": "C#",
+  "extension": ".cs",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

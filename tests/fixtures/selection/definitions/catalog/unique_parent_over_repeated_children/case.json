@@ -1,0 +1,23 @@
+{
+  "id": "unique_parent_over_repeated_children",
+  "status": "contract",
+  "input": "cases/unique_parent_over_repeated_children.xml",
+  "category": "ambiguity_and_granularity",
+  "rationale": "A cross-file transfer with consistent renaming has one identifiable Type-2 parent; repeated small statements must not replace that coherent move.",
+  "required": [
+    {
+      "from": "if (left) { int marker = 0; transferLeft(); int marker = 0; }",
+      "to": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
+      "content_relationships": [
+        "type2c"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "int marker = 0;",
+      "to": "int marker = 0;",
+      "reason": "A repeated child is not independently identifiable as the move."
+    }
+  ]
+}

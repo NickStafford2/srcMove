@@ -1,0 +1,1 @@
+class DestinationCase { int value; }

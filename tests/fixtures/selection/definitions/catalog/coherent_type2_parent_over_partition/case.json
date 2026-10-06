@@ -1,0 +1,23 @@
+{
+  "id": "coherent_type2_parent_over_partition",
+  "status": "contract",
+  "input": "cases/coherent_type2_parent_over_partition.xml",
+  "category": "hierarchical_coherence",
+  "rationale": "A consistently renamed function transferred to another file is one Type-2 move; its unchanged statements support the whole move rather than replacing it.",
+  "required": [
+    {
+      "from": "void gotoURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+      "to": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+      "content_relationships": [
+        "type2c"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "if (url != null) {connect(url);}",
+      "to": "if (url != null) {connect(url);}",
+      "reason": "The unchanged body partitions a coherent renamed function."
+    }
+  ]
+}

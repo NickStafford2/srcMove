@@ -1,0 +1,10 @@
+{
+  "id": "direct_member_name",
+  "purpose": "A member name alone is below statement granularity.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

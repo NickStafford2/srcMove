@@ -1,0 +1,10 @@
+{
+  "id": "direct_static_specifier",
+  "purpose": "A storage specifier alone is not a movable declaration.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

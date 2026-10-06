@@ -1,0 +1,13 @@
+{
+  "id": "context_c_expression_statement",
+  "purpose": "A complete call statement moves between functions.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type1",
+    "from": "expected-from.c",
+    "to": "expected-to.c"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "coherent_type2_parent_over_partition_relocated",
+  "fixture": {
+    "srcdiff": "cases/coherent_type2_parent_over_partition.xml"
+  },
+  "rationale": "A consistently renamed function transferred to another file is one Type-2 move; its unchanged statements support the whole move rather than replacing it.",
+  "srcdiff_precondition": {
+    "element": "function",
+    "before_text": "void gotoURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+    "after_text": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "different",
+    "semantic_container": "unknown",
+    "anchor_interval": "unknown",
+    "ancestor_change": "unknown",
+    "relative_order": "unknown"
+  },
+  "expected_shadow": {
+    "change_kind": "relocated",
+    "classification_reason": "different_file"
+  },
+  "expected_type2_output": "move"
+}

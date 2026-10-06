@@ -1,0 +1,13 @@
+{
+  "id": "context_cpp_declaration_statement",
+  "purpose": "A complete declaration moves between functions.",
+  "language": "C++",
+  "extension": ".cpp",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type1",
+    "from": "expected-from.cpp",
+    "to": "expected-to.cpp"
+  }
+}

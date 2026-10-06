@@ -1,0 +1,10 @@
+{
+  "id": "cpp_template_argument_fragment",
+  "purpose": "A template type argument is not a complete moved construct.",
+  "language": "C++",
+  "extension": ".cpp",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

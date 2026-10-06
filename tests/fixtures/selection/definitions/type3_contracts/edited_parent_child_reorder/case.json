@@ -1,0 +1,16 @@
+{
+  "id": "edited_parent_child_reorder",
+  "fixture": "type3_cases/edited_parent_child_reorder.xml",
+  "rationale": "An independently reordered child inside a renamed, physically common function must not be inferred carried.",
+  "construct": "if_stmt",
+  "expected_edges": [
+    {
+      "before_text": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "after_text": "if (ready) { value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "change": "relocated",
+      "reason": "crossed_stable_sibling",
+      "delete_partners": 1,
+      "insert_partners": 1
+    }
+  ]
+}

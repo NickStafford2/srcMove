@@ -1,0 +1,10 @@
+{
+  "id": "cpp_type_keyword_fragment",
+  "purpose": "A type keyword produced by reordered declarations is not a move.",
+  "language": "C++",
+  "extension": ".cpp",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

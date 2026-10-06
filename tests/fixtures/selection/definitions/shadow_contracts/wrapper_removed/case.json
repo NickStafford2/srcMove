@@ -1,0 +1,40 @@
+{
+  "id": "wrapper_removed",
+  "fixture": {
+    "srcdiff": "shadow_cases/unwrap_change.xml"
+  },
+  "rationale": "Removing a meaningful wrapper without displacement inside one stable interval is restructuring.",
+  "srcdiff_precondition": {
+    "element": "expr_stmt",
+    "before_text": "guarded_work();",
+    "after_text": "guarded_work();",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type1",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {
+    "anchors": {
+      "before": "int lower_anchor = 1;",
+      "after": "int upper_anchor = 2;"
+    },
+    "exclusive_ancestors": {
+      "before": [
+        "if_stmt"
+      ],
+      "after": []
+    }
+  },
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "same_mapped",
+    "anchor_interval": "same",
+    "ancestor_change": "unwrapped",
+    "relative_order": "unchanged"
+  },
+  "expected_shadow": {
+    "change_kind": "restructured",
+    "classification_reason": "ancestor_unwrapped"
+  },
+  "expected_type1_output": "not_move"
+}

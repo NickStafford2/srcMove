@@ -1,0 +1,10 @@
+{
+  "id": "c_two_digit_numeric_fragment",
+  "purpose": "A renumbered numeric literal is data, not a moved code unit.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

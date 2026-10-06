@@ -1,0 +1,7 @@
+{
+  "purpose": "Report the declaration as Type-2c when its type specifiers exchange order.",
+  "input_kind": "source_pair",
+  "before": "original.cpp",
+  "after": "modified.cpp",
+  "expectations": "oracle.json"
+}

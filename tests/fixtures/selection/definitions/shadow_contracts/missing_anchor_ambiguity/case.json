@@ -1,0 +1,29 @@
+{
+  "id": "missing_anchor_ambiguity",
+  "fixture": {
+    "srcdiff": "shadow_cases/missing_anchor.xml"
+  },
+  "rationale": "A unique exact pair with no mapped container or reliable anchors has insufficient location evidence.",
+  "srcdiff_precondition": {
+    "element": "expr_stmt",
+    "before_text": "unanchored_work();",
+    "after_text": "unanchored_work();",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type1",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "unknown",
+    "anchor_interval": "unknown",
+    "ancestor_change": "unknown",
+    "relative_order": "unknown"
+  },
+  "expected_shadow": {
+    "change_kind": "ambiguous",
+    "classification_reason": "insufficient_context"
+  },
+  "expected_type1_output": "not_move"
+}

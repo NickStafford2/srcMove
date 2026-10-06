@@ -1,0 +1,7 @@
+{
+  "purpose": "Preserve four groups across a function transfer, repeated function content, a declaration, and another definition.",
+  "input_kind": "source_archive",
+  "before": "original",
+  "after": "modified",
+  "expectations": "oracle.json"
+}

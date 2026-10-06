@@ -1,0 +1,7 @@
+{
+  "purpose": "Report the independently expected int i = 1 statement after the larger line reorder.",
+  "input_kind": "source_pair",
+  "before": "original.cpp",
+  "after": "modified.cpp",
+  "expectations": "oracle.json"
+}

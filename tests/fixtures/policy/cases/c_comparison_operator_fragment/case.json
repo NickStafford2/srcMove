@@ -1,0 +1,10 @@
+{
+  "id": "c_comparison_operator_fragment",
+  "purpose": "A two-character operator is not a movable code unit.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

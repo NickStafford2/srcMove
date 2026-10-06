@@ -1,0 +1,7 @@
+{
+  "purpose": "Report the function transferred into the new file after a file split.",
+  "input_kind": "source_archive",
+  "before": "original",
+  "after": "modified",
+  "expectations": "oracle.json"
+}

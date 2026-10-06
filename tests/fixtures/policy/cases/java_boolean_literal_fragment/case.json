@@ -1,0 +1,10 @@
+{
+  "id": "java_boolean_literal_fragment",
+  "purpose": "A boolean value reused by two edits is not a moved statement.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "csharp_string_literal_fragment",
+  "purpose": "A repeated string value is not a moved construct.",
+  "language": "C#",
+  "extension": ".cs",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

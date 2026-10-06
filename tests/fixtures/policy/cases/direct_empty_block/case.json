@@ -1,0 +1,10 @@
+{
+  "id": "direct_empty_block",
+  "purpose": "An empty block contains no movable behavior.",
+  "language": "C++",
+  "extension": ".cpp",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

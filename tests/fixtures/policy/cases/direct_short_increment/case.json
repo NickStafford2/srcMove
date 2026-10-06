@@ -1,0 +1,10 @@
+{
+  "id": "direct_short_increment",
+  "purpose": "A trivial increment is not meaningful enough to count as a move.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

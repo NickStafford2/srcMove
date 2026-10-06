@@ -1,0 +1,13 @@
+{
+  "id": "classification_type2_java_method_retained_empty_statement",
+  "purpose": "An empty statement retained in both moved methods does not prevent consistent identifier renaming from matching as Type-2c.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type2c",
+    "from": "expected-from.java",
+    "to": "expected-to.java"
+  }
+}

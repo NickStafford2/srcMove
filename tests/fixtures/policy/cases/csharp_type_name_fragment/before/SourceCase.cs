@@ -1,0 +1,1 @@
+class SourceCase { object value; }

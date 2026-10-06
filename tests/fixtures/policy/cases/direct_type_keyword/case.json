@@ -1,0 +1,10 @@
+{
+  "id": "direct_type_keyword",
+  "purpose": "A type keyword alone is not a declaration.",
+  "language": "C++",
+  "extension": ".cpp",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

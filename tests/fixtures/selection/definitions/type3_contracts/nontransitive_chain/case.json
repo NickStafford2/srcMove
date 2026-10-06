@@ -1,0 +1,32 @@
+{
+  "id": "nontransitive_chain",
+  "fixture": "type3_cases/nontransitive_chain.xml",
+  "rationale": "Three verified edges form a chain; the absent fourth edge must not be manufactured by connectivity.",
+  "construct": "if_stmt",
+  "expected_edges": [
+    {
+      "before_text": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "after_text": "if (ready) { value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "change": "relocated",
+      "reason": "different_file",
+      "delete_partners": 1,
+      "insert_partners": 2
+    },
+    {
+      "before_text": "if (ready) { value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "after_text": "if (ready) { value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "change": "relocated",
+      "reason": "different_file",
+      "delete_partners": 2,
+      "insert_partners": 2
+    },
+    {
+      "before_text": "if (ready) { value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "after_text": "if (ready) { value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value -= 1; value += 1; value += 1; }",
+      "change": "relocated",
+      "reason": "different_file",
+      "delete_partners": 2,
+      "insert_partners": 1
+    }
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "id": "relocated_child_covered_by_edited_parent",
+  "fixture": "type3_cases/relocated_child_covered_by_edited_parent.xml",
+  "rationale": "Both edited function and child have file displacement; containment alone must not imply parent carrying.",
+  "construct": "if_stmt",
+  "expected_edges": [
+    {
+      "before_text": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "after_text": "if (ready) { value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "change": "relocated",
+      "reason": "different_file",
+      "delete_partners": 1,
+      "insert_partners": 1,
+      "expected_current_result": "not_move",
+      "covered_by_type3_parent": true
+    }
+  ]
+}

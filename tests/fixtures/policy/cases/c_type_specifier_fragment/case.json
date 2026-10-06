@@ -1,0 +1,10 @@
+{
+  "id": "c_type_specifier_fragment",
+  "purpose": "A shared signed specifier is not a moved declaration.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

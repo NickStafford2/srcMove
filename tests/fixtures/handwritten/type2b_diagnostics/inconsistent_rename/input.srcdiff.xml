@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff">
+  <unit language="C++" filename="before.cpp|">
+    <diff:delete><function><type><name>int</name></type> <name>sum</name><parameter_list>(<parameter><decl><type><name>int</name></type> <name>a</name></decl></parameter>, <parameter><decl><type><name>int</name></type> <name>z</name></decl></parameter>)</parameter_list> <block>{<block_content><return>return <expr><name>a</name> <operator>+</operator> <name>a</name></expr>;</return></block_content>}</block></function></diff:delete>
+  </unit>
+  <unit language="C++" filename="|after.cpp">
+    <diff:insert><function><type><name>int</name></type> <name>combine</name><parameter_list>(<parameter><decl><type><name>int</name></type> <name>b</name></decl></parameter>, <parameter><decl><type><name>int</name></type> <name>c</name></decl></parameter>)</parameter_list> <block>{<block_content><return>return <expr><name>b</name> <operator>+</operator> <name>c</name></expr>;</return></block_content>}</block></function></diff:insert>
+  </unit>
+</unit>

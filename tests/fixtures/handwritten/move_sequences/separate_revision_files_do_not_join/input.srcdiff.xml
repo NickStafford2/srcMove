@@ -1,0 +1,5 @@
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:cpp="http://www.srcML.org/srcML/cpp" language="C++"><unit filename="before.cpp|first.cpp"><diff:delete><decl_stmt><decl><type><name>int</name></type> <name>a</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
+<diff:delete><decl_stmt><decl><type><name>int</name></type> <name>b</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
+<diff:insert><decl_stmt><decl><type><name>int</name></type> <name>a</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
+</unit><unit filename="|second.cpp"><diff:insert><decl_stmt><decl><type><name>int</name></type> <name>b</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
+</unit></unit>

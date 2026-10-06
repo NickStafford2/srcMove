@@ -1,0 +1,24 @@
+{
+  "id": "insert_delete_transition",
+  "status": "contract",
+  "input": "cases/insert_delete_transition.xml",
+  "category": "mixed_polarity",
+  "rationale": "A nested delete must become an independent source, then closing it must restore insert ownership.",
+  "required": [
+    {
+      "from": "int nested_delete = 62;",
+      "to": "int nested_delete = 62;",
+      "content_relationships": [
+        "type1"
+      ]
+    },
+    {
+      "from": "int restored_insert = 61;",
+      "to": "int restored_insert = 61;",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": []
+}

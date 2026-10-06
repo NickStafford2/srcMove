@@ -1,0 +1,15 @@
+{
+  "id": "adjacent_restructure_is_not_move",
+  "status": "contract",
+  "input": "cases/adjacent_restructure_is_not_move.xml",
+  "category": "stationary_correspondence",
+  "rationale": "Unchanged content exposed under incompatible inner paths in one nested replacement site is locally restructured, not relocated.",
+  "required": [],
+  "forbidden": [
+    {
+      "from": "stable();",
+      "to": "stable();",
+      "reason": "The unchanged statement remained at one local replacement site despite its changed wrapper."
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+{
+  "id": "direct_bare_return_statement",
+  "purpose": "A bare return statement is not meaningful enough to count as a move.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

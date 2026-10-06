@@ -1,0 +1,31 @@
+{
+  "id": "equal_score_deterministic",
+  "status": "contract",
+  "input": "cases/equal_score_deterministic.xml",
+  "category": "ambiguity_and_granularity",
+  "rationale": "Four structurally symmetric Type-2 edges have no evidence for one particular pairing and must be rejected deterministically.",
+  "verify_results_only_equivalence": true,
+  "required": [],
+  "forbidden": [
+    {
+      "from": "int alpha = 71;",
+      "to": "int gamma = 71;",
+      "reason": "Document order is not correspondence evidence."
+    },
+    {
+      "from": "int alpha = 71;",
+      "to": "int delta = 71;",
+      "reason": "Document order is not correspondence evidence."
+    },
+    {
+      "from": "int beta = 71;",
+      "to": "int gamma = 71;",
+      "reason": "Document order is not correspondence evidence."
+    },
+    {
+      "from": "int beta = 71;",
+      "to": "int delta = 71;",
+      "reason": "Document order is not correspondence evidence."
+    }
+  ]
+}

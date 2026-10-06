@@ -1,0 +1,7 @@
+{
+  "purpose": "Check the retained no-move expectation when the two source blocks exchange positions.",
+  "input_kind": "source_pair",
+  "before": "original.cpp",
+  "after": "modified.cpp",
+  "expectations": "oracle.json"
+}

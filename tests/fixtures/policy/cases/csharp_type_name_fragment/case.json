@@ -1,0 +1,10 @@
+{
+  "id": "csharp_type_name_fragment",
+  "purpose": "A built-in type name is not independently movable.",
+  "language": "C#",
+  "extension": ".cs",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

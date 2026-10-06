@@ -1,0 +1,34 @@
+{
+  "id": "reorder_past_common_conditional",
+  "fixture": {
+    "srcdiff": "type2_cases/reorder_past_common_conditional.xml"
+  },
+  "rationale": "Inside an edited outer conditional, a renamed declaration crosses an unchanged inner conditional sibling in the same mapped function. A mixed outer wrapper must not hide the genuine displacement evidence. The location oracle remains relocated, but the standalone renamed declaration lacks independent continuing-use corroboration and is reported as tentative with lower selection utility.",
+  "srcdiff_precondition": {
+    "element": "decl_stmt",
+    "before_text": "int old_count = 1;",
+    "after_text": "int new_count = 1;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {
+    "crossed_common": "checkpoint();",
+    "crossed_common_element": "expr_stmt"
+  },
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "same_mapped",
+    "anchor_interval": "crossed",
+    "ancestor_change": "none",
+    "relative_order": "crossed_stable_sibling"
+  },
+  "expected_shadow": {
+    "change_kind": "relocated",
+    "classification_reason": "crossed_stable_sibling"
+  },
+  "expected_type2_output": "move",
+  "expected_identity_reason": "uncorroborated_declaration",
+  "expected_identity_status": "tentative"
+}

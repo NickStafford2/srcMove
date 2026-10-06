@@ -1,0 +1,10 @@
+{
+  "id": "direct_empty_define",
+  "purpose": "A define directive without a macro is incomplete.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "edited_parent_internal_reorder",
+  "fixture": {
+    "srcdiff": "type2_cases/edited_parent_internal_reorder.xml"
+  },
+  "rationale": "A mapped function has a renamed signature while its normalized child crosses a stable sibling. The edited parent must not hide the independent child relocation. The location oracle remains relocated, but the standalone renamed declaration lacks independent continuing-use corroboration and is reported as tentative with lower selection utility.",
+  "srcdiff_precondition": {
+    "element": "decl_stmt",
+    "before_text": "int old_count = 1;",
+    "after_text": "int new_count = 1;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {
+    "crossed_common": "int stable_sibling = 7;"
+  },
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "same_mapped",
+    "anchor_interval": "crossed",
+    "ancestor_change": "none",
+    "relative_order": "crossed_stable_sibling"
+  },
+  "expected_shadow": {
+    "change_kind": "relocated",
+    "classification_reason": "crossed_stable_sibling"
+  },
+  "expected_type2_output": "move",
+  "expected_identity_reason": "uncorroborated_declaration",
+  "expected_identity_status": "tentative"
+}

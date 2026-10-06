@@ -1,0 +1,10 @@
+{
+  "id": "direct_goto_label",
+  "purpose": "A label without its associated behavior is not a move.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

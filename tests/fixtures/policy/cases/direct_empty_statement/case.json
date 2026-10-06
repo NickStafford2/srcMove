@@ -1,0 +1,10 @@
+{
+  "id": "direct_empty_statement",
+  "purpose": "An empty statement contains no movable behavior.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

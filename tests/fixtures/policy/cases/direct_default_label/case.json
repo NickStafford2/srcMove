@@ -1,0 +1,10 @@
+{
+  "id": "direct_default_label",
+  "purpose": "A default label without its behavior is not a move.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

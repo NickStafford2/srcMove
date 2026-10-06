@@ -1,0 +1,7 @@
+{
+  "purpose": "Report the declaration transferred from main to foo despite formatting differences.",
+  "input_kind": "source_pair",
+  "before": "original.cpp",
+  "after": "modified.cpp",
+  "expectations": "oracle.json"
+}

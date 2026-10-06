@@ -1,0 +1,1 @@
+bool destination() { return false; }

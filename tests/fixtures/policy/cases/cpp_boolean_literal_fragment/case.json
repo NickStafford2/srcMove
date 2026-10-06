@@ -1,0 +1,10 @@
+{
+  "id": "cpp_boolean_literal_fragment",
+  "purpose": "A boolean literal reused by replacements is not a move.",
+  "language": "C++",
+  "extension": ".cpp",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

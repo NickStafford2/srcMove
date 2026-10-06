@@ -1,0 +1,40 @@
+{
+  "id": "nodiscard_signature_and_unwrap",
+  "fixture": {
+    "source_pair": {
+      "original": "shadow_cases/nodiscard_signature/original/Range.cpp",
+      "modified": "shadow_cases/nodiscard_signature/modified/Range.cpp"
+    }
+  },
+  "rationale": "The minimal Notepad++ mechanism exposes an exact return while adding [[nodiscard]] and removing an else wrapper; it is local restructuring, not relocation.",
+  "srcdiff_precondition": {
+    "element": "return",
+    "before_text": "return pos <= start && pos >= end;",
+    "after_text": "return pos <= start && pos >= end;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type1",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {
+    "container_bounds": true,
+    "exclusive_ancestors": {
+      "before": [
+        "else"
+      ],
+      "after": []
+    }
+  },
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "same_mapped",
+    "anchor_interval": "same",
+    "ancestor_change": "unwrapped",
+    "relative_order": "unchanged"
+  },
+  "expected_shadow": {
+    "change_kind": "restructured",
+    "classification_reason": "ancestor_unwrapped"
+  },
+  "expected_type1_output": "not_move"
+}

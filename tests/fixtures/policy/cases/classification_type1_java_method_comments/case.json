@@ -1,0 +1,13 @@
+{
+  "id": "classification_type1_java_method_comments",
+  "purpose": "Comment-only changes preserve a Type-1 method move.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type1",
+    "from": "expected-from.java",
+    "to": "expected-to.java"
+  }
+}

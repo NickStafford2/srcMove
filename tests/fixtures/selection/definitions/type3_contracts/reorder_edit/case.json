@@ -1,0 +1,16 @@
+{
+  "id": "reorder_edit",
+  "fixture": "type3_cases/reorder_edit.xml",
+  "rationale": "Edited block crosses a complete common declaration.",
+  "construct": "if_stmt",
+  "expected_edges": [
+    {
+      "before_text": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "after_text": "if (ready) { value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "change": "relocated",
+      "reason": "crossed_stable_sibling",
+      "delete_partners": 1,
+      "insert_partners": 1
+    }
+  ]
+}

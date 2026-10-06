@@ -1,0 +1,10 @@
+{
+  "id": "java_array_index_fragment",
+  "purpose": "An array index literal is data rather than moved behavior.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "id": "wrapper_added_rename",
+  "fixture": {
+    "srcdiff": "type2_cases/wrapper_added_rename.xml"
+  },
+  "rationale": "Adding a meaningful wrapper without displacement inside one stable interval is restructuring. Identifier normalization establishes correspondence independently of location.",
+  "srcdiff_precondition": {
+    "element": "decl_stmt",
+    "before_text": "int old_count = 1;",
+    "after_text": "int new_count = 1;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {
+    "anchors": {
+      "before": "int lower_anchor = 1;",
+      "after": "int upper_anchor = 2;"
+    },
+    "exclusive_ancestors": {
+      "before": [],
+      "after": [
+        "if_stmt"
+      ]
+    }
+  },
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "same_mapped",
+    "anchor_interval": "same",
+    "ancestor_change": "wrapped",
+    "relative_order": "unchanged"
+  },
+  "expected_shadow": {
+    "change_kind": "restructured",
+    "classification_reason": "ancestor_wrapped"
+  },
+  "expected_type2_output": "not_move"
+}

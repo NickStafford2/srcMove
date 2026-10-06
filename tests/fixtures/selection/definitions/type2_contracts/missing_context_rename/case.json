@@ -1,0 +1,29 @@
+{
+  "id": "missing_context_rename",
+  "fixture": {
+    "srcdiff": "type2_cases/missing_context_rename.xml"
+  },
+  "rationale": "A unique normalized pair with no mapped container or reliable anchors has insufficient location evidence. Identifier normalization establishes correspondence independently of location.",
+  "srcdiff_precondition": {
+    "element": "decl_stmt",
+    "before_text": "int old_count = 1;",
+    "after_text": "int new_count = 1;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "unknown",
+    "anchor_interval": "unknown",
+    "ancestor_change": "unknown",
+    "relative_order": "unknown"
+  },
+  "expected_shadow": {
+    "change_kind": "ambiguous",
+    "classification_reason": "insufficient_context"
+  },
+  "expected_type2_output": "not_move"
+}

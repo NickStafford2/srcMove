@@ -1,0 +1,31 @@
+{
+  "id": "relocated_child_loses_to_normalized_parent",
+  "fixture": {
+    "srcdiff": "type2_cases/relocated_child_loses_to_normalized_parent.xml"
+  },
+  "rationale": "Cross-file location independently relocates the normalized child, but the selected larger normalized function accounts for its output. Classification must not report parent carrying or confuse eligibility with selection.",
+  "srcdiff_precondition": {
+    "element": "decl_stmt",
+    "before_text": "int old_count = 1;",
+    "after_text": "int new_count = 1;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "different",
+    "semantic_container": "unknown",
+    "anchor_interval": "unknown",
+    "ancestor_change": "unknown",
+    "relative_order": "unknown"
+  },
+  "expected_shadow": {
+    "change_kind": "relocated",
+    "classification_reason": "different_file"
+  },
+  "expected_type2_output": "not_move",
+  "expected_current_result": "not_move",
+  "expected_selection": "covered_by_selected_parent"
+}

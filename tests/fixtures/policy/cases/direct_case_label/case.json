@@ -1,0 +1,10 @@
+{
+  "id": "direct_case_label",
+  "purpose": "A case label without its behavior is not a move.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

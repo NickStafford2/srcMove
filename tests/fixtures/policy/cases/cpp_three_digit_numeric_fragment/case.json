@@ -1,0 +1,10 @@
+{
+  "id": "cpp_three_digit_numeric_fragment",
+  "purpose": "Swapped numeric values do not constitute moved statements.",
+  "language": "C++",
+  "extension": ".cpp",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "purpose": "Report the function surviving in another file after its original file disappears.",
+  "input_kind": "source_archive",
+  "before": "original",
+  "after": "modified",
+  "expectations": "oracle.json"
+}

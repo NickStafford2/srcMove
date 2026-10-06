@@ -1,0 +1,10 @@
+{
+  "purpose": "Keep two identical origins and two identical destinations in one group without invented pairings.",
+  "input_kind": "explicit_diff_xml",
+  "input": "input.xml",
+  "expectations": "expected.json",
+  "output_contract": "expected.xml",
+  "before": "before.cpp",
+  "after": "after.cpp",
+  "source_view_note": "Readable projections of the represented text; the retained XML also defines revision ownership and structural boundaries."
+}

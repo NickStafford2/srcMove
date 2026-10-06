@@ -1,0 +1,13 @@
+{
+  "id": "classification_type2_java_method_identifiers_and_literal",
+  "purpose": "Consistent identifier renaming plus literal substitution preserves a Type-2c method move.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type2c",
+    "from": "expected-from.java",
+    "to": "expected-to.java"
+  }
+}

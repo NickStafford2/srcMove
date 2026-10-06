@@ -1,0 +1,29 @@
+{
+  "id": "cross_file_relocation",
+  "fixture": {
+    "srcdiff": "cases/cross_file_nonlocal_move.xml"
+  },
+  "rationale": "Distinct revision files are sufficient positive relocation evidence for a unique exact correspondence.",
+  "srcdiff_precondition": {
+    "element": "function",
+    "before_text": "int relocated() {return 81;}",
+    "after_text": "int relocated() {return 81;}",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type1",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "different",
+    "semantic_container": "unknown",
+    "anchor_interval": "unknown",
+    "ancestor_change": "unknown",
+    "relative_order": "unknown"
+  },
+  "expected_shadow": {
+    "change_kind": "relocated",
+    "classification_reason": "different_file"
+  },
+  "expected_type1_output": "move"
+}

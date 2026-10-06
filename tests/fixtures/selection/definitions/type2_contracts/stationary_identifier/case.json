@@ -1,0 +1,34 @@
+{
+  "id": "stationary_identifier",
+  "fixture": {
+    "srcdiff": "type2_cases/stationary_identifier.xml"
+  },
+  "rationale": "Changed line coordinates do not relocate a unique normalized statement that remains in one mapped container and anchor interval. Identifier normalization establishes correspondence independently of location.",
+  "srcdiff_precondition": {
+    "element": "decl_stmt",
+    "before_text": "int old_count = 1;",
+    "after_text": "int new_count = 1;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {
+    "anchors": {
+      "before": "int lower_anchor = 1;",
+      "after": "int upper_anchor = 2;"
+    }
+  },
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "same_mapped",
+    "anchor_interval": "same",
+    "ancestor_change": "none",
+    "relative_order": "unchanged"
+  },
+  "expected_shadow": {
+    "change_kind": "stationary",
+    "classification_reason": "same_anchor_interval"
+  },
+  "expected_type2_output": "not_move"
+}

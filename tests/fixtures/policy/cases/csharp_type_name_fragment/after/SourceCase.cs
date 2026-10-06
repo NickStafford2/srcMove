@@ -1,0 +1,1 @@
+class SourceCase { string value; }

@@ -1,0 +1,3 @@
+int getA() {
+    return value;
+}

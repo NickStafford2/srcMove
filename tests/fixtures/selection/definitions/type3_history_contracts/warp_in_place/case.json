@@ -1,0 +1,114 @@
+{
+  "id": "warp_in_place",
+  "source_pair": "type3_history_cases/warp_in_place",
+  "provenance": {
+    "repository": "opencv",
+    "commit": "9e515caeac2e80fe2d04837f6abcacccbe404107",
+    "parent": "0ee9c2796698346e78c640565ec6a0dfb7a95151",
+    "derivation": "Unmodified complete warp_ipp.cpp snapshots. Keep original preprocessor and sibling context because srcDiff alignment determines whether mapped containers survive."
+  },
+  "endpoints": [
+    {
+      "id": "affine_worker",
+      "construct": "class",
+      "before_text_sha256": "df66957dec778b13637d73f6825a59d5487b06182fad3bb41e5ace158b1eb208",
+      "after_text_sha256": "b087ae442c1eb8de4d4b379e56de213bd80786db607790edf560193e43df4c9e"
+    },
+    {
+      "id": "affine_try",
+      "construct": "try",
+      "before_text_sha256": "eb53ea2dd47760da86697f3ca12ca1d202c3c1a16e67171d6ffb83a5774d62e5",
+      "after_text_sha256": "74cdd5e1c5f5a5f809d07764aed39ab3834ff5f3eedcc0ef9e61585dcdc2160b"
+    }
+  ],
+  "edges": [
+    {
+      "before": "affine_worker",
+      "after": "affine_worker",
+      "source_oracle": {
+        "identity": "continuing_construct",
+        "location": "stationary",
+        "is_move": false,
+        "reason": "Same class/try region remains in the same source role; edits change pointer naming, instrumentation or thread scheduling, not location."
+      },
+      "observation_baseline": {
+        "change": "ambiguous",
+        "reason": "insufficient_context",
+        "delete_partners": 1,
+        "insert_partners": 1,
+        "current_result": "move"
+      }
+    },
+    {
+      "before": "affine_try",
+      "after": "affine_try",
+      "source_oracle": {
+        "identity": "continuing_construct",
+        "location": "stationary",
+        "is_move": false,
+        "reason": "Same class/try region remains in the same source role; edits change pointer naming, instrumentation or thread scheduling, not location."
+      },
+      "observation_baseline": {
+        "change": "ambiguous",
+        "reason": "insufficient_context",
+        "delete_partners": 1,
+        "insert_partners": 1,
+        "current_result": "move"
+      }
+    }
+  ],
+  "source_sha256": {
+    "before/hal/ipp/src/warp_ipp.cpp": "f54cbfd79d42ff89e4c2eea00ecc07478552ce769164408c0ff9138294cd6e46",
+    "after/hal/ipp/src/warp_ipp.cpp": "4be093193321073130a1107de6289ae5dd5f5431e44ccaa2c72a228d7e4b909e"
+  },
+  "stationary_source_regions": [
+    {
+      "id": "affine_parallel_ok_declaration",
+      "construct": "decl_stmt",
+      "function_name": "ipp_hal_warpAffine",
+      "normalized_text": "bool ok = true;",
+      "before_line_ranges": [
+        [
+          114,
+          114
+        ]
+      ],
+      "after_line_ranges": [
+        [
+          129,
+          129
+        ]
+      ],
+      "source_oracle_reason": "The same ok declaration remains in the affine parallel branch; an additional remap declaration does not relocate this source occurrence.",
+      "source_file": "hal/ipp/src/warp_ipp.cpp"
+    },
+    {
+      "id": "affine_parallel_ok_guards",
+      "construct": "if_stmt",
+      "function_name": "ipp_hal_warpAffine",
+      "normalized_text": "if(!ok) return CV_HAL_ERROR_NOT_IMPLEMENTED;",
+      "before_line_ranges": [
+        [
+          117,
+          118
+        ],
+        [
+          122,
+          123
+        ]
+      ],
+      "after_line_ranges": [
+        [
+          132,
+          133
+        ],
+        [
+          137,
+          138
+        ]
+      ],
+      "source_oracle_reason": "Both ok guards remain before and after parallel_for_ in the same affine branch; repeated text does not make them moves.",
+      "source_file": "hal/ipp/src/warp_ipp.cpp"
+    }
+  ]
+}

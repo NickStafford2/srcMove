@@ -1,0 +1,13 @@
+{
+  "id": "classification_type3_java_method_modified_statement",
+  "purpose": "A moved method with a structurally changed statement is a Type-3 contract.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type3",
+    "from": "expected-from.java",
+    "to": "expected-to.java"
+  }
+}

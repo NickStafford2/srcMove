@@ -1,0 +1,31 @@
+{
+  "id": "nodiscard_signature_only",
+  "fixture": {
+    "srcdiff": "shadow_cases/nodiscard_signature_only.xml"
+  },
+  "rationale": "Adding [[nodiscard]] to the same method signature does not relocate its unique exact body statement.",
+  "srcdiff_precondition": {
+    "element": "return",
+    "before_text": "return value;",
+    "after_text": "return value;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type1",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {
+    "container_bounds": true
+  },
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "same_mapped",
+    "anchor_interval": "same",
+    "ancestor_change": "none",
+    "relative_order": "unchanged"
+  },
+  "expected_shadow": {
+    "change_kind": "stationary",
+    "classification_reason": "same_anchor_interval"
+  },
+  "expected_type1_output": "not_move"
+}

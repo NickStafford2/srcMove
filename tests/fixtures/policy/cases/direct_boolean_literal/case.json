@@ -1,0 +1,10 @@
+{
+  "id": "direct_boolean_literal",
+  "purpose": "A boolean literal alone is not a statement.",
+  "language": "C#",
+  "extension": ".cs",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

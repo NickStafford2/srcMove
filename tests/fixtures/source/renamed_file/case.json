@@ -1,0 +1,7 @@
+{
+  "purpose": "Preserve the function move and endpoint files across the first file-rename scenario.",
+  "input_kind": "source_archive",
+  "before": "original",
+  "after": "modified",
+  "expectations": "oracle.json"
+}

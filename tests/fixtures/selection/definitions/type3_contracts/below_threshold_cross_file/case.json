@@ -1,0 +1,7 @@
+{
+  "id": "below_threshold_cross_file",
+  "fixture": "type3_cases/below_threshold_cross_file.xml",
+  "rationale": "Changing all operators defeats similarity despite different files.",
+  "construct": "if_stmt",
+  "expected_edges": []
+}

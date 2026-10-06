@@ -1,0 +1,5 @@
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:cpp="http://www.srcML.org/srcML/cpp" language="C++" filename="before.cpp|after.cpp"><diff:delete><decl_stmt><decl><type><name>int</name></type> <name>state</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
+<diff:delete><expr_stmt><expr><call><name>consume</name><argument_list>(<argument><expr><name>state</name></expr></argument>)</argument_list></call></expr>;</expr_stmt></diff:delete>
+<diff:insert><decl_stmt><decl><type><name>int</name></type> <name>state</name> <init>= <expr><literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:insert>
+<diff:insert><expr_stmt><expr><call><name>consume</name><argument_list>(<argument><expr><name>state</name></expr></argument>)</argument_list></call></expr>;</expr_stmt></diff:insert>
+</unit>

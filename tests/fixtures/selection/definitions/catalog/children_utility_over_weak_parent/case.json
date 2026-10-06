@@ -1,0 +1,30 @@
+{
+  "id": "children_utility_over_weak_parent",
+  "status": "contract",
+  "input": "cases/children_utility_over_weak_parent.xml",
+  "category": "hierarchical_coherence",
+  "rationale": "Two compatible exact child edges provide a better explanation than one weak enclosing edge whose unmatched statements changed independently.",
+  "required": [
+    {
+      "from": "if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); }",
+      "to": "if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); }",
+      "content_relationships": [
+        "type1"
+      ]
+    },
+    {
+      "from": "if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); }",
+      "to": "if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); }",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "if (old_mode) { if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); } while (old_pending) { drain_old(); } if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); } }",
+      "to": "if (new_mode) { if (alpha_ready) { prepare_alpha(); process_alpha(); finish_alpha(); } for (int i = 0; i < 1; ++i) { initialize_new(); } if (beta_ready) { prepare_beta(); process_beta(); finish_beta(); } }",
+      "reason": "The weak parent must not suppress two compatible, independently exact child moves."
+    }
+  ]
+}

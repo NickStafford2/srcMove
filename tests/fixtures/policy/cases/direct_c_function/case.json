@@ -1,0 +1,13 @@
+{
+  "id": "direct_c_function",
+  "purpose": "A complete function is a real move.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type1",
+    "from": "expected-from.c",
+    "to": "expected-to.c"
+  }
+}

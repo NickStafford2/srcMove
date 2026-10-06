@@ -1,0 +1,23 @@
+{
+  "id": "shared_delete_stronger_edge",
+  "status": "contract",
+  "input": "cases/shared_delete_stronger_edge.xml",
+  "category": "one_sided_overlap",
+  "rationale": "When two plausible edges share one deletion endpoint, the exact edge must suppress the weaker Type-2 alternative.",
+  "required": [
+    {
+      "from": "int selected_value = source + 201;",
+      "to": "int selected_value = source + 201;",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "int selected_value = source + 201;",
+      "to": "int weaker_alternative = source + 201;",
+      "reason": "The deletion endpoint is already consumed by stronger exact evidence."
+    }
+  ]
+}

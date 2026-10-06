@@ -1,0 +1,7 @@
+{
+  "purpose": "Preserve the two independently expected numeric-fragment groups inside the edited function.",
+  "input_kind": "source_pair",
+  "before": "original.cpp",
+  "after": "modified.cpp",
+  "expectations": "oracle.json"
+}

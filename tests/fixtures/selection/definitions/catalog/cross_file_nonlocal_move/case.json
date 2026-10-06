@@ -1,0 +1,18 @@
+{
+  "id": "cross_file_nonlocal_move",
+  "status": "contract",
+  "input": "cases/cross_file_nonlocal_move.xml",
+  "input_shape": "archive",
+  "category": "cross_file",
+  "rationale": "File distance and an intervening unit must not suppress a strong cross-file move.",
+  "required": [
+    {
+      "from": "int relocated() {return 81;}",
+      "to": "int relocated() {return 81;}",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": []
+}

@@ -1,0 +1,10 @@
+{
+  "id": "csharp_identifier_fragment",
+  "purpose": "A property or variable name is below statement granularity.",
+  "language": "C#",
+  "extension": ".cs",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

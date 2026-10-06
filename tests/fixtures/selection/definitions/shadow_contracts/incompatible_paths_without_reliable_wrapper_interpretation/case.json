@@ -1,0 +1,40 @@
+{
+  "id": "incompatible_paths_without_reliable_wrapper_interpretation",
+  "fixture": {
+    "srcdiff": "shadow_cases/incompatible_paths.xml"
+  },
+  "rationale": "Different raw paths cannot decide between serialization noise and restructuring when wrapper meaning is not reliable.",
+  "srcdiff_precondition": {
+    "element": "return",
+    "before_text": "return stable_value;",
+    "after_text": "return stable_value;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type1",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {
+    "anchors": {
+      "before": "int lower_anchor = 1;",
+      "after": "int upper_anchor = 2;"
+    },
+    "exclusive_ancestors": {
+      "before": [
+        "macro"
+      ],
+      "after": []
+    }
+  },
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "same_mapped",
+    "anchor_interval": "same",
+    "ancestor_change": "incompatible",
+    "relative_order": "unchanged"
+  },
+  "expected_shadow": {
+    "change_kind": "ambiguous",
+    "classification_reason": "incompatible_context"
+  },
+  "expected_type1_output": "not_move"
+}

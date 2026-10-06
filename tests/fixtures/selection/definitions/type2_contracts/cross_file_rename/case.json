@@ -1,0 +1,29 @@
+{
+  "id": "cross_file_rename",
+  "fixture": {
+    "srcdiff": "type2_cases/cross_file_rename.xml"
+  },
+  "rationale": "A consistent function rename during transfer to another file preserves normalized identity and has positive relocation evidence.",
+  "srcdiff_precondition": {
+    "element": "function",
+    "before_text": "int relocated() {return 81;}",
+    "after_text": "int renamed() {return 81;}",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "different",
+    "semantic_container": "unknown",
+    "anchor_interval": "unknown",
+    "ancestor_change": "unknown",
+    "relative_order": "unknown"
+  },
+  "expected_shadow": {
+    "change_kind": "relocated",
+    "classification_reason": "different_file"
+  },
+  "expected_type2_output": "move"
+}

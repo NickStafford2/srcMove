@@ -1,0 +1,7 @@
+{
+  "purpose": "Identical original and modified source produces no move.",
+  "input_kind": "source_pair",
+  "before": "original.cpp",
+  "after": "modified.cpp",
+  "expectations": "oracle.json"
+}

@@ -1,0 +1,16 @@
+{
+  "id": "cross_file_edit",
+  "fixture": "type3_cases/cross_file_edit.xml",
+  "rationale": "Edited block transfers between explicit revision files.",
+  "construct": "if_stmt",
+  "expected_edges": [
+    {
+      "before_text": "if (ready) { value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "after_text": "if (ready) { value -= 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; value += 1; }",
+      "change": "relocated",
+      "reason": "different_file",
+      "delete_partners": 1,
+      "insert_partners": 1
+    }
+  ]
+}

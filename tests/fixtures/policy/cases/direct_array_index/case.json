@@ -1,0 +1,10 @@
+{
+  "id": "direct_array_index",
+  "purpose": "An array index alone is not a statement.",
+  "language": "C#",
+  "extension": ".cs",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

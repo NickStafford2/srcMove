@@ -1,0 +1,30 @@
+{
+  "id": "independent_children_not_false_parent",
+  "status": "contract",
+  "input": "cases/independent_children_not_false_parent.xml",
+  "category": "hierarchical_coherence",
+  "rationale": "Largest wins is not absolute: independently relocated children should remain separate when there is no coherent destination parent.",
+  "required": [
+    {
+      "from": "int alpha = 1;",
+      "to": "int alpha = 1;",
+      "content_relationships": [
+        "type1"
+      ]
+    },
+    {
+      "from": "int beta = 2;",
+      "to": "int beta = 2;",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "if (enabled) { int alpha = 1; int beta = 2; }",
+      "to": "int alpha = 1; int beta = 2;",
+      "reason": "The children moved to distinct destination contexts."
+    }
+  ]
+}

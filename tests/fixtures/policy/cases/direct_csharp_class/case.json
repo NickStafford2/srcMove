@@ -1,0 +1,13 @@
+{
+  "id": "direct_csharp_class",
+  "purpose": "A complete C# class is a real move.",
+  "language": "C#",
+  "extension": ".cs",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type1",
+    "from": "expected-from.cs",
+    "to": "expected-to.cs"
+  }
+}

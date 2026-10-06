@@ -1,0 +1,13 @@
+{
+  "id": "classification_conservative_type3_java_method_added_statement",
+  "purpose": "A method below the conservative Type-3 threshold is not reported, while its exact moved statement remains detectable.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type1",
+    "from": "expected-from.java",
+    "to": "expected-to.java"
+  }
+}

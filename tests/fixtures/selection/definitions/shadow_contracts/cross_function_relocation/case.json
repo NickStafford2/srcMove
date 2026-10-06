@@ -1,0 +1,29 @@
+{
+  "id": "cross_function_relocation",
+  "fixture": {
+    "srcdiff": "shadow_cases/cross_function.xml"
+  },
+  "rationale": "Two distinct reliably mapped functions are positive relocation evidence within one file.",
+  "srcdiff_precondition": {
+    "element": "expr_stmt",
+    "before_text": "relocated_work();",
+    "after_text": "relocated_work();",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type1",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "different_mapped",
+    "anchor_interval": "different",
+    "ancestor_change": "none",
+    "relative_order": "unknown"
+  },
+  "expected_shadow": {
+    "change_kind": "relocated",
+    "classification_reason": "different_semantic_container"
+  },
+  "expected_type1_output": "move"
+}

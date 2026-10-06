@@ -1,0 +1,17 @@
+{
+  "id": "statement_wrapper_removed",
+  "fixture": "type3_cases/statement_wrapper_removed.xml",
+  "rationale": "A long complete declaration statement has a prefix ancestry change in the same mapped interval.",
+  "construct": "decl_stmt",
+  "expected_edges": [
+    {
+      "before_text": "int result= value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value;",
+      "after_text": "int result= value - value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value + value;",
+      "change": "restructured",
+      "reason": "ancestor_unwrapped",
+      "delete_partners": 1,
+      "insert_partners": 1,
+      "expected_current_result": "not_move"
+    }
+  ]
+}

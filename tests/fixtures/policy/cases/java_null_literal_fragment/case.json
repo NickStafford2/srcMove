@@ -1,0 +1,10 @@
+{
+  "id": "java_null_literal_fragment",
+  "purpose": "The null literal has no useful move identity by itself.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

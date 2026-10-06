@@ -1,0 +1,13 @@
+{
+  "id": "classification_type3_java_method_added_empty_statement",
+  "purpose": "Adding an empty statement changes syntax beyond Type-2c substitutions; the otherwise retained moved method meets the Type-3 threshold.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type3",
+    "from": "expected-from.java",
+    "to": "expected-to.java"
+  }
+}

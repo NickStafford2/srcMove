@@ -1,0 +1,7 @@
+{
+  "purpose": "Check the retained no-move contract for the two swapped source lines.",
+  "input_kind": "source_pair",
+  "before": "original.cpp",
+  "after": "modified.cpp",
+  "expectations": "oracle.json"
+}

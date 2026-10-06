@@ -1,0 +1,10 @@
+{
+  "id": "direct_numeric_literal",
+  "purpose": "A numeric literal is not a complete statement.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "cross_container_rename",
+  "fixture": {
+    "srcdiff": "type2_cases/cross_container_rename.xml"
+  },
+  "rationale": "Two distinct reliably mapped functions are positive relocation evidence within one file. Normalized equality proposes correspondence, but this standalone renamed declaration has no independent continuing-use corroboration. Location remains relocated; identity is tentative, so the eligible report carries a lower selection utility.",
+  "srcdiff_precondition": {
+    "element": "decl_stmt",
+    "before_text": "int old_count = 1;",
+    "after_text": "int new_count = 1;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "different_mapped",
+    "anchor_interval": "different",
+    "ancestor_change": "none",
+    "relative_order": "unknown"
+  },
+  "expected_shadow": {
+    "change_kind": "relocated",
+    "classification_reason": "different_semantic_container"
+  },
+  "expected_type2_output": "move",
+  "expected_identity_reason": "uncorroborated_declaration",
+  "expected_identity_status": "tentative"
+}

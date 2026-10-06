@@ -1,0 +1,10 @@
+{
+  "id": "c_character_literal_fragment",
+  "purpose": "A character literal is not independently movable code.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

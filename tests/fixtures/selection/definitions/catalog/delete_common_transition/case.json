@@ -1,0 +1,23 @@
+{
+  "id": "delete_common_transition",
+  "status": "contract",
+  "input": "cases/delete_common_transition.xml",
+  "category": "common_ownership",
+  "rationale": "Leaving diff:common must restore delete ownership, while common content itself remains in both revisions.",
+  "required": [
+    {
+      "from": "int after_common = 41;",
+      "to": "int after_common = 41;",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "unchanged();",
+      "to": "unchanged();",
+      "reason": "Content under diff:common was not deleted and cannot be the source of a move."
+    }
+  ]
+}

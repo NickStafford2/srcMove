@@ -1,0 +1,13 @@
+{
+  "id": "direct_cpp_class",
+  "purpose": "A complete class is a real move.",
+  "language": "C++",
+  "extension": ".cpp",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 1,
+    "content_relationship": "type1",
+    "from": "expected-from.cpp",
+    "to": "expected-to.cpp"
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "reorder_rename",
+  "fixture": {
+    "srcdiff": "type2_cases/reorder_rename.xml"
+  },
+  "rationale": "Reversing order across a unique common sibling is positive relocation evidence inside one mapped container. Normalized equality proposes correspondence, but this standalone renamed declaration has no independent continuing-use corroboration. Location remains relocated; identity is tentative, so the eligible report carries a lower selection utility.",
+  "srcdiff_precondition": {
+    "element": "decl_stmt",
+    "before_text": "int old_count = 1;",
+    "after_text": "int new_count = 1;",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {
+    "crossed_common": "int stable_sibling = 7;"
+  },
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "same_mapped",
+    "anchor_interval": "crossed",
+    "ancestor_change": "none",
+    "relative_order": "crossed_stable_sibling"
+  },
+  "expected_shadow": {
+    "change_kind": "relocated",
+    "classification_reason": "crossed_stable_sibling"
+  },
+  "expected_type2_output": "move",
+  "expected_identity_reason": "uncorroborated_declaration",
+  "expected_identity_status": "tentative"
+}

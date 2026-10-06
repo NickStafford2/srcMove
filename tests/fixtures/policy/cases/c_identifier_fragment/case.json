@@ -1,0 +1,10 @@
+{
+  "id": "c_identifier_fragment",
+  "purpose": "An identifier reused across replacements is not independently movable.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

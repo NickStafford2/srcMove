@@ -1,0 +1,10 @@
+{
+  "id": "classification_none_similar_java_method_shapes",
+  "purpose": "Similarly shaped methods with unrelated operations must not be classified as a move.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "id": "coherent_type2_parent_over_partition_unlocated",
+  "fixture": {
+    "srcdiff": "type2_cases/coherent_type2_parent_over_partition_unlocated.xml"
+  },
+  "rationale": "Original mechanics input establishes unique normalized correspondence but has no mapped container or displacement evidence; preserve that ambiguity.",
+  "srcdiff_precondition": {
+    "element": "function",
+    "before_text": "void gotoURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+    "after_text": "void showURLWithMethod(String url) { int retries = 3; if (url != null) {connect(url);} log(url); close(); }",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "same",
+    "semantic_container": "unknown",
+    "anchor_interval": "unknown",
+    "ancestor_change": "unknown",
+    "relative_order": "unknown"
+  },
+  "expected_shadow": {
+    "change_kind": "ambiguous",
+    "classification_reason": "insufficient_context"
+  },
+  "expected_type2_output": "not_move"
+}

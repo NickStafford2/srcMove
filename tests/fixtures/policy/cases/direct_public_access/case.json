@@ -1,0 +1,10 @@
+{
+  "id": "direct_public_access",
+  "purpose": "An access label alone is not a movable construct.",
+  "language": "C++",
+  "extension": ".cpp",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

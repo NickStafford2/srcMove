@@ -1,0 +1,10 @@
+{
+  "id": "c_enum_member_fragment",
+  "purpose": "An enum member name crossing two replacements is not a move.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

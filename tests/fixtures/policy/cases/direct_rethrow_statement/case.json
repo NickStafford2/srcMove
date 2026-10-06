@@ -1,0 +1,10 @@
+{
+  "id": "direct_rethrow_statement",
+  "purpose": "A bare rethrow is not meaningful enough to count as a move.",
+  "language": "C++",
+  "extension": ".cpp",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

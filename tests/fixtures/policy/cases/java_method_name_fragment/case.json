@@ -1,0 +1,10 @@
+{
+  "id": "java_method_name_fragment",
+  "purpose": "A method name alone is below statement granularity.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "archive",
+  "expect": {
+    "move_count": 0
+  }
+}

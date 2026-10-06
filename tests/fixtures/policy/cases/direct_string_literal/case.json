@@ -1,0 +1,10 @@
+{
+  "id": "direct_string_literal",
+  "purpose": "A string literal alone is not a statement.",
+  "language": "Java",
+  "extension": ".java",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

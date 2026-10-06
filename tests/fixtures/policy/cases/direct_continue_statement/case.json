@@ -1,0 +1,10 @@
+{
+  "id": "direct_continue_statement",
+  "purpose": "A continue statement alone carries too little move identity.",
+  "language": "C",
+  "extension": ".c",
+  "scenario": "transfer",
+  "expect": {
+    "move_count": 0
+  }
+}

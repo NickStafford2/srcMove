@@ -1,0 +1,23 @@
+{
+  "id": "nested_near_miss_parent_over_exact_child",
+  "status": "contract",
+  "input": "cases/nested_near_miss_parent_over_exact_child.xml",
+  "category": "cross_type_competition",
+  "rationale": "An enclosing near miss below the conservative Type-3 threshold must not suppress its exact nested move.",
+  "required": [
+    {
+      "from": "int marker = 1;",
+      "to": "int marker = 1;",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "if (oldReady) { int marker = 1; publish(oldValue); cleanup(); }",
+      "to": "if (newReady) { int marker = 1; validate(); publish(newValue); cleanup(); }",
+      "reason": "The enclosing construct is below the conservative Type-3 threshold."
+    }
+  ]
+}

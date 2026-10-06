@@ -1,0 +1,29 @@
+{
+  "id": "unique_parent_over_repeated_children_relocated",
+  "fixture": {
+    "srcdiff": "cases/unique_parent_over_repeated_children.xml"
+  },
+  "rationale": "A cross-file transfer with consistent renaming has one identifiable Type-2 parent; repeated small statements must not replace that coherent move.",
+  "srcdiff_precondition": {
+    "element": "if_stmt",
+    "before_text": "if (left) { int marker = 0; transferLeft(); int marker = 0; }",
+    "after_text": "if (right) { int marker = 0; transferRight(); int marker = 0; }",
+    "before_count": 1,
+    "after_count": 1,
+    "correspondence_kind": "type2c",
+    "cardinality": "one_to_one"
+  },
+  "structural_precondition": {},
+  "observed_context": {
+    "file": "different",
+    "semantic_container": "unknown",
+    "anchor_interval": "unknown",
+    "ancestor_change": "unknown",
+    "relative_order": "unknown"
+  },
+  "expected_shadow": {
+    "change_kind": "relocated",
+    "classification_reason": "different_file"
+  },
+  "expected_type2_output": "move"
+}

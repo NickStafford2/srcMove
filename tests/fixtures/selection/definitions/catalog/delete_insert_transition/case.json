@@ -1,0 +1,24 @@
+{
+  "id": "delete_insert_transition",
+  "status": "contract",
+  "input": "cases/delete_insert_transition.xml",
+  "category": "mixed_polarity",
+  "rationale": "A nested insert must become an independent destination, then closing it must restore delete ownership.",
+  "required": [
+    {
+      "from": "int nested_insert = 51;",
+      "to": "int nested_insert = 51;",
+      "content_relationships": [
+        "type1"
+      ]
+    },
+    {
+      "from": "int restored_delete = 52;",
+      "to": "int restored_delete = 52;",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": []
+}

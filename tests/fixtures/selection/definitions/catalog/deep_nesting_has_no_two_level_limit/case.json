@@ -1,0 +1,23 @@
+{
+  "id": "deep_nesting_has_no_two_level_limit",
+  "status": "contract",
+  "input": "cases/deep_nesting_has_no_two_level_limit.xml",
+  "category": "deep_nesting",
+  "rationale": "Candidate semantics should depend on ownership and coherence, not an arbitrary nesting-depth limit.",
+  "required": [
+    {
+      "from": "if (a) { while (b) { int work = 3; } finish(); }",
+      "to": "if (a) { while (b) { int work = 3; } finish(); }",
+      "content_relationships": [
+        "type1"
+      ]
+    }
+  ],
+  "forbidden": [
+    {
+      "from": "int work = 3;",
+      "to": "int work = 3;",
+      "reason": "The deepest leaf alone is not the most coherent move."
+    }
+  ]
+}
