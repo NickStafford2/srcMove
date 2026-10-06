@@ -215,6 +215,35 @@ class SourceCorrespondenceVariantTests(unittest.TestCase):
             self.assertNotEqual(first[1], second[1], 'anchor regions must be file-local')
         self.assert_displacement(isolated)
 
+    def test_archive_duplicate_basenames_preserve_full_revision_paths(self):
+        secondary = 'int secondary = source + 29;'
+        targets = {'a/Case.cpp': TARGET, 'b/Case.cpp': secondary}
+        original = {name: function(text + '\ncheckpoint();') for name, text in targets.items()}
+        modified = {name: function('checkpoint();\n' + text) for name, text in targets.items()}
+        payload = self.evaluate(original, modified)
+        candidates = {item['candidate_id']: item for item in payload['diagnostics']['candidates']}
+        self.assertEqual(payload['move_group_count'], 2)
+        for filename, text in targets.items():
+            with self.subTest(filename=filename):
+                # Admission is checked separately from the selected output.
+                pairs = [pair for pair in payload['diagnostics']['correspondences']
+                         if pair['correspondence_kind'] == 'type1'
+                         and candidates[pair['delete_candidate_id']]['construct'] == 'decl_stmt'
+                         and candidates[pair['insert_candidate_id']]['construct'] == 'decl_stmt'
+                         and candidates[pair['delete_candidate_id']]['raw_text'] == text
+                         and candidates[pair['insert_candidate_id']]['raw_text'] == text]
+                self.assertEqual(len(pairs), 1, 'srcDiff must expose one exact target pair')
+                self.assertEqual(pairs[0]['before_context']['revision_file'], filename)
+                self.assertEqual(pairs[0]['after_context']['revision_file'], filename)
+                self.assertEqual(pairs[0]['shadow_change'], 'relocated')
+                moves = [move for move in payload['moves'] if move['from_raw_texts'] == [text]]
+                self.assertEqual(len(moves), 1)
+                move = moves[0]
+                self.assertEqual(move['content_relationship'], 'type1')
+                self.assertEqual(move['to_raw_texts'], [text])
+                self.assertEqual(xpaths_to_files(move['from_xpaths']), [filename])
+                self.assertEqual(xpaths_to_files(move['to_xpaths']), [filename])
+
 
 if __name__ == '__main__':
     unittest.main()

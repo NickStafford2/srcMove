@@ -86,6 +86,14 @@ occurrence counts with atomic results. Annotation ID sets alone are insufficient
 the annotation helper does not resolve every annotated node's own XPath, so
 same-text occurrences still need independent location expectations.
 
+The interaction contracts explicitly resolve selected origin/destination nodes
+for balanced two-origin/two-added-copy groups, adjacent distinct copy groups,
+and a repeated-text reorder with a stationary occurrence. They require exactly
+those nodes to carry atomic annotations, excluding continuing destinations and
+stationary equal-text occurrences. Source archive contracts also cover identical
+basenames in different subdirectories and retain the full revision-relative
+filename in each admitted correspondence and selected endpoint.
+
 Keep source expectations and reviewer policy independent of current detector
 output. A missed positive remains a failing assertion. Changing or removing a
 behavior expectation requires review of its rationale; do not regenerate goldens
