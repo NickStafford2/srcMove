@@ -12,6 +12,16 @@ bool is_prefix(const std::vector<T> &prefix, const std::vector<T> &value) {
          std::equal(prefix.begin(), prefix.end(), value.begin());
 }
 
+bool shared_sibling_crossed(const endpoint_location_context &before,
+                            const endpoint_location_context &after) {
+  if (before.anchor_region_id.empty() || after.anchor_region_id.empty() ||
+      before.anchor_region_id != after.anchor_region_id) {
+    return false;
+  }
+  return before.common_sibling_prefix_count > after.common_sibling_suffix_begin ||
+         after.common_sibling_prefix_count > before.common_sibling_suffix_begin;
+}
+
 movement_observations observe(
     const endpoint_location_context &before,
     const std::vector<std::string> &before_ancestors,
@@ -44,7 +54,9 @@ movement_observations observe(
                           after.previous_common_anchor_id &&
                       before.next_common_anchor_id == after.next_common_anchor_id;
     result.anchor_interval = same ? anchor_interval_observation::same
-                                  : anchor_interval_observation::crossed;
+        : shared_sibling_crossed(before, after)
+            ? anchor_interval_observation::crossed
+            : anchor_interval_observation::unknown;
   }
 
   if (before.ancestor_summary_reliable &&
@@ -61,6 +73,24 @@ movement_observations observe(
     } else {
       result.ancestor = ancestor_observation::incompatible;
     }
+  }
+
+  // A common control header may contain one endpoint while its counterpart
+  // sits immediately outside after a wrapper is added/removed. Its shared
+  // rank intervals overlap or touch, so the control was not crossed as a
+  // sibling. Keep genuine disjoint sibling crossings authoritative.
+  const bool header_contains_endpoint =
+      before.common_sibling_prefix_count < before.common_sibling_suffix_begin ||
+      after.common_sibling_prefix_count < after.common_sibling_suffix_begin;
+  if (result.anchor_interval == anchor_interval_observation::unknown &&
+      before.anchor_interval_reliable && after.anchor_interval_reliable &&
+      result.semantic_container == semantic_container_observation::same_mapped &&
+      !before.anchor_region_id.empty() &&
+      before.anchor_region_id == after.anchor_region_id &&
+      header_contains_endpoint && !shared_sibling_crossed(before, after) &&
+      (result.ancestor == ancestor_observation::wrapped ||
+       result.ancestor == ancestor_observation::unwrapped)) {
+    result.anchor_interval = anchor_interval_observation::same;
   }
 
   return result;
@@ -103,6 +133,12 @@ movement_classification classify_movement(
       semantic_container_observation::unknown) {
     return classified(movement_kind::ambiguous,
                       movement_classification_reason::insufficient_context,
+                      observations);
+  }
+  if (before.structural_region_mapped && after.structural_region_mapped &&
+      before.structural_region_id != after.structural_region_id) {
+    return classified(movement_kind::relocated,
+                      movement_classification_reason::different_structural_region,
                       observations);
   }
   if (observations.anchor_interval == anchor_interval_observation::crossed) {
@@ -166,6 +202,12 @@ std::string_view to_string(movement_classification_reason value) noexcept {
     SRCMOVE_ENUM_STRING_CASE(
         movement_classification_reason::different_semantic_container,
         "different_semantic_container");
+    SRCMOVE_ENUM_STRING_CASE(
+        movement_classification_reason::stable_in_corresponding_region,
+        "stable_in_corresponding_region");
+    SRCMOVE_ENUM_STRING_CASE(
+        movement_classification_reason::different_structural_region,
+        "different_structural_region");
     SRCMOVE_ENUM_STRING_CASE(
         movement_classification_reason::crossed_stable_sibling,
         "crossed_stable_sibling");

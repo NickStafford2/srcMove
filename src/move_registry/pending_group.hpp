@@ -20,6 +20,10 @@ struct pending_group {
   match_kind                match        = match_kind::unmatched;
   std::vector<candidate_id> del_ids;
   std::vector<candidate_id> ins_ids;
+  // Exact residual destinations copied from an independently continuing origin.
+  bool continuing_source_copy = false;
+  // Residual equivalence must not become individual identity by elimination.
+  bool unresolved_exact_residual = false;
 };
 
 bool has_both_sides(const pending_group &group);

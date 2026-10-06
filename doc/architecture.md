@@ -18,6 +18,8 @@ describes endpoint cardinality and ambiguity. Reported moves are broader than
 classifier-confirmed relocation: individual Type-1, Type-2c, and Type-3 pairs
 require positive location evidence, while unresolved repeated exact groups
 require evidence of possible displacement without claiming individual partners.
+Explicit copies from an independently continuing origin are also reported;
+their additional destinations do not imply that the origin relocated.
 
 ## Implementation
 
@@ -78,17 +80,20 @@ elements and elements belonging only to the endpoint revision are included;
 elements exclusive to the opposite revision are not. Removing an incremental
 file compacts this side table to summaries still referenced by active
 candidates. After the streaming pass, complete common declarations, expressions,
-and conditionals (`decl_stmt`, `expr_stmt`, and `if_stmt`) with substantive text and unique exact
-canonical identity in a mapped container become stable anchors. Mixed or
-repeated constructs are excluded. Independent declaration, expression, and conditional
-collectors preserve unchanged statements inside mixed conditionals. Conditional capture
-restarts at each nested common `if_stmt`, retaining innermost conditionals even
-inside an edited outer conditional, with at most three canonicalizers active. Each mapped candidate receives the
-nearest nonoverlapping anchors by their end/start positions, independent of
-collection order, falling back to container-begin and container-end sentinels.
-This exposes crossings of unchanged conditionals without tree rematching.
-Enclosing conditionals are not also retained as anchors; repeated innermost
-conditionals can therefore still leave order unresolved.
+and control statements with substantive text and unique exact canonical identity
+in a mapped source region become stable anchors. Complete common control
+statements and unchanged common control headers can establish sibling boundaries;
+the latter remain usable when the body is edited. Mixed headers and repeated
+identities cannot provide that evidence. Bounded collectors retain inner and
+outer control statements without capturing every nested subtree independently.
+Anchors are scoped to their physical common block or control region, so a call
+inside another branch is not an outer sibling. Each mapped candidate receives
+nearest nonoverlapping anchors, plus prefix/suffix ranks of eligible common
+siblings. Matching anchor scopes and opposite-side rank overlap establish a
+crossing; different nearest-anchor names alone do not. Crossing context may
+extend through an added exclusive wrapper to its common outer region, while
+immediate structural identity remains separate. This preserves real movement
+into wrappers and past edited conditionals without flattening branch contents.
 Unmapped candidates retain unreliable anchor intervals. Production selection
 consumes this context for individual Type-1, Type-2c, and Type-3 correspondences.
 
@@ -104,9 +109,9 @@ model, not universal categories of source-code changes.
 
 | Implementation label | Meaning under the current policy |
 | --- | --- |
-| `relocated` | Different revision-specific file paths, different mapped enclosing constructs, or a crossed reliable anchor interval provide relocation evidence. |
+| `relocated` | Different revision-specific file paths, different mapped enclosing constructs or immediate common structural regions, or crossing a shared common sibling provide relocation evidence. |
 | `stationary` | Within the same file and mapped container, reliable anchor intervals and interpretable ancestor summaries agree. A later carrying check also uses this label for a child stable relative to a relocated parent. |
-| `restructured` | Within the same file, mapped container, and reliable anchor interval, an interpretable ancestor summary is a strict prefix of the other, indicating the supported wrapping or unwrapping pattern. |
+| `restructured` | Within the same file and mapped container, an interpretable ancestor summary is a strict prefix of the other. Reliable equal intervals or overlapping shared-region ranks involving containment in a common control establish the supported wrapping or unwrapping pattern; actual crossing retains precedence. |
 | `ambiguous` | Evidence required by the reached classification rule is missing, or the ancestry cannot be interpreted as one of the supported relationships. This is location uncertainty, not uncertainty about which candidates correspond. |
 
 The rules are ordered: a changed file path establishes `relocated` before
@@ -266,11 +271,12 @@ builds all supported evidence before selection. Pure ranking and descendant
 bundle policy, including its declared constants, lives in
 [`src/move_registry/selection_policy.cpp`](../src/move_registry/selection_policy.cpp):
 
-1. forms exact canonical-text groups and refines fully resolved balanced repeats
-   using established exact sibling correspondences
+1. forms exact canonical-text groups and refines independently supported portions
+   of repeated groups using original exact sibling and region correspondences
 2. classifies unique one-to-one exact correspondences and admits only supported
    relocations to production proposal selection; non-1x1 exact groups require
-   positive evidence for at least one possible relocated pairing
+   positive evidence for at least one possible relocated pairing, except explicit
+   additional copies from an independently continuing origin
 3. groups eligible constructs by exact Type-2c representation, classifies unique
    pairs, and reserves their endpoint identities
 4. generates Type-3 edges for remaining structurally compatible candidates and
@@ -289,32 +295,52 @@ bundle policy, including its declared constants, lives in
 Repeated exact equivalence classes with supported possible displacement are
 retained as multi-endpoint move/copy groups with ambiguity-aware confidence;
 they do not claim an individual pairing. The gate compares actual proposal
-endpoints for differing known files, differing mapped containers in a known
-file, or differing reliable anchor intervals in a mapped container. It uses
-linear scans and constant representative state rather than expanding a pair
-product. Groups without any such evidence remain unmatched. A group can still
+endpoints for differing known files, differing mapped containers or immediate
+common regions, or an actual shared-sibling crossing. It aggregates sibling
+ranks by scope rather than expanding a pair product. Groups without any such
+evidence remain unmatched. A group can still
 be eligible when a stationary assignment is also possible: existential location
 evidence does not resolve identity or prove that every endpoint relocated.
 Repeated Type-2c classes remain unresolved because normalization has
 already removed distinguishing content, and document order alone is not
 correspondence evidence.
 
-Balanced repeated Type-1 classes can instead become individual pairs when
-every endpoint has a mutually unique partner supported by immediately adjacent
-original unique exact structural siblings. Conflicting neighbors, incomplete
-resolution, unreliable or duplicate sibling positions, and unequal counts leave
-the original class intact. Newly inferred pairs never seed more matches. At most
-two partners are nominated per deletion, avoiding an exhaustive repeated-group
-pair product. Single-child diff-wrapper aliases inherit fully established child
-pairs so unresolved aliases cannot override their identity or output policy.
-Incomplete single-child wrapper coverage is withheld from proposal selection so
-aliases cannot reopen established child identity. Resolved pairs use ordinary
-movement classification and hierarchy selection;
-selected proposals carry `selection_reason: exact_neighbor_correspondence`.
+Repeated Type-1 classes can become partial individual pairs through mutually
+unique original sibling evidence. A local parent correspondence requires at least
+two original unique exact siblings to agree on one parent partner, preserve their
+order, and have compatible file, container, and ancestor context. This can
+resolve repeated statements within an edited loop or block. It never overrides
+independently established displacement of that region. Newly inferred pairs do
+not seed further matches, and elimination alone does not assign residual partners.
+Single-child wrapper aliases inherit established child pairs individually, so
+incomplete wrapper coverage cannot reopen a continuing child as a move.
+
+Unresolved endpoints retain equivalence meaning. When all original origins have
+independently continuing partners, additional exact destinations retain explicit
+copy provenance from those origins, excluding the continuing destinations.
+These reports use `selection_reason: continuing_source_copy` and the
+`copy_or_repeat` group kind even for one additional destination. Copies do not
+require displacement of their continuing origin. When unmatched original origins
+remain, the residual group does not assert copying from a known continuing origin.
+Ordinary resolved moved pairs use `selection_reason: exact_neighbor_correspondence`.
+
+A one-to-one residual is still unresolved when it arose solely by subtracting
+supported partners. It retains `copy_or_repeat` group kind and
+`selection_reason: unresolved_exact_residual`; it cannot enter the unique
+correspondence classifier or an ordered sequence. Region-relative continuation
+is recorded as `stable_in_corresponding_region` in location diagnostics.
+
+Region correspondence and common-source anchors do not completely assign which
+region moved when code is hoisted across another continuing region. In the
+reviewed OpenCV accumulation change, the universal prelude is hoisted while the
+AVX prelude is wrapped; the remaining AVX prelude reports still attribute the
+crossing to that code. Resolving this conservatively requires additional region
+evidence. Different nearest-anchor names no longer suffice to report a move,
+but trustworthy crossing evidence does not by itself settle that attribution.
 
 The neighbor-evidence idea is adapted from RefactoringMiner's
 [`CustomTopDownMatcher`](https://github.com/tsantalis/RefactoringMiner/blob/4d08e547cfe572ed8e58993b7c1303253142d4ac/src/main/java/org/refactoringminer/astDiff/matchers/vanilla/CustomTopDownMatcher.java#L462).
-This implementation requires complete mutual resolution and preserves separate
+This implementation requires independent mutual support and preserves separate
 location eligibility; it does not import RefactoringMiner's AST framework.
 
 Type-3 uses a NiCad-inspired sequence rule implemented directly in srcMove; no
@@ -446,6 +472,9 @@ pairs and whether a verified edge was selected. Each correspondence also says
 whether current selection emitted it as a move. The legacy `shadow_change` field
 names the location outcome for all three evidence types. File, mapped-container,
 anchor-interval, relative-order, and ancestor observations are explicit.
+Endpoint contexts also expose immediate `structural_region_id` and mapping
+status, outer `anchor_region_id`, and common-sibling prefix/suffix ranks used
+for crossing decisions.
 An optional `identity_reason` separately records continuing-name corroboration,
 contradiction, or an unsupported changed-name declaration. `identity_status`
 is explicit in correspondence diagnostics, selected atomic moves, and primary
@@ -607,7 +636,9 @@ The JSON contract distinguishes evidence, endpoint cardinality, and counts:
   contents' classification; `content_relationships` counts groups by prediction.
 - `group_kinds` classifies endpoint cardinality: `move_1_to_1` is one deletion
   and one insertion, `moves_many` has equal counts greater than one, and
-  `copy_or_repeat` has unequal nonzero counts. `delete_only` and `insert_only`
+  `copy_or_repeat` normally has unequal nonzero counts; explicit continuing-source
+  copies and unresolved residuals also use this kind, including one-to-one
+  cardinality. `delete_only` and `insert_only`
   describe one-sided groups. The count classifier uses `ambiguous` for zero
   endpoints on both sides; this label is distinct from location ambiguity.
 - `move_group_count` counts selected groups. The legacy `move_count` field is an
@@ -658,10 +689,11 @@ performance result for arbitrary projects.
 - The selector uses deterministic greedy utility selection plus a local
   parent-versus-descendant bundle comparison. It is not a general hierarchy or
   graph optimizer.
-- Exact repeats retain group-level correspondence unless a balanced class fully
-  resolves through established immediate exact neighbors. Partial and unequal
-  groups remain unresolved and require possible displacement evidence for output.
-  Ambiguous Type-2c repeats remain unresolved.
+- Exact repeats retain group-level correspondence for portions lacking
+  independent sibling or local-region evidence. Partial and unequal classes may
+  contain both supported individual correspondences and unresolved residuals.
+  Residual move groups require possible displacement evidence; explicit copies
+  retain a proven continuing origin. Ambiguous Type-2c repeats remain unresolved.
 - Type-3 retrieval uses kind and size windows but not an approximate-neighbor
   index or configurable top-`k` shortlist.
 - Type-4 moves are not supported.

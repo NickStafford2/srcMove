@@ -87,8 +87,25 @@ class ExactNeighborCorrespondenceTests(unittest.TestCase):
 
     def test_partial_resolution_does_not_infer_partner_by_elimination(self):
         repeat, unique = expression('repeat_work'), expression('unique_a')
-        self.assert_unresolved(self.evaluate([repeat, repeat, unique],
-                                            [repeat, repeat, unique]))
+        payload = self.evaluate([repeat, repeat, unique], [repeat, repeat, unique])
+        moves = self.repeated_moves(payload)
+        self.assertEqual(len(moves), 2)
+        supported = next(move for move in moves
+                         if move['selection_reason'] == 'exact_neighbor_correspondence')
+        residual = next(move for move in moves
+                        if move['selection_reason'] == 'unresolved_exact_residual')
+        # Only the repeat immediately before the original unique statement has
+        # independent evidence. The first occurrence remains an equivalence.
+        self.assertIn('/diff:delete[2]/', supported['from_xpaths'][0])
+        self.assertIn('/diff:insert[2]/', supported['to_xpaths'][0])
+        self.assertIn('/diff:delete[1]/', residual['from_xpaths'][0])
+        self.assertIn('/diff:insert[1]/', residual['to_xpaths'][0])
+        self.assertEqual(payload['group_kinds']['copy_or_repeat'], 1)
+        self.assertTrue(all(residual['move_id'] not in sequence['member_move_ids']
+                            for sequence in payload['move_sequences']))
+        fixture.MoveSequenceTests().assert_runs(payload, [
+            ['repeat_work(state);', 'unique_a(state);'],
+        ])
 
     def test_conflicting_neighbors_preserve_whole_group(self):
         repeat, a, b, c, d = [expression(name) for name in

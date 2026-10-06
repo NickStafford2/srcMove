@@ -204,7 +204,17 @@ inline void write_selection_diagnostics(std::ostream &out,
       out << ",\n";
       out << field_pad << "\"ancestor_summary_interpretable\": "
           << (context.ancestor_summary_interpretable ? "true" : "false")
-          << "\n" << pad << "}";
+          << ",\n";
+      out << field_pad << "\"structural_region_id\": ";
+      write_string(out, context.structural_region_id); out << ",\n";
+      out << field_pad << "\"structural_region_mapped\": "
+          << (context.structural_region_mapped ? "true" : "false") << ",\n";
+      out << field_pad << "\"common_sibling_prefix_count\": "
+          << context.common_sibling_prefix_count << ",\n";
+      out << field_pad << "\"common_sibling_suffix_begin\": "
+          << context.common_sibling_suffix_begin << ",\n";
+      out << field_pad << "\"anchor_region_id\": ";
+      write_string(out, context.anchor_region_id); out << "\n" << pad << "}";
     };
     out << "      {\n";
     out << "        \"delete_candidate_id\": " << item.delete_candidate_id

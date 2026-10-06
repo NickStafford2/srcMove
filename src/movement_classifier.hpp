@@ -17,6 +17,8 @@ enum class movement_classification_reason {
   same_anchor_interval,
   different_file,
   different_semantic_container,
+  different_structural_region,
+  stable_in_corresponding_region,
   crossed_stable_sibling,
   ancestor_wrapped,
   ancestor_unwrapped,

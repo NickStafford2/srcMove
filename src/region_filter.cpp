@@ -350,6 +350,9 @@ struct source_element_frame {
   std::string container_id;
   std::string container_label;
   std::optional<std::size_t> label_target;
+  std::string common_control_header;
+  std::string header_container_id;
+  std::string header_region_id;
 };
 
 bool is_semantic_container_name(std::string_view name) {
@@ -398,14 +401,24 @@ struct ancestor_summary_interner {
 struct pending_common_anchor {
   canonical_forms_builder forms;
   std::string              container_id;
+  std::string              structural_region_id;
   std::size_t              start_idx = 0;
   std::size_t              substantive_common = 0;
   int                      depth = 0;
   bool                     mixed = false;
 };
 
+struct pending_control_header {
+  canonical_forms_builder forms;
+  std::size_t control_frame_index = 0;
+  std::size_t substantive_common = 0;
+  int depth = 0;
+  bool mixed = false;
+};
+
 struct common_anchor {
   std::string container_id;
+  std::string structural_region_id;
   std::string canonical_identity;
   std::string stable_id;
   std::size_t start_idx = 0;
@@ -453,6 +466,35 @@ struct continuing_statement {
   bool invalid = false;
 };
 
+// Source identity requires an immediate physically common region. Crossing
+// evidence may project through exclusive wrappers to a common outer region,
+// where it still uses only that region's actual common siblings.
+std::string common_structural_region(
+    const std::vector<source_element_frame> &source_elements,
+    std::size_t ancestor_count, bool skip_exclusive = false) {
+  for (std::size_t index = ancestor_count; index-- > 0;) {
+    const auto &frame = source_elements[index];
+    if (frame.name == "block" || frame.name == "if" ||
+        frame.name == "else" || frame.name == "for" ||
+        frame.name == "foreach" || frame.name == "while" ||
+        frame.name == "do" || frame.name == "switch") {
+      if (frame.membership != revision_membership::both) {
+        if (skip_exclusive) continue;
+        return {};
+      }
+      if (!frame.sequence_allowed[0] || !frame.sequence_allowed[1]) {
+        return {};
+      }
+      return frame.name + ":" + std::to_string(frame.start_idx);
+    }
+    if (frame.semantic_container || frame.name == "lambda" ||
+        frame.name == "macro") {
+      return {};
+    }
+  }
+  return {};
+}
+
 endpoint_location_context snapshot_location_context(
     move_candidate::Kind kind, std::string_view filename,
     const std::vector<source_element_frame> &source_elements,
@@ -478,6 +520,11 @@ endpoint_location_context snapshot_location_context(
     context.semantic_container_mapped = true;
   }
   if (mapped_container_index) {
+    context.structural_region_id = common_structural_region(source_elements,
+                                                           ancestor_count);
+    context.structural_region_mapped = !context.structural_region_id.empty();
+    context.anchor_region_id = common_structural_region(source_elements,
+                                                        ancestor_count, true);
     const revision_membership side = membership_for(kind);
     std::vector<std::string> chain;
     context.ancestor_summary_interpretable = true;
@@ -507,6 +554,8 @@ void resolve_anchor_intervals(std::vector<move_candidate> &candidates,
   for (const common_anchor &anchor : anchors) {
     std::string key = anchor.container_id;
     key.push_back('\0');
+    key += anchor.structural_region_id;
+    key.push_back('\0');
     key += anchor.canonical_identity;
     ++identity_counts[key];
   }
@@ -517,21 +566,35 @@ void resolve_anchor_intervals(std::vector<move_candidate> &candidates,
       continue;
     }
 
-    context.previous_common_anchor_id =
-        context.semantic_container_id + ":begin";
+    context.previous_common_anchor_id = context.semantic_container_id + ":begin";
     context.next_common_anchor_id = context.semantic_container_id + ":end";
 
     const common_anchor *previous = nullptr;
     const common_anchor *next = nullptr;
+    std::size_t mapped_siblings = 0;
+    std::size_t following_siblings = 0;
     for (const common_anchor &anchor : anchors) {
-      if (anchor.container_id != context.semantic_container_id) {
+      if (anchor.container_id != context.semantic_container_id ||
+          (!context.anchor_region_id.empty() &&
+           anchor.structural_region_id != context.anchor_region_id)) {
         continue;
       }
       std::string key = anchor.container_id;
       key.push_back('\0');
+      key += anchor.structural_region_id;
+      key.push_back('\0');
       key += anchor.canonical_identity;
       if (identity_counts[key] != 1) {
         continue;
+      }
+      if (!context.anchor_region_id.empty()) {
+        ++mapped_siblings;
+        if (anchor.end_idx < candidate.start_idx) {
+          ++context.common_sibling_prefix_count;
+        } else if (anchor.start_idx > candidate.end_idx) {
+          // Count the suffix separately, then convert it to its start rank.
+          ++following_siblings;
+        }
       }
       if (anchor.end_idx < candidate.start_idx &&
           (previous == nullptr || anchor.end_idx > previous->end_idx)) {
@@ -541,6 +604,7 @@ void resolve_anchor_intervals(std::vector<move_candidate> &candidates,
         next = &anchor;
       }
     }
+    context.common_sibling_suffix_begin = mapped_siblings - following_siblings;
     if (previous != nullptr) {
       context.previous_common_anchor_id = previous->stable_id;
     }
@@ -811,9 +875,12 @@ collect_candidates_streaming(srcml_reader                &reader,
   std::size_t sequence_file_unit_id = 0;
   ancestor_summary_interner ancestor_summaries;
   // Independent collectors preserve declaration and expression anchors inside
-  // mixed conditionals. Restarting conditional capture at nested ifs bounds
-  // canonicalization work; only one construct per kind is captured at a time.
-  std::optional<pending_common_anchor> pending_anchors[3];
+  // mixed controls. Inner and outer control collectors retain complete sibling
+  // boundaries around nested ifs/loops without recursive canonicalization.
+  // Each collector captures at most one construct, keeping work bounded.
+  std::optional<pending_common_anchor> pending_anchors[4];
+  std::unordered_set<std::size_t> recorded_anchor_starts;
+  std::optional<pending_control_header> pending_header;
   std::vector<common_anchor> common_anchors;
   std::optional<continuing_statement> continuing;
   std::unordered_map<std::string, std::shared_ptr<continuing_name_evidence>> name_evidence;
@@ -975,12 +1042,14 @@ collect_candidates_streaming(srcml_reader                &reader,
         }
       }
     }
-    for (std::size_t slot = 0; slot < 3; ++slot) {
+    for (std::size_t slot = 0; slot < 4; ++slot) {
       auto &pending_anchor = pending_anchors[slot];
       const bool anchor_start =
           slot == 0 ? node.name == "decl_stmt"
-          : slot == 1 ? node.name == "if_stmt"
-                      : node.name == "expr_stmt";
+          : slot == 2 ? node.name == "expr_stmt"
+                      : (node.name == "if_stmt" || node.name == "for" ||
+                         node.name == "foreach" || node.name == "while" ||
+                         node.name == "do" || node.name == "switch");
       if (node.is_start() && anchor_start &&
           (!pending_anchor || slot == 1) &&
           effective == revision_membership::both) {
@@ -990,6 +1059,8 @@ collect_candidates_streaming(srcml_reader                &reader,
           pending_anchor.emplace();
           pending_anchor->container_id =
               source_elements[*container_index].container_id;
+          pending_anchor->structural_region_id = common_structural_region(
+              source_elements, source_elements.size());
           pending_anchor->start_idx = node_index;
         }
       }
@@ -1001,6 +1072,58 @@ collect_candidates_streaming(srcml_reader                &reader,
         if (effective != revision_membership::both) {
           pending_anchor->mixed = true;
         }
+      }
+    }
+
+    // A physically common control with an unchanged header is a mapped
+    // sibling even when its body contains edits. Capture only one header at
+    // a time, then extend its boundary to the common control's complete span.
+    if (!pending_header && node.is_start() && !source_elements.empty() &&
+        effective == revision_membership::both && ignored_evidence_depth == 0 &&
+        sequence_unknown_diff_depth == 0) {
+      std::size_t control_index = source_elements.size() - 1;
+      const auto &parent = source_elements[control_index];
+      const bool header_start =
+          (node.name == "condition" &&
+           (parent.name == "if" || parent.name == "while" ||
+            parent.name == "do" || parent.name == "switch")) ||
+          (node.name == "control" &&
+           (parent.name == "for" || parent.name == "foreach"));
+      if (header_start && parent.membership == revision_membership::both &&
+          parent.sequence_allowed[0] && parent.sequence_allowed[1]) {
+        if (parent.name == "if" && control_index > 0 &&
+            source_elements[control_index - 1].name == "if_stmt") {
+          --control_index;
+        }
+        const auto container = nearest_common_container_index(
+            source_elements, control_index);
+        const auto region = common_structural_region(source_elements,
+                                                     control_index);
+        if (container && !region.empty()) {
+          pending_header.emplace();
+          pending_header->control_frame_index = control_index;
+          auto &control = source_elements[control_index];
+          control.header_container_id = source_elements[*container].container_id;
+          control.header_region_id = region;
+        }
+      }
+    }
+    if (pending_header) {
+      if (node.is_start()) ++pending_header->depth;
+      pending_header->forms.consume(node);
+      if (effective != revision_membership::both || unknown_diff_element ||
+          full_name.rfind("cpp:", 0) == 0) pending_header->mixed = true;
+      if (node.is_text() && node.content && ignored_evidence_depth == 0 &&
+          any_substantive_text(*node.content)) ++pending_header->substantive_common;
+      if (node.is_end() && --pending_header->depth == 0) {
+        auto forms = pending_header->forms.finish();
+        if (!pending_header->mixed && pending_header->substantive_common != 0 &&
+            !forms.exact.empty()) {
+          auto &control = source_elements[pending_header->control_frame_index];
+          control.common_control_header = "control-header:" + control.name +
+                                          ":" + forms.exact;
+        }
+        pending_header.reset();
       }
     }
 
@@ -1217,9 +1340,12 @@ collect_candidates_streaming(srcml_reader                &reader,
         if (pending_anchor->depth == 0) {
           canonical_forms forms = pending_anchor->forms.finish();
           if (!pending_anchor->mixed &&
-              pending_anchor->substantive_common != 0 && !forms.exact.empty()) {
+              pending_anchor->substantive_common != 0 && !forms.exact.empty() &&
+              recorded_anchor_starts.insert(pending_anchor->start_idx).second) {
             common_anchor anchor;
             anchor.container_id = std::move(pending_anchor->container_id);
+            anchor.structural_region_id =
+                std::move(pending_anchor->structural_region_id);
             anchor.canonical_identity = std::move(forms.exact);
             anchor.start_idx = pending_anchor->start_idx;
             anchor.end_idx = node_index;
@@ -1247,6 +1373,19 @@ collect_candidates_streaming(srcml_reader                &reader,
     if (node.is_end() && source_element) {
       if (source_elements.empty() || source_elements.back().name != node.name) {
         throw std::runtime_error("mismatched source element nesting");
+      }
+      auto &frame = source_elements.back();
+      if (!frame.common_control_header.empty() &&
+          recorded_anchor_starts.insert(frame.start_idx).second) {
+        common_anchor anchor;
+        anchor.container_id = std::move(frame.header_container_id);
+        anchor.structural_region_id = std::move(frame.header_region_id);
+        anchor.canonical_identity = std::move(frame.common_control_header);
+        anchor.start_idx = frame.start_idx;
+        anchor.end_idx = node_index;
+        anchor.stable_id = anchor.container_id + ":anchor:" +
+                           std::to_string(anchor.start_idx);
+        common_anchors.push_back(std::move(anchor));
       }
       source_elements.pop_back();
     }

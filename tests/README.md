@@ -144,13 +144,18 @@ misses fail `make test`; hypothesis misses remain observations. Promote a
 hypothesis only after its expected behavior is accepted as stable.
 
 Unsupported repeated exact fragments retain one multi-endpoint equivalence group
-when positive possible-displacement evidence exists. Fully context-resolved
-balanced groups can instead yield explicit pairs. The
+when positive possible-displacement evidence exists. Independently supported
+portions can instead yield explicit pairs, including inside unequal groups.
+`test_partial_correspondence.py`, `test_anchor_crossing.py`, and
+`test_correspondence_recall_review.py` check continuing-region resolution,
+retained copy provenance, and real relocation across controls and wrappers. The
 `1x2_basic` and `2x1_basic` cases are therefore positive copy/repeat-group
 contracts with explicit distinct revision paths supplying displacement evidence.
 The same-file examples without positive location evidence are negative contracts
 in the repeated-group location suite. Unequal `NxM` groups have the same
-meaning; balanced many-to-many groups use `moves_many`. `move_pair_count`
+meaning; balanced many-to-many groups normally use `moves_many`. Explicit
+continuing-source copies and unresolved residuals use `copy_or_repeat`, including
+one-to-one residuals that cannot supply ordered sequence partners. `move_pair_count`
 records the maximum non-reusing pair count (`min(deletes, inserts)`), but the
 group does not claim which indistinguishable endpoint pairs with which.
 Ambiguous Type-2c fragments remain unresolved because normalization removed

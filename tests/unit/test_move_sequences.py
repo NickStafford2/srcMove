@@ -201,8 +201,19 @@ class MoveSequenceTests(unittest.TestCase):
     def test_repeated_group_does_not_choose_ordered_partners(self):
         a, b = decl('repeat'), decl('unique')
         payload = self.evaluate(document([a, a, b], [a, a, b]))
-        self.assertTrue(any(len(m['from_xpaths']) > 1 for m in payload['moves']))
-        self.assert_runs(payload, [])
+        residual = next(move for move in payload['moves']
+                        if move['selection_reason'] == 'unresolved_exact_residual')
+        supported = next(move for move in payload['moves']
+                         if move['selection_reason'] == 'exact_neighbor_correspondence')
+        self.assertEqual(residual['from_raw_texts'], ['int repeat = 1;'])
+        self.assertIn('/diff:delete[1]/', residual['from_xpaths'][0])
+        self.assertIn('/diff:insert[1]/', residual['to_xpaths'][0])
+        self.assertIn('/diff:delete[2]/', supported['from_xpaths'][0])
+        self.assertIn('/diff:insert[2]/', supported['to_xpaths'][0])
+        self.assertEqual(payload['group_kinds']['copy_or_repeat'], 1)
+        self.assertTrue(all(residual['move_id'] not in sequence['member_move_ids']
+                            for sequence in payload['move_sequences']))
+        self.assert_runs(payload, [['int repeat = 1;', 'int unique = 1;']])
 
     def test_filtered_destination_child_gap_does_not_join(self):
         a, b = decl('a'), decl('b')

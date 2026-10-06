@@ -18,6 +18,20 @@ struct endpoint_location_context {
   // this does not imply behavioral or binding analysis.
   std::string semantic_container_id;
   std::string semantic_container_label;
+  // Physical common source block or unbraced control body containing this
+  // endpoint. A region inside a one-sided wrapper is not mapped by its
+  // surrounding function alone.
+  std::string structural_region_id;
+  bool structural_region_mapped = false;
+  // Nearest physically common enclosing region, looking through exclusive
+  // wrappers only to test crossings of its actual common sibling statements.
+  // This does not establish identity of any skipped one-sided region.
+  std::string anchor_region_id;
+  // Ranks in one shared ordered universe of complete unique common siblings.
+  // [0, prefix_count) precedes the endpoint; [suffix_begin, count) follows it.
+  // Comparing these ranks is valid only for the same nonempty anchor_region_id.
+  std::size_t common_sibling_prefix_count = 0;
+  std::size_t common_sibling_suffix_begin = 0;
   std::string previous_common_anchor_id;
   std::string next_common_anchor_id;
   std::size_t ancestor_summary_id = 0;

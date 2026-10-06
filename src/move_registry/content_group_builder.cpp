@@ -26,6 +26,7 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
+#include <unordered_set>
 #include <utility>
 #include <vector>
 
@@ -79,7 +80,9 @@ void add_group(content_groups                  &out,
                std::uint32_t matched_units = 0,
                std::string selection_reason = {},
                std::string identity_status = {},
-               std::string identity_reason = {}) {
+               std::string identity_reason = {},
+               bool continuing_source_copy = false,
+               bool unresolved_exact_residual = false) {
   const std::uint32_t group_id  = static_cast<std::uint32_t>(out.group_count());
   const std::uint32_t del_begin = out.append_delete_ids(del_ids);
   const std::uint32_t del_size  = static_cast<std::uint32_t>(del_ids.size());
@@ -87,7 +90,8 @@ void add_group(content_groups                  &out,
   const std::uint32_t ins_begin = out.append_insert_ids(ins_ids);
   const std::uint32_t ins_size  = static_cast<std::uint32_t>(ins_ids.size());
   const std::uint32_t ins_end   = ins_begin + ins_size;
-  const group_kind    kind = classify_counts(del_ids.size(), ins_ids.size());
+  const group_kind    kind = (continuing_source_copy || unresolved_exact_residual) ? group_kind::copy_or_repeat
+      : classify_counts(del_ids.size(), ins_ids.size());
 
   if (identity_status.empty())
     identity_status = match == match_kind::type1 ? "exact" : "unassessed";
@@ -150,7 +154,8 @@ void add_selected_group(content_groups           &out,
   add_group(out, group.content_hash, group.del_ids, group.ins_ids, group.match,
             confidence_milli, selection_utility, matched_units,
             std::move(selection_reason), std::move(identity_status),
-            std::move(identity_reason));
+            std::move(identity_reason), group.continuing_source_copy,
+            group.unresolved_exact_residual);
   selection.mark_selected(group, registry);
 }
 
@@ -250,6 +255,11 @@ endpoint_context_diagnostic endpoint_diagnostic(
       context.next_common_anchor_id,
       ancestor_summary(registry, candidate),
       context.ancestor_summary_interpretable,
+      context.structural_region_id,
+      context.structural_region_mapped,
+      context.common_sibling_prefix_count,
+      context.common_sibling_suffix_begin,
+      context.anchor_region_id,
   };
 }
 
@@ -412,7 +422,8 @@ classify_unique_correspondences(
     const std::vector<pending_group> &groups) {
   std::vector<correspondence_decision> decisions;
   for (const pending_group &group : groups) {
-    if (group.del_ids.size() != 1 || group.ins_ids.size() != 1) {
+    if (group.continuing_source_copy || group.unresolved_exact_residual ||
+        group.del_ids.size() != 1 || group.ins_ids.size() != 1) {
       continue;
     }
     const candidate_id del_id = group.del_ids.front();
@@ -627,11 +638,12 @@ std::vector<candidate_id> non_overlapping_exact_endpoints(
 }
 
 // Exact identity alone cannot assign repeated endpoints. Use only original
-// unique exact sibling pairs as independent context, and refine a balanced
-// group only when every endpoint has a mutually unique supported partner.
+// unique exact sibling pairs as independent context. Accept each mutually
+// unique supported pair; unresolved endpoints retain equivalence meaning.
 std::vector<bool> refine_repeated_exact_groups(
     const candidate_registry &registry, std::vector<pending_group> &groups,
-    std::vector<bool> &suppressed_aliases) {
+    std::vector<bool> &suppressed_aliases,
+    std::vector<bool> &continuing_ids) {
   const candidate_id missing = std::numeric_limits<candidate_id>::max();
   using position = std::tuple<move_candidate::Kind, std::string, std::string,
                               std::size_t>;
@@ -645,10 +657,11 @@ std::vector<bool> refine_repeated_exact_groups(
   };
   std::vector<bool> refined_ids(registry.total_record_count(), false);
   suppressed_aliases.assign(registry.total_record_count(), false);
+  continuing_ids.assign(registry.total_record_count(), false);
   const bool has_repeated_children = std::any_of(
       groups.begin(), groups.end(), [&](const pending_group &group) {
-        return group.del_ids.size() > 1 &&
-               group.del_ids.size() == group.ins_ids.size() &&
+        return !group.del_ids.empty() && !group.ins_ids.empty() &&
+               (group.del_ids.size() > 1 || group.ins_ids.size() > 1) &&
                std::all_of(group.del_ids.begin(), group.del_ids.end(),
                    [&](candidate_id id) { return reliable(registry.candidate(id)); }) &&
                std::all_of(group.ins_ids.begin(), group.ins_ids.end(),
@@ -694,12 +707,60 @@ std::vector<bool> refine_repeated_exact_groups(
       seeds[ins] = del;
     }
   }
+  // Learn a region only from original unique exact statements. At least two
+  // independent siblings must agree on one destination and preserve their
+  // relative order. Repeated pairs never feed this map.
+  using parent_key = std::pair<std::string, std::string>;
+  const auto parent = [](const move_candidate &candidate) {
+    return parent_key{candidate.location.revision_file, candidate.sequence_parent_id};
+  };
+  struct parent_vote {
+    parent_key partner;
+    bool conflicting = false;
+    std::vector<std::pair<candidate_id, candidate_id>> seeds;
+  };
+  std::map<parent_key, parent_vote> forward_parents, reverse_parents;
+  const auto add_vote = [](auto &votes, const parent_key &source,
+                            const parent_key &target, candidate_id del, candidate_id ins) {
+    auto [found, inserted] = votes.emplace(source, parent_vote{target, false, {}});
+    if (!inserted && found->second.partner != target) found->second.conflicting = true;
+    found->second.seeds.emplace_back(del, ins);
+  };
+  for (candidate_id del = 0; del < seeds.size(); ++del) {
+    if (seeds[del] == missing || registry.candidate(del).kind != move_candidate::Kind::del) continue;
+    const candidate_id ins = seeds[del];
+    const auto &before = registry.candidate(del), &after = registry.candidate(ins);
+    if (before.location.revision_file != after.location.revision_file ||
+        !before.location.semantic_container_mapped || !after.location.semantic_container_mapped ||
+        before.location.semantic_container_id != after.location.semantic_container_id ||
+        !before.location.ancestor_summary_reliable || !after.location.ancestor_summary_reliable ||
+        !before.location.ancestor_summary_interpretable || !after.location.ancestor_summary_interpretable ||
+        ancestor_summary(registry, before) != ancestor_summary(registry, after)) continue;
+    add_vote(forward_parents, parent(before), parent(after), del, ins);
+    add_vote(reverse_parents, parent(after), parent(before), del, ins);
+  }
+  std::map<parent_key, parent_vote> corresponding_parents;
+  for (auto &[source, vote] : forward_parents) {
+    const auto reverse = reverse_parents.find(vote.partner);
+    if (vote.conflicting || vote.seeds.size() < 2 || reverse == reverse_parents.end() ||
+        reverse->second.conflicting || reverse->second.partner != source) continue;
+    std::sort(vote.seeds.begin(), vote.seeds.end(), [&](const auto &left, const auto &right) {
+      return registry.candidate(left.first).sequence_sibling_ordinal <
+             registry.candidate(right.first).sequence_sibling_ordinal;
+    });
+    bool ordered = true;
+    for (std::size_t i = 1; i < vote.seeds.size(); ++i)
+      if (registry.candidate(vote.seeds[i - 1].second).sequence_sibling_ordinal >=
+          registry.candidate(vote.seeds[i].second).sequence_sibling_ordinal) ordered = false;
+    if (ordered) corresponding_parents.emplace(source, std::move(vote));
+  }
   std::vector<candidate_id> inferred_partners(registry.total_record_count(), missing);
   std::vector<pending_group> refined;
   refined.reserve(groups.size());
   for (const pending_group &group : groups) {
     const std::size_t count = group.del_ids.size();
-    bool eligible = count > 1 && count == group.ins_ids.size();
+    const std::size_t insert_count = group.ins_ids.size();
+    bool eligible = count > 0 && insert_count > 0 && (count > 1 || insert_count > 1);
     const auto eligible_side = [&](const std::vector<candidate_id> &ids) {
       if (!std::all_of(ids.begin(), ids.end(), [&](candidate_id id) {
             const auto &candidate = registry.candidate(id);
@@ -725,14 +786,21 @@ std::vector<bool> refine_repeated_exact_groups(
       continue;
     }
     std::unordered_map<candidate_id, std::size_t> insert_indices;
-    for (std::size_t i = 0; i < count; ++i) insert_indices.emplace(group.ins_ids[i], i);
+    for (std::size_t i = 0; i < insert_count; ++i) insert_indices.emplace(group.ins_ids[i], i);
     struct best_partner {
       candidate_id id;
       int score = 0;
       bool tied = false;
     };
     std::vector<best_partner> delete_best(count, best_partner{missing});
-    std::vector<best_partner> insert_best(count, best_partner{missing});
+    std::vector<best_partner> insert_best(insert_count, best_partner{missing});
+    std::map<parent_key, std::size_t> delete_parent_counts;
+    std::map<parent_key, candidate_id> insert_parent_members;
+    for (candidate_id del : group.del_ids) ++delete_parent_counts[parent(registry.candidate(del))];
+    for (candidate_id ins : group.ins_ids) {
+      auto [found, inserted] = insert_parent_members.emplace(parent(registry.candidate(ins)), ins);
+      if (!inserted) found->second = missing;
+    }
     const auto update = [](best_partner &best, candidate_id id, int score) {
       if (score > best.score) best = best_partner{id, score, false};
       else if (score == best.score && id != best.id) best.tied = true;
@@ -750,6 +818,15 @@ std::vector<bool> refine_repeated_exact_groups(
             std::find(nominations.begin(), nominations.end(), nominee) == nominations.end())
           nominations.push_back(nominee);
       }
+      const auto mapped_parent = corresponding_parents.find(parent(before));
+      candidate_id local_nominee = missing;
+      if (mapped_parent != corresponding_parents.end() && delete_parent_counts[parent(before)] == 1) {
+        const auto found = insert_parent_members.find(mapped_parent->second.partner);
+        if (found != insert_parent_members.end()) local_nominee = found->second;
+        if (local_nominee != missing &&
+            std::find(nominations.begin(), nominations.end(), local_nominee) == nominations.end())
+          nominations.push_back(local_nominee);
+      }
       for (candidate_id ins : nominations) {
         const auto &after = registry.candidate(ins);
         int score = 0;
@@ -763,39 +840,78 @@ std::vector<bool> refine_repeated_exact_groups(
             else if (count_support) ++score;
           }
         };
-        inspect(before, after, true);
-        inspect(after, before, false);
+        if (ins == local_nominee) {
+          score = 2;
+          for (const auto &seed : mapped_parent->second.seeds)
+            if ((registry.candidate(seed.first).sequence_sibling_ordinal < before.sequence_sibling_ordinal) !=
+                (registry.candidate(seed.second).sequence_sibling_ordinal < after.sequence_sibling_ordinal))
+              contradiction = true;
+        } else {
+          inspect(before, after, true);
+          inspect(after, before, false);
+        }
         if (contradiction || score == 0) continue;
         update(delete_best[i], ins, score);
         update(insert_best[insert_indices.at(ins)], del, score);
       }
     }
-    bool complete = true;
+    pending_group residual{group.content_hash, match_kind::type1, {}, {}};
+    std::vector<candidate_id> continuing_origins;
+    const std::size_t refined_begin = refined.size();
     for (std::size_t i = 0; i < count; ++i) {
       const auto &best = delete_best[i];
-      if (best.id == missing || best.tied) {
-        complete = false;
-        break;
+      const bool accepted = best.id != missing && !best.tied &&
+          !insert_best[insert_indices.at(best.id)].tied &&
+          insert_best[insert_indices.at(best.id)].id == group.del_ids[i];
+      if (!accepted) {
+        residual.del_ids.push_back(group.del_ids[i]);
+        continue;
       }
-      const auto &reverse = insert_best[insert_indices.at(best.id)];
-      if (reverse.tied || reverse.id != group.del_ids[i]) {
-        complete = false;
-        break;
-      }
-    }
-    if (!complete) {
-      // Keep residual equivalence/copy meaning; elimination is not evidence.
-      refined.push_back(group);
-      continue;
-    }
-    for (std::size_t i = 0; i < count; ++i) {
-      const candidate_id del = group.del_ids[i], ins = delete_best[i].id;
+      const candidate_id del = group.del_ids[i], ins = best.id;
       refined.push_back(pending_group{group.content_hash, match_kind::type1, {del}, {ins}});
       refined_ids[del] = refined_ids[ins] = true;
       inferred_partners[del] = ins;
       inferred_partners[ins] = del;
+      const auto mapped_parent = corresponding_parents.find(parent(registry.candidate(del)));
+      bool learned_continuation = mapped_parent != corresponding_parents.end() &&
+          mapped_parent->second.partner == parent(registry.candidate(ins));
+      if (learned_continuation) for (const auto &seed : mapped_parent->second.seeds)
+        if ((registry.candidate(seed.first).sequence_sibling_ordinal < registry.candidate(del).sequence_sibling_ordinal) !=
+            (registry.candidate(seed.second).sequence_sibling_ordinal < registry.candidate(ins).sequence_sibling_ordinal))
+          learned_continuation = false;
+      const auto location_classification = classify_correspondence(registry, del, ins, match_kind::type1).classification;
+      // Region correspondence is identity evidence, not permission to erase
+      // independently observed movement of the whole region.
+      if (move_eligible(location_classification)) learned_continuation = false;
+      if (learned_continuation) continuing_ids[del] = continuing_ids[ins] = true;
+      if (learned_continuation || classify_correspondence(registry, del, ins, match_kind::type1)
+              .classification.change_kind == movement_kind::stationary)
+        continuing_origins.push_back(del);
     }
+    if (count != insert_count && continuing_origins.empty() && refined.size() != refined_begin) {
+      // An unequal class with only moving partners still carries copy/repeat
+      // provenance. Do not discard its extra destinations or deleted origins.
+      for (std::size_t i = refined_begin; i < refined.size(); ++i) {
+        for (candidate_id id : refined[i].del_ids) { inferred_partners[id] = missing; refined_ids[id] = false; }
+        for (candidate_id id : refined[i].ins_ids) { inferred_partners[id] = missing; refined_ids[id] = false; }
+      }
+      refined.resize(refined_begin);
+      refined.push_back(group);
+      continue;
+    }
+    for (candidate_id ins : group.ins_ids)
+      if (inferred_partners[ins] == missing) residual.ins_ids.push_back(ins);
+    if (!continuing_origins.empty() && residual.del_ids.empty() && !residual.ins_ids.empty())
+      refined.push_back(pending_group{group.content_hash, match_kind::type1,
+                                      continuing_origins, residual.ins_ids, true});
+    // Removing a proven continuation must not infer the remaining identities
+    // by elimination. One-sided residuals remain observable additions/deletions.
+    if (residual.del_ids.size() != group.del_ids.size() ||
+        residual.ins_ids.size() != group.ins_ids.size()) residual.unresolved_exact_residual = true;
+    if (!residual.del_ids.empty() || !residual.ins_ids.empty())
+      refined.push_back(std::move(residual));
   }
+
   // Single-child diff wrappers alias their structural child. Mirror fully
   // established child partners so an unresolved wrapper equivalence group
   // cannot override identity or reopen a stationary child as a weaker move.
@@ -834,42 +950,48 @@ std::vector<bool> refine_repeated_exact_groups(
       continue;
     }
     std::map<candidate_id, candidate_id> destination_wrappers;
-    bool complete = !group.del_ids.empty() &&
-                    group.del_ids.size() == group.ins_ids.size();
     for (candidate_id ins : group.ins_ids) {
       const candidate_id child = aliased_child(ins);
-      if (child == missing || !destination_wrappers.emplace(child, ins).second) {
-        complete = false;
-        break;
-      }
+      if (child == missing) continue;
+      const auto added = destination_wrappers.emplace(child, ins);
+      if (!added.second) added.first->second = missing;
     }
-    std::vector<std::pair<candidate_id, candidate_id>> partners;
+    std::unordered_set<candidate_id> paired_wrappers;
     for (candidate_id del : group.del_ids) {
-      if (!complete) break;
       const candidate_id child = aliased_child(del);
-      const auto found = child == missing ? destination_wrappers.end()
-                         : destination_wrappers.find(inferred_partners[child]);
-      if (found == destination_wrappers.end()) {
-        complete = false;
-        break;
+      if (child == missing) continue;
+      const auto found = destination_wrappers.find(inferred_partners[child]);
+      if (found == destination_wrappers.end() || found->second == missing) continue;
+      const candidate_id ins = found->second;
+      groups.push_back(pending_group{group.content_hash, match_kind::type1, {del}, {ins}});
+      refined_ids[del] = refined_ids[ins] = true;
+      if (continuing_ids[child]) continuing_ids[del] = continuing_ids[ins] = true;
+      paired_wrappers.insert(del);
+      paired_wrappers.insert(ins);
+    }
+    pending_group residual{group.content_hash, match_kind::type1, {}, {},
+                           group.continuing_source_copy, group.unresolved_exact_residual};
+    const auto keep_residual = [&](const std::vector<candidate_id> &ids,
+                                   std::vector<candidate_id> &out) {
+      for (candidate_id id : ids) {
+        if (paired_wrappers.count(id)) continue;
+        if (aliased_child(id) != missing) {
+          // The child has established identity but this wrapper has no unique
+          // counterpart. Suppress this alias alone, preserving unrelated copies.
+          suppressed_aliases[id] = true;
+          continue;
+        }
+        out.push_back(id);
       }
-      partners.emplace_back(del, found->second);
-      destination_wrappers.erase(found);
-    }
-    if (!complete || !destination_wrappers.empty()) {
-      // Unequal or incomplete wrapper coverage must not reopen already known
-      // child identity. Genuine unequal structural groups never reach here.
-      for (candidate_id id : group.del_ids) suppressed_aliases[id] = true;
-      for (candidate_id id : group.ins_ids) suppressed_aliases[id] = true;
-      groups.push_back(group);
-      continue;
-    }
-    for (const auto &pair : partners) {
-      groups.push_back(pending_group{group.content_hash, match_kind::type1,
-                                    {pair.first}, {pair.second}});
-      refined_ids[pair.first] = refined_ids[pair.second] = true;
-    }
+    };
+    keep_residual(group.del_ids, residual.del_ids);
+    keep_residual(group.ins_ids, residual.ins_ids);
+    if (residual.del_ids.size() != group.del_ids.size() ||
+        residual.ins_ids.size() != group.ins_ids.size()) residual.unresolved_exact_residual = true;
+    if (!residual.del_ids.empty() || !residual.ins_ids.empty())
+      groups.push_back(std::move(residual));
   }
+
   return refined_ids;
 }
 
@@ -999,7 +1121,11 @@ std::vector<match_proposal> build_match_proposals(
     if (!has_both_sides(group) || suppressed_side(group.del_ids) ||
         suppressed_side(group.ins_ids))
       continue;
-    if (group.del_ids.size() == 1 && group.ins_ids.size() == 1) {
+    if (group.continuing_source_copy || group.unresolved_exact_residual) {
+      proposals.push_back(make_exact_group_proposal(registry, group));
+      proposals.back().selection_reason = group.continuing_source_copy ?
+          "continuing_source_copy" : "unresolved_exact_residual";
+    } else if (group.del_ids.size() == 1 && group.ins_ids.size() == 1) {
       const candidate_id del_id = group.del_ids.front();
       const candidate_id ins_id = group.ins_ids.front();
       proposals.push_back(make_pair_proposal(
@@ -1113,17 +1239,42 @@ bool repeated_group_has_relocation_evidence(
   };
   if (has_differing_group_observations(registry, group, container)) return true;
 
-  // Similarly, no differing mapped-container pair means all eligible container
-  // IDs coincide. Only reliable intervals in those mapped containers count.
-  using interval = std::pair<std::string_view, std::string_view>;
-  const auto anchors = [](const endpoint_location_context &context)
-      -> std::optional<interval> {
+  const auto structural_region = [](const endpoint_location_context &context)
+      -> std::optional<std::string> {
     if (context.revision_file.empty() || !context.semantic_container_mapped ||
-        !context.anchor_interval_reliable) return std::nullopt;
-    return interval{context.previous_common_anchor_id,
-                    context.next_common_anchor_id};
+        !context.structural_region_mapped) return std::nullopt;
+    return context.revision_file + "\n" + context.semantic_container_id + "\n" +
+           context.structural_region_id;
   };
-  return has_differing_group_observations(registry, group, anchors);
+  if (has_differing_group_observations(registry, group, structural_region)) return true;
+  // Different interval names alone do not establish crossing. Aggregate the
+  // actual stable sibling ranks in each shared anchor scope, without an NxM scan.
+  struct rank_bounds {
+    std::size_t maximum_prefix = 0;
+    std::size_t minimum_suffix = std::numeric_limits<std::size_t>::max();
+  };
+  std::unordered_map<std::string, rank_bounds> scopes;
+  const auto anchor_scope = [](const endpoint_location_context &context) {
+    if (context.revision_file.empty() || !context.semantic_container_mapped ||
+        !context.anchor_interval_reliable || context.anchor_region_id.empty()) return std::string{};
+    return context.revision_file + "\n" + context.semantic_container_id + "\n" + context.anchor_region_id;
+  };
+  for (candidate_id del : group.del_ids) {
+    const auto &context = registry.candidate(del).location;
+    const auto key = anchor_scope(context);
+    if (key.empty()) continue;
+    auto &bounds = scopes[key];
+    bounds.maximum_prefix = std::max(bounds.maximum_prefix, context.common_sibling_prefix_count);
+    bounds.minimum_suffix = std::min(bounds.minimum_suffix, context.common_sibling_suffix_begin);
+  }
+  for (candidate_id ins : group.ins_ids) {
+    const auto &context = registry.candidate(ins).location;
+    const auto found = scopes.find(anchor_scope(context));
+    if (found != scopes.end() &&
+        (found->second.maximum_prefix > context.common_sibling_suffix_begin ||
+         context.common_sibling_prefix_count > found->second.minimum_suffix)) return true;
+  }
+  return false;
 }
 
 void apply_correspondence_output_policy(
@@ -1133,8 +1284,10 @@ void apply_correspondence_output_policy(
     grouping_profile_stats *stats) {
   for (match_proposal &proposal : proposals) {
     if (proposal.group.match == match_kind::type1 &&
-        (proposal.group.del_ids.size() != 1 || proposal.group.ins_ids.size() != 1)) {
-      if (!repeated_group_has_relocation_evidence(registry, proposal.group)) {
+        (proposal.group.continuing_source_copy || proposal.group.unresolved_exact_residual ||
+         proposal.group.del_ids.size() != 1 || proposal.group.ins_ids.size() != 1)) {
+      if (!proposal.group.continuing_source_copy &&
+          !repeated_group_has_relocation_evidence(registry, proposal.group)) {
         proposal.disabled = true;
         if (stats != nullptr) ++stats->type1_policy_rejected;
       }
@@ -1360,7 +1513,9 @@ void prefer_stronger_descendant_bundles(
 
     parent.disabled = true;
     for (std::size_t child_index : chosen) {
-      proposals[child_index].selection_reason = "descendant_bundle";
+      if (!proposals[child_index].group.continuing_source_copy &&
+          !proposals[child_index].group.unresolved_exact_residual)
+        proposals[child_index].selection_reason = "descendant_bundle";
     }
   }
 }
@@ -1679,16 +1834,24 @@ content_groups build_content_groups(const candidate_registry &registry,
   std::vector<correspondence_decision> decisions;
   std::vector<bool> neighbor_refined;
   std::vector<bool> suppressed_aliases;
+  std::vector<bool> continuing_ids;
   {
     scoped_profile_timer timer(profile, "content_groups.exact_build");
     exact_groups = build_exact_groups(registry);
     neighbor_refined = refine_repeated_exact_groups(registry, exact_groups,
-                                                   suppressed_aliases);
+                                                   suppressed_aliases, continuing_ids);
     if (stats != nullptr) {
       stats->exact_groups_built = exact_groups.size();
     }
     decisions =
         classify_unique_correspondences(registry, exact_groups);
+    for (auto &decision : decisions) {
+      if (continuing_ids[decision.delete_candidate_id] && continuing_ids[decision.insert_candidate_id]) {
+        decision.classification.change_kind = movement_kind::stationary;
+        decision.classification.reason = movement_classification_reason::stable_in_corresponding_region;
+        decision.classification.observations.anchor_interval = anchor_interval_observation::same;
+      }
+    }
     classify_parent_carried_correspondences(registry, decisions);
   }
 

@@ -23,6 +23,11 @@ endpoint_location_context mapped(std::string file, std::string container,
   result.semantic_container_mapped = true;
   result.previous_common_anchor_id = std::move(previous);
   result.next_common_anchor_id = std::move(next);
+  result.structural_region_id = "block:1";
+  result.anchor_region_id = "block:1";
+  result.structural_region_mapped = true;
+  result.common_sibling_prefix_count = 1;
+  result.common_sibling_suffix_begin = 1;
   result.anchor_interval_reliable = true;
   result.ancestor_summary_reliable = true;
   result.ancestor_summary_interpretable = true;
@@ -55,6 +60,25 @@ int main() {
     endpoint_location_context crossed = baseline;
     crossed.previous_common_anchor_id = "anchor:upper";
     crossed.next_common_anchor_id = "function:1:end";
+    crossed.common_sibling_prefix_count = 2;
+    crossed.common_sibling_suffix_begin = 2;
+
+    endpoint_location_context unrelated_anchors = baseline;
+    unrelated_anchors.previous_common_anchor_id = "unrelated:lower";
+    unrelated_anchors.next_common_anchor_id = "unrelated:upper";
+    unrelated_anchors.common_sibling_prefix_count = 1;
+    unrelated_anchors.common_sibling_suffix_begin = 1;
+
+    endpoint_location_context different_region = baseline;
+    different_region.structural_region_id = "block:2";
+
+    endpoint_location_context contained_by_common_control = baseline;
+    contained_by_common_control.structural_region_id.clear();
+    contained_by_common_control.structural_region_mapped = false;
+    contained_by_common_control.previous_common_anchor_id = "function:1:begin";
+    contained_by_common_control.next_common_anchor_id = "function:1:end";
+    contained_by_common_control.common_sibling_prefix_count = 0;
+    contained_by_common_control.common_sibling_suffix_begin = 1;
 
     endpoint_location_context missing_anchor = baseline;
     missing_anchor.anchor_interval_reliable = false;
@@ -85,6 +109,24 @@ int main() {
          different_container, {"block"}, movement_kind::relocated,
          movement_classification_reason::different_semantic_container},
         {"crossed stable anchor", baseline, {"block"}, crossed, {"block"},
+         movement_kind::relocated,
+         movement_classification_reason::crossed_stable_sibling},
+        {"unrelated anchor boundaries are not displacement", baseline, {"block"},
+         unrelated_anchors, {"block"}, movement_kind::ambiguous,
+         movement_classification_reason::insufficient_context},
+        {"different common source blocks", baseline, {"block", "for", "block"},
+         different_region, {"block", "while", "block"}, movement_kind::relocated,
+         movement_classification_reason::different_structural_region},
+        {"unwrapped from a containing common control", contained_by_common_control,
+         {"block", "if_stmt", "else", "block"}, baseline, {"block"},
+         movement_kind::restructured,
+         movement_classification_reason::ancestor_unwrapped},
+        {"wrapped into a containing common control", baseline, {"block"},
+         contained_by_common_control, {"block", "if_stmt", "else", "block"},
+         movement_kind::restructured,
+         movement_classification_reason::ancestor_wrapped},
+        {"unwrapping also crosses another sibling", contained_by_common_control,
+         {"block", "if_stmt", "else", "block"}, crossed, {"block"},
          movement_kind::relocated,
          movement_classification_reason::crossed_stable_sibling},
         {"meaningful wrapper added", baseline, {"block"}, baseline,

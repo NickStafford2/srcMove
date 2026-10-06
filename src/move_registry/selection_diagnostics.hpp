@@ -48,6 +48,11 @@ struct endpoint_context_diagnostic {
   std::string next_common_anchor_id;
   std::vector<std::string> meaningful_ancestors;
   bool ancestor_summary_interpretable = false;
+  std::string structural_region_id;
+  bool structural_region_mapped = false;
+  std::size_t common_sibling_prefix_count = 0;
+  std::size_t common_sibling_suffix_begin = 0;
+  std::string anchor_region_id;
 };
 
 struct correspondence_diagnostic {
