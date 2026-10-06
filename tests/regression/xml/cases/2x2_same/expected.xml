@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="two_by_two.cpp">
+<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" xmlns:mv="http://www.srcML.org/srcMove" revision="1.0.0" language="C++" filename="before/two_by_two.cpp|after/two_by_two.cpp">
 
   <diff:delete><decl_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/src:decl_stmt[1] | /src:unit[1]/diff:insert[2]/src:decl_stmt[1]"><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>
   <diff:delete><decl_stmt mv:id="97b1dcdaf" mv:to="/src:unit[1]/diff:insert[1]/src:decl_stmt[1] | /src:unit[1]/diff:insert[2]/src:decl_stmt[1]"><decl><type><name>int</name></type> <name>moved_value</name> <init>= <expr><name>source_value</name> + <literal type="number">1</literal></expr></init></decl>;</decl_stmt></diff:delete>

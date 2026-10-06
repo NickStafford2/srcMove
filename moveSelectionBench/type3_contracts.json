@@ -13,7 +13,8 @@
           "change": "stationary",
           "reason": "same_anchor_interval",
           "delete_partners": 1,
-          "insert_partners": 1
+          "insert_partners": 1,
+          "expected_current_result": "not_move"
         }
       ]
     },
@@ -77,7 +78,8 @@
           "change": "ambiguous",
           "reason": "insufficient_context",
           "delete_partners": 1,
-          "insert_partners": 1
+          "insert_partners": 1,
+          "expected_current_result": "not_move"
         }
       ]
     },
@@ -93,7 +95,8 @@
           "change": "restructured",
           "reason": "ancestor_wrapped",
           "delete_partners": 1,
-          "insert_partners": 1
+          "insert_partners": 1,
+          "expected_current_result": "not_move"
         }
       ]
     },
@@ -109,7 +112,8 @@
           "change": "restructured",
           "reason": "ancestor_unwrapped",
           "delete_partners": 1,
-          "insert_partners": 1
+          "insert_partners": 1,
+          "expected_current_result": "not_move"
         }
       ]
     },
@@ -246,7 +250,8 @@
           "change": "restructured",
           "reason": "ancestor_wrapped",
           "delete_partners": 1,
-          "insert_partners": 1
+          "insert_partners": 1,
+          "expected_current_result": "not_move"
         }
       ]
     },
@@ -262,7 +267,8 @@
           "change": "restructured",
           "reason": "ancestor_unwrapped",
           "delete_partners": 1,
-          "insert_partners": 1
+          "insert_partners": 1,
+          "expected_current_result": "not_move"
         }
       ]
     }

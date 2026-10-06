@@ -92,6 +92,8 @@ class Type3ContractTests(unittest.TestCase):
                         self.assertEqual(record['cardinality'], 'competing_edges' if competing else 'one_to_one')
                         if 'expected_current_result' in edge:
                             self.assertEqual(record['current_result'], edge['expected_current_result'])
+                        if expected['change'] != 'relocated':
+                            self.assertEqual(record['current_result'], 'not_move')
                         if edge.get('covered_by_type3_parent'):
                             deleted_path = candidates[record['delete_candidate_id']]['xpath']
                             inserted_path = candidates[record['insert_candidate_id']]['xpath']

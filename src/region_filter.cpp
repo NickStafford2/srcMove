@@ -774,9 +774,10 @@ collect_candidates_streaming(srcml_reader                &reader,
   std::size_t sequence_root_child_counts[2] = {0, 0};
   std::size_t sequence_file_unit_id = 0;
   ancestor_summary_interner ancestor_summaries;
-  // Independent collectors preserve declaration anchors inside mixed conditionals.
-  // Restarting conditional capture at nested ifs bounds canonicalization work.
-  std::optional<pending_common_anchor> pending_anchors[2];
+  // Independent collectors preserve declaration and expression anchors inside
+  // mixed conditionals. Restarting conditional capture at nested ifs bounds
+  // canonicalization work; only one construct per kind is captured at a time.
+  std::optional<pending_common_anchor> pending_anchors[3];
   std::vector<common_anchor> common_anchors;
   std::size_t ignored_evidence_depth = 0;
   std::size_t sequence_comment_depth = 0;
@@ -935,10 +936,12 @@ collect_candidates_streaming(srcml_reader                &reader,
         }
       }
     }
-    for (std::size_t slot = 0; slot < 2; ++slot) {
+    for (std::size_t slot = 0; slot < 3; ++slot) {
       auto &pending_anchor = pending_anchors[slot];
-      const bool anchor_start = slot == 0 ? node.name == "decl_stmt"
-                                         : node.name == "if_stmt";
+      const bool anchor_start =
+          slot == 0 ? node.name == "decl_stmt"
+          : slot == 1 ? node.name == "if_stmt"
+                      : node.name == "expr_stmt";
       if (node.is_start() && anchor_start &&
           (!pending_anchor || slot == 1) &&
           effective == revision_membership::both) {

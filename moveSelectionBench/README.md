@@ -492,6 +492,10 @@ is part of this adoption.
 
 ## Type-3 observation baseline
 
+This section records the earlier observation-only baseline. Current production
+location eligibility and repeated exact correspondence are defined in the
+[architecture](../doc/architecture.md#matching-and-group-semantics).
+
 The first Phase 4.2 slice adds observation-only classification of every verified
 Type-3 edge. The [architecture](../doc/architecture.md) defines diagnostics schema
 4, endpoint partner counts, and their separation from location and selection.
@@ -751,7 +755,7 @@ From the parent workspace:
 The replay accepts a frozen sample and explicit per-revision file lists, checks
 source hashes, and preserves the earlier sample as its default. Baseline and
 current use the same production executable here; unchanged outputs establish
-reproducibility, not improved detector accuracy. Type-3 remains observation-only;
+reproducibility, not improved detector accuracy. At that baseline, Type-3 remained observation-only;
 Phase 5, VERSION, staging, and commits are untouched.
 
 <a id="historical-type-3-observation-contracts"></a>

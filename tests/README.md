@@ -38,6 +38,11 @@ python3 tests/regression/policy/list.py --catalog contextual
   `unit` suite. They check adjacency, reordering, filtered/common gaps,
   preprocessor and revision-ownership barriers, explicit member links, and
   ordinary/diagnostic/results-only agreement while preserving atomic annotations.
+- [Expression anchors](unit/test_expression_anchors.py),
+  [exact neighbor correspondence](unit/test_exact_neighbor_correspondence.py), and
+  [repeated-group location](unit/test_repeated_group_location.py) check unchanged
+  call crossings, contextual repeated pairing, wrapper aliases, copy preservation,
+  and location-gated unresolved groups across all output modes.
 - `unit`: core Python unit tests.
 - `bigmovebench`: focused tests under `bigMoveBench/tests/`; run explicitly
   with `make test-bigmovebench` and included by `make test-unit`.
@@ -56,9 +61,8 @@ python3 tests/regression/policy/list.py --catalog contextual
   ordinary/diagnostic/results-only equivalence. Type-2c reservation
   controls protect both endpoint directions from alternate Type-3 matching;
   normalization contracts retain ten ambiguous correspondences from nine XML
-  fixtures. Type-3 contracts check observation-only location decisions, verified
-  partner counts, nontransitive edges, and explicit known oracle gaps without
-  changing production output. The historical Type-3 source checks instead
+  fixtures. Type-3 contracts check relocation-gated output, verified
+  partner counts and nontransitive edges. Historical Type-3 source checks
   require reporting to agree with source review; known incorrect reports are
   ordinary failures. See [the reporting checks](../moveSelectionBench/README.md#historical-type-3-reporting-checks).
   Hypotheses remain observational benchmark cases. Run with
@@ -133,9 +137,13 @@ whether it is an accepted contract or an exploratory hypothesis. Contract
 misses fail `make test`; hypothesis misses remain observations. Promote a
 hypothesis only after its expected behavior is accepted as stable.
 
-Repeated exact fragments retain one multi-endpoint equivalence group. The
+Unsupported repeated exact fragments retain one multi-endpoint equivalence group
+when positive possible-displacement evidence exists. Fully context-resolved
+balanced groups can instead yield explicit pairs. The
 `1x2_basic` and `2x1_basic` cases are therefore positive copy/repeat-group
-contracts, not requests for zero moves. Unequal `NxM` groups have the same
+contracts with explicit distinct revision paths supplying displacement evidence.
+The same-file examples without positive location evidence are negative contracts
+in the repeated-group location suite. Unequal `NxM` groups have the same
 meaning; balanced many-to-many groups use `moves_many`. `move_pair_count`
 records the maximum non-reusing pair count (`min(deletes, inserts)`), but the
 group does not claim which indistinguishable endpoint pairs with which.

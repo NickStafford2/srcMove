@@ -212,6 +212,55 @@ int main(int argc, char **argv) {
                 "repeated or comment-only conditional must not establish an anchor");
       }
     }
+    for (const auto &scenario : std::vector<std::pair<std::string, int>>{
+             {"expression_crossing", 109}, {"expression_assignment", 149},
+             {"expression_in_mixed_conditional", 151}}) {
+      const std::string text = "int " + scenario.first + " = " +
+                               std::to_string(scenario.second) + ";";
+      const auto *before = find_candidate(collection, move_candidate::Kind::del,
+                                           text, "decl_stmt");
+      const auto *after = find_candidate(collection, move_candidate::Kind::insert,
+                                          text, "decl_stmt");
+      require(before && after, "expected expression crossing candidates");
+      require(before->location.anchor_interval_reliable &&
+                  after->location.anchor_interval_reliable &&
+                  before->location.next_common_anchor_id ==
+                      after->location.previous_common_anchor_id &&
+                  !has_suffix(before->location.next_common_anchor_id, ":end") &&
+                  has_suffix(before->location.previous_common_anchor_id, ":begin") &&
+                  has_suffix(after->location.next_common_anchor_id, ":end"),
+              "unique common call or assignment must expose a crossing");
+    }
+    {
+      const std::string text = "int expression_stationary = 113;";
+      const auto *before = find_candidate(collection, move_candidate::Kind::del,
+                                           text, "decl_stmt");
+      const auto *after = find_candidate(collection, move_candidate::Kind::insert,
+                                          text, "decl_stmt");
+      require(before && after, "expected stationary expression candidates");
+      require(before->location.anchor_interval_reliable &&
+                  after->location.anchor_interval_reliable &&
+                  before->location.previous_common_anchor_id ==
+                      after->location.previous_common_anchor_id &&
+                  before->location.next_common_anchor_id ==
+                      after->location.next_common_anchor_id &&
+                  !has_suffix(before->location.previous_common_anchor_id, ":begin"),
+              "staying after a common call must retain the same interval");
+    }
+    for (const auto &scenario : std::vector<std::pair<std::string, int>>{
+             {"expression_repeated", 127}, {"expression_mixed", 131},
+             {"expression_tiny", 137}, {"expression_comment", 139}}) {
+      const std::string text = "int " + scenario.first + " = " +
+                               std::to_string(scenario.second) + ";";
+      for (const auto side : {move_candidate::Kind::del, move_candidate::Kind::insert}) {
+        const auto *value = find_candidate(collection, side, text, "decl_stmt");
+        require(value, "expected excluded expression anchor candidates");
+        require(value->location.anchor_interval_reliable &&
+                    has_suffix(value->location.previous_common_anchor_id, ":begin") &&
+                    has_suffix(value->location.next_common_anchor_id, ":end"),
+                "repeated, mixed, tiny or comment-only expressions must not anchor");
+      }
+    }
     // Re-reading a nested common tree must assign exactly the same boundaries.
     srcml_reader repeated_reader(argv[1]);
     const auto repeated_collection = collect_candidates_streaming(

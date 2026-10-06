@@ -162,7 +162,57 @@
       "source_sha256": {
         "before/hal/ipp/src/warp_ipp.cpp": "f54cbfd79d42ff89e4c2eea00ecc07478552ce769164408c0ff9138294cd6e46",
         "after/hal/ipp/src/warp_ipp.cpp": "4be093193321073130a1107de6289ae5dd5f5431e44ccaa2c72a228d7e4b909e"
-      }
+      },
+      "stationary_source_regions": [
+        {
+          "id": "affine_parallel_ok_declaration",
+          "construct": "decl_stmt",
+          "function_name": "ipp_hal_warpAffine",
+          "normalized_text": "bool ok = true;",
+          "before_line_ranges": [
+            [
+              114,
+              114
+            ]
+          ],
+          "after_line_ranges": [
+            [
+              129,
+              129
+            ]
+          ],
+          "source_oracle_reason": "The same ok declaration remains in the affine parallel branch; an additional remap declaration does not relocate this source occurrence.",
+          "source_file": "hal/ipp/src/warp_ipp.cpp"
+        },
+        {
+          "id": "affine_parallel_ok_guards",
+          "construct": "if_stmt",
+          "function_name": "ipp_hal_warpAffine",
+          "normalized_text": "if(!ok) return CV_HAL_ERROR_NOT_IMPLEMENTED;",
+          "before_line_ranges": [
+            [
+              117,
+              118
+            ],
+            [
+              122,
+              123
+            ]
+          ],
+          "after_line_ranges": [
+            [
+              132,
+              133
+            ],
+            [
+              137,
+              138
+            ]
+          ],
+          "source_oracle_reason": "Both ok guards remain before and after parallel_for_ in the same affine branch; repeated text does not make them moves.",
+          "source_file": "hal/ipp/src/warp_ipp.cpp"
+        }
+      ]
     }
   ]
 }

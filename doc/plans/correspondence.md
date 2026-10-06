@@ -569,13 +569,21 @@ move rather than relabeling it as a negative.
 
 #### Phase 4.2: migrate verified Type-3 correspondences
 
-Status: observation-only classification and strict-ancestor context repair implemented.
+Status: production relocation gating implemented during the RefactoringMiner
+comparison work, alongside neighbor-based repeated exact correspondence and
+group-level displacement eligibility. Current behavior belongs in the
+[architecture](../architecture.md#matching-and-group-semantics). The evidence
+below records the earlier observation-only baseline and provisional trials;
+competing identity discrimination remains unresolved.
+
+Observation-only classification and strict-ancestor context repair were the
+initial implementation.
 The initial contract matrix separates
 location classification, competing verified partners, and current selection.
 See [Type-3 observation evidence](../../moveSelectionBench/README.md#type-3-observation-baseline)
 for the baseline and [context/history evaluation](../../moveSelectionBench/README.md#type-3-context-repair-and-independent-history)
 for the repaired structural-wrapper oracles and independently frozen source sample.
-No Type-3 production eligibility or parent-carrying rule has changed.
+At that baseline no Type-3 production eligibility or parent-carrying rule changed.
 
 The first four source-selected comparisons exposed matching/extraction limits
 without verified Type-3 edges. The subsequent
@@ -594,17 +602,16 @@ ready for adoption: excluding competition loses genuine whole-parent transfers,
 and rejecting Type-3 parents exposes repeated Type-1 annotations, including
 stationary content. Filtering existing selected edges understated these effects.
 
-Next, review the acceptance boundary across match kinds and record whether
-Phase 4.2 adoption must wait for a separately approved repeated-group policy.
-Do not silently suppress descendants, extend carrying by containment, or start
-Phase 5 to make this trial pass. Keep production Type-3 observation-only. An
-independent identity discriminator and independently frozen same-file edited
-moves with false competitors remain validation needs. A constructed repository
-can supply controlled positives/negatives, but cannot replace historical evidence.
+The current policy does not suppress descendants by containment or extend
+carrying to edited parents. Instead, repeated exact groups also require positive
+displacement evidence before selection. An independent identity discriminator
+and independently frozen same-file edited moves with false competitors remain
+validation needs. A constructed repository can supply controlled positives and
+negatives, but cannot replace historical evidence.
 
 
-Begin with independent contracts and observation-only classification of verified
-Type-3 edges, then evaluate before changing output. Type-3 similarity may yield
+The migration began with independent contracts and observation-only classification
+of verified Type-3 edges before changing output. Type-3 similarity may yield
 several competing edges for an endpoint and is not transitive; do not convert
 connected similar pairs into an exact-style equivalence group or treat passing
 the similarity threshold as proof of a unique correspondence.

@@ -266,8 +266,8 @@ srcReader/srcML stack.
   imply semantic equivalence.
 - There is no probabilistic confidence score, locality model, or behavioral
   interpretation.
-- Many-to-many and unequal-count groups are classified but not fully paired or
-  disambiguated.
+- Balanced repeated exact groups can be paired using established neighboring
+  correspondences; unsupported and unequal-count groups remain unresolved.
 - srcMove depends on candidate regions exposed by srcDiff and is not a
   general-purpose diff engine.
 

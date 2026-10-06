@@ -58,6 +58,32 @@ class HistoricalType3ContractTests(unittest.TestCase):
                     self.assertEqual(docs[0], {k: v for k, v in docs[1].items() if k != 'diagnostics'})
                     diagnostics = docs[1]['diagnostics']
                     self.assertEqual(diagnostics['schema_version'], 4)
+                    # Independently reviewed source occurrences also constrain
+                    # fallback groups exposed when edited parents are rejected.
+                    # These are surviving source occurrences, not moved code.
+                    for region in case.get('stationary_source_regions', []):
+                        source_path = region['source_file']
+                        old_paths = set()
+                        for source_side, side in [('before', 'delete'), ('after', 'insert')]:
+                            lines = (pair / source_side / source_path).read_text().splitlines()
+                            ranges = region[source_side + '_line_ranges']
+                            for first, last in ranges:
+                                self.assertEqual(normalize('\n'.join(lines[first - 1:last])),
+                                                 region['normalized_text'])
+                            function_path = "src:function[src:name='" + region['function_name'] + "']"
+                            candidates = [c for c in diagnostics['candidates']
+                                          if c['side'] == side
+                                          and c['role'] == 'structural_child'
+                                          and c['construct'] == region['construct']
+                                          and function_path in c['xpath']
+                                          and normalize(c['raw_text']) == region['normalized_text']]
+                            self.assertEqual(len(candidates), len(ranges))
+                            if source_side == 'before':
+                                old_paths.update(c['xpath'] for c in candidates)
+                        annotated = [(move['content_relationship'], path)
+                                     for move in docs[0]['moves']
+                                     for path in move['from_xpaths'] if path in old_paths]
+                        self.assertEqual(annotated, [], region['source_oracle_reason'])
                     endpoints = {}
                     for endpoint in case['endpoints']:
                         for source_side, side in [('before', 'delete'), ('after', 'insert')]:

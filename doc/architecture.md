@@ -15,9 +15,9 @@ move, developer intent, or semantic equivalence. A content match supports a
 proposed correspondence; it does not establish continuing identity by itself.
 Type-1, Type-2c, and Type-3 describe content evidence; group kind separately
 describes endpoint cardinality and ambiguity. Reported moves are broader than
-classifier-confirmed relocation: unique Type-1 and Type-2c pairs require positive
-location evidence, whereas Type-3 selection and repeated exact groups follow
-their separate policies described below.
+classifier-confirmed relocation: individual Type-1, Type-2c, and Type-3 pairs
+require positive location evidence, while unresolved repeated exact groups
+require evidence of possible displacement without claiming individual partners.
 
 ## Implementation
 
@@ -77,20 +77,20 @@ grouping and classification, including incremental multi-file use. Common
 elements and elements belonging only to the endpoint revision are included;
 elements exclusive to the opposite revision are not. Removing an incremental
 file compacts this side table to summaries still referenced by active
-candidates. After the streaming pass, complete common declarations and
-conditionals (`decl_stmt` and `if_stmt`) with substantive text and unique exact
+candidates. After the streaming pass, complete common declarations, expressions,
+and conditionals (`decl_stmt`, `expr_stmt`, and `if_stmt`) with substantive text and unique exact
 canonical identity in a mapped container become stable anchors. Mixed or
-repeated constructs are excluded. Independent declaration and conditional
-collectors preserve declarations inside mixed conditionals. Conditional capture
+repeated constructs are excluded. Independent declaration, expression, and conditional
+collectors preserve unchanged statements inside mixed conditionals. Conditional capture
 restarts at each nested common `if_stmt`, retaining innermost conditionals even
-inside an edited outer conditional, with at most two canonicalizers active. Each mapped candidate receives the
+inside an edited outer conditional, with at most three canonicalizers active. Each mapped candidate receives the
 nearest nonoverlapping anchors by their end/start positions, independent of
 collection order, falling back to container-begin and container-end sentinels.
 This exposes crossings of unchanged conditionals without tree rematching.
 Enclosing conditionals are not also retained as anchors; repeated innermost
 conditionals can therefore still leave order unresolved.
 Unmapped candidates retain unreliable anchor intervals. Production selection
-consumes this context for unique one-to-one Type-1 and Type-2c correspondences.
+consumes this context for individual Type-1, Type-2c, and Type-3 correspondences.
 
 This distinction permits a deletion in one archive unit to match an insertion
 in another without mistaking a combined srcDiff filename for one revision's
@@ -138,6 +138,11 @@ Reservation prevents weaker alternate partners without reserving spans, so
 distinct enclosing and descendant proposals still compete normally.
 Type-2c decisions do not participate in exact-parent carrying, since containment
 inside an edited parent does not establish stable relative position.
+Every verified Type-3 edge is likewise classified before selection in every
+output mode. Only positive relocation decisions enter production selection;
+stationary, restructured, and ambiguous edges remain available in diagnostics.
+Missing context is not proof of stationary identity. Edited-parent carrying is
+not inferred for Type-3 edges.
 The Phase 0 contract adapter resolves endpoints by the reviewed construct and
 exact text rather than using current classifications as its oracle. With
 fragment granularity, all twelve contracts match, including
@@ -231,16 +236,18 @@ builds all supported evidence before selection. Pure ranking and descendant
 bundle policy, including its declared constants, lives in
 [`src/move_registry/selection_policy.cpp`](../src/move_registry/selection_policy.cpp):
 
-1. forms exact canonical-text groups
+1. forms exact canonical-text groups and refines fully resolved balanced repeats
+   using established exact sibling correspondences
 2. classifies unique one-to-one exact correspondences and admits only supported
-   relocations to production proposal selection; non-1x1 exact groups retain
-   existing group policy
+   relocations to production proposal selection; non-1x1 exact groups require
+   positive evidence for at least one possible relocated pairing
 3. groups eligible constructs by exact Type-2c representation, classifies unique
    pairs, and reserves their endpoint identities
-4. generates Type-3 edges for remaining structurally compatible candidates
+4. generates Type-3 edges for remaining structurally compatible candidates and
+   classifies their location
 5. turns eligible exact and Type-2c correspondences plus verified Type-3 edges
    into one proposal set
-6. disables unique Type-1 and Type-2c proposals without positive relocation
+6. disables individual Type-1, Type-2c, and Type-3 proposals without positive relocation
    decisions before hierarchy selection
 7. ranks proposals by size-aware utility plus an internal structural-coverage
    term, then confidence, evidence class, source-construct preference, and
@@ -249,11 +256,36 @@ bundle policy, including its declared constants, lives in
    overlap constraints
 9. emits remaining delete-only and insert-only groups for reporting
 
-Repeated exact equivalence classes are retained as multi-endpoint move/copy
-groups with ambiguity-aware confidence; they do not claim an individual
-pairing. Repeated Type-2c classes remain unresolved because normalization has
+Repeated exact equivalence classes with supported possible displacement are
+retained as multi-endpoint move/copy groups with ambiguity-aware confidence;
+they do not claim an individual pairing. The gate compares actual proposal
+endpoints for differing known files, differing mapped containers in a known
+file, or differing reliable anchor intervals in a mapped container. It uses
+linear scans and constant representative state rather than expanding a pair
+product. Groups without any such evidence remain unmatched. A group can still
+be eligible when a stationary assignment is also possible: existential location
+evidence does not resolve identity or prove that every endpoint relocated.
+Repeated Type-2c classes remain unresolved because normalization has
 already removed distinguishing content, and document order alone is not
 correspondence evidence.
+
+Balanced repeated Type-1 classes can instead become individual pairs when
+every endpoint has a mutually unique partner supported by immediately adjacent
+original unique exact structural siblings. Conflicting neighbors, incomplete
+resolution, unreliable or duplicate sibling positions, and unequal counts leave
+the original class intact. Newly inferred pairs never seed more matches. At most
+two partners are nominated per deletion, avoiding an exhaustive repeated-group
+pair product. Single-child diff-wrapper aliases inherit fully established child
+pairs so unresolved aliases cannot override their identity or output policy.
+Incomplete single-child wrapper coverage is withheld from proposal selection so
+aliases cannot reopen established child identity. Resolved pairs use ordinary
+movement classification and hierarchy selection;
+selected proposals carry `selection_reason: exact_neighbor_correspondence`.
+
+The neighbor-evidence idea is adapted from RefactoringMiner's
+[`CustomTopDownMatcher`](https://github.com/tsantalis/RefactoringMiner/blob/4d08e547cfe572ed8e58993b7c1303253142d4ac/src/main/java/org/refactoringminer/astDiff/matchers/vanilla/CustomTopDownMatcher.java#L462).
+This implementation requires complete mutual resolution and preserves separate
+location eligibility; it does not import RefactoringMiner's AST framework.
 
 Type-3 uses a NiCad-inspired sequence rule implemented directly in srcMove; no
 NiCad executable or runtime dependency is involved. Canonicalization caches two
@@ -428,11 +460,12 @@ results and selected XML annotations.
 
 ### Type-3 correspondence diagnostics
 
-Type-3 location decisions are observation-only, computed once per verified edge
-when diagnostics are requested, after production selection. Selected and rejected
+Type-3 location decisions are computed once per verified edge before production
+selection, regardless of output mode. Selected and rejected
 edges are both retained; below-threshold pairs remain shortlist observations and
 do not become correspondence records. The shared classifier does not infer
-parent carrying for edited Type-3 parents. Ordinary eligibility is unchanged.
+parent carrying for edited Type-3 parents. Production proposals require positive
+relocation evidence under the same predicate used for Type-1 and Type-2c pairs.
 
 Type-3 records add `delete_verified_partner_count` and
 `insert_verified_partner_count`, counting incident verified edges before
@@ -441,8 +474,8 @@ than one verified partner; otherwise it is `one_to_one`. These are local edge
 degrees, not equivalence groups or proof of identity. Location and matching
 ambiguity are separate: a competing edge can have `shadow_change: relocated`
 without establishing a unique continuing construct. Connectivity never creates
-additional edges. `current_result` records actual Type-3 selection, independently
-of these observations. A `current_result` of `not_move` means the edge was
+additional edges. `current_result` records actual Type-3 selection after location
+eligibility and hierarchy policy. A `current_result` of `not_move` means the edge was
 not selected, not that it was established as stationary.
 
 ### Results terminology
@@ -585,9 +618,10 @@ performance result for arbitrary projects.
 - The selector uses deterministic greedy utility selection plus a local
   parent-versus-descendant bundle comparison. It is not a general hierarchy or
   graph optimizer.
-- Exact repeats retain group-level correspondence, but contextual evidence for
-  disambiguating individual repeated moves is not implemented. Ambiguous
-  Type-2c repeats remain unresolved.
+- Exact repeats retain group-level correspondence unless a balanced class fully
+  resolves through established immediate exact neighbors. Partial and unequal
+  groups remain unresolved and require possible displacement evidence for output.
+  Ambiguous Type-2c repeats remain unresolved.
 - Type-3 retrieval uses kind and size windows but not an approximate-neighbor
   index or configurable top-`k` shortlist.
 - Type-4 moves are not supported.
@@ -600,12 +634,11 @@ performance result for arbitrary projects.
 - srcMove depends on the regions exposed by srcDiff; it is not a general diff
   engine and does not recover changes that srcDiff does not represent as usable
   candidates.
-- Unique Type-1 and Type-2c output requires positive relocation evidence from
+- Individual Type-1, Type-2c, and Type-3 output requires positive relocation evidence from
   revision files, mapped semantic containers, or crossed stable anchors. Missing
   context remains ambiguous, not proven stationary. This policy does not
-  reconstruct developer intent or resolve repeated NxM groups. Type-3 movement
-  classification is observation-only; its existing similarity and selection policy
-  remains active for endpoints without stronger correspondence identity.
+  reconstruct developer intent. Genuine same-file edited moves with insufficient
+  mapped context can remain unreported; content similarity alone is insufficient.
 
-Richer structural similarity, contextual scoring, and ambiguous-group
-disambiguation are research directions rather than implemented features.
+Richer structural similarity and broader ambiguous-group disambiguation remain
+research directions.

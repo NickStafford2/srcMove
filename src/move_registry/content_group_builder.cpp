@@ -19,6 +19,10 @@
 #include <cstddef>
 #include <cstdint>
 #include <numeric>
+#include <optional>
+#include <limits>
+#include <map>
+#include <tuple>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -492,6 +496,253 @@ std::vector<candidate_id> non_overlapping_exact_endpoints(
   return selected;
 }
 
+// Exact identity alone cannot assign repeated endpoints. Use only original
+// unique exact sibling pairs as independent context, and refine a balanced
+// group only when every endpoint has a mutually unique supported partner.
+std::vector<bool> refine_repeated_exact_groups(
+    const candidate_registry &registry, std::vector<pending_group> &groups,
+    std::vector<bool> &suppressed_aliases) {
+  const candidate_id missing = std::numeric_limits<candidate_id>::max();
+  using position = std::tuple<move_candidate::Kind, std::string, std::string,
+                              std::size_t>;
+  const auto reliable = [](const move_candidate &candidate) {
+    return candidate.role == move_candidate::Role::structural_child &&
+           candidate.sequence_context_reliable &&
+           !candidate.sequence_parent_id.empty() &&
+           !candidate.location.revision_file.empty() &&
+           candidate.sequence_sibling_ordinal != 0 &&
+           candidate.start_idx < candidate.end_idx;
+  };
+  std::vector<bool> refined_ids(registry.total_record_count(), false);
+  suppressed_aliases.assign(registry.total_record_count(), false);
+  const bool has_repeated_children = std::any_of(
+      groups.begin(), groups.end(), [&](const pending_group &group) {
+        return group.del_ids.size() > 1 &&
+               group.del_ids.size() == group.ins_ids.size() &&
+               std::all_of(group.del_ids.begin(), group.del_ids.end(),
+                   [&](candidate_id id) { return reliable(registry.candidate(id)); }) &&
+               std::all_of(group.ins_ids.begin(), group.ins_ids.end(),
+                   [&](candidate_id id) { return reliable(registry.candidate(id)); });
+      });
+  if (!has_repeated_children) return refined_ids;
+  const auto key = [](const move_candidate &candidate, std::size_t ordinal) {
+    return position{candidate.kind, candidate.location.revision_file,
+                    candidate.sequence_parent_id, ordinal};
+  };
+  std::map<position, candidate_id> positions;
+  for (const pending_group &group : groups) {
+    const auto index = [&](candidate_id id) {
+      const move_candidate &candidate = registry.candidate(id);
+      if (!reliable(candidate)) return;
+      const auto inserted = positions.emplace(
+          key(candidate, candidate.sequence_sibling_ordinal), id);
+      if (!inserted.second && inserted.first->second != id)
+        inserted.first->second = missing;
+    };
+    for (candidate_id id : group.del_ids) index(id);
+    for (candidate_id id : group.ins_ids) index(id);
+  }
+  const auto lookup = [&](const move_candidate &candidate, int offset) {
+    const std::size_t ordinal = candidate.sequence_sibling_ordinal;
+    if ((offset < 0 && ordinal <= 1) ||
+        (offset > 0 && ordinal == std::numeric_limits<std::size_t>::max()))
+      return missing;
+    const std::size_t wanted = offset < 0 ? ordinal - 1
+                               : offset > 0 ? ordinal + 1 : ordinal;
+    const auto found = positions.find(key(candidate, wanted));
+    return found == positions.end() ? missing : found->second;
+  };
+  std::vector<candidate_id> seeds(registry.total_record_count(), missing);
+  for (const pending_group &group : groups) {
+    if (group.del_ids.size() != 1 || group.ins_ids.size() != 1) continue;
+    const candidate_id del = group.del_ids.front(), ins = group.ins_ids.front();
+    const auto &before = registry.candidate(del);
+    const auto &after = registry.candidate(ins);
+    if (reliable(before) && reliable(after) &&
+        lookup(before, 0) == del && lookup(after, 0) == ins) {
+      seeds[del] = ins;
+      seeds[ins] = del;
+    }
+  }
+  std::vector<candidate_id> inferred_partners(registry.total_record_count(), missing);
+  std::vector<pending_group> refined;
+  refined.reserve(groups.size());
+  for (const pending_group &group : groups) {
+    const std::size_t count = group.del_ids.size();
+    bool eligible = count > 1 && count == group.ins_ids.size();
+    const auto eligible_side = [&](const std::vector<candidate_id> &ids) {
+      if (!std::all_of(ids.begin(), ids.end(), [&](candidate_id id) {
+            const auto &candidate = registry.candidate(id);
+            return reliable(candidate) && lookup(candidate, 0) == id;
+          })) return false;
+      std::vector<candidate_id> ordered = ids;
+      const auto span_key = [&](candidate_id id) {
+        const auto &candidate = registry.candidate(id);
+        return std::tie(candidate.filename, candidate.start_idx, candidate.end_idx);
+      };
+      std::sort(ordered.begin(), ordered.end(), [&](candidate_id lhs, candidate_id rhs) {
+        return span_key(lhs) < span_key(rhs);
+      });
+      for (std::size_t i = 1; i < ordered.size(); ++i) {
+        if (candidates_overlap(registry.candidate(ordered[i - 1]),
+                               registry.candidate(ordered[i]))) return false;
+      }
+      return true;
+    };
+    eligible = eligible && eligible_side(group.del_ids) && eligible_side(group.ins_ids);
+    if (!eligible) {
+      refined.push_back(group);
+      continue;
+    }
+    std::unordered_map<candidate_id, std::size_t> insert_indices;
+    for (std::size_t i = 0; i < count; ++i) insert_indices.emplace(group.ins_ids[i], i);
+    struct best_partner {
+      candidate_id id;
+      int score = 0;
+      bool tied = false;
+    };
+    std::vector<best_partner> delete_best(count, best_partner{missing});
+    std::vector<best_partner> insert_best(count, best_partner{missing});
+    const auto update = [](best_partner &best, candidate_id id, int score) {
+      if (score > best.score) best = best_partner{id, score, false};
+      else if (score == best.score && id != best.id) best.tied = true;
+    };
+    for (std::size_t i = 0; i < count; ++i) {
+      const candidate_id del = group.del_ids[i];
+      const auto &before = registry.candidate(del);
+      // At most two nominations per source endpoint, rather than an NxM scan.
+      std::vector<candidate_id> nominations;
+      for (int offset : {-1, 1}) {
+        const candidate_id neighbor = lookup(before, offset);
+        if (neighbor == missing || seeds[neighbor] == missing) continue;
+        const candidate_id nominee = lookup(registry.candidate(seeds[neighbor]), -offset);
+        if (insert_indices.find(nominee) != insert_indices.end() &&
+            std::find(nominations.begin(), nominations.end(), nominee) == nominations.end())
+          nominations.push_back(nominee);
+      }
+      for (candidate_id ins : nominations) {
+        const auto &after = registry.candidate(ins);
+        int score = 0;
+        bool contradiction = false;
+        const auto inspect = [&](const move_candidate &source,
+                                 const move_candidate &target, bool count_support) {
+          for (int offset : {-1, 1}) {
+            const candidate_id neighbor = lookup(source, offset);
+            if (neighbor == missing || seeds[neighbor] == missing) continue;
+            if (lookup(target, offset) != seeds[neighbor]) contradiction = true;
+            else if (count_support) ++score;
+          }
+        };
+        inspect(before, after, true);
+        inspect(after, before, false);
+        if (contradiction || score == 0) continue;
+        update(delete_best[i], ins, score);
+        update(insert_best[insert_indices.at(ins)], del, score);
+      }
+    }
+    bool complete = true;
+    for (std::size_t i = 0; i < count; ++i) {
+      const auto &best = delete_best[i];
+      if (best.id == missing || best.tied) {
+        complete = false;
+        break;
+      }
+      const auto &reverse = insert_best[insert_indices.at(best.id)];
+      if (reverse.tied || reverse.id != group.del_ids[i]) {
+        complete = false;
+        break;
+      }
+    }
+    if (!complete) {
+      // Keep residual equivalence/copy meaning; elimination is not evidence.
+      refined.push_back(group);
+      continue;
+    }
+    for (std::size_t i = 0; i < count; ++i) {
+      const candidate_id del = group.del_ids[i], ins = delete_best[i].id;
+      refined.push_back(pending_group{group.content_hash, match_kind::type1, {del}, {ins}});
+      refined_ids[del] = refined_ids[ins] = true;
+      inferred_partners[del] = ins;
+      inferred_partners[ins] = del;
+    }
+  }
+  // Single-child diff wrappers alias their structural child. Mirror fully
+  // established child partners so an unresolved wrapper equivalence group
+  // cannot override identity or reopen a stationary child as a weaker move.
+  using alias_key = std::tuple<move_candidate::Kind, std::string, std::size_t,
+                               std::string>;
+  const auto alias_position = [](const move_candidate &candidate) {
+    return alias_key{candidate.kind, candidate.filename,
+                     candidate.diff_region_start_idx, candidate.canonical_text};
+  };
+  std::map<alias_key, candidate_id> inferred_children;
+  for (candidate_id id = 0; id < registry.total_record_count(); ++id) {
+    if (inferred_partners[id] == missing) continue;
+    const auto inserted = inferred_children.emplace(alias_position(registry.candidate(id)), id);
+    if (!inserted.second) inserted.first->second = missing;
+  }
+  if (inferred_children.empty()) return refined_ids;
+  const auto aliased_child = [&](candidate_id id) {
+    const auto &wrapper = registry.candidate(id);
+    if (wrapper.role != move_candidate::Role::single_child_wrapper) return missing;
+    const auto found = inferred_children.find(alias_position(wrapper));
+    if (found == inferred_children.end() || found->second == missing) return missing;
+    const auto &child = registry.candidate(found->second);
+    return wrapper.start_idx < child.start_idx && child.end_idx < wrapper.end_idx
+               ? found->second : missing;
+  };
+  groups.clear();
+  groups.reserve(refined.size());
+  for (const pending_group &group : refined) {
+    const auto contains_alias = [&](const std::vector<candidate_id> &ids) {
+      return std::any_of(ids.begin(), ids.end(), [&](candidate_id id) {
+        return aliased_child(id) != missing;
+      });
+    };
+    if (!contains_alias(group.del_ids) && !contains_alias(group.ins_ids)) {
+      groups.push_back(group);
+      continue;
+    }
+    std::map<candidate_id, candidate_id> destination_wrappers;
+    bool complete = !group.del_ids.empty() &&
+                    group.del_ids.size() == group.ins_ids.size();
+    for (candidate_id ins : group.ins_ids) {
+      const candidate_id child = aliased_child(ins);
+      if (child == missing || !destination_wrappers.emplace(child, ins).second) {
+        complete = false;
+        break;
+      }
+    }
+    std::vector<std::pair<candidate_id, candidate_id>> partners;
+    for (candidate_id del : group.del_ids) {
+      if (!complete) break;
+      const candidate_id child = aliased_child(del);
+      const auto found = child == missing ? destination_wrappers.end()
+                         : destination_wrappers.find(inferred_partners[child]);
+      if (found == destination_wrappers.end()) {
+        complete = false;
+        break;
+      }
+      partners.emplace_back(del, found->second);
+      destination_wrappers.erase(found);
+    }
+    if (!complete || !destination_wrappers.empty()) {
+      // Unequal or incomplete wrapper coverage must not reopen already known
+      // child identity. Genuine unequal structural groups never reach here.
+      for (candidate_id id : group.del_ids) suppressed_aliases[id] = true;
+      for (candidate_id id : group.ins_ids) suppressed_aliases[id] = true;
+      groups.push_back(group);
+      continue;
+    }
+    for (const auto &pair : partners) {
+      groups.push_back(pending_group{group.content_hash, match_kind::type1,
+                                    {pair.first}, {pair.second}});
+      refined_ids[pair.first] = refined_ids[pair.second] = true;
+    }
+  }
+  return refined_ids;
+}
+
 std::size_t proposal_span(const pending_group      &group,
                           const candidate_registry &registry) {
   std::size_t total = 0;
@@ -605,11 +856,18 @@ std::vector<match_proposal> build_match_proposals(
     const candidate_registry &registry,
     const std::vector<pending_group> &exact_groups,
     const std::vector<pending_group> &type2_groups,
-    const std::vector<type3_edge> &type3_edges) {
+    const std::vector<type3_edge> &type3_edges,
+    const std::vector<bool> &neighbor_refined,
+    const std::vector<bool> &suppressed_aliases) {
   std::vector<match_proposal> proposals;
 
   for (const pending_group &group : exact_groups) {
-    if (!has_both_sides(group))
+    const auto suppressed_side = [&](const std::vector<candidate_id> &ids) {
+      return std::any_of(ids.begin(), ids.end(),
+                         [&](candidate_id id) { return suppressed_aliases[id]; });
+    };
+    if (!has_both_sides(group) || suppressed_side(group.del_ids) ||
+        suppressed_side(group.ins_ids))
       continue;
     if (group.del_ids.size() == 1 && group.ins_ids.size() == 1) {
       const candidate_id del_id = group.del_ids.front();
@@ -619,6 +877,8 @@ std::vector<match_proposal> build_match_proposals(
           std::min(candidate_units(registry.candidate(del_id)),
                    candidate_units(registry.candidate(ins_id))),
           1000));
+      if (neighbor_refined[del_id])
+        proposals.back().selection_reason = "exact_neighbor_correspondence";
     } else {
       proposals.push_back(make_exact_group_proposal(registry, group));
     }
@@ -679,13 +939,80 @@ const correspondence_decision *find_correspondence_decision(
   return &*found;
 }
 
+// Existential relocation evidence does not establish any individual partners.
+// Retain two distinct source observations at most: any target either differs
+// from the first, or (when source observations vary) from another source.
+template <typename Project>
+bool has_differing_group_observations(
+    const candidate_registry &registry, const pending_group &group,
+    Project project) {
+  using observation = decltype(project(registry.candidate(group.del_ids.front()).location));
+  observation first;
+  bool varied = false;
+  for (candidate_id id : group.del_ids) {
+    const auto value = project(registry.candidate(id).location);
+    if (!value) continue;
+    if (!first) first = value;
+    else if (*value != *first) varied = true;
+  }
+  if (!first) return false;
+  for (candidate_id id : group.ins_ids) {
+    const auto value = project(registry.candidate(id).location);
+    if (value && (varied || *value != *first)) return true;
+  }
+  return false;
+}
+
+bool repeated_group_has_relocation_evidence(
+    const candidate_registry &registry, const pending_group &group) {
+  if (!has_both_sides(group)) return false;
+  const auto file = [](const endpoint_location_context &context)
+      -> std::optional<std::string_view> {
+    if (context.revision_file.empty()) return std::nullopt;
+    return context.revision_file;
+  };
+  if (has_differing_group_observations(registry, group, file)) return true;
+
+  // With no differing file pair, all known files on opposite sides coincide.
+  // Unknown-file endpoints cannot reach the classifier's container/anchor rules.
+  const auto container = [](const endpoint_location_context &context)
+      -> std::optional<std::string_view> {
+    if (context.revision_file.empty() || !context.semantic_container_mapped)
+      return std::nullopt;
+    return context.semantic_container_id;
+  };
+  if (has_differing_group_observations(registry, group, container)) return true;
+
+  // Similarly, no differing mapped-container pair means all eligible container
+  // IDs coincide. Only reliable intervals in those mapped containers count.
+  using interval = std::pair<std::string_view, std::string_view>;
+  const auto anchors = [](const endpoint_location_context &context)
+      -> std::optional<interval> {
+    if (context.revision_file.empty() || !context.semantic_container_mapped ||
+        !context.anchor_interval_reliable) return std::nullopt;
+    return interval{context.previous_common_anchor_id,
+                    context.next_common_anchor_id};
+  };
+  return has_differing_group_observations(registry, group, anchors);
+}
+
 void apply_correspondence_output_policy(
+    const candidate_registry &registry,
     std::vector<match_proposal> &proposals,
     const std::vector<correspondence_decision> &decisions,
     grouping_profile_stats *stats) {
   for (match_proposal &proposal : proposals) {
+    if (proposal.group.match == match_kind::type1 &&
+        (proposal.group.del_ids.size() != 1 || proposal.group.ins_ids.size() != 1)) {
+      if (!repeated_group_has_relocation_evidence(registry, proposal.group)) {
+        proposal.disabled = true;
+        if (stats != nullptr) ++stats->type1_policy_rejected;
+      }
+      continue;
+    }
     if ((proposal.group.match != match_kind::type1 &&
-         proposal.group.match != match_kind::type2) ||
+         proposal.group.match != match_kind::type2 &&
+         proposal.group.match != match_kind::type3) ||
         proposal.group.del_ids.size() != 1 ||
         proposal.group.ins_ids.size() != 1) {
       continue;
@@ -1211,9 +1538,13 @@ content_groups build_content_groups(const candidate_registry &registry,
 
   std::vector<pending_group> exact_groups;
   std::vector<correspondence_decision> decisions;
+  std::vector<bool> neighbor_refined;
+  std::vector<bool> suppressed_aliases;
   {
     scoped_profile_timer timer(profile, "content_groups.exact_build");
     exact_groups = build_exact_groups(registry);
+    neighbor_refined = refine_repeated_exact_groups(registry, exact_groups,
+                                                   suppressed_aliases);
     if (stats != nullptr) {
       stats->exact_groups_built = exact_groups.size();
     }
@@ -1261,11 +1592,29 @@ content_groups build_content_groups(const candidate_registry &registry,
                           diagnostics, type2_reserved);
   }
 
+  // Content similarity establishes possible correspondence, not relocation.
+  // Classify every verified edge before selection in every output mode. Keep
+  // competing partners visible; do not infer carrying from an edited parent.
+  std::vector<std::size_t> partner_counts(registry.total_record_count(), 0);
+  for (const type3_edge &edge : type3_edges) {
+    ++partner_counts[edge.del_id];
+    ++partner_counts[edge.ins_id];
+  }
+  for (const type3_edge &edge : type3_edges) {
+    auto decision = classify_correspondence(
+        registry, edge.del_id, edge.ins_id, match_kind::type3);
+    decision.delete_verified_partner_count = partner_counts[edge.del_id];
+    decision.insert_verified_partner_count = partner_counts[edge.ins_id];
+    decisions.push_back(std::move(decision));
+  }
+  order_correspondence_decisions(decisions);
+
   {
     scoped_profile_timer timer(profile, "content_groups.unified_select");
     std::vector<match_proposal> proposals = build_match_proposals(
-        registry, exact_groups, type2_groups, type3_edges);
-    apply_correspondence_output_policy(proposals, decisions, stats);
+        registry, exact_groups, type2_groups, type3_edges, neighbor_refined,
+        suppressed_aliases);
+    apply_correspondence_output_policy(registry, proposals, decisions, stats);
     prefer_stronger_descendant_bundles(proposals, registry);
     for (const match_proposal &proposal : proposals) {
       if (proposal.disabled) {
@@ -1307,22 +1656,6 @@ content_groups build_content_groups(const candidate_registry &registry,
         profile->add_counter("content_groups.type2b_groups_observed",
                              diagnostics->type2b_groups.size());
     }
-    // Observe every verified edge, including selection losers. Degrees describe
-    // competing partners, not transitive equivalence classes or accepted identity.
-    std::vector<std::size_t> partner_counts(registry.total_record_count(), 0);
-    for (const type3_edge &edge : type3_edges) {
-      ++partner_counts[edge.del_id];
-      ++partner_counts[edge.ins_id];
-    }
-    for (const type3_edge &edge : type3_edges) {
-      auto decision = classify_correspondence(
-          registry, edge.del_id, edge.ins_id, match_kind::type3);
-      decision.delete_verified_partner_count = partner_counts[edge.del_id];
-      decision.insert_verified_partner_count = partner_counts[edge.ins_id];
-      decisions.push_back(std::move(decision));
-    }
-    // Type-3 decisions are observation-only and never infer edited-parent carrying.
-    order_correspondence_decisions(decisions);
     materialize_correspondence_diagnostics(registry, decisions, *diagnostics);
     update_correspondence_selection_results(out, *diagnostics);
     for (type3_pair_diagnostic &pair : diagnostics->type3_pairs) {

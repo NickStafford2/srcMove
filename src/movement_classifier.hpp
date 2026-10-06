@@ -67,7 +67,7 @@ movement_classification classify_movement(
     const endpoint_location_context &after,
     const std::vector<std::string> &after_ancestors);
 
-// Eligibility predicate for the callers that gate unique Type-1/Type-2 pairs;
+// Eligibility predicate for callers that gate one-to-one correspondence proposals;
 // it is not the universal selection rule for all reported move groups.
 bool move_eligible(const movement_classification &classification) noexcept;
 

@@ -89,6 +89,7 @@ class StructuralContextTests(unittest.TestCase):
                             self.assertEqual(record[side + '_context']['meaningful_ancestors'],
                                              ['block'] + ([wrapper, 'block'] if wrapper else []))
                         self.assertFalse(record['carried_by_parent'])
-                        # Type-3 remains observation-only, even on negative location evidence.
-                        expected = 'move' if kind == 'type3' or change == 'relocated' else 'not_move'
+                        # Content similarity establishes correspondence; all
+                        # evidence classes still need positive relocation.
+                        expected = 'move' if change == 'relocated' else 'not_move'
                         self.assertEqual(record['current_result'], expected)
