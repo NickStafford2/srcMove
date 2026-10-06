@@ -79,6 +79,24 @@ void test_insufficient_child_coverage_preserves_parent() {
           "a bundle must cover at least half of both parent endpoints");
 }
 
+void test_half_coverage_is_required_on_each_parent_endpoint() {
+  auto half_coverage = weak_parent_bundle();
+  half_coverage.child_delete_units = 22;
+  half_coverage.child_insert_units = 22;
+  require(descendant_bundle_preferred(half_coverage),
+          "exactly half coverage on both endpoints should permit the strong children");
+
+  auto insufficient_delete_coverage = half_coverage;
+  insufficient_delete_coverage.child_delete_units = 21;
+  require(!descendant_bundle_preferred(insufficient_delete_coverage),
+          "below half coverage on the delete endpoint should preserve the parent");
+
+  auto insufficient_insert_coverage = half_coverage;
+  insufficient_insert_coverage.child_insert_units = 21;
+  require(!descendant_bundle_preferred(insufficient_insert_coverage),
+          "below half coverage on the insert endpoint should preserve the parent");
+}
+
 void test_near_complete_child_partition_preserves_parent() {
   auto partition = weak_parent_bundle();
   partition.child_delete_units = 31;
@@ -109,6 +127,7 @@ int main() {
     test_candidate_ids_break_equal_rank_ties();
     test_strong_independent_children_replace_weak_parent();
     test_insufficient_child_coverage_preserves_parent();
+    test_half_coverage_is_required_on_each_parent_endpoint();
     test_near_complete_child_partition_preserves_parent();
     test_insufficient_child_confidence_advantage_preserves_parent();
     test_fragmentation_cost_preserves_parent();

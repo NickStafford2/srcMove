@@ -27,8 +27,8 @@ not inferred coverage from names. It is not a complete map of the whole suite.
 
 ## Where to read the tests
 
-- [Selection component](unit/selection_policy/test_selection_policy.cpp): seven
-  assertions calling ranking/bundle policy functions directly. No detector run.
+- [Selection component](unit/selection_policy/test_selection_policy.cpp): ten
+  assertions across eight named scenarios calling ranking/bundle policy functions directly. No detector run.
 - [Selection catalog](fixtures/selection/catalog.json): 21 independently named
   XML cases. [Its executor](support/selection_catalog.py) runs the detector.
 - [Type-2 checks](behavior/test_type2_contracts.py) and
@@ -46,7 +46,7 @@ not inferred coverage from names. It is not a complete map of the whole suite.
 - [Continuing identity](behavior/test_continuing_identity.py): a supported
   correspondence has greater utility than a tentative one. Not a complete ranking test.
 
-## Seven component assertions, translated
+## Component assertions, translated
 
 | Setup | Expected decision |
 | --- | --- |
@@ -54,6 +54,9 @@ not inferred coverage from names. It is not a complete map of the whole suite.
 | Otherwise identical keys, minimum IDs 5 and 6 | ID 5 ranks first. |
 | Two strong children cover enough of a weak parent | Children replace the parent. |
 | Children cover 20 of the parent's 44 units on each side | Children do not replace the parent. |
+| Children cover exactly 22 of 44 units on both sides | Other criteria satisfied, children may replace the parent. |
+| Delete coverage falls to 21 of 44; insert coverage remains 22 | Preserve the parent. |
+| Insert coverage falls to 21 of 44; delete coverage remains 22 | Preserve the parent. |
 | Children cover 31 of 44 units on each side | Preserve the parent as a near-complete partition. |
 | Raise parent confidence so the children's advantage is insufficient | Preserve the parent. |
 | Increase child count from two to eight | Fragmentation penalty prevents replacement for these metrics. |
@@ -88,9 +91,10 @@ its two inputs, conditions, and expectations compared before changing either tes
 
 1. **Ranking branches:** this component does not separately test every tie-break
    field, identical keys, or reverse comparisons.
-2. **Bundle boundaries:** no focused examples at both sides of the exact half-
-   coverage, 70% partition, confidence-advantage, or utility-equality boundaries;
-   one-child and zero-size guards also lack focused checks here.
+2. **Bundle boundaries:** exact half-coverage and one unit below it are now
+   checked independently on both endpoints of a 44-unit parent. Odd-sized
+   parents, the 70% partition, confidence-advantage, and utility-equality
+   boundaries still lack focused checks; so do one-child and zero-size guards.
 3. **Complete output:** the selection catalog checks required and forbidden
    normalized text matches. It permits unspecified extra groups and does not
    enforce exact endpoint multiplicity. Other fixture families have stronger
@@ -141,14 +145,13 @@ Required/forbidden assertions are partial contracts, as explained above.
 ## Verification
 
 On 2026-10-06, a focused Docker run passed all 21 selection catalog entries and
-`components.selection_policy` (22 runner entries; the component contains seven
+`components.selection_policy` (22 runner entries; the component then contained seven
 assertions). Related behavior families were inspected, not rerun for this map.
 The ignored report is `build/selection-coverage-map/report.json` under the
 workspace root. This is not a full-suite result.
 
 ## Small next step
 
-The selection component now uses named fields and seven named scenario functions;
-its input values and expectations are unchanged. A separate next slice can add
-one independently justified missing boundary check. Review it before expanding
-the migration. Keep the catalog expectations and existing genuine failures intact.
+Review the new half-coverage boundary scenario before choosing another bounded
+change. The original seven scenarios retain their inputs and expectations.
+Keep catalog expectations and existing genuine failures intact.
