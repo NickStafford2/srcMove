@@ -118,6 +118,12 @@ def _compact_results(
     compact_moves = tuple(
         _compact_move(move, ordinal) for ordinal, move in enumerate(moves)
     )
+    # Explicit IDs join primary members to atomic rows. Ordinals identify the
+    # compact row only; they must never stand in for an absent detector ID.
+    nested["atomic_metadata"] = [
+        {"ordinal": ordinal, **_retained_metadata(move)}
+        for ordinal, move in enumerate(moves)
+    ]
     for name in ("sequence_cluster_count", "sequence_reporting_unit_count", "reported_move_count", "reported_content_relationships"):
         if name in value:
             nested[name] = value[name]
@@ -135,10 +141,21 @@ def _compact_results(
                 **{key: report[key] for key in ("move_id", "report_kind", "content_relationship", "member_move_ids", "from_xpaths", "to_xpaths")},
                 "from_text_digests": _text_digests(report["from_raw_texts"]),
                 "to_text_digests": _text_digests(report["to_raw_texts"]),
+                **_retained_metadata(report),
             }
             for report in value["reported_moves"]
         ]
     return compact_moves, nested
+
+
+def _retained_metadata(value: dict[str, Any]) -> dict[str, str]:
+    retained = {}
+    for name in ("move_id", "identity_status", "identity_reason", "selection_reason"):
+        if name in value:
+            if not isinstance(value[name], str):
+                raise ValueError(f"srcMove metadata field {name!r} must be a string")
+            retained[name] = value[name]
+    return retained
 
 
 def _compact_move(value: Any, ordinal: int) -> CompactMove:

@@ -3,7 +3,7 @@
 ## Status
 
 This document describes the conceptual model implemented by srcMove History.
-It is not a table-by-table description of SQLite schema version 6; the schema in
+It is not a table-by-table description of the SQLite schema; the schema in
 `srcmove_history/database.py` remains authoritative for physical storage.
 
 ## Relationships
@@ -71,6 +71,16 @@ observations, like atomic evidence; no raw source bodies are stored. Sequence
 records retain only their known identity, policy, member IDs, and endpoint
 fields. This uses the existing metrics JSON column without a database migration.
 
+Compact pair schema 4 additionally retains `atomic_metadata` in metrics: each
+entry gives its compact row `ordinal` and any detector-emitted `move_id`,
+`identity_status`, `identity_reason`, and `selection_reason`. Explicit IDs join
+primary `member_move_ids` to atomic rows; ordinals are not substitute IDs.
+Primary reports also retain emitted identity status/reason. Pair-detail JSON
+from `AnalysisReader.show` exposes the sidecar alongside `moves`. Missing fields
+in old records remain absent/unknown; no identity or reason is reconstructed.
+Fresh states capture these fields without retaining source bodies or diagnostic
+candidate arrays. Existing states and snapshots are not migrated.
+
 Reported moves partition the atomic groups: a verified ordered run becomes one
 Type-1 report, while other groups retain one atomic report each. Compound
 endpoints represent corresponding ordered members, never a Cartesian product.
@@ -83,6 +93,12 @@ relationships; JSON retains explicit atomic counts. Pair details expose compact
 atomic groups as reporting units and do not invent sequence records. A fresh
 analysis is required to obtain compound records for old results. Snapshot
 exports preserve these fields because they preserve the canonical database.
+
+Read-only access supports compact schema 3, preserving absent atomic metadata
+as unknown. This exception accepts only compact schema 3 with all other current
+contract versions unchanged; it does not broaden support to earlier contracts.
+Writing, resuming, and comparison regeneration require the current contract,
+so a schema-3 state must be recreated separately for new execution.
 
 ## Deferred retries
 

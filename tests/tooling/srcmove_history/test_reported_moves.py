@@ -132,6 +132,7 @@ class ReportedMovesTests(unittest.TestCase):
             self.assertEqual(status["move_group_count"], 3)
             detail = reader.show(1).record()
             self.assertEqual(detail["reported_moves"][0]["member_move_ids"], ["a", "b"])
+            self.assertEqual([row["move_id"] for row in detail["atomic_metadata"]], ["a", "b", "c"])
             self.assertEqual(reader.list_pairs().items[0].reported_move_count, 2)
             with patch("srcmove_history.report._positive_git_count", return_value=2), patch("srcmove_history.report._commit_date", return_value="2026-10-05"), patch("srcmove_history.report._repository_name", return_value="fixture"):
                 report = build_report(analysis)
@@ -140,11 +141,41 @@ class ReportedMovesTests(unittest.TestCase):
             self.assertEqual(report.cross_file_moves, 2)
             self.assertEqual(dict(report.content_relationships), {"type1": 2})
 
+    def test_atomic_metadata_links_primary_members_without_guessing_absent_fields(self):
+        from srcmove_history.contracts import PairWorkItem
+        value = results()
+        value["moves"][0].update(identity_status="unresolved", identity_reason="repeated source", selection_reason="selected")
+        value["reported_moves"][0].update(identity_status="unresolved", identity_reason="member ambiguity")
+        with tempfile.TemporaryDirectory() as temporary:
+            work = PairWorkItem(0, "old", "new", "fingerprint")
+            first = compact_pair_outcome(outcome(Path(temporary) / "results.json", work, value))
+            second = compact_pair_outcome(outcome(Path(temporary) / "results.json", work, value))
+            self.assertEqual(first.metrics_json, second.metrics_json)
+            metrics = json.loads(first.metrics_json)
+            metadata = metrics["atomic_metadata"]
+            self.assertEqual(metadata[0], {"ordinal": 0, "move_id": "a", "identity_status": "unresolved", "identity_reason": "repeated source", "selection_reason": "selected"})
+            by_id = {row["move_id"]: row for row in metadata}
+            self.assertEqual([by_id[name]["ordinal"] for name in metrics["reported_moves"][0]["member_move_ids"]], [0, 1])
+            self.assertNotIn("identity_status", metadata[1])
+            self.assertEqual(metrics["reported_moves"][0]["identity_reason"], "member ambiguity")
+
+    def test_pair_detail_exposes_metadata_sidecar_and_old_absence(self):
+        from srcmove_history.queries import PairDetailSnapshot
+        common = dict(number=1, distance_from_newest=0, old_commit="old", new_commit="new", pair_fingerprint="fingerprint", status="completed", invocation_id="id", changed_path_count=1, analyzable_path_count=1, timings=(), error=None, failure_evidence=None, results_observation=None, moves=())
+        from srcmove_history.queries import _freeze_json
+        old = PairDetailSnapshot(metrics=_freeze_json({"move_count": 1}), **common).record()
+        self.assertNotIn("atomic_metadata", old)
+        sidecar = [{"ordinal": 0, "move_id": "a"}]
+        current = PairDetailSnapshot(metrics=_freeze_json({"atomic_metadata": sidecar}), **common).record()
+        self.assertEqual(current["atomic_metadata"], sidecar)
+
     def test_legacy_results_do_not_invent_sequences(self):
         value = results()
         for field in list(value):
             if field.startswith("reported_") or field.startswith("sequence_") or field == "move_sequences":
                 del value[field]
+        for move in value["moves"]:
+            del move["move_id"]
         normalize_compactable_results(value)
         with tempfile.TemporaryDirectory() as temporary:
             from srcmove_history.contracts import PairWorkItem
@@ -152,6 +183,7 @@ class ReportedMovesTests(unittest.TestCase):
             metrics = json.loads(compact.metrics_json)
             self.assertNotIn("reported_moves", metrics)
             self.assertNotIn("move_sequences", metrics)
+            self.assertEqual(metrics["atomic_metadata"], [{"ordinal": 0}, {"ordinal": 1}, {"ordinal": 2}])
 
 
 if __name__ == "__main__":

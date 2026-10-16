@@ -291,7 +291,8 @@ class FrozenAnalysisManifest:
 
 
 def load_frozen_manifest_bytes(
-    content: bytes, *, analysis_root: Path, context: str = "manifest"
+    content: bytes, *, analysis_root: Path, context: str = "manifest",
+    allow_legacy_compact: bool = False,
 ) -> FrozenAnalysisManifest:
     """Strictly load canonical manifest bytes from an authoritative store."""
 
@@ -334,7 +335,7 @@ def load_frozen_manifest_bytes(
     executables = _object(record["executables"], "executables")
     _fields(executables, {"srcdiff", "srcmove"}, "executables")
     schema_versions = _load_fingerprint_schema_versions(
-        record["fingerprint_schema_versions"]
+        record["fingerprint_schema_versions"], allow_legacy_compact=allow_legacy_compact
     )
     manifest = FrozenAnalysisManifest(
         repository=repository,
@@ -371,6 +372,8 @@ def verify_resume_inputs(
 ) -> FrozenAnalysisManifest:
     """Verify caller inputs and bind work items to freshly observed tools."""
 
+    if manifest.schema_versions != FingerprintSchemaVersions():
+        raise ValueError("legacy analysis contract is read-only; create a new state")
     if repository_identity != manifest.repository_identity:
         raise ValueError("repository identity drift from frozen manifest")
     if configuration != manifest.configuration:
@@ -548,11 +551,18 @@ def _resolve_locator(root: Path, locator: str, context: str) -> Path:
     return (root / Path(locator)).resolve()
 
 
-def _load_fingerprint_schema_versions(value: Any) -> FingerprintSchemaVersions:
+def _load_fingerprint_schema_versions(
+    value: Any, *, allow_legacy_compact: bool = False
+) -> FingerprintSchemaVersions:
     record = _object(value, "fingerprint_schema_versions")
     expected = FingerprintSchemaVersions().record()
     _fields(record, set(expected), "fingerprint_schema_versions")
     for name, version in expected.items():
+        # Schema 3 differs only by absent additive atomic metadata. This
+        # exception applies to reading; resume/compare retain strict contracts.
+        if (allow_legacy_compact and name == "compact_pair"
+                and version == 4 and type(record[name]) is int and record[name] == 3):
+            continue
         _schema(record, name, version)
     return FingerprintSchemaVersions(**record)
 

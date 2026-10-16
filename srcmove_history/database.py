@@ -104,8 +104,9 @@ class StoredInvocation:
 class AnalysisDatabase:
     """One SQLite database containing frozen work and committed compact state."""
 
-    def __init__(self, root: Path, connection: sqlite3.Connection) -> None:
+    def __init__(self, root: Path, connection: sqlite3.Connection, *, read_only: bool = False) -> None:
         self.root = root
+        self.read_only = read_only
         self.path = root / DATABASE_NAME
         self.connection = connection
         self.connection.row_factory = sqlite3.Row
@@ -191,7 +192,7 @@ class AnalysisDatabase:
             uri=read_only,
         )
         try:
-            database = cls(root, connection)
+            database = cls(root, connection, read_only=read_only)
             if not read_only:
                 connection.execute("PRAGMA journal_mode = WAL")
                 connection.execute("PRAGMA synchronous = FULL")
@@ -932,6 +933,7 @@ class AnalysisDatabase:
             content,
             analysis_root=self.root,
             context=f"analysis batch {batch.batch_id}",
+            allow_legacy_compact=self.read_only,
         )
         if (
             manifest.commits[0] != batch.oldest_commit

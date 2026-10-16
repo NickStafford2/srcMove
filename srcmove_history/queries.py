@@ -240,7 +240,7 @@ class PairDetailSnapshot:
             "invocation_id": self.invocation_id,
             "changed_path_count": self.changed_path_count,
             "analyzable_path_count": self.analyzable_path_count,
-            **{name: value for name, value in _thaw_json(self.metrics).items() if name in {"reported_moves", "move_sequences", "reported_move_count", "reported_content_relationships"}},
+            **{name: value for name, value in _thaw_json(self.metrics).items() if name in {"atomic_metadata", "reported_moves", "move_sequences", "reported_move_count", "reported_content_relationships"}},
             "metrics": _thaw_json(self.metrics),
             "timings": _thaw_json(self.timings),
             "error": self.error,
