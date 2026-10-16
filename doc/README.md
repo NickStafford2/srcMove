@@ -50,6 +50,9 @@ summaries or diagrams disagree with current behavior.
 
 ## Research notes and planned work
 
+- [Results schema 3 contract](plans/results_schema_v3/README.md): proposed
+  atomic-group and output-item format, production evidence, diagnostics schema 5,
+  illustrative examples, and migration validation gates; not yet implemented
 - [History analysis engine](plans/history_analysis_engine.md): proposed reproducible
   metrics, evidence contracts, implementation gates, and adversarial review
 - [Adjacent moved sequences](plans/adjacent_move_sequences.md): proposed ordered
