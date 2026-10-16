@@ -13,6 +13,9 @@ reference-repositories/*
 !reference-repositories/repositories.json
 context-export.toml
 examples/
+# Hand-authored results-format illustrations are documentation fixtures.
+!doc/plans/results_schema_v3/examples/
+!doc/plans/results_schema_v3/examples/**
 profile-results/
 benchmark-data/
 bigMoveBench/cache/*

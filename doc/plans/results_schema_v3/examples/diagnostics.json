@@ -1,0 +1,797 @@
+{
+  "results_schema_version": 3,
+  "summary": {
+    "output_item_count": 2,
+    "atomic_move_group_count": 2,
+    "sequence_move_group_count": 0,
+    "pair_capacity": 2,
+    "endpoint_count": 4,
+    "atomic_content_relationships": {
+      "type1": 1,
+      "type2c": 0,
+      "type3": 1
+    },
+    "output_content_relationships": {
+      "type1": 1,
+      "type2c": 0,
+      "type3": 1
+    }
+  },
+  "output_items": [
+    {
+      "id": "item:edited-1",
+      "kind": "atomic_move_group",
+      "member_group_ids": [
+        "edited-1"
+      ]
+    },
+    {
+      "id": "item:exact-1",
+      "kind": "atomic_move_group",
+      "member_group_ids": [
+        "exact-1"
+      ]
+    }
+  ],
+  "atomic_move_groups": [
+    {
+      "id": "edited-1",
+      "content_relationship": "type3",
+      "correspondence": {
+        "status": "selected_pair"
+      },
+      "name_evidence": "not_assessed",
+      "original": [
+        {
+          "candidate_id": 0,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:block[1]",
+          "construct": "src:block",
+          "raw_text": "{ first(); second(); third(); fourth(); }"
+        }
+      ],
+      "modified": [
+        {
+          "candidate_id": 1,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:block[2]",
+          "construct": "src:block",
+          "raw_text": "{ first(); second(); third(); fourth(); fifth(); }"
+        }
+      ],
+      "location_evidence": {
+        "scope": "pair",
+        "classification": "relocated",
+        "reason": "different_file"
+      },
+      "selection": {
+        "matching_weight_milli": 900,
+        "utility": 1000,
+        "matched_units": 1,
+        "reason": "greedy_utility"
+      }
+    },
+    {
+      "id": "exact-1",
+      "content_relationship": "type1",
+      "correspondence": {
+        "status": "selected_pair"
+      },
+      "name_evidence": "not_assessed",
+      "original": [
+        {
+          "candidate_id": 2,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[3]",
+          "construct": "src:expr_stmt",
+          "raw_text": "perform_work();"
+        }
+      ],
+      "modified": [
+        {
+          "candidate_id": 3,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:expr_stmt[4]",
+          "construct": "src:expr_stmt",
+          "raw_text": "perform_work();"
+        }
+      ],
+      "location_evidence": {
+        "scope": "pair",
+        "classification": "relocated",
+        "reason": "different_file"
+      },
+      "selection": {
+        "matching_weight_milli": 1000,
+        "utility": 1000,
+        "matched_units": 1,
+        "reason": "greedy_utility"
+      }
+    }
+  ],
+  "configuration": {
+    "min_granularity": "statement",
+    "sequence_policy": "ordered_adjacent_v1"
+  },
+  "pipeline_statistics": {
+    "srcdiff_region_count": 16,
+    "grouped_candidate_entry_count": 16,
+    "processing_group_count": 14,
+    "processing_group_kinds": {
+      "move_1_to_1": 2,
+      "moves_many": 0,
+      "delete_only": 6,
+      "insert_only": 6,
+      "copy_or_repeat": 0,
+      "ambiguous": 0
+    }
+  },
+  "xpath_context": {
+    "document": "input_srcdiff",
+    "namespaces": {
+      "src": "http://www.srcML.org/srcML/src",
+      "diff": "http://www.srcML.org/srcDiff"
+    },
+    "convention": "srcreader_file_units_v1"
+  },
+  "diagnostics": {
+    "schema_version": 5,
+    "candidates": [
+      {
+        "candidate_id": 0,
+        "revision": "original",
+        "selected_group_id": "edited-1",
+        "endpoint": null,
+        "type3_eligible": true,
+        "line_units": 6,
+        "token_units": 24,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 1,
+        "revision": "modified",
+        "selected_group_id": "edited-1",
+        "endpoint": null,
+        "type3_eligible": true,
+        "line_units": 7,
+        "token_units": 25,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 2,
+        "revision": "original",
+        "selected_group_id": "exact-1",
+        "endpoint": null,
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 5,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 3,
+        "revision": "modified",
+        "selected_group_id": "exact-1",
+        "endpoint": null,
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 5,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 4,
+        "revision": "original",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 4,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[5]",
+          "construct": "src:expr_stmt",
+          "raw_text": "perform_work();"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 5,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 5,
+        "revision": "modified",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 5,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:expr_stmt[6]",
+          "construct": "src:expr_stmt",
+          "raw_text": "perform_work();"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 5,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 6,
+        "revision": "original",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 6,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[7]",
+          "construct": "src:expr_stmt",
+          "raw_text": "perform_work();"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 5,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 7,
+        "revision": "modified",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 7,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:expr_stmt[8]",
+          "construct": "src:expr_stmt",
+          "raw_text": "perform_work();"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 5,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 8,
+        "revision": "modified",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 8,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:block[9]",
+          "construct": "src:block",
+          "raw_text": "{ first(); second(); third(); fourth(); sixth(); }"
+        },
+        "type3_eligible": true,
+        "line_units": 7,
+        "token_units": 25,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 9,
+        "revision": "original",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 9,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[10]",
+          "construct": "src:expr_stmt",
+          "raw_text": "left + right;"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 4,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 10,
+        "revision": "modified",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 10,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:expr_stmt[11]",
+          "construct": "src:expr_stmt",
+          "raw_text": "left = right * extra;"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 6,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 11,
+        "revision": "original",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 11,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[12]",
+          "construct": "src:expr_stmt",
+          "raw_text": "left = right + right;"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 6,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 12,
+        "revision": "modified",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 12,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:expr_stmt[13]",
+          "construct": "src:expr_stmt",
+          "raw_text": "first = second + second;"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 6,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 13,
+        "revision": "original",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 13,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[14]",
+          "construct": "src:expr_stmt",
+          "raw_text": "left = left + right;"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 6,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 14,
+        "revision": "modified",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 14,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:expr_stmt[15]",
+          "construct": "src:expr_stmt",
+          "raw_text": "first = second + second;"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 6,
+        "role": "structural_child"
+      },
+      {
+        "candidate_id": 15,
+        "revision": "original",
+        "selected_group_id": null,
+        "endpoint": {
+          "candidate_id": 15,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[16]",
+          "construct": "src:expr_stmt",
+          "raw_text": "other = value + value;"
+        },
+        "type3_eligible": true,
+        "line_units": 1,
+        "token_units": 6,
+        "role": "structural_child"
+      }
+    ],
+    "correspondences": [
+      {
+        "id": "corr-edited",
+        "original_candidate_id": 0,
+        "modified_candidate_id": 1,
+        "content_relationship": "type3",
+        "location": {
+          "scope": "pair",
+          "classification": "relocated",
+          "reason": "different_file",
+          "observations": {
+            "file": "different",
+            "semantic_container": "unknown",
+            "anchor_interval": "unknown",
+            "relative_order": "unknown",
+            "ancestor": "same"
+          },
+          "carried_by_parent": false,
+          "parent_pair": null
+        },
+        "original_context": {
+          "revision_file": "original.cpp",
+          "semantic_container_id": null,
+          "semantic_container_label": null,
+          "previous_common_anchor_id": null,
+          "next_common_anchor_id": null,
+          "meaningful_ancestors": [
+            "function",
+            "block"
+          ],
+          "ancestor_summary_interpretable": true,
+          "structural_region_id": null,
+          "structural_region_mapped": false,
+          "common_sibling_prefix_count": 0,
+          "common_sibling_suffix_begin": 0,
+          "anchor_region_id": null
+        },
+        "modified_context": {
+          "revision_file": "modified.cpp",
+          "semantic_container_id": null,
+          "semantic_container_label": null,
+          "previous_common_anchor_id": null,
+          "next_common_anchor_id": null,
+          "meaningful_ancestors": [
+            "function",
+            "block"
+          ],
+          "ancestor_summary_interpretable": true,
+          "structural_region_id": null,
+          "structural_region_mapped": false,
+          "common_sibling_prefix_count": 0,
+          "common_sibling_suffix_begin": 0,
+          "anchor_region_id": null
+        },
+        "verified_partner_counts": {
+          "original": 2,
+          "modified": 1
+        },
+        "selection": {
+          "status": "selected_pair",
+          "selected_group_id": "edited-1"
+        },
+        "name_evidence": "not_assessed"
+      },
+      {
+        "id": "corr-exact",
+        "original_candidate_id": 2,
+        "modified_candidate_id": 3,
+        "content_relationship": "type1",
+        "location": {
+          "scope": "pair",
+          "classification": "relocated",
+          "reason": "different_file",
+          "observations": {
+            "file": "different",
+            "semantic_container": "unknown",
+            "anchor_interval": "unknown",
+            "relative_order": "unknown",
+            "ancestor": "same"
+          },
+          "carried_by_parent": false,
+          "parent_pair": null
+        },
+        "original_context": {
+          "revision_file": "original.cpp",
+          "semantic_container_id": null,
+          "semantic_container_label": null,
+          "previous_common_anchor_id": null,
+          "next_common_anchor_id": null,
+          "meaningful_ancestors": [
+            "function",
+            "block"
+          ],
+          "ancestor_summary_interpretable": true,
+          "structural_region_id": null,
+          "structural_region_mapped": false,
+          "common_sibling_prefix_count": 0,
+          "common_sibling_suffix_begin": 0,
+          "anchor_region_id": null
+        },
+        "modified_context": {
+          "revision_file": "modified.cpp",
+          "semantic_container_id": null,
+          "semantic_container_label": null,
+          "previous_common_anchor_id": null,
+          "next_common_anchor_id": null,
+          "meaningful_ancestors": [
+            "function",
+            "block"
+          ],
+          "ancestor_summary_interpretable": true,
+          "structural_region_id": null,
+          "structural_region_mapped": false,
+          "common_sibling_prefix_count": 0,
+          "common_sibling_suffix_begin": 0,
+          "anchor_region_id": null
+        },
+        "verified_partner_counts": null,
+        "selection": {
+          "status": "selected_pair",
+          "selected_group_id": "exact-1"
+        },
+        "name_evidence": "not_assessed"
+      },
+      {
+        "id": "corr-competing",
+        "original_candidate_id": 0,
+        "modified_candidate_id": 8,
+        "content_relationship": "type3",
+        "location": {
+          "scope": "pair",
+          "classification": "relocated",
+          "reason": "different_file",
+          "observations": {
+            "file": "different",
+            "semantic_container": "unknown",
+            "anchor_interval": "unknown",
+            "relative_order": "unknown",
+            "ancestor": "same"
+          },
+          "carried_by_parent": false,
+          "parent_pair": null
+        },
+        "original_context": {
+          "revision_file": "original.cpp",
+          "semantic_container_id": null,
+          "semantic_container_label": null,
+          "previous_common_anchor_id": null,
+          "next_common_anchor_id": null,
+          "meaningful_ancestors": [
+            "function",
+            "block"
+          ],
+          "ancestor_summary_interpretable": true,
+          "structural_region_id": null,
+          "structural_region_mapped": false,
+          "common_sibling_prefix_count": 0,
+          "common_sibling_suffix_begin": 0,
+          "anchor_region_id": null
+        },
+        "modified_context": {
+          "revision_file": "modified.cpp",
+          "semantic_container_id": null,
+          "semantic_container_label": null,
+          "previous_common_anchor_id": null,
+          "next_common_anchor_id": null,
+          "meaningful_ancestors": [
+            "function",
+            "block"
+          ],
+          "ancestor_summary_interpretable": true,
+          "structural_region_id": null,
+          "structural_region_mapped": false,
+          "common_sibling_prefix_count": 0,
+          "common_sibling_suffix_begin": 0,
+          "anchor_region_id": null
+        },
+        "verified_partner_counts": {
+          "original": 2,
+          "modified": 1
+        },
+        "selection": {
+          "status": "not_selected_pair",
+          "selected_group_id": null
+        },
+        "name_evidence": "not_assessed"
+      },
+      {
+        "id": "corr-parent",
+        "original_candidate_id": 4,
+        "modified_candidate_id": 5,
+        "content_relationship": "type1",
+        "location": {
+          "scope": "pair",
+          "classification": "relocated",
+          "reason": "different_file",
+          "observations": {
+            "file": "different",
+            "semantic_container": "unknown",
+            "anchor_interval": "unknown",
+            "relative_order": "unknown",
+            "ancestor": "same"
+          },
+          "carried_by_parent": false,
+          "parent_pair": null
+        },
+        "original_context": {
+          "revision_file": "original.cpp",
+          "semantic_container_id": null,
+          "semantic_container_label": null,
+          "previous_common_anchor_id": null,
+          "next_common_anchor_id": null,
+          "meaningful_ancestors": [
+            "function",
+            "block"
+          ],
+          "ancestor_summary_interpretable": true,
+          "structural_region_id": null,
+          "structural_region_mapped": false,
+          "common_sibling_prefix_count": 0,
+          "common_sibling_suffix_begin": 0,
+          "anchor_region_id": null
+        },
+        "modified_context": {
+          "revision_file": "modified.cpp",
+          "semantic_container_id": null,
+          "semantic_container_label": null,
+          "previous_common_anchor_id": null,
+          "next_common_anchor_id": null,
+          "meaningful_ancestors": [
+            "function",
+            "block"
+          ],
+          "ancestor_summary_interpretable": true,
+          "structural_region_id": null,
+          "structural_region_mapped": false,
+          "common_sibling_prefix_count": 0,
+          "common_sibling_suffix_begin": 0,
+          "anchor_region_id": null
+        },
+        "verified_partner_counts": null,
+        "selection": {
+          "status": "not_selected_pair",
+          "selected_group_id": null
+        },
+        "name_evidence": "not_assessed"
+      },
+      {
+        "id": "corr-carried",
+        "original_candidate_id": 6,
+        "modified_candidate_id": 7,
+        "content_relationship": "type1",
+        "location": {
+          "scope": "pair",
+          "classification": "stationary",
+          "reason": "stable_relative_to_relocated_parent",
+          "observations": {
+            "file": "different",
+            "semantic_container": "unknown",
+            "anchor_interval": "same_within_parent",
+            "relative_order": "unchanged",
+            "ancestor": "same"
+          },
+          "carried_by_parent": true,
+          "parent_pair": {
+            "original_candidate_id": 4,
+            "modified_candidate_id": 5
+          }
+        },
+        "original_context": {
+          "revision_file": "original.cpp",
+          "semantic_container_id": null,
+          "semantic_container_label": null,
+          "previous_common_anchor_id": null,
+          "next_common_anchor_id": null,
+          "meaningful_ancestors": [
+            "function",
+            "block"
+          ],
+          "ancestor_summary_interpretable": true,
+          "structural_region_id": null,
+          "structural_region_mapped": false,
+          "common_sibling_prefix_count": 0,
+          "common_sibling_suffix_begin": 0,
+          "anchor_region_id": null
+        },
+        "modified_context": {
+          "revision_file": "modified.cpp",
+          "semantic_container_id": null,
+          "semantic_container_label": null,
+          "previous_common_anchor_id": null,
+          "next_common_anchor_id": null,
+          "meaningful_ancestors": [
+            "function",
+            "block"
+          ],
+          "ancestor_summary_interpretable": true,
+          "structural_region_id": null,
+          "structural_region_mapped": false,
+          "common_sibling_prefix_count": 0,
+          "common_sibling_suffix_begin": 0,
+          "anchor_region_id": null
+        },
+        "verified_partner_counts": null,
+        "selection": {
+          "status": "not_selected_pair",
+          "selected_group_id": null
+        },
+        "name_evidence": "not_assessed"
+      }
+    ],
+    "type3_comparisons": [
+      {
+        "id": "type3-selected",
+        "original_candidate_id": 0,
+        "modified_candidate_id": 1,
+        "verification": {
+          "status": "verified",
+          "reason": null,
+          "lines": {
+            "common": 6,
+            "maximum": 7
+          },
+          "tokens": {
+            "common": 23,
+            "maximum": 25
+          }
+        },
+        "selection": {
+          "status": "selected",
+          "selected_group_id": "edited-1",
+          "reason": null
+        }
+      },
+      {
+        "id": "type3-not-selected",
+        "original_candidate_id": 0,
+        "modified_candidate_id": 8,
+        "verification": {
+          "status": "verified",
+          "reason": null,
+          "lines": {
+            "common": 6,
+            "maximum": 7
+          },
+          "tokens": {
+            "common": 23,
+            "maximum": 25
+          }
+        },
+        "selection": {
+          "status": "not_selected",
+          "selected_group_id": null,
+          "reason": null
+        }
+      },
+      {
+        "id": "type3-below-threshold",
+        "original_candidate_id": 9,
+        "modified_candidate_id": 10,
+        "verification": {
+          "status": "below_threshold",
+          "reason": null,
+          "lines": {
+            "common": 0,
+            "maximum": 1
+          },
+          "tokens": {
+            "common": 3,
+            "maximum": 6
+          }
+        },
+        "selection": {
+          "status": "not_applicable",
+          "selected_group_id": null,
+          "reason": null
+        }
+      },
+      {
+        "id": "type3-not-evaluated",
+        "original_candidate_id": 11,
+        "modified_candidate_id": 12,
+        "verification": {
+          "status": "not_evaluated",
+          "reason": "ambiguous_type2c",
+          "lines": {
+            "common": null,
+            "maximum": 1
+          },
+          "tokens": {
+            "common": null,
+            "maximum": 6
+          }
+        },
+        "selection": {
+          "status": "not_applicable",
+          "selected_group_id": null,
+          "reason": null
+        }
+      }
+    ],
+    "type2b_groups": [
+      {
+        "id": "blind-1",
+        "content_relationship": "type2b",
+        "observation_only": true,
+        "original_candidate_ids": [
+          13
+        ],
+        "modified_candidate_ids": [
+          14
+        ],
+        "blind_only_pair_count": 1,
+        "location": {
+          "classification": "relocated",
+          "reason": "different_file"
+        }
+      }
+    ],
+    "candidate_counts": {
+      "registered": 18,
+      "active": 16
+    }
+  }
+}

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Check cross-record semantics of synthetic results-v3 examples (stdlib only).
+"""Validate synthetic results-v3 examples against schema and cross-record rules.
 
-Structural validation belongs to schema.json. XML resolution, true adjacency,
+Structural validation uses schema.json. XML resolution, true adjacency,
 and detector correctness cannot be established from these documents alone.
 """
 
@@ -10,6 +10,19 @@ from collections import Counter
 from copy import deepcopy
 import json
 from pathlib import Path
+import re
+
+try:
+    from jsonschema import Draft202012Validator
+    from jsonschema.exceptions import ValidationError
+except ImportError as error:
+    raise SystemExit(
+        "Validation dependencies are unavailable. From the workspace root, install "
+        "with: python3 -m pip install --target srcMove/build/schema3-validation -r "
+        "srcMove/doc/plans/results_schema_v3/requirements-validation.txt; then set "
+        "PYTHONPATH=srcMove/build/schema3-validation when running this checker. "
+        "See the contract README for Docker commands."
+    ) from error
 
 
 RELATIONSHIPS = ("type1", "type2c", "type3")
@@ -34,32 +47,22 @@ def histogram(values):
     return {relationship: counts[relationship] for relationship in RELATIONSHIPS}
 
 
-def check_identity(evidence, relationship, diagnostic=False):
-    status = evidence["status"]
-    reasons = {
-        "exact_content": None,
-        "corroborated": "continuing_name_corroborated",
-        "tentative": "uncorroborated_declaration",
-        "unassessed": None,
-        "contradicted": "continuing_name_conflict",
-    }
-    require(status in reasons, "Unknown identity status")
-    require(diagnostic or status != "contradicted", "Selected contradicted identity")
-    require((relationship == "type1") == (status == "exact_content"),
-            "Type-1 and exact-content identity must agree")
-    require(evidence["reason"] == reasons[status], "Identity status/reason disagree")
+def check_name(evidence, relationship, diagnostic=False):
+    require(diagnostic or evidence != "contradicted", "Selected contradicted name evidence")
+    if relationship == "type1":
+        require(evidence == "not_assessed", "Type-1 name evidence must be not assessed")
 
 
 def check_location(location, candidate_side=None, selected=False):
     if location["scope"] != "pair":
         return
+    if selected:
+        require(location["classification"] == "relocated",
+                "Selected pair lacks eligible location classification")
+        return
     parent = location["parent_pair"]
     require(location["carried_by_parent"] == (parent is not None),
             "Parent carrying and parent reference disagree")
-    if selected:
-        require(not location["carried_by_parent"], "Selected pair is parent-carried")
-        require(location["classification"] == "relocated",
-                "Selected pair lacks eligible location classification")
     if parent is not None and candidate_side is not None:
         for side in ("original", "modified"):
             candidate_id = parent[f"{side}_candidate_id"]
@@ -72,13 +75,6 @@ def check_location(location, candidate_side=None, selected=False):
                 "Parent-carried observations disagree")
 
 
-def exact_group(group, original_id, modified_id, relationship):
-    return (group["correspondence"]["status"] == "selected_pair"
-            and group["content_relationship"] == relationship
-            and [endpoint["candidate_id"] for endpoint in group["original"]] == [original_id]
-            and [endpoint["candidate_id"] for endpoint in group["modified"]] == [modified_id])
-
-
 def validate(document):
     """Raise ValueError for cross-record violations; expect schema-valid input."""
     require(document["results_schema_version"] == 3, "Expected results schema 3")
@@ -87,23 +83,31 @@ def validate(document):
     endpoints = {}
     ownership = {}
     sides = {}
+    selected_pairs = {}
+    namespaces = document["xpath_context"]["namespaces"]
+    require(document["xpath_context"]["convention"] == "srcreader_file_units_v1",
+            "Unsupported XPath convention")
+    require(namespaces.get("src") == "http://www.srcML.org/srcML/src"
+            and namespaces.get("diff") == "http://www.srcML.org/srcDiff",
+            "Canonical src/diff namespace bindings required")
+
+    def check_xpath(endpoint):
+        # Ignore quoted filename/name literals when looking for XPath prefixes.
+        path = re.sub(r"'[^']*'|\"[^\"]*\"", "", endpoint["xpath"])
+        prefixes = set(re.findall(r"(?<![\w.-])([A-Za-z_][\w.-]*):(?=[A-Za-z_*])", path))
+        require(prefixes <= namespaces.keys(), "XPath uses an unbound namespace prefix")
+
     for group_id, group in groups.items():
         relationship = group["content_relationship"]
-        check_identity(group["identity_evidence"], relationship)
+        check_name(group["name_evidence"], relationship)
         status = group["correspondence"]["status"]
-        basis = group["correspondence"]["basis"]
-        copy = group["copy_provenance"]["status"] == "continuing_source_copy"
-        require(copy == (status == "copy_source_set"), "Copy and correspondence disagree")
         reason = group["selection"]["reason"]
-        for special_basis in ("continuing_source_copy", "unresolved_exact_residual",
-                              "exact_neighbor_correspondence"):
-            require((basis == special_basis) == (reason == special_basis),
-                    "Typed correspondence basis and selection reason disagree")
-        if basis == "exact_neighbor_correspondence":
-            require(relationship == "type1", "Exact-neighbor basis requires Type-1")
+        require((status == "copy_source_set") == (reason == "continuing_source_copy"),
+                "Copy correspondence and selection reason disagree")
+        if reason == "exact_neighbor_correspondence":
+            require(relationship == "type1" and status == "selected_pair",
+                    "Exact-neighbor selection requires Type-1 selected pair")
         if status == "selected_pair":
-            require(basis in ("pair_proposal", "exact_neighbor_correspondence"),
-                    "Selected pair has incompatible basis")
             require(len(group["original"]) == len(group["modified"]) == 1,
                     "Selected pair must have one endpoint per side")
             require(group["location_evidence"]["scope"] == "pair",
@@ -113,19 +117,13 @@ def validate(document):
                     "Unresolved or copy policy cannot establish selected pair")
         elif status == "unresolved_partners":
             require(relationship == "type1", "Unresolved group must be Type-1")
-            require(basis in ("repeated_exact_group", "unresolved_exact_residual"),
-                    "Unresolved group has incompatible basis")
             require(group["location_evidence"]["scope"] == "group",
                     "Unresolved group requires group location gate")
-            if basis == "unresolved_exact_residual":
-                require(group["selection"]["reason"] == basis,
-                        "Residual basis and selection reason disagree")
-            else:
+            if reason != "unresolved_exact_residual":
                 require(len(group["original"]) > 1 or len(group["modified"]) > 1,
                         "Repeated group requires alternatives")
         elif status == "copy_source_set":
-            require(relationship == "type1" and basis == "continuing_source_copy",
-                    "Copy group requires exact copy basis")
+            require(relationship == "type1", "Copy group requires Type-1")
             require(group["selection"]["reason"] == "continuing_source_copy",
                     "Copy selection reason disagrees")
             require(group["location_evidence"]["scope"] == "not_assessed",
@@ -135,11 +133,17 @@ def validate(document):
         check_location(group["location_evidence"], selected=status == "selected_pair")
         for side in ("original", "modified"):
             for endpoint in group[side]:
+                check_xpath(endpoint)
                 candidate_id = endpoint["candidate_id"]
                 require(candidate_id not in endpoints, "Candidate has multiple selected owners")
                 endpoints[candidate_id] = endpoint
                 ownership[candidate_id] = group_id
                 sides[candidate_id] = side
+        if status == "selected_pair":
+            pair_key = (group["original"][0]["candidate_id"],
+                        group["modified"][0]["candidate_id"], relationship)
+            require(pair_key not in selected_pairs, "Duplicate selected pair")
+            selected_pairs[pair_key] = group_id
 
     members_seen = set()
     output_relationships = []
@@ -167,7 +171,6 @@ def validate(document):
                     "Sequence member must be resolved Type-1 pair")
             for side in ("original", "modified"):
                 endpoint = group[side][0]
-                require(endpoint["role"] == "structural_child", "Sequence member role invalid")
                 require(endpoint["revision_file"] == sequence[side]["revision_file"],
                         "Sequence member file differs from span")
         for side in ("original", "modified"):
@@ -193,24 +196,24 @@ def validate(document):
     }
     require(summary == expected, "Summary differs from canonical collections")
     statistics = document["pipeline_statistics"]
-    require(all(0 <= candidate_id < statistics["registered_candidate_count"]
-                for candidate_id in endpoints), "Selected candidate ID outside registry bounds")
     require(sum(statistics["processing_group_kinds"].values()) == statistics["processing_group_count"],
             "Processing group histogram total differs")
-    require(statistics["active_candidate_count"] <= statistics["registered_candidate_count"],
-            "Active inventory exceeds registered inventory")
-    require(len(endpoints) <= statistics["active_candidate_count"],
-            "Selected endpoints exceed active inventory")
     if "diagnostics" not in document:
         return
     diagnostics = document["diagnostics"]
+    counts = diagnostics["candidate_counts"]
+    require(counts["active"] <= counts["registered"], "Active inventory exceeds registered inventory")
     candidates = index_by(diagnostics["candidates"], "candidate_id", "diagnostic candidate ID")
-    require(all(0 <= candidate_id < statistics["registered_candidate_count"]
+    require(all(0 <= candidate_id < counts["registered"]
                 for candidate_id in candidates), "Diagnostic candidate ID outside registry bounds")
-    require(len(candidates) == statistics["active_candidate_count"], "Active candidate inventory incomplete")
+    require(len(candidates) == counts["active"], "Active candidate inventory incomplete")
     require(set(endpoints) <= set(candidates), "Selected candidate absent from inventory")
     for candidate_id, candidate in candidates.items():
         side = candidate["revision"]
+        if candidate["type3_eligible"]:
+            require(candidate["role"] == "structural_child"
+                    and candidate["line_units"] > 0 and candidate["token_units"] > 0,
+                    "Type-3 eligible candidate requires structural role and positive units")
         if candidate_id in ownership:
             require(candidate["selected_group_id"] == ownership[candidate_id]
                     and candidate["endpoint"] is None and side == sides[candidate_id],
@@ -220,7 +223,15 @@ def validate(document):
                     "Unselected candidate requires inline endpoint")
             require(candidate["endpoint"]["candidate_id"] == candidate_id,
                     "Inline candidate identity disagrees")
+            check_xpath(candidate["endpoint"])
         sides[candidate_id] = side
+    for item in items.values():
+        if item["kind"] == "sequence_move_group":
+            for group_id in item["member_group_ids"]:
+                for side in ("original", "modified"):
+                    candidate_id = groups[group_id][side][0]["candidate_id"]
+                    require(candidates[candidate_id]["role"] == "structural_child",
+                            "Sequence diagnostic member role invalid")
 
     def check_pair(record):
         for side in ("original", "modified"):
@@ -230,28 +241,30 @@ def validate(document):
     def selected_link(record, relationship, selected_status):
         selection = record["selection"]
         group_id = selection["selected_group_id"]
+        expected_group = selected_pairs.get((record["original_candidate_id"],
+                                             record["modified_candidate_id"], relationship))
         if selection["status"] == selected_status:
-            require(group_id in groups and exact_group(groups[group_id],
-                    record["original_candidate_id"], record["modified_candidate_id"], relationship),
+            require(group_id is not None and group_id == expected_group,
                     "Diagnostic selected link does not match exact selected pair")
         else:
             require(group_id is None, "Unselected diagnostic cannot link a selected pair")
-            require(not any(exact_group(group, record["original_candidate_id"],
-                    record["modified_candidate_id"], relationship) for group in groups.values()),
+            require(expected_group is None,
                     "Exact selected pair incorrectly marked unselected")
 
     correspondences = index_by(diagnostics["correspondences"], "id", "correspondence ID")
     for record in correspondences.values():
         check_pair(record)
-        check_identity(record["identity_evidence"], record["content_relationship"], diagnostic=True)
+        check_name(record["name_evidence"], record["content_relationship"], diagnostic=True)
         check_location(record["location"], sides)
         require((record["verified_partner_counts"] is not None) == (record["content_relationship"] == "type3"),
                 "Verified partner counts apply only to Type-3")
         selected_link(record, record["content_relationship"], "selected_pair")
         if record["selection"]["status"] == "selected_pair":
             group = groups[record["selection"]["selected_group_id"]]
-            require(record["identity_evidence"] == group["identity_evidence"]
-                    and record["location"] == group["location_evidence"],
+            location = record["location"]
+            require(record["name_evidence"] == group["name_evidence"]
+                    and {key: location[key] for key in ("scope", "classification", "reason")}
+                    == group["location_evidence"] and not location["carried_by_parent"],
                     "Selected diagnostic and ordinary evidence disagree")
         for side in ("original", "modified"):
             candidate_id = record[f"{side}_candidate_id"]
@@ -265,6 +278,14 @@ def validate(document):
     for record in index_by(diagnostics["type3_comparisons"], "id", "Type-3 comparison ID").values():
         check_pair(record)
         pair = (record["original_candidate_id"], record["modified_candidate_id"])
+        pair_candidates = [candidates[candidate_id] for candidate_id in pair]
+        pair_endpoints = [endpoints.get(candidate_id) or candidates[candidate_id]["endpoint"]
+                          for candidate_id in pair]
+        require(all(candidate["type3_eligible"] for candidate in pair_candidates),
+                "Type-3 comparison requires eligible candidates")
+        require(pair_endpoints[0]["construct"] is not None
+                and pair_endpoints[0]["construct"] == pair_endpoints[1]["construct"],
+                "Type-3 comparison requires equal known constructs")
         require(pair not in comparison_pairs, "Duplicate Type-3 comparison endpoints")
         comparison_pairs.add(pair)
         verification = record["verification"]
@@ -279,11 +300,20 @@ def validate(document):
         require(verification["reason"] == ("ambiguous_type2c" if status == "not_evaluated" else None),
                 "Type-3 verification reason disagrees")
         require(selection["reason"] is None, "Unrecorded Type-3 selection reason")
+        threshold_passed = False
         for unit in ("lines", "tokens"):
             measurement = verification[unit]
             common, maximum = measurement["common"], measurement["maximum"]
             require(maximum >= 0 and (common is None or 0 <= common <= maximum), "Invalid Type-3 LCS bounds")
+            lengths = [candidate["line_units" if unit == "lines" else "token_units"]
+                       for candidate in pair_candidates]
+            require(maximum == max(lengths), "Type-3 maximum differs from candidate lengths")
+            require(common is None or common <= min(lengths), "Type-3 LCS exceeds shorter candidate")
             require((common is None) == (status == "not_evaluated"), "Type-3 LCS availability disagrees")
+            threshold_passed |= common is not None and maximum > 0 and 10 * common >= 9 * maximum
+        if status != "not_evaluated":
+            require((status == "verified") == threshold_passed,
+                    "Type-3 verification status disagrees with line-or-token threshold")
         selected_link(record, "type3", "selected")
     type3_correspondences = [record for record in correspondences.values()
                              if record["content_relationship"] == "type3"]
@@ -314,29 +344,39 @@ def validate(document):
                        selected=group["correspondence"]["status"] == "selected_pair")
 
 
-def self_test(documents):
-    """Exercise semantic failures using structurally plausible example mutations."""
+def validate_document(document, validator):
+    """Run JSON Schema first so semantic checks can rely on the declared shape."""
+    validator.validate(document)
+    validate(document)
+
+
+def self_test(documents, validator):
+    """Reject malformed shape and cross-record examples through the public checks."""
     failures = 0
     for document in documents:
-        mutations = [lambda value: value["summary"].update(endpoint_count=value["summary"]["endpoint_count"] + 1)]
+        mutations = [
+            lambda value: value["summary"].update(endpoint_count=value["summary"]["endpoint_count"] + 1),
+            lambda value: value.update(unexpected_property=True),
+            lambda value: value.pop("configuration"),
+            lambda value: value["xpath_context"]["namespaces"].update(src="urn:wrong"),
+        ]
         if document["output_items"]:
             mutations.append(lambda value: value["output_items"][0]["member_group_ids"].append("missing-group"))
         if document["atomic_move_groups"]:
-            mutations.append(lambda value: value["atomic_move_groups"][0]["identity_evidence"].update(status="contradicted", reason="continuing_name_conflict"))
+            mutations.append(lambda value: value["atomic_move_groups"][0].update(name_evidence="contradicted"))
+            def unbound_prefix(value):
+                value["atomic_move_groups"][0]["original"][0]["xpath"] = "/unbound:unit[1]"
+            mutations.append(unbound_prefix)
             def duplicate_owner(value):
                 group = value["atomic_move_groups"][0]
                 group["modified"][0]["candidate_id"] = group["original"][0]["candidate_id"]
             mutations.append(duplicate_owner)
-            def candidate_outside_registry(value):
-                value["atomic_move_groups"][0]["original"][0]["candidate_id"] = (
-                    value["pipeline_statistics"]["registered_candidate_count"] + 1)
-            mutations.append(candidate_outside_registry)
         for index, group in enumerate(document["atomic_move_groups"]):
             if (group["correspondence"]["status"] == "unresolved_partners"
                     and len(group["original"]) == len(group["modified"]) == 1):
                 def falsely_resolve(value, index=index):
                     value["atomic_move_groups"][index]["correspondence"] = {
-                        "status": "selected_pair", "basis": "pair_proposal"}
+                        "status": "selected_pair"}
                 mutations.append(falsely_resolve)
                 break
         if document.get("diagnostics", {}).get("correspondences"):
@@ -366,12 +406,68 @@ def self_test(documents):
                     value["diagnostics"]["candidates"][index]["selected_group_id"] = "missing-group"
                 mutations.append(wrong_owner)
                 break
+        if document.get("diagnostics", {}).get("candidates"):
+            def candidate_outside_registry(value):
+                diagnostics = value["diagnostics"]
+                diagnostics["candidates"][0]["candidate_id"] = diagnostics["candidate_counts"]["registered"] + 1
+            mutations.append(candidate_outside_registry)
+        if document.get("diagnostics", {}).get("type3_comparisons"):
+            def wrong_maximum(value):
+                value["diagnostics"]["type3_comparisons"][0]["verification"]["tokens"]["maximum"] += 1
+            def ineligible_type3(value):
+                diagnostics = value["diagnostics"]
+                candidate_id = diagnostics["type3_comparisons"][0]["original_candidate_id"]
+                next(candidate for candidate in diagnostics["candidates"]
+                     if candidate["candidate_id"] == candidate_id)["type3_eligible"] = False
+            def wrong_eligible_role(value):
+                diagnostics = value["diagnostics"]
+                candidate_id = diagnostics["type3_comparisons"][0]["original_candidate_id"]
+                next(candidate for candidate in diagnostics["candidates"]
+                     if candidate["candidate_id"] == candidate_id)["role"] = "diff_wrapper"
+            def unequal_type3_constructs(value):
+                diagnostics = value["diagnostics"]
+                candidate_id = diagnostics["type3_comparisons"][0]["modified_candidate_id"]
+                candidate = next(candidate for candidate in diagnostics["candidates"]
+                                 if candidate["candidate_id"] == candidate_id)
+                if candidate["selected_group_id"] is None:
+                    endpoint = candidate["endpoint"]
+                else:
+                    group = next(group for group in value["atomic_move_groups"]
+                                 if group["id"] == candidate["selected_group_id"])
+                    endpoint = next(endpoint for endpoint in group["modified"]
+                                    if endpoint["candidate_id"] == candidate_id)
+                endpoint["construct"] = "synthetic:unequal_construct"
+            mutations.extend((wrong_maximum, ineligible_type3, wrong_eligible_role,
+                              unequal_type3_constructs))
+            for index, record in enumerate(document["diagnostics"]["type3_comparisons"]):
+                status = record["verification"]["status"]
+                if status == "verified":
+                    def false_verified(value, index=index):
+                        verification = value["diagnostics"]["type3_comparisons"][index]["verification"]
+                        verification["lines"]["common"] = 0
+                        verification["tokens"]["common"] = 0
+                    mutations.append(false_verified)
+                    break
+            for index, record in enumerate(document["diagnostics"]["type3_comparisons"]):
+                if record["verification"]["status"] == "below_threshold":
+                    for unit, field in (("tokens", "token_units"), ("lines", "line_units")):
+                        lengths = [candidate[field] for candidate in document["diagnostics"]["candidates"]
+                                   if candidate["candidate_id"] in (record["original_candidate_id"],
+                                                                   record["modified_candidate_id"])]
+                        required = (9 * max(lengths) + 9) // 10
+                        if required > 0 and required <= min(lengths):
+                            def false_below_threshold(value, index=index, unit=unit, required=required):
+                                # Only one metric passes; requiring both would be incorrect.
+                                value["diagnostics"]["type3_comparisons"][index]["verification"][unit]["common"] = required
+                            mutations.append(false_below_threshold)
+                            break
+                    break
         for mutate in mutations:
             broken = deepcopy(document)
             mutate(broken)
             try:
-                validate(broken)
-            except ValueError:
+                validate_document(broken, validator)
+            except (ValueError, ValidationError):
                 failures += 1
             else:
                 raise ValueError("Self-test accepted a malformed counterexample")
@@ -383,19 +479,22 @@ def main():
     parser.add_argument("paths", nargs="*", type=Path)
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
+    schema = json.loads((Path(__file__).parent / "schema.json").read_text())
+    Draft202012Validator.check_schema(schema)
+    validator = Draft202012Validator(schema)
     paths = args.paths or sorted((Path(__file__).parent / "examples").glob("*.json"))
     require(bool(paths), "No example JSON documents found")
     documents = []
     for path in paths:
         try:
             document = json.loads(path.read_text())
-            validate(document)
-        except (ValueError, KeyError, TypeError) as error:
+            validate_document(document, validator)
+        except (ValueError, ValidationError, KeyError, TypeError) as error:
             raise SystemExit(f"{path}: {error}") from error
         documents.append(document)
         print(f"PASS {path.name}")
     if args.self_test:
-        print(f"PASS {self_test(documents)} malformed counterexamples rejected")
+        print(f"PASS {self_test(documents, validator)} malformed counterexamples rejected")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,55 @@
+{
+  "purpose": "Synthetic XPath convention fixtures; hand-authored input and attribute-annotated documents, not detector executions or experimental evidence.",
+  "convention": "srcreader_file_units_v1",
+  "namespaces": {
+    "src": "http://www.srcML.org/srcML/src",
+    "diff": "http://www.srcML.org/srcDiff",
+    "mv": "http://www.srcML.org/srcMove"
+  },
+  "cases": [
+    {
+      "id": "locator-archive",
+      "input": "locator-archive.input.xml",
+      "annotated": "locator-archive.annotated.xml",
+      "archive": true,
+      "endpoints": [
+        {
+          "xpath": "/src:unit[@filename='original.cpp']/diff:delete[1]/src:expr_stmt[1]",
+          "raw_text": "perform_work();",
+          "group_id": "locator-pair",
+          "partner_attribute": "to",
+          "partner_xpath": "/src:unit[@filename='modified.cpp']/diff:insert[1]/src:expr_stmt[1]"
+        },
+        {
+          "xpath": "/src:unit[@filename='modified.cpp']/diff:insert[1]/src:expr_stmt[1]",
+          "raw_text": "perform_work();",
+          "group_id": "locator-pair",
+          "partner_attribute": "from",
+          "partner_xpath": "/src:unit[@filename='original.cpp']/diff:delete[1]/src:expr_stmt[1]"
+        }
+      ]
+    },
+    {
+      "id": "locator-single-file",
+      "input": "locator-single-file.input.xml",
+      "annotated": "locator-single-file.annotated.xml",
+      "archive": false,
+      "endpoints": [
+        {
+          "xpath": "/src:unit[1]/diff:delete[1]/src:expr_stmt[1]",
+          "raw_text": "perform_work();",
+          "group_id": "locator-pair",
+          "partner_attribute": "to",
+          "partner_xpath": "/src:unit[1]/diff:insert[1]/src:expr_stmt[1]"
+        },
+        {
+          "xpath": "/src:unit[1]/diff:insert[1]/src:expr_stmt[1]",
+          "raw_text": "perform_work();",
+          "group_id": "locator-pair",
+          "partner_attribute": "from",
+          "partner_xpath": "/src:unit[1]/diff:delete[1]/src:expr_stmt[1]"
+        }
+      ]
+    }
+  ]
+}

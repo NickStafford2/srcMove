@@ -1,0 +1,92 @@
+{
+  "results_schema_version": 3,
+  "summary": {
+    "output_item_count": 1,
+    "atomic_move_group_count": 1,
+    "sequence_move_group_count": 0,
+    "pair_capacity": 1,
+    "endpoint_count": 2,
+    "atomic_content_relationships": {
+      "type1": 1,
+      "type2c": 0,
+      "type3": 0
+    },
+    "output_content_relationships": {
+      "type1": 1,
+      "type2c": 0,
+      "type3": 0
+    }
+  },
+  "output_items": [
+    {
+      "id": "item:residual-1",
+      "kind": "atomic_move_group",
+      "member_group_ids": [
+        "residual-1"
+      ]
+    }
+  ],
+  "atomic_move_groups": [
+    {
+      "id": "residual-1",
+      "content_relationship": "type1",
+      "correspondence": {
+        "status": "unresolved_partners"
+      },
+      "name_evidence": "not_assessed",
+      "original": [
+        {
+          "candidate_id": 0,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:expr_stmt[1]",
+          "construct": "src:expr_stmt",
+          "raw_text": "perform_work();"
+        }
+      ],
+      "modified": [
+        {
+          "candidate_id": 1,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:expr_stmt[2]",
+          "construct": "src:expr_stmt",
+          "raw_text": "perform_work();"
+        }
+      ],
+      "location_evidence": {
+        "scope": "group",
+        "status": "group_relocation_evidence"
+      },
+      "selection": {
+        "matching_weight_milli": 1000,
+        "utility": 1000,
+        "matched_units": 1,
+        "reason": "unresolved_exact_residual"
+      }
+    }
+  ],
+  "configuration": {
+    "min_granularity": "statement",
+    "sequence_policy": "ordered_adjacent_v1"
+  },
+  "pipeline_statistics": {
+    "srcdiff_region_count": 2,
+    "grouped_candidate_entry_count": 2,
+    "processing_group_count": 1,
+    "processing_group_kinds": {
+      "move_1_to_1": 0,
+      "moves_many": 0,
+      "delete_only": 0,
+      "insert_only": 0,
+      "copy_or_repeat": 1,
+      "ambiguous": 0
+    }
+  },
+  "xpath_context": {
+    "document": "input_srcdiff",
+    "namespaces": {
+      "src": "http://www.srcML.org/srcML/src",
+      "diff": "http://www.srcML.org/srcDiff"
+    },
+    "convention": "srcreader_file_units_v1"
+  }
+}

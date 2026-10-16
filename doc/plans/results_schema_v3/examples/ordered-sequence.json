@@ -1,0 +1,184 @@
+{
+  "results_schema_version": 3,
+  "summary": {
+    "output_item_count": 1,
+    "atomic_move_group_count": 3,
+    "sequence_move_group_count": 1,
+    "pair_capacity": 3,
+    "endpoint_count": 6,
+    "atomic_content_relationships": {
+      "type1": 3,
+      "type2c": 0,
+      "type3": 0
+    },
+    "output_content_relationships": {
+      "type1": 1,
+      "type2c": 0,
+      "type3": 0
+    }
+  },
+  "output_items": [
+    {
+      "id": "sequence:decl-1",
+      "kind": "sequence_move_group",
+      "member_group_ids": [
+        "decl-1",
+        "decl-2",
+        "decl-3"
+      ],
+      "sequence": {
+        "policy": "ordered_adjacent_v1",
+        "original": {
+          "revision_file": "original.cpp",
+          "parent_id": "original:function:block",
+          "first_child_ordinal": 1,
+          "last_child_ordinal": 3
+        },
+        "modified": {
+          "revision_file": "modified.cpp",
+          "parent_id": "modified:function:block",
+          "first_child_ordinal": 1,
+          "last_child_ordinal": 3
+        }
+      }
+    }
+  ],
+  "atomic_move_groups": [
+    {
+      "id": "decl-1",
+      "content_relationship": "type1",
+      "correspondence": {
+        "status": "selected_pair"
+      },
+      "name_evidence": "not_assessed",
+      "original": [
+        {
+          "candidate_id": 0,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:decl_stmt[1]",
+          "construct": "src:decl_stmt",
+          "raw_text": "int value_1 = 1;"
+        }
+      ],
+      "modified": [
+        {
+          "candidate_id": 1,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:decl_stmt[1]",
+          "construct": "src:decl_stmt",
+          "raw_text": "int value_1 = 1;"
+        }
+      ],
+      "location_evidence": {
+        "scope": "pair",
+        "classification": "relocated",
+        "reason": "different_file"
+      },
+      "selection": {
+        "matching_weight_milli": 1000,
+        "utility": 1000,
+        "matched_units": 1,
+        "reason": "greedy_utility"
+      }
+    },
+    {
+      "id": "decl-2",
+      "content_relationship": "type1",
+      "correspondence": {
+        "status": "selected_pair"
+      },
+      "name_evidence": "not_assessed",
+      "original": [
+        {
+          "candidate_id": 2,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:decl_stmt[2]",
+          "construct": "src:decl_stmt",
+          "raw_text": "int value_2 = 2;"
+        }
+      ],
+      "modified": [
+        {
+          "candidate_id": 3,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:decl_stmt[2]",
+          "construct": "src:decl_stmt",
+          "raw_text": "int value_2 = 2;"
+        }
+      ],
+      "location_evidence": {
+        "scope": "pair",
+        "classification": "relocated",
+        "reason": "different_file"
+      },
+      "selection": {
+        "matching_weight_milli": 1000,
+        "utility": 1000,
+        "matched_units": 1,
+        "reason": "greedy_utility"
+      }
+    },
+    {
+      "id": "decl-3",
+      "content_relationship": "type1",
+      "correspondence": {
+        "status": "selected_pair"
+      },
+      "name_evidence": "not_assessed",
+      "original": [
+        {
+          "candidate_id": 4,
+          "revision_file": "original.cpp",
+          "xpath": "/src:unit[@filename='original.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:delete[1]/src:decl_stmt[3]",
+          "construct": "src:decl_stmt",
+          "raw_text": "int value_3 = 3;"
+        }
+      ],
+      "modified": [
+        {
+          "candidate_id": 5,
+          "revision_file": "modified.cpp",
+          "xpath": "/src:unit[@filename='modified.cpp']/src:function[1]/src:block[1]/src:block_content[1]/diff:insert[1]/src:decl_stmt[3]",
+          "construct": "src:decl_stmt",
+          "raw_text": "int value_3 = 3;"
+        }
+      ],
+      "location_evidence": {
+        "scope": "pair",
+        "classification": "relocated",
+        "reason": "different_file"
+      },
+      "selection": {
+        "matching_weight_milli": 1000,
+        "utility": 1000,
+        "matched_units": 1,
+        "reason": "greedy_utility"
+      }
+    }
+  ],
+  "configuration": {
+    "min_granularity": "statement",
+    "sequence_policy": "ordered_adjacent_v1"
+  },
+  "pipeline_statistics": {
+    "srcdiff_region_count": 6,
+    "grouped_candidate_entry_count": 6,
+    "processing_group_count": 3,
+    "processing_group_kinds": {
+      "move_1_to_1": 3,
+      "moves_many": 0,
+      "delete_only": 0,
+      "insert_only": 0,
+      "copy_or_repeat": 0,
+      "ambiguous": 0
+    }
+  },
+  "xpath_context": {
+    "document": "input_srcdiff",
+    "namespaces": {
+      "src": "http://www.srcML.org/srcML/src",
+      "diff": "http://www.srcML.org/srcDiff"
+    },
+    "convention": "srcreader_file_units_v1"
+  }
+}
