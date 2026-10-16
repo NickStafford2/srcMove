@@ -145,29 +145,29 @@ srcMove --help
 srcMove --version
 ```
 
-- `--results <file>` writes versioned move groups, XPaths, raw texts, candidate
-  counts, group classifications, and predicted content relationships as JSON.
-  See [the reporting contract](doc/architecture.md#results-terminology) for
-  classification limits and regeneration requirements. The top-level
-  `results_schema_version` is currently `2`.
-  Additive `move_sequences` records group adjacent unique Type-1 moves that
-  preserve order on both sides. Existing move counts retain their meanings;
-  `reported_moves` reports each qualifying run once as a Type-1 move, retaining
-  ordered member references. `reported_move_count` and
-  `reported_content_relationships` count that primary reporting view;
-  `sequence_reporting_unit_count` reports the same grouped granularity. See
-  [ordered move sequences](doc/architecture.md#ordered-move-sequences).
+- `--results <file>` writes results schema `3`. Canonical
+  `atomic_move_groups` retain endpoints and evidence; reference-only
+  `output_items` represent each atomic group or qualifying ordered Type-1
+  sequence once. Counts distinguish atomic groups, output items, pair capacity,
+  and endpoints. See the [results contract](doc/plans/results_schema_v3/README.md)
+  for fields, locator interpretation, and evidence limits.
 - `--results-only` writes the JSON result without reparsing and writing annotated
   XML. It requires `--results <file>` and does not accept an output XML path.
 - `--min-granularity statement|fragment` selects the minimum move unit.
   `statement` is the default; `fragment` enables low-level diff fragments for
   specialized analysis.
-- `--diagnostics` adds correspondence, candidate, Type-3 retrieval, and
-  observation-only Type-2b diagnostics to `--results <file>`. See the
-  [diagnostics contract](doc/architecture.md#observation-only-type-2b-retrieval).
+- `--diagnostics` adds diagnostics schema `5`: candidate ownership, classified
+  correspondences, separate Type-3 verification/selection states, and
+  observation-only Type-2b groups. See the
+  [diagnostics contract](doc/plans/results_schema_v3/README.md#diagnostics-schema-5).
 - `--profile` writes coarse `profile.<stage>_ms=<milliseconds>` timings to
   standard error.
 - `-v` and `--verbose` print selected move-match diagnostics to standard output.
+
+Producer migration is implemented; history, benchmark, and srcDiffVisual readers
+still need their separate schema-3 migration. Existing schema-2 readers cannot
+consume new output. Frozen studies, hashes, and version-specific readers retain
+their original contracts; do not overwrite them with regenerated evidence.
 
 ## Output format
 

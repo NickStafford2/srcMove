@@ -26,6 +26,20 @@ inventory with `--report`.
 
 ## Boundaries
 
+During the schema-3 migration, `make test-results-schema` verifies the producer
+against an explicitly captured schema-2 corpus. It requires the validation
+dependencies documented in the [schema contract](../doc/plans/results_schema_v3/README.md)
+and an ignored baseline at `build/schema3-phase2/baseline` (override with
+`SCHEMA3_BASELINE`). The target fails if its corpus or locator audit is missing.
+It checks all four JSON output modes, semantic projections, native XML bytes,
+and independent locator resolution. This is a differential regression check,
+not a detector-accuracy experiment. The replay tests are otherwise opt-in;
+the namespace regressions are ordinary behavior tests.
+
+Existing schema-2 behavior/tooling readers await consumer migration. Therefore
+the focused producer target and `make test-unit` are the Phase-2 checks; a
+passing full `make test` is not claimed at this intermediate migration stage.
+
 | Location | Responsibility |
 | --- | --- |
 | `unit/` | Isolated Python helpers and C++ component contracts. |

@@ -17,6 +17,7 @@ int main(int argc, char **argv) {
     pipeline_options.min_granularity = opts.min_granularity;
     pipeline_options.results_only = opts.results_only;
     pipeline_options.diagnostics = opts.diagnostics;
+    pipeline_options.results_requested = !opts.results_path.empty();
 
     const srcmove::summary summ =
         srcmove::run_pipeline(opts.input_path, opts.output_path, pipeline_options,

@@ -29,6 +29,8 @@
 #include <string>
 #include <vector>
 
+#include "movement_classifier.hpp"
+
 #include "move_buckets.hpp"
 
 namespace srcmove {
@@ -67,6 +69,11 @@ struct content_group {
   std::string selection_reason;
   std::string identity_status = "unassessed";
   std::string identity_reason;
+  // Reporting evidence retained from existing proposals, not new matching.
+  bool continuing_source_copy = false;
+  bool unresolved_exact_residual = false;
+  bool has_pair_location = false;
+  movement_classification pair_location;
 
   std::size_t del_count() const noexcept {
     return static_cast<std::size_t>(del_end - del_begin);

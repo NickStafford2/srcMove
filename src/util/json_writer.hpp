@@ -1,11 +1,15 @@
 #ifndef INCLUDED_SRCMOVE_JSON_WRITER_HPP
 #define INCLUDED_SRCMOVE_JSON_WRITER_HPP
 
+#include <map>
 #include <ostream>
+#include <stdexcept>
 #include <string>
 #include <string_view>
+#include <tuple>
 #include <vector>
 
+#include "movement_classifier.hpp"
 #include "summary.hpp"
 
 namespace srcmove::json {
@@ -64,340 +68,354 @@ inline void write_string_array(std::ostream                   &out,
   out << pad << "]";
 }
 
-inline void write_move_entry(std::ostream     &out,
-                             const move_entry &m,
-                             std::size_t       indent = 4) {
-  const std::string pad(indent, ' ');
-  const std::string field_pad(indent + 2, ' ');
-
-  out << pad << "{\n";
-  out << field_pad << "\"move_id\": \"" << m.move_id << "\",\n";
-  out << field_pad << "\"content_relationship\": ";
-  write_string(out, m.content_relationship);
-  out << ",\n";
-  out << field_pad << "\"confidence_milli\": " << m.confidence_milli
-      << ",\n";
-  out << field_pad << "\"selection_utility\": " << m.selection_utility
-      << ",\n";
-  out << field_pad << "\"matched_units\": " << m.matched_units << ",\n";
-  out << field_pad << "\"identity_status\": ";
-  write_string(out, m.identity_status); out << ",\n";
-  out << field_pad << "\"identity_reason\": ";
-  write_string(out, m.identity_reason); out << ",\n";
-  out << field_pad << "\"selection_reason\": ";
-  write_string(out, m.selection_reason);
-  out << ",\n";
-
-  out << field_pad << "\"from_xpaths\": ";
-  write_string_array(out, m.from_xpaths, indent + 2);
-  out << ",\n";
-
-  out << field_pad << "\"to_xpaths\": ";
-  write_string_array(out, m.to_xpaths, indent + 2);
-  out << ",\n";
-
-  out << field_pad << "\"from_raw_texts\": ";
-  write_string_array(out, m.from_raw_texts, indent + 2);
-  out << ",\n";
-
-  out << field_pad << "\"to_raw_texts\": ";
-  write_string_array(out, m.to_raw_texts, indent + 2);
-  out << "\n";
-
-  out << pad << "}";
+inline void write_nullable_string(std::ostream &out, std::string_view value) {
+  if (value.empty()) out << "null";
+  else write_string(out, value);
 }
 
-inline void write_selection_diagnostics(std::ostream &out,
-                                        const selection_diagnostics &diagnostics) {
-  out << "  \"diagnostics\": {\n";
-  out << "    \"schema_version\": 4,\n";
-  out << "    \"candidates\": [\n";
-  for (std::size_t index = 0; index < diagnostics.candidates.size(); ++index) {
-    const candidate_diagnostic &candidate = diagnostics.candidates[index];
-    out << "      {\n";
-    out << "        \"candidate_id\": " << candidate.candidate_id << ",\n";
-    out << "        \"side\": "; write_string(out, candidate.side); out << ",\n";
-    out << "        \"filename\": "; write_string(out, candidate.filename); out << ",\n";
-    out << "        \"xpath\": "; write_string(out, candidate.xpath); out << ",\n";
-    out << "        \"construct\": "; write_string(out, candidate.construct); out << ",\n";
-    out << "        \"role\": "; write_string(out, candidate.role); out << ",\n";
-    out << "        \"raw_text\": "; write_string(out, candidate.raw_text); out << ",\n";
-    out << "        \"type3_eligible\": "
-        << (candidate.type3_eligible ? "true" : "false") << ",\n";
-    out << "        \"line_units\": " << candidate.line_units << ",\n";
-    out << "        \"token_units\": " << candidate.token_units << "\n";
-    out << "      }";
-    if (index + 1 < diagnostics.candidates.size()) out << ",";
-    out << "\n";
+inline std::string_view name_evidence(std::string_view status) {
+  if (status == "exact" || status == "unassessed") return "not_assessed";
+  if (status == "corroborated" || status == "tentative" || status == "contradicted")
+    return status;
+  throw std::logic_error("Unknown internal name-evidence status");
+}
+
+inline std::string_view correspondence_status(const move_entry &move) {
+  if (move.continuing_source_copy) return "copy_source_set";
+  if (move.unresolved_exact_residual ||
+      move.original.size() != 1 || move.modified.size() != 1)
+    return "unresolved_partners";
+  return "selected_pair";
+}
+
+inline void write_endpoint(std::ostream &out, const result_endpoint &endpoint) {
+  out << "{\"candidate_id\": " << endpoint.candidate_id << ", \"revision_file\": ";
+  write_nullable_string(out, endpoint.revision_file);
+  out << ", \"xpath\": "; write_string(out, endpoint.xpath);
+  out << ", \"construct\": "; write_nullable_string(out, endpoint.construct);
+  out << ", \"raw_text\": "; write_string(out, endpoint.raw_text);
+  out << "}";
+}
+
+inline void write_endpoints(std::ostream &out,
+                            const std::vector<result_endpoint> &endpoints) {
+  out << "[";
+  for (std::size_t index = 0; index < endpoints.size(); ++index) {
+    if (index) out << ", ";
+    write_endpoint(out, endpoints[index]);
   }
-  out << "    ],\n";
-  out << "    \"type2b_groups\": [\n";
-  for (std::size_t index = 0; index < diagnostics.type2b_groups.size(); ++index) {
-    const auto &group = diagnostics.type2b_groups[index];
-    const auto write_ids = [&](const std::vector<std::size_t> &ids) {
-      out << "[";
-      for (std::size_t i = 0; i < ids.size(); ++i) {
-        if (i != 0) out << ", ";
-        out << ids[i];
-      }
-      out << "]";
-    };
-    out << "      {\n        \"correspondence_kind\": \"type2b\",\n";
-    out << "        \"observation_only\": true,\n";
-    out << "        \"cardinality\": ";
-    write_string(out, group.delete_candidate_ids.size() == 1 &&
-                          group.insert_candidate_ids.size() == 1
-                          ? "one_to_one" : "ambiguous");
-    out << ",\n        \"delete_candidate_ids\": ";
-    write_ids(group.delete_candidate_ids);
-    out << ",\n        \"insert_candidate_ids\": ";
-    write_ids(group.insert_candidate_ids);
-    out << ",\n        \"blind_only_pair_count\": " << group.blind_only_pair_count;
-    if (!group.location_change.empty()) {
-      out << ",\n        \"location_change\": ";
-      write_string(out, group.location_change);
-      out << ",\n        \"location_reason\": ";
-      write_string(out, group.location_reason);
-    }
-    out << "\n      }";
-    if (index + 1 < diagnostics.type2b_groups.size()) out << ",";
-    out << "\n";
+  out << "]";
+}
+
+inline void write_move_entry(std::ostream &out, const move_entry &move) {
+  const auto status = correspondence_status(move);
+  out << "    {\n      \"id\": "; write_string(out, move.move_id);
+  out << ",\n      \"content_relationship\": "; write_string(out, move.content_relationship);
+  out << ",\n      \"original\": "; write_endpoints(out, move.original);
+  out << ",\n      \"modified\": "; write_endpoints(out, move.modified);
+  out << ",\n      \"correspondence\": {\"status\": "; write_string(out, status);
+  out << "},\n      \"name_evidence\": "; write_string(out, name_evidence(move.identity_status));
+  out << ",\n      \"location_evidence\": ";
+  if (status == "copy_source_set") {
+    out << "{\"scope\": \"not_assessed\", \"reason\": \"continuing_source_copy\"}";
+  } else if (status == "unresolved_partners") {
+    out << "{\"scope\": \"group\", \"status\": \"group_relocation_evidence\"}";
+  } else if (!move.has_pair_location) {
+    out << "{\"scope\": \"not_assessed\", \"reason\": \"no_classified_pair\"}";
+  } else {
+    if (!move_eligible(move.pair_location))
+      throw std::logic_error("Selected pair lacks eligible retained location evidence");
+    out << "{\"scope\": \"pair\", \"classification\": ";
+    write_string(out, to_string(move.pair_location.change_kind));
+    out << ", \"reason\": "; write_string(out, to_string(move.pair_location.reason));
+    out << "}";
   }
-  out << "    ],\n";
-  out << "    \"type3_pairs\": [\n";
-  for (std::size_t index = 0; index < diagnostics.type3_pairs.size(); ++index) {
-    const type3_pair_diagnostic &pair = diagnostics.type3_pairs[index];
-    out << "      {\n";
-    out << "        \"delete_candidate_id\": " << pair.del_candidate_id << ",\n";
-    out << "        \"insert_candidate_id\": " << pair.ins_candidate_id << ",\n";
-    out << "        \"outcome\": "; write_string(out, pair.outcome); out << ",\n";
-    out << "        \"common_lines\": " << pair.common_lines << ",\n";
-    out << "        \"maximum_lines\": " << pair.maximum_lines << ",\n";
-    out << "        \"common_tokens\": " << pair.common_tokens << ",\n";
-    out << "        \"maximum_tokens\": " << pair.maximum_tokens << "\n";
-    out << "      }";
-    if (index + 1 < diagnostics.type3_pairs.size()) out << ",";
-    out << "\n";
-  }
-  out << "    ],\n";
-  out << "    \"correspondences\": [\n";
-  for (std::size_t index = 0; index < diagnostics.correspondences.size();
-       ++index) {
-    const correspondence_diagnostic &item = diagnostics.correspondences[index];
-    const auto write_context = [&](const endpoint_context_diagnostic &context,
-                                   std::size_t indent) {
-      const std::string pad(indent, ' ');
-      const std::string field_pad(indent + 2, ' ');
-      out << "{\n";
-      out << field_pad << "\"revision_file\": ";
-      write_string(out, context.revision_file); out << ",\n";
-      out << field_pad << "\"semantic_container_id\": ";
-      write_string(out, context.semantic_container_id); out << ",\n";
-      out << field_pad << "\"semantic_container_label\": ";
-      write_string(out, context.semantic_container_label); out << ",\n";
-      out << field_pad << "\"previous_common_anchor_id\": ";
-      write_string(out, context.previous_common_anchor_id); out << ",\n";
-      out << field_pad << "\"next_common_anchor_id\": ";
-      write_string(out, context.next_common_anchor_id); out << ",\n";
-      out << field_pad << "\"meaningful_ancestors\": ";
-      write_string_array(out, context.meaningful_ancestors, indent + 2);
-      out << ",\n";
-      out << field_pad << "\"ancestor_summary_interpretable\": "
-          << (context.ancestor_summary_interpretable ? "true" : "false")
-          << ",\n";
-      out << field_pad << "\"structural_region_id\": ";
-      write_string(out, context.structural_region_id); out << ",\n";
-      out << field_pad << "\"structural_region_mapped\": "
-          << (context.structural_region_mapped ? "true" : "false") << ",\n";
-      out << field_pad << "\"common_sibling_prefix_count\": "
-          << context.common_sibling_prefix_count << ",\n";
-      out << field_pad << "\"common_sibling_suffix_begin\": "
-          << context.common_sibling_suffix_begin << ",\n";
-      out << field_pad << "\"anchor_region_id\": ";
-      write_string(out, context.anchor_region_id); out << "\n" << pad << "}";
-    };
-    out << "      {\n";
-    out << "        \"delete_candidate_id\": " << item.delete_candidate_id
-        << ",\n";
-    out << "        \"insert_candidate_id\": " << item.insert_candidate_id
-        << ",\n";
-    out << "        \"correspondence_kind\": ";
-    write_string(out, item.correspondence_kind); out << ",\n";
-    out << "        \"cardinality\": ";
-    write_string(out, item.cardinality); out << ",\n";
-    if (item.correspondence_kind == "type3") {
-      out << "        \"delete_verified_partner_count\": "
-          << item.delete_verified_partner_count << ",\n";
-      out << "        \"insert_verified_partner_count\": "
-          << item.insert_verified_partner_count << ",\n";
-    }
-    out << "        \"current_result\": ";
-    write_string(out, item.current_result); out << ",\n";
-    out << "        \"shadow_change\": ";
-    write_string(out, item.shadow_change); out << ",\n";
-    out << "        \"classification_reason\": ";
-    write_string(out, item.classification_reason); out << ",\n";
-    out << "        \"identity_status\": ";
-    write_string(out, item.identity_status); out << ",\n";
-    if (!item.identity_reason.empty()) {
-      out << "        \"identity_reason\": ";
-      write_string(out, item.identity_reason); out << ",\n";
-    }
-    out << "        \"file_observation\": ";
-    write_string(out, item.file_observation); out << ",\n";
-    out << "        \"semantic_container_observation\": ";
-    write_string(out, item.semantic_container_observation); out << ",\n";
-    out << "        \"anchor_interval_observation\": ";
-    write_string(out, item.anchor_interval_observation); out << ",\n";
-    out << "        \"relative_order_observation\": ";
-    write_string(out, item.relative_order_observation); out << ",\n";
-    out << "        \"ancestor_observation\": ";
-    write_string(out, item.ancestor_observation); out << ",\n";
-    out << "        \"carried_by_parent\": "
-        << (item.carried_by_parent ? "true" : "false") << ",\n";
-    out << "        \"parent_delete_candidate_id\": ";
-    if (item.carried_by_parent) out << item.parent_delete_candidate_id;
-    else out << "null";
-    out << ",\n";
-    out << "        \"parent_insert_candidate_id\": ";
-    if (item.carried_by_parent) out << item.parent_insert_candidate_id;
-    else out << "null";
-    out << ",\n";
-    out << "        \"before_context\": ";
-    write_context(item.before_context, 8); out << ",\n";
-    out << "        \"after_context\": ";
-    write_context(item.after_context, 8); out << "\n";
-    out << "      }";
-    if (index + 1 < diagnostics.correspondences.size()) out << ",";
-    out << "\n";
-  }
-  out << "    ]\n";
-  out << "  }\n";
+  out << ",\n      \"selection\": {\"matching_weight_milli\": " << move.confidence_milli
+      << ", \"utility\": " << move.selection_utility
+      << ", \"matched_units\": " << move.matched_units << ", \"reason\": ";
+  write_string(out, move.selection_reason);
+  out << "}\n    }";
 }
 
 inline void write_sequence_endpoint(std::ostream &out,
-                                    const move_sequence_endpoint &endpoint,
-                                    std::size_t indent) {
-  const std::string pad(indent, ' ');
-  const std::string field_pad(indent + 2, ' ');
-  out << "{\n" << field_pad << "\"revision_file\": ";
-  write_string(out, endpoint.revision_file);
-  out << ",\n" << field_pad << "\"parent_id\": ";
-  write_string(out, endpoint.parent_id);
-  out << ",\n" << field_pad << "\"first_child_ordinal\": "
-      << endpoint.first_child_ordinal;
-  out << ",\n" << field_pad << "\"last_child_ordinal\": "
-      << endpoint.last_child_ordinal;
-  out << ",\n" << field_pad << "\"member_xpaths\": ";
-  write_string_array(out, endpoint.member_xpaths, indent + 2);
-  out << "\n" << pad << "}";
+                                     const move_sequence_endpoint &endpoint) {
+  out << "{\"revision_file\": "; write_string(out, endpoint.revision_file);
+  out << ", \"parent_id\": "; write_string(out, endpoint.parent_id);
+  out << ", \"first_child_ordinal\": " << endpoint.first_child_ordinal
+      << ", \"last_child_ordinal\": " << endpoint.last_child_ordinal << "}";
 }
 
-inline void write_move_sequence(std::ostream &out, const move_sequence &sequence,
-                                std::size_t indent = 4) {
-  const std::string pad(indent, ' ');
-  const std::string field_pad(indent + 2, ' ');
-  out << pad << "{\n" << field_pad << "\"sequence_id\": ";
-  write_string(out, sequence.sequence_id);
-  out << ",\n" << field_pad << "\"content_relationship\": \"type1\",\n";
-  out << field_pad << "\"policy\": \"ordered_adjacent_v1\",\n";
-  out << field_pad << "\"member_move_ids\": ";
-  write_string_array(out, sequence.member_move_ids, indent + 2);
-  out << ",\n" << field_pad << "\"from\": ";
-  write_sequence_endpoint(out, sequence.from, indent + 2);
-  out << ",\n" << field_pad << "\"to\": ";
-  write_sequence_endpoint(out, sequence.to, indent + 2);
-  out << "\n" << pad << "}";
+inline void write_output_item(std::ostream &out, const reported_move_entry &item,
+                               const move_sequence *sequence) {
+  out << "    {\"id\": "; write_string(out, item.move_id);
+  out << ", \"kind\": "; write_string(out, item.report_kind);
+  out << ", \"member_group_ids\": "; write_string_array(out, item.member_move_ids, 4);
+  if (item.report_kind == "sequence_move_group") {
+    if (sequence == nullptr || sequence->member_move_ids != item.member_move_ids)
+      throw std::logic_error("Sequence output item lacks matching retained context");
+    out << ", \"sequence\": {\"policy\": \"ordered_adjacent_v1\", \"original\": ";
+    write_sequence_endpoint(out, sequence->from);
+    out << ", \"modified\": "; write_sequence_endpoint(out, sequence->to);
+    out << "}";
+  } else if (item.report_kind != "atomic_move_group") {
+    throw std::logic_error("Unknown output-item kind");
+  }
+  out << "}";
 }
 
-inline void write_reported_move(std::ostream &out, const reported_move_entry &report) {
-  out << "    {\n      \"move_id\": ";
-  write_string(out, report.move_id);
-  out << ",\n      \"report_kind\": ";
-  write_string(out, report.report_kind);
-  out << ",\n      \"content_relationship\": ";
-  write_string(out, report.content_relationship);
-  out << ",\n      \"identity_status\": ";
-  write_string(out, report.identity_status);
-  out << ",\n      \"identity_reason\": ";
-  write_string(out, report.identity_reason);
-  out << ",\n      \"member_move_ids\": ";
-  write_string_array(out, report.member_move_ids, 6);
-  out << ",\n      \"from_xpaths\": ";
-  write_string_array(out, report.from_xpaths, 6);
-  out << ",\n      \"to_xpaths\": ";
-  write_string_array(out, report.to_xpaths, 6);
-  out << ",\n      \"from_raw_texts\": ";
-  write_string_array(out, report.from_raw_texts, 6);
-  out << ",\n      \"to_raw_texts\": ";
-  write_string_array(out, report.to_raw_texts, 6);
-  out << "\n    }";
+using selected_pair_key = std::tuple<std::size_t, std::size_t, std::string>;
+
+struct result_links {
+  std::map<std::size_t, const move_entry *> owners;
+  std::map<selected_pair_key, const move_entry *> pairs;
+
+  explicit result_links(const summary &summ) {
+    for (const auto &move : summ.moves) {
+      for (const auto *endpoints : {&move.original, &move.modified}) {
+        for (const auto &endpoint : *endpoints)
+          if (!owners.emplace(endpoint.candidate_id, &move).second)
+            throw std::logic_error("Selected candidate has multiple owners");
+      }
+      if (correspondence_status(move) == "selected_pair")
+        pairs.emplace(selected_pair_key{move.original.front().candidate_id,
+                      move.modified.front().candidate_id, move.content_relationship}, &move);
+    }
+  }
+
+  const move_entry *pair(std::size_t original, std::size_t modified,
+                          const std::string &relationship) const {
+    const auto found = pairs.find({original, modified, relationship});
+    return found == pairs.end() ? nullptr : found->second;
+  }
+};
+
+inline void write_context(std::ostream &out,
+                           const endpoint_context_diagnostic &context) {
+  out << "{\"revision_file\": "; write_nullable_string(out, context.revision_file);
+  out << ", \"semantic_container_id\": "; write_nullable_string(out, context.semantic_container_id);
+  out << ", \"semantic_container_label\": "; write_nullable_string(out, context.semantic_container_label);
+  out << ", \"previous_common_anchor_id\": "; write_nullable_string(out, context.previous_common_anchor_id);
+  out << ", \"next_common_anchor_id\": "; write_nullable_string(out, context.next_common_anchor_id);
+  out << ", \"meaningful_ancestors\": "; write_string_array(out, context.meaningful_ancestors, 8);
+  out << ", \"ancestor_summary_interpretable\": " << (context.ancestor_summary_interpretable ? "true" : "false");
+  out << ", \"structural_region_id\": "; write_nullable_string(out, context.structural_region_id);
+  out << ", \"structural_region_mapped\": " << (context.structural_region_mapped ? "true" : "false")
+      << ", \"common_sibling_prefix_count\": " << context.common_sibling_prefix_count
+      << ", \"common_sibling_suffix_begin\": " << context.common_sibling_suffix_begin;
+  out << ", \"anchor_region_id\": "; write_nullable_string(out, context.anchor_region_id);
+  out << "}";
+}
+
+inline void write_diagnostic_location(std::ostream &out,
+                                      const correspondence_diagnostic &item) {
+  out << "{\"scope\": \"pair\", \"classification\": "; write_string(out, item.shadow_change);
+  out << ", \"reason\": "; write_string(out, item.classification_reason);
+  out << ", \"observations\": {\"file\": "; write_string(out, item.file_observation);
+  out << ", \"semantic_container\": "; write_string(out, item.semantic_container_observation);
+  out << ", \"anchor_interval\": "; write_string(out, item.anchor_interval_observation);
+  out << ", \"relative_order\": "; write_string(out, item.relative_order_observation);
+  out << ", \"ancestor\": "; write_string(out, item.ancestor_observation);
+  out << "}, \"carried_by_parent\": " << (item.carried_by_parent ? "true" : "false")
+      << ", \"parent_pair\": ";
+  if (item.carried_by_parent)
+    out << "{\"original_candidate_id\": " << item.parent_delete_candidate_id
+        << ", \"modified_candidate_id\": " << item.parent_insert_candidate_id << "}";
+  else out << "null";
+  out << "}";
+}
+
+inline void write_diagnostic_selection(std::ostream &out, std::string_view selected_status,
+                                       std::string_view unselected_status,
+                                       const move_entry *selected, bool reason = false) {
+  out << "{\"status\": ";
+  write_string(out, selected ? selected_status : unselected_status);
+  out << ", \"selected_group_id\": ";
+  if (selected) write_string(out, selected->move_id);
+  else out << "null";
+  if (reason) out << ", \"reason\": null";
+  out << "}";
+}
+
+inline void write_candidate_ids(std::ostream &out, const std::vector<std::size_t> &ids) {
+  out << "[";
+  for (std::size_t index = 0; index < ids.size(); ++index) {
+    if (index) out << ", ";
+    out << ids[index];
+  }
+  out << "]";
+}
+
+inline void write_selection_diagnostics(std::ostream &out, const summary &summ,
+                                         const result_links &links) {
+  const auto &diagnostics = summ.diagnostics;
+  out << "  \"diagnostics\": {\n    \"schema_version\": 5,\n"
+      << "    \"candidate_counts\": {\"registered\": " << summ.registered_candidate_count
+      << ", \"active\": " << summ.active_candidate_count << "},\n    \"candidates\": [\n";
+  for (std::size_t index = 0; index < diagnostics.candidates.size(); ++index) {
+    const auto &candidate = diagnostics.candidates[index];
+    const auto owner = links.owners.find(candidate.candidate_id);
+    out << "      {\"candidate_id\": " << candidate.candidate_id << ", \"revision\": ";
+    if (candidate.side == "delete") write_string(out, "original");
+    else if (candidate.side == "insert") write_string(out, "modified");
+    else throw std::logic_error("Unknown diagnostic candidate side");
+    out << ", \"role\": "; write_string(out, candidate.role);
+    out << ", \"selected_group_id\": ";
+    if (owner != links.owners.end()) write_string(out, owner->second->move_id);
+    else out << "null";
+    out << ", \"endpoint\": ";
+    if (owner != links.owners.end()) out << "null";
+    else {
+      out << "{\"candidate_id\": " << candidate.candidate_id << ", \"revision_file\": ";
+      write_nullable_string(out, candidate.revision_file);
+      out << ", \"xpath\": "; write_string(out, candidate.xpath);
+      out << ", \"construct\": "; write_nullable_string(out, candidate.construct);
+      out << ", \"raw_text\": "; write_string(out, candidate.raw_text);
+      out << "}";
+    }
+    out << ", \"type3_eligible\": " << (candidate.type3_eligible ? "true" : "false")
+        << ", \"line_units\": " << candidate.line_units
+        << ", \"token_units\": " << candidate.token_units << "}";
+    if (index + 1 < diagnostics.candidates.size()) out << ",";
+    out << "\n";
+  }
+  out << "    ],\n    \"correspondences\": [\n";
+  for (std::size_t index = 0; index < diagnostics.correspondences.size(); ++index) {
+    const auto &item = diagnostics.correspondences[index];
+    const auto *selected = links.pair(item.delete_candidate_id, item.insert_candidate_id,
+                                      item.correspondence_kind);
+    out << "      {\"id\": "; write_string(out, "correspondence:" + std::to_string(index));
+    out << ", \"original_candidate_id\": " << item.delete_candidate_id
+        << ", \"modified_candidate_id\": " << item.insert_candidate_id
+        << ", \"content_relationship\": "; write_string(out, item.correspondence_kind);
+    out << ", \"name_evidence\": "; write_string(out, name_evidence(item.identity_status));
+    out << ", \"location\": "; write_diagnostic_location(out, item);
+    out << ", \"original_context\": "; write_context(out, item.before_context);
+    out << ", \"modified_context\": "; write_context(out, item.after_context);
+    out << ", \"verified_partner_counts\": ";
+    if (item.correspondence_kind == "type3")
+      out << "{\"original\": " << item.delete_verified_partner_count
+          << ", \"modified\": " << item.insert_verified_partner_count << "}";
+    else out << "null";
+    out << ", \"selection\": ";
+    write_diagnostic_selection(out, "selected_pair", "not_selected_pair", selected);
+    out << "}";
+    if (index + 1 < diagnostics.correspondences.size()) out << ",";
+    out << "\n";
+  }
+  out << "    ],\n    \"type3_comparisons\": [\n";
+  for (std::size_t index = 0; index < diagnostics.type3_pairs.size(); ++index) {
+    const auto &pair = diagnostics.type3_pairs[index];
+    const bool skipped = pair.outcome == "ambiguous_type2c";
+    const bool verified = pair.outcome == "selected" || pair.outcome == "selection_rejected";
+    if (!skipped && !verified && pair.outcome != "below_threshold")
+      throw std::logic_error("Unknown Type-3 diagnostic outcome");
+    const auto *selected = links.pair(pair.del_candidate_id, pair.ins_candidate_id, "type3");
+    if ((pair.outcome == "selected") != (selected != nullptr))
+      throw std::logic_error("Type-3 recorded selection differs from selected evidence");
+    out << "      {\"id\": "; write_string(out, "type3:" + std::to_string(index));
+    out << ", \"original_candidate_id\": " << pair.del_candidate_id
+        << ", \"modified_candidate_id\": " << pair.ins_candidate_id
+        << ", \"verification\": {\"status\": ";
+    write_string(out, skipped ? "not_evaluated" : verified ? "verified" : "below_threshold");
+    out << ", \"reason\": ";
+    if (skipped) write_string(out, "ambiguous_type2c");
+    else out << "null";
+    out << ", \"lines\": {\"common\": ";
+    if (skipped) out << "null"; else out << pair.common_lines;
+    out << ", \"maximum\": " << pair.maximum_lines << "}, \"tokens\": {\"common\": ";
+    if (skipped) out << "null"; else out << pair.common_tokens;
+    out << ", \"maximum\": " << pair.maximum_tokens << "}}, \"selection\": ";
+    write_diagnostic_selection(out, "selected", verified ? "not_selected" : "not_applicable",
+                                selected, true);
+    out << "}";
+    if (index + 1 < diagnostics.type3_pairs.size()) out << ",";
+    out << "\n";
+  }
+  out << "    ],\n    \"type2b_groups\": [\n";
+  for (std::size_t index = 0; index < diagnostics.type2b_groups.size(); ++index) {
+    const auto &group = diagnostics.type2b_groups[index];
+    out << "      {\"id\": "; write_string(out, "type2b:" + std::to_string(index));
+    out << ", \"content_relationship\": \"type2b\", \"observation_only\": true"
+        << ", \"original_candidate_ids\": "; write_candidate_ids(out, group.delete_candidate_ids);
+    out << ", \"modified_candidate_ids\": "; write_candidate_ids(out, group.insert_candidate_ids);
+    out << ", \"blind_only_pair_count\": " << group.blind_only_pair_count << ", \"location\": ";
+    if (group.location_change.empty()) out << "null";
+    else {
+      out << "{\"classification\": "; write_string(out, group.location_change);
+      out << ", \"reason\": "; write_string(out, group.location_reason);
+      out << "}";
+    }
+    out << "}";
+    if (index + 1 < diagnostics.type2b_groups.size()) out << ",";
+    out << "\n";
+  }
+  out << "    ]\n  }";
+}
+
+inline void write_relationship_counts(std::ostream &out,
+                                       const content_relationship_counts &counts) {
+  out << "{\"type1\": " << counts.type1 << ", \"type2c\": " << counts.type2c
+      << ", \"type3\": " << counts.type3 << "}";
 }
 
 inline void write_summary(std::ostream &out, const summary &summ) {
-  out << "{\n";
-  out << "  \"results_schema_version\": " << results_schema_version << ",\n";
-  out << "  \"move_count\": " << summ.move_count << ",\n";
-  out << "  \"move_group_count\": " << summ.move_group_count << ",\n";
-  out << "  \"move_pair_count\": " << summ.move_pair_count << ",\n";
-  out << "  \"moves\": [\n";
-
-  for (std::size_t i = 0; i < summ.moves.size(); ++i) {
-    write_move_entry(out, summ.moves[i], 4);
-    if (i + 1 < summ.moves.size())
-      out << ",";
+  out << "{\n  \"results_schema_version\": " << results_schema_version
+      << ",\n  \"summary\": {\"output_item_count\": " << summ.reported_moves.size()
+      << ", \"atomic_move_group_count\": " << summ.moves.size()
+      << ", \"sequence_move_group_count\": " << summ.move_sequences.size()
+      << ", \"pair_capacity\": " << summ.move_pair_count
+      << ", \"endpoint_count\": " << summ.annotated_region_count
+      << ", \"atomic_content_relationships\": ";
+  write_relationship_counts(out, summ.content_relationships);
+  out << ", \"output_content_relationships\": ";
+  write_relationship_counts(out, summ.reported_content_relationships);
+  out << "},\n  \"output_items\": [\n";
+  std::map<std::string, const move_sequence *> sequences;
+  for (const auto &sequence : summ.move_sequences) {
+    if (sequence.member_move_ids.empty())
+      throw std::logic_error("Empty retained sequence");
+    sequences.emplace(sequence.member_move_ids.front(), &sequence);
+  }
+  for (std::size_t index = 0; index < summ.reported_moves.size(); ++index) {
+    const auto &item = summ.reported_moves[index];
+    const auto sequence = item.member_move_ids.empty() ? sequences.end()
+                         : sequences.find(item.member_move_ids.front());
+    write_output_item(out, item, sequence == sequences.end() ? nullptr : sequence->second);
+    if (index + 1 < summ.reported_moves.size()) out << ",";
     out << "\n";
   }
-
-  out << "  ],\n";
-  out << "  \"reported_move_count\": " << summ.reported_move_count << ",\n";
-  out << "  \"reported_content_relationships\": {\n";
-  out << "    \"type1\": " << summ.reported_content_relationships.type1 << ",\n";
-  out << "    \"type2c\": " << summ.reported_content_relationships.type2c << ",\n";
-  out << "    \"type3\": " << summ.reported_content_relationships.type3 << "\n  },\n";
-  out << "  \"reported_moves\": [\n";
-  for (std::size_t i = 0; i < summ.reported_moves.size(); ++i) {
-    write_reported_move(out, summ.reported_moves[i]);
-    if (i + 1 < summ.reported_moves.size()) out << ",";
+  out << "  ],\n  \"atomic_move_groups\": [\n";
+  for (std::size_t index = 0; index < summ.moves.size(); ++index) {
+    write_move_entry(out, summ.moves[index]);
+    if (index + 1 < summ.moves.size()) out << ",";
     out << "\n";
   }
-  out << "  ],\n";
-  out << "  \"sequence_cluster_count\": " << summ.sequence_cluster_count << ",\n";
-  out << "  \"sequence_reporting_unit_count\": "
-      << summ.sequence_reporting_unit_count << ",\n";
-  out << "  \"move_sequences\": [\n";
-  for (std::size_t i = 0; i < summ.move_sequences.size(); ++i) {
-    write_move_sequence(out, summ.move_sequences[i]);
-    if (i + 1 < summ.move_sequences.size()) out << ",";
-    out << "\n";
+  out << "  ],\n  \"configuration\": {\"min_granularity\": ";
+  write_string(out, summ.min_granularity);
+  out << ", \"sequence_policy\": \"ordered_adjacent_v1\"},\n"
+      << "  \"pipeline_statistics\": {\"srcdiff_region_count\": " << summ.regions_total
+      << ", \"grouped_candidate_entry_count\": " << summ.candidates_total
+      << ", \"processing_group_count\": " << summ.groups_total
+      << ", \"processing_group_kinds\": {\"move_1_to_1\": " << summ.group_kinds.move_1_to_1
+      << ", \"moves_many\": " << summ.group_kinds.moves_many
+      << ", \"delete_only\": " << summ.group_kinds.delete_only
+      << ", \"insert_only\": " << summ.group_kinds.insert_only
+      << ", \"copy_or_repeat\": " << summ.group_kinds.copy_or_repeat
+      << ", \"ambiguous\": " << summ.group_kinds.ambiguous << "}}";
+  out << ",\n  \"xpath_context\": {\"document\": \"input_srcdiff\", "
+      << "\"convention\": \"srcreader_file_units_v1\", \"namespaces\": {";
+  bool first_namespace = true;
+  for (const auto &[prefix, uri] : summ.xpath_namespaces) {
+    if (!first_namespace) out << ", ";
+    first_namespace = false;
+    write_string(out, prefix); out << ": "; write_string(out, uri);
   }
-  out << "  ],\n";
-  out << "  \"annotated_regions\": " << summ.annotated_regions << ",\n";
-  out << "  \"annotated_region_count\": " << summ.annotated_region_count
-      << ",\n";
-  out << "  \"regions_total\": " << summ.regions_total << ",\n";
-  out << "  \"candidates_total\": " << summ.candidates_total << ",\n";
-  out << "  \"groups_total\": " << summ.groups_total << ",\n";
-  out << "  \"group_kinds\": {\n";
-  out << "    \"move_1_to_1\": " << summ.group_kinds.move_1_to_1 << ",\n";
-  out << "    \"moves_many\": " << summ.group_kinds.moves_many << ",\n";
-  out << "    \"delete_only\": " << summ.group_kinds.delete_only << ",\n";
-  out << "    \"insert_only\": " << summ.group_kinds.insert_only << ",\n";
-  out << "    \"copy_or_repeat\": " << summ.group_kinds.copy_or_repeat << ",\n";
-  out << "    \"ambiguous\": " << summ.group_kinds.ambiguous << "\n";
-  out << "  },\n";
-  out << "  \"content_relationships\": {\n";
-  out << "    \"type1\": " << summ.content_relationships.type1 << ",\n";
-  out << "    \"type2c\": " << summ.content_relationships.type2c << ",\n";
-  out << "    \"type3\": " << summ.content_relationships.type3 << "\n";
-  out << "  }";
+  out << "}}";
   if (summ.diagnostics_enabled) {
     out << ",\n";
-    write_selection_diagnostics(out, summ.diagnostics);
-  } else {
-    out << "\n";
+    write_selection_diagnostics(out, summ, result_links(summ));
   }
-  out << "}\n";
+  out << "\n}\n";
 }
 
 } // namespace srcmove::json

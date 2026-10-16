@@ -12,6 +12,10 @@
 #include "pipeline.hpp"
 
 #include <algorithm>
+#include <cctype>
+#include <set>
+#include <stdexcept>
+#include <unordered_map>
 #include <utility>
 #include <vector>
 
@@ -31,6 +35,45 @@
 namespace srcmove {
 
 namespace {
+
+void validate_locator_namespaces(
+    const std::string &xpath,
+    const std::map<std::string, std::string> &bindings) {
+  if (xpath.empty() || xpath.front() != '/')
+    throw std::runtime_error("invalid_result_locator: expected srcReader locator");
+  char quote = 0;
+  for (std::size_t index = 0; index < xpath.size();) {
+    const char character = xpath[index];
+    if (quote != 0) {
+      if (character == quote) quote = 0;
+      ++index;
+      continue;
+    }
+    if (character == '\'' || character == '"') {
+      quote = character;
+      ++index;
+      continue;
+    }
+    if (!std::isalpha(static_cast<unsigned char>(character)) && character != '_') {
+      ++index;
+      continue;
+    }
+    const std::size_t begin = index++;
+    while (index < xpath.size()) {
+      const auto next = static_cast<unsigned char>(xpath[index]);
+      if (!std::isalnum(next) && next != '_' && next != '-' && next != '.') break;
+      ++index;
+    }
+    if (index < xpath.size() && xpath[index] == ':') {
+      const std::string prefix = xpath.substr(begin, index - begin);
+      if (bindings.count(prefix) == 0) {
+        throw std::runtime_error("unsupported_namespace_context: locator prefix " + prefix);
+      }
+      ++index;
+
+    }
+  }
+}
 
 group_kind_counts count_group_kinds(const content_groups &groups) {
   group_kind_counts counts;
@@ -152,6 +195,7 @@ void collect_candidate_diagnostics(const candidate_registry &registry,
         eligible,
         candidate.type2_normalized_lines.size(),
         candidate.type3_normalized_tokens.size(),
+        candidate.location.revision_file,
     });
   }
 }
@@ -167,6 +211,11 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   std::vector<move_candidate> candidates;
   std::vector<std::vector<std::string>> ancestor_summaries;
   std::size_t                 regions_total = 0;
+  std::map<std::string, std::string> xpath_namespaces{
+      {"src", "http://www.srcML.org/srcML/src"},
+      {"diff", "http://www.srcML.org/srcDiff"},
+      {"mv", "http://www.srcML.org/srcMove"}};
+  std::vector<xpath_namespace_use> xpath_namespace_uses;
   {
     scoped_profile_timer  timer(profile, "pipeline.parse_regions");
     srcml_reader          reader(srcdiff_in_filename);
@@ -178,6 +227,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     candidates = std::move(collection.candidates);
     ancestor_summaries = std::move(collection.ancestor_summaries);
     regions_total = collection.regions_total;
+    xpath_namespace_uses = std::move(collection.xpath_namespace_uses);
   }
 
   candidate_registry registry;
@@ -208,6 +258,46 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     print_greedy_matches(registry, groups, std::cout);
   }
 
+  // Only the namespace steps of published candidates constrain JSON admission.
+  std::set<candidate_id> published;
+  if (options.results_requested && options.diagnostics) {
+    for (candidate_id id = 0; id < registry.total_record_count(); ++id)
+      if (registry.is_active(id)) published.insert(id);
+  } else if (options.results_requested) {
+    for (const auto &group : groups.groups()) {
+      if (group.del_count() == 0 || group.ins_count() == 0) continue;
+      for (const auto id : groups.delete_ids(group)) published.insert(id);
+      for (const auto id : groups.insert_ids(group)) published.insert(id);
+    }
+  }
+  const auto bind_candidate = [&](candidate_id id, bool required) {
+    const auto &candidate = registry.candidate(id);
+    for (const auto &use : xpath_namespace_uses) {
+      if (candidate.start_idx < use.start_idx || candidate.start_idx > use.end_idx) continue;
+      const auto ascii_start = [](unsigned char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+      };
+      bool supported = !use.prefix.empty() && ascii_start(use.prefix.front());
+      for (const unsigned char c : use.prefix)
+        supported = supported && (ascii_start(c) || (c >= '0' && c <= '9') || c == '-' || c == '.');
+      if (!supported) {
+        if (required) throw std::runtime_error("unsupported_namespace_context: unsupported locator prefix");
+        continue;
+      }
+      const auto [binding, inserted] = xpath_namespaces.emplace(use.prefix, use.uri);
+      if (!inserted && binding->second != use.uri && required)
+        throw std::runtime_error("unsupported_namespace_context: conflicting locator prefix " + use.prefix);
+    }
+    if (required) validate_locator_namespaces(candidate.xpath, xpath_namespaces);
+  };
+  if (options.results_requested) {
+    for (const auto id : published) bind_candidate(id, true);
+    // Benign extra bindings make standard metadata agree across output modes.
+    // Unpublished conflicts cannot veto representable ordinary results.
+    for (candidate_id id = 0; id < registry.total_record_count(); ++id)
+      if (registry.is_active(id)) bind_candidate(id, false);
+  }
+
   std::vector<move_entry> moves;
   if (options.results_only) {
     scoped_profile_timer timer(profile, "pipeline.results_only");
@@ -219,31 +309,30 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
   }
 
   srcmove::summary result;
+  result.xpath_namespaces = std::move(xpath_namespaces);
+  result.min_granularity = options.min_granularity == minimum_move_granularity::fragment
+                               ? "fragment" : "statement";
+  result.registered_candidate_count = registry.total_record_count();
+  result.active_candidate_count = registry.active_candidate_count();
   {
     scoped_profile_timer timer(profile, "pipeline.summary");
     result.moves                  = std::move(moves);
-    result.move_group_count       = result.moves.size();
-    result.move_count             = result.move_group_count;
     result.move_sequences = build_move_sequences(registry, groups, result.moves);
-    result.sequence_cluster_count = result.move_sequences.size();
-    result.sequence_reporting_unit_count = result.move_group_count;
-    for (const move_sequence &sequence : result.move_sequences) {
-      result.sequence_reporting_unit_count -= sequence.member_move_ids.size() - 1;
-    }
     result.reported_moves = build_reported_moves(result.moves, result.move_sequences);
-    result.reported_move_count = result.reported_moves.size();
+    std::unordered_map<std::string, const move_entry *> by_id;
+    for (const auto &move : result.moves) by_id.emplace(move.move_id, &move);
     for (const auto &report : result.reported_moves) {
-      if (report.content_relationship == "type1") {
+      const auto &relationship = by_id.at(report.member_move_ids.front())->content_relationship;
+      if (relationship == "type1") {
         ++result.reported_content_relationships.type1;
-      } else if (report.content_relationship == "type2c") {
+      } else if (relationship == "type2c") {
         ++result.reported_content_relationships.type2c;
-      } else if (report.content_relationship == "type3") {
+      } else if (relationship == "type3") {
         ++result.reported_content_relationships.type3;
       }
     }
     result.move_pair_count        = estimate_move_pairs(result.moves);
     result.annotated_region_count = count_annotated_regions(result.moves);
-    result.annotated_regions      = result.annotated_region_count;
     result.regions_total          = regions_total;
     result.candidates_total       = count_grouped_candidate_ids(groups);
     result.groups_total           = groups.group_count();

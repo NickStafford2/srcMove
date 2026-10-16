@@ -82,7 +82,9 @@ void add_group(content_groups                  &out,
                std::string identity_status = {},
                std::string identity_reason = {},
                bool continuing_source_copy = false,
-               bool unresolved_exact_residual = false) {
+               bool unresolved_exact_residual = false,
+               bool has_pair_location = false,
+               movement_classification pair_location = {}) {
   const std::uint32_t group_id  = static_cast<std::uint32_t>(out.group_count());
   const std::uint32_t del_begin = out.append_delete_ids(del_ids);
   const std::uint32_t del_size  = static_cast<std::uint32_t>(del_ids.size());
@@ -111,6 +113,10 @@ void add_group(content_groups                  &out,
       std::move(selection_reason),
       std::move(identity_status),
       std::move(identity_reason),
+      continuing_source_copy,
+      unresolved_exact_residual,
+      has_pair_location,
+      std::move(pair_location),
   });
 }
 
@@ -150,12 +156,15 @@ void add_selected_group(content_groups           &out,
                         std::uint32_t matched_units = 0,
                         std::string selection_reason = "greedy_utility",
                         std::string identity_status = {},
-                        std::string identity_reason = {}) {
+                        std::string identity_reason = {},
+                        bool has_pair_location = false,
+                        movement_classification pair_location = {}) {
   add_group(out, group.content_hash, group.del_ids, group.ins_ids, group.match,
             confidence_milli, selection_utility, matched_units,
             std::move(selection_reason), std::move(identity_status),
             std::move(identity_reason), group.continuing_source_copy,
-            group.unresolved_exact_residual);
+            group.unresolved_exact_residual, has_pair_location,
+            std::move(pair_location));
   selection.mark_selected(group, registry);
 }
 
@@ -582,6 +591,8 @@ struct match_proposal {
   std::string   selection_reason = "greedy_utility";
   std::string   identity_status = "exact";
   std::string   identity_reason;
+  bool has_pair_location = false;
+  movement_classification pair_location;
 };
 
 std::size_t candidate_units(const move_candidate &candidate) {
@@ -1303,8 +1314,12 @@ void apply_correspondence_output_policy(
     const correspondence_decision *decision = find_correspondence_decision(
         decisions, proposal.group.del_ids.front(),
         proposal.group.ins_ids.front());
-    assert(decision != nullptr);
+    // Reducing repeated exact endpoints can yield a singleton after unique-pair
+    // classification. Preserve its existing selection policy without inventing
+    // a location assessment (including in Debug builds).
     if (decision != nullptr) {
+      proposal.has_pair_location = true;
+      proposal.pair_location = decision->classification;
       proposal.identity_status = identity_status_for(decision->match, decision->identity_reason);
       proposal.identity_reason = decision->identity_reason;
       if (proposal.identity_status == "tentative") {
@@ -1936,7 +1951,8 @@ content_groups build_content_groups(const candidate_registry &registry,
           out, registry, proposal.group, selection, proposal.confidence_milli,
           proposal.utility, static_cast<std::uint32_t>(proposal.matched_units),
           proposal.selection_reason, proposal.identity_status,
-          proposal.identity_reason);
+          proposal.identity_reason, proposal.has_pair_location,
+          proposal.pair_location);
       if (stats == nullptr)
         continue;
       switch (proposal.group.match) {

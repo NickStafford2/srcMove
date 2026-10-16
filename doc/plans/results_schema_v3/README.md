@@ -1,15 +1,15 @@
 # Results schema 3 contract
 
-Status: proposed implementation contract, revised October 16, 2026. The
-executable still emits results schema 2 and diagnostics schema 4. This is Step
-1 of the migration, not a description of implemented schema-3 behavior.
+Status: producer implemented in Phase 2, October 16, 2026. The executable emits
+results schema 3 and diagnostics schema 5. Live consumer migration is still
+pending; schema-2 readers must be updated before using this output.
 Examples are synthetic format illustrations, not detector observations.
 
 The migration must preserve matching, selection, sequence eligibility, atomic
 XML annotations, and benchmark scoring. Its purpose is to make those results
 clearer through the thesis's atomic move groups and output items. Live consumers
 will require schema 3; frozen studies and their version-specific readers remain
-unchanged. The current [architecture](../../architecture.md) describes schema 2.
+unchanged. See the [architecture](../../architecture.md) for the detector pipeline.
 
 [schema.json](schema.json) defines structural constraints. Cross-record and XML
 checks below supplement it; no JSON schema proves detector correctness.
@@ -63,7 +63,7 @@ is never an index into a result array. ID zero is valid.
 
 `revision_file` is the revision-specific path, or null when unavailable; do not
 substitute a combined `old|new` archive filename. `construct` is the collector's
-qualified construct name or null. `raw_text` preserves the retained candidate
+construct name (often a local name such as `expr_stmt`) or null. `raw_text` preserves the retained candidate
 text. Revision side follows the containing array. Collector roles and registry
 accounting belong in diagnostics, not mandatory ordinary endpoint objects.
 
@@ -119,9 +119,16 @@ diagnostics. Ordinary location is one of:
 | --- | --- |
 | `pair` | `classification: relocated` and the existing classifier `reason` for the selected pair. |
 | `group` | `status: group_relocation_evidence`; the existing existential gate passed for an unresolved exact group, without choosing or relocating every possible pair. |
-| `not_assessed` | `reason: continuing_source_copy`; copy policy did not require a group-displacement assessment. |
+| `not_assessed` | `reason: continuing_source_copy` for copy policy, or `no_classified_pair` for a selected singleton with no retained pair assessment. |
 
-Current ordinary pair eligibility is relocated and not parent-carried. Do not
+Classified selected pairs are relocated and not parent-carried. Existing exact
+fragment proposals can become singletons when repeated endpoints are reduced
+after unique-pair classification. These proposals can be selected without a
+classified pair; `no_classified_pair` exposes that limitation without inferring
+relocation or changing selection. Removing the old invalid Debug assertion
+makes this path behave like the existing Release build.
+
+Do not
 serialize constant `carried_by_parent: false` / `parent_pair: null` on every
 ordinary pair. Diagnostics can report stationary, relocated, restructured, and
 ambiguous pair classifications, with parent carrying preserved.
@@ -387,15 +394,54 @@ Neither checker proves detector correctness or actual structural adjacency.
 
 ## Implementation gates
 
-Before changing the producer, capture representative schema-2 baselines. The
-implementation must thread existing typed flags, location decisions, and
-candidate metadata through the writer, without new matching search or altered
-selection. Compare normalized atomic evidence, sequences, selection values,
-and XML semantics across old/new formats and all output modes.
+Phase 2 threads existing typed flags, location decisions, and candidate metadata
+through the producer. `make test-results-schema` replays a captured schema-2
+baseline in ordinary, diagnostic, results-only, and diagnostic results-only
+modes. It checks structural and cross-record constraints, atomic evidence,
+sequence membership, selection values, and byte-identical native XML.
+
+The October 16 verification uses 326 distinct input/granularity cases and nine
+namespace regressions: all 335 producer checks and all 25 unit/component checks
+passed in Docker. The synthetic checker also passed nine examples, an
+unclassified-pair positive variant, and 108 malformed counterexamples; locator
+companions passed both document forms and ten edge cases.
+A fresh Release build of tracked commit
+`86c3b44e6aac1c1525bf03de65a3459c10b6aef8` reproduced the frozen baseline binary
+(SHA-256 `12c21cf13b6ac99a87982a70e6cac748aacadfc85e9d9ab244e86aacaedb0365`),
+and all 326 schema-2 JSON/XML captures agreed with that build. This verifies
+format migration against existing behavior, not detector accuracy. Dependencies
+used the existing workspace builds; their source-to-binary identity is not
+asserted. The explicit archived-source receipt records a caveat about the
+automatic receipt discovering the enclosing repository.
+
+Generated evidence stays ignored under `build/schema3-phase2/`: `baseline/`
+contains snapshots and the locator audit, `source-baseline/receipt.json` and
+`comparison.json` bind the old executable to archived source, and
+`replay/report.json` records producer checks. `build/test-results/report.json`
+records the separate unit/component run. See [test entry points](../../../tests/README.md)
+for the focused target and baseline prerequisites.
+
+Known limits are retained explicitly:
+
+- Three baseline cases have ambiguous native locators from repeated file units
+  or named functions. Tests require exactly their recorded paths and match
+  counts; 323 cases resolve uniquely. Schema 3 does not repair native locators.
+- Three legacy behavioral oracle failures existed before migration (padded
+  loop reorder, unchanged try/catch crossing, and edited control-header/body
+  reorder). They remain recorded separately from differential equivalence.
+- Three selected fragment pairs lack classification and use
+  `no_classified_pair`, as explained above.
+- A separate native XML writer defect can hoist conflicting extension-prefix
+  declarations within one file unit. JSON admission and valid cross-unit
+  rebinding are tested; this migration does not repair that writer.
+- JSON namespace admission currently scans extension spans per active candidate
+  (O(C × E)); XML-only runs skip this scan. Large extension-heavy archives need
+  performance measurement before making throughput claims.
 
 History admission/retention and fingerprints, benchmark readers, and viewer
 artifacts/APIs must migrate together after the producer. Benchmark scoring stays
 atomic. Frozen outputs, hashes, adjudications, and version-specific thesis
 appendix readers remain unchanged. Current thesis claims change only after the
 new format is implemented and verified. No production constants or program
-release version change in Step 1.
+release version changed in Phases 1–2. Full behavior/tooling suite success is
+pending the schema-2 consumer migration; it is not a Phase-2 claim.

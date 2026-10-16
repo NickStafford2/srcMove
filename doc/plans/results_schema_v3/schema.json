@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Proposed srcMove results schema 3",
+  "title": "srcMove results schema 3",
   "description": "Structural contract only; reference, count, evidence-state, and XML invariants require semantic validation.",
   "type": "object",
   "properties": {
@@ -452,6 +452,15 @@
       ],
       "additionalProperties": false
     },
+    "unclassifiedPairLocation": {
+      "type": "object",
+      "properties": {
+        "scope": {"const": "not_assessed"},
+        "reason": {"const": "no_classified_pair"}
+      },
+      "required": ["scope", "reason"],
+      "additionalProperties": false
+    },
     "location": {
       "oneOf": [
         {
@@ -462,6 +471,9 @@
         },
         {
           "$ref": "#/$defs/unassessedLocation"
+        },
+        {
+          "$ref": "#/$defs/unclassifiedPairLocation"
         }
       ]
     },
@@ -599,7 +611,10 @@
           "then": {
             "properties": {
               "location_evidence": {
-                "$ref": "#/$defs/productionPairLocation"
+                "oneOf": [
+                  {"$ref": "#/$defs/productionPairLocation"},
+                  {"$ref": "#/$defs/unclassifiedPairLocation"}
+                ]
               },
               "original": {
                 "minItems": 1,
@@ -609,6 +624,18 @@
                 "minItems": 1,
                 "maxItems": 1
               }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "location_evidence": {"$ref": "#/$defs/unclassifiedPairLocation"}
+            }
+          },
+          "then": {
+            "properties": {
+              "content_relationship": {"const": "type1"}
             }
           }
         },

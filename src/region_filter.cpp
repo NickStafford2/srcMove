@@ -648,6 +648,46 @@ std::string streaming_xpath(srcml_reader &reader,
   return xpath;
 }
 
+// srcml_node caches namespace objects by URI, but srcReader's locators retain
+// the actual lexical prefix for extension namespaces. Observe that final step
+// rather than trusting the cached namespace prefix. Core bindings are fixed by
+// srcReader and do not require additional locator construction.
+struct xpath_namespace_observer {
+  std::size_t depth = 0;
+  std::vector<std::pair<std::size_t, std::size_t>> open_extensions;
+
+  void consume(const srcml_node &node, srcml_reader &reader,
+               std::size_t node_index, candidate_collection &metadata,
+               streaming_profile_stats *stats) {
+    if (node.is_end()) {
+      if (!open_extensions.empty() && open_extensions.back().first == depth) {
+        metadata.xpath_namespace_uses[open_extensions.back().second].end_idx = node_index;
+        open_extensions.pop_back();
+      }
+      if (depth != 0) --depth;
+      return;
+    }
+    if (!node.is_start()) return;
+    ++depth;
+    if (!node.ns || node.ns->uri.empty()) return;
+    const std::string &uri = node.ns->uri;
+    if (uri == "http://www.srcML.org/srcML/src" ||
+        uri == "http://www.srcML.org/srcDiff" ||
+        uri == "http://www.srcML.org/srcMove") return;
+
+    const std::string locator = streaming_xpath(reader, stats);
+    const std::string parent = xpath_parent(locator);
+    const std::string_view step = std::string_view(locator).substr(
+        parent.empty() ? (locator.empty() ? 0 : 1) : parent.size() + 1);
+    const auto separator = step.find_first_of(":[");
+    const std::string prefix = separator != std::string_view::npos && step[separator] == ':'
+                                   ? std::string(step.substr(0, separator)) : std::string();
+    const auto observation_index = metadata.xpath_namespace_uses.size();
+    metadata.xpath_namespace_uses.push_back({node_index, node_index, prefix, uri});
+    open_extensions.emplace_back(depth, observation_index);
+  }
+};
+
 void record_stream_event(const srcml_node &node,
                          streaming_profile_stats *stats) {
   if (stats == nullptr) {
@@ -865,6 +905,8 @@ collect_candidates_streaming(srcml_reader                &reader,
   streaming_profile_stats profile_storage;
   streaming_profile_stats *stats =
       profile == nullptr ? nullptr : &profile_storage;
+  candidate_collection result;
+  xpath_namespace_observer namespace_observer;
 
   std::vector<streamed_region> regions;
   std::vector<std::size_t> open_regions;
@@ -1421,6 +1463,7 @@ collect_candidates_streaming(srcml_reader                &reader,
 
   std::size_t node_index = 0;
   record_stream_event(*it, stats);
+  namespace_observer.consume(*it, reader, node_index, result, stats);
   const std::string *root_filename = it->get_attribute_value("filename");
   if (root_filename != nullptr && root_filename->empty()) {
     throw std::runtime_error("root single-file unit: expected unit@filename");
@@ -1435,6 +1478,7 @@ collect_candidates_streaming(srcml_reader                &reader,
   while (it != end) {
     const srcml_node &node = *it;
     record_stream_event(node, stats);
+    namespace_observer.consume(node, reader, node_index, result, stats);
 
     if (document_done) {
       ++it;
@@ -1523,7 +1567,6 @@ collect_candidates_streaming(srcml_reader                &reader,
     throw std::runtime_error("unexpected EOF while reading srcDiff document");
   }
 
-  candidate_collection result;
   result.ancestor_summaries = std::move(ancestor_summaries.entries);
   result.regions_total = regions.size();
   std::unordered_set<std::string> seen_candidates;

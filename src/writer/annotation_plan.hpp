@@ -6,6 +6,7 @@
 #define INCLUDED_MOVE_ANNOTATION_PLAN_HPP
 
 #include <cctype>
+#include <cstddef>
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -32,6 +33,14 @@ struct move_tag {
   std::string              raw_text;
   std::string              identity_status = "unassessed";
   std::string              identity_reason;
+  std::size_t candidate_id = 0;
+  std::string revision_file;
+  std::string construct;
+  std::string role;
+  bool continuing_source_copy = false;
+  bool unresolved_exact_residual = false;
+  bool has_pair_location = false;
+  movement_classification pair_location;
 };
 
 // Map: start_idx (node index where diff:insert/delete START occurs) -> move tag

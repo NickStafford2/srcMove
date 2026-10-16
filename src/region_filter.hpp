@@ -7,6 +7,7 @@
 #ifndef INCLUDED_MOVE_REGION_FILTER_HPP
 #define INCLUDED_MOVE_REGION_FILTER_HPP
 #include <cctype>
+#include <string>
 #include <vector>
 
 #include "move_candidate.hpp"
@@ -47,12 +48,24 @@ struct region_filter_options {
 
 region_filter_options get_default_filter_options();
 
+struct xpath_namespace_use {
+  std::size_t start_idx = 0;
+  std::size_t end_idx = 0;
+  std::string prefix;
+  std::string uri;
+};
+
 struct candidate_collection {
   std::vector<move_candidate> candidates;
   // Document-local, deterministic intern table referenced by
   // endpoint_location_context::ancestor_summary_id. Entry 0 is the empty chain.
   std::vector<std::vector<std::string>> ancestor_summaries;
   std::size_t                 regions_total = 0;
+  // Extension element spans let the caller admit bindings only for ancestors
+  // of emitted candidate locators. Empty prefix marks a namespaced element
+  // for which srcReader emitted an unprefixed step. Collection never rejects
+  // namespace contexts or changes candidate decisions.
+  std::vector<xpath_namespace_use> xpath_namespace_uses;
 };
 
 candidate_collection

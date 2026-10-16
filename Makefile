@@ -26,6 +26,7 @@ help:
 	@printf '  %-28s %s\n' 'make test-behavior' 'Run accepted detector behavior and fixtures'
 	@printf '  %-28s %s\n' 'make test-tooling' 'Run history, benchmark, and test infrastructure contracts'
 	@printf '  %-28s %s\n' 'make test-classification' 'Run the focused Type-1/2/3/none contracts'
+	@printf '  %-28s %s\n' 'make test-results-schema' 'Replay a captured schema-2 baseline against the schema-3 producer'
 	@printf '  %-28s %s\n' 'make move-selection-benchmark' 'Compare builds on the accepted behavior suite'
 	@printf '  %-28s %s\n' 'make history-scaling' 'Measure history throughput across JOBS'
 	@printf '  %-28s %s\n' 'make history-more' 'Extend workspace history; REPO=notepadpp COUNT=100'
@@ -61,6 +62,16 @@ test-tooling:
 
 test-classification: build
 	$(PYTHON) tests/run.py --suite behavior --test 'fixtures.policy.classification_*'
+
+.PHONY: test-results-schema
+# Phase-2 producer verification against explicitly captured, ignored baselines.
+SCHEMA3_BASELINE ?= $(CURDIR)/build/schema3-phase2/baseline
+test-results-schema: build
+	PYTHONPATH="$(CURDIR)/build/schema3-validation:$(PYTHONPATH)" \
+	SRCMOVE_RESULTS_V3_BASELINE="$(SCHEMA3_BASELINE)" \
+	$(PYTHON) tests/run.py --suite behavior \
+		--test 'tests.behavior.test_results_schema_v3*' \
+		--artifacts "$(CURDIR)/build/schema3-phase2/replay"
 
 move-selection-benchmark: build
 	$(PYTHON) moveSelectionBench/benchmark.py \

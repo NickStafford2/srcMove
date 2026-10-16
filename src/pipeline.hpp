@@ -22,6 +22,7 @@ struct pipeline_options {
   bool verbose = false;
   bool results_only = false;
   bool diagnostics = false;
+  bool results_requested = false;
   minimum_move_granularity min_granularity =
       minimum_move_granularity::statement;
 };

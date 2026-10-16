@@ -47,30 +47,47 @@ collect_group_xpaths(content_groups::id_view   ids,
   return out;
 }
 
+const char *candidate_role_name(move_candidate::Role role) {
+  switch (role) {
+  case move_candidate::Role::diff_wrapper: return "diff_wrapper";
+  case move_candidate::Role::single_child_wrapper: return "single_child_wrapper";
+  case move_candidate::Role::multi_child_wrapper: return "multi_child_wrapper";
+  case move_candidate::Role::structural_child: return "structural_child";
+  }
+  return "unknown";
+}
+
 move_tag make_move_tag(const std::string              &move_id,
                        const std::string              &content_relationship,
-                       move_candidate::Kind            kind,
+                       candidate_id                    id,
+                       const move_candidate           &candidate,
                        std::size_t                     ins_count,
                        std::size_t                     del_count,
                        const std::vector<std::string> &partner_xpaths,
-                       const std::string              &xpath,
-                       const std::string              &raw_text,
                        const content_group           &group) {
   move_tag tag;
   tag.move_id        = move_id;
   tag.content_relationship     = content_relationship;
-  tag.kind           = kind;
+  tag.kind           = candidate.kind;
   tag.inserts        = static_cast<std::uint32_t>(ins_count);
   tag.deletes        = static_cast<std::uint32_t>(del_count);
   tag.partner_xpaths = partner_xpaths;
-  tag.xpath           = xpath;
-  tag.raw_text       = raw_text;
+  tag.xpath           = candidate.xpath;
+  tag.raw_text       = candidate.raw_text;
   tag.confidence_milli = group.confidence_milli;
   tag.selection_utility = group.selection_utility;
   tag.matched_units = group.matched_units;
   tag.selection_reason = group.selection_reason;
   tag.identity_status = group.identity_status;
   tag.identity_reason = group.identity_reason;
+  tag.candidate_id = id;
+  tag.revision_file = candidate.location.revision_file;
+  tag.construct = candidate.full_name;
+  tag.role = candidate_role_name(candidate.role);
+  tag.continuing_source_copy = group.continuing_source_copy;
+  tag.unresolved_exact_residual = group.unresolved_exact_residual;
+  tag.has_pair_location = group.has_pair_location;
+  tag.pair_location = group.pair_location;
   return tag;
 }
 
@@ -87,9 +104,8 @@ void add_group_tags(tag_map                        &tags,
     const move_candidate &candidate = registry.candidate(id);
 
     tags.emplace(candidate.start_idx,
-                 make_move_tag(move_id, content_relationship, candidate.kind, ins_count,
-                               del_count, partner_xpaths, candidate.xpath,
-                               candidate.raw_text, group));
+                 make_move_tag(move_id, content_relationship, id, candidate,
+                               ins_count, del_count, partner_xpaths, group));
   }
 }
 

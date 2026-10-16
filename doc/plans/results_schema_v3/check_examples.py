@@ -110,8 +110,11 @@ def validate(document):
         if status == "selected_pair":
             require(len(group["original"]) == len(group["modified"]) == 1,
                     "Selected pair must have one endpoint per side")
-            require(group["location_evidence"]["scope"] == "pair",
-                    "Selected pair requires pair location")
+            location = group["location_evidence"]
+            require(location["scope"] == "pair" or (
+                    relationship == "type1" and location == {
+                        "scope": "not_assessed", "reason": "no_classified_pair"}),
+                    "Selected pair requires classified location or unassessed exact pair")
             require(group["selection"]["reason"] not in
                     ("continuing_source_copy", "unresolved_exact_residual"),
                     "Unresolved or copy policy cannot establish selected pair")
@@ -353,7 +356,19 @@ def validate_document(document, validator):
 def self_test(documents, validator):
     """Reject malformed shape and cross-record examples through the public checks."""
     failures = 0
+    test_documents = list(documents)
     for document in documents:
+        if ("diagnostics" not in document and len(document["atomic_move_groups"]) == 1
+                and document["atomic_move_groups"][0]["content_relationship"] == "type1"
+                and document["atomic_move_groups"][0]["correspondence"]["status"] == "selected_pair"):
+            unclassified = deepcopy(document)
+            unclassified["atomic_move_groups"][0]["location_evidence"] = {
+                "scope": "not_assessed", "reason": "no_classified_pair"}
+            validate_document(unclassified, validator)
+            test_documents.append(unclassified)
+            print("PASS unclassified selected exact-pair positive variant")
+            break
+    for document in test_documents:
         mutations = [
             lambda value: value["summary"].update(endpoint_count=value["summary"]["endpoint_count"] + 1),
             lambda value: value.update(unexpected_property=True),
@@ -371,6 +386,27 @@ def self_test(documents, validator):
                 group = value["atomic_move_groups"][0]
                 group["modified"][0]["candidate_id"] = group["original"][0]["candidate_id"]
             mutations.append(duplicate_owner)
+        for index, group in enumerate(document["atomic_move_groups"]):
+            if group["correspondence"]["status"] == "selected_pair":
+                def false_copy_location(value, index=index):
+                    value["atomic_move_groups"][index]["location_evidence"] = {
+                        "scope": "not_assessed", "reason": "continuing_source_copy"}
+                def false_stationary_location(value, index=index):
+                    value["atomic_move_groups"][index]["location_evidence"] = {
+                        "scope": "pair", "classification": "stationary",
+                        "reason": "same_anchor_interval"}
+                mutations.extend((false_copy_location, false_stationary_location))
+                if group["content_relationship"] != "type1":
+                    def false_unclassified_nonexact(value, index=index):
+                        value["atomic_move_groups"][index]["location_evidence"] = {
+                            "scope": "not_assessed", "reason": "no_classified_pair"}
+                    mutations.append(false_unclassified_nonexact)
+                elif group["location_evidence"]["scope"] == "not_assessed":
+                    def false_unclassified_copy_status(value, index=index):
+                        value["atomic_move_groups"][index]["correspondence"]["status"] = "copy_source_set"
+                        value["atomic_move_groups"][index]["selection"]["reason"] = "continuing_source_copy"
+                    mutations.append(false_unclassified_copy_status)
+                break
         for index, group in enumerate(document["atomic_move_groups"]):
             if (group["correspondence"]["status"] == "unresolved_partners"
                     and len(group["original"]) == len(group["modified"]) == 1):

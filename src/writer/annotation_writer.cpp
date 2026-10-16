@@ -72,11 +72,19 @@ void append_move_result(move_entry_map &moves, const move_tag &tag,
   entry.selection_reason = tag.selection_reason;
   entry.identity_status = tag.identity_status;
   entry.identity_reason = tag.identity_reason;
+  entry.continuing_source_copy = tag.continuing_source_copy;
+  entry.unresolved_exact_residual = tag.unresolved_exact_residual;
+  entry.has_pair_location = tag.has_pair_location;
+  entry.pair_location = tag.pair_location;
+  result_endpoint endpoint{tag.candidate_id, tag.revision_file, xpath,
+                           tag.construct, tag.role, tag.raw_text};
 
   if (tag.kind == move_candidate::Kind::del) {
+    entry.original.push_back(std::move(endpoint));
     entry.from_xpaths.push_back(xpath);
     entry.from_raw_texts.push_back(tag.raw_text);
   } else {
+    entry.modified.push_back(std::move(endpoint));
     entry.to_xpaths.push_back(xpath);
     entry.to_raw_texts.push_back(tag.raw_text);
   }

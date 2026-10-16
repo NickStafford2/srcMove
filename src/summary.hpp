@@ -3,15 +3,26 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <string>
 #include <vector>
 
 #include "move_registry/selection_diagnostics.hpp"
 #include "move_sequences.hpp"
+#include "movement_classifier.hpp"
 
 namespace srcmove {
 
-inline constexpr std::uint32_t results_schema_version = 2;
+inline constexpr std::uint32_t results_schema_version = 3;
+
+struct result_endpoint {
+  std::size_t candidate_id = 0;
+  std::string revision_file;
+  std::string xpath;
+  std::string construct;
+  std::string role;
+  std::string raw_text;
+};
 
 struct move_entry {
   std::string              move_id;
@@ -26,6 +37,12 @@ struct move_entry {
   std::vector<std::string> to_raw_texts;
   std::string identity_status = "unassessed";
   std::string identity_reason;
+  std::vector<result_endpoint> original;
+  std::vector<result_endpoint> modified;
+  bool continuing_source_copy = false;
+  bool unresolved_exact_residual = false;
+  bool has_pair_location = false;
+  movement_classification pair_location;
 };
 
 struct group_kind_counts {
@@ -43,35 +60,21 @@ struct content_relationship_counts {
   std::size_t type3 = 0;
 };
 
-// Primary reporting units. Ordered sequences retain positional member links;
-// their endpoint arrays are not content-equivalence partner sets.
+// Output items reference atomic evidence instead of copying endpoint bodies.
 struct reported_move_entry {
   std::string move_id;
   std::string report_kind;
-  std::string content_relationship;
   std::vector<std::string> member_move_ids;
-  std::vector<std::string> from_xpaths;
-  std::vector<std::string> to_xpaths;
-  std::vector<std::string> from_raw_texts;
-  std::vector<std::string> to_raw_texts;
-  std::string identity_status = "unassessed";
-  std::string identity_reason;
 };
 
 struct summary {
-  std::size_t             move_count = 0; // Backward-compatible alias for move_group_count.
-  std::size_t             move_group_count = 0;
   std::size_t             move_pair_count = 0;
   std::vector<move_entry> moves;
-  // Additive sequence reporting; original moves/counts retain their meanings.
+  // Aggregation preserves atomic evidence and XML annotation IDs.
   std::vector<move_sequence> move_sequences;
-  std::size_t sequence_cluster_count = 0;
-  std::size_t sequence_reporting_unit_count = 0;
   std::vector<reported_move_entry> reported_moves;
-  std::size_t reported_move_count = 0;
   content_relationship_counts reported_content_relationships;
 
-  std::size_t annotated_regions = 0; // Backward-compatible alias for annotated_region_count.
   std::size_t annotated_region_count = 0;
   std::size_t regions_total     = 0;
   std::size_t candidates_total  = 0;
@@ -80,6 +83,12 @@ struct summary {
   content_relationship_counts content_relationships;
   bool diagnostics_enabled = false;
   selection_diagnostics diagnostics;
+  std::string min_granularity = "statement";
+  std::size_t registered_candidate_count = 0;
+  std::size_t active_candidate_count = 0;
+  std::map<std::string, std::string> xpath_namespaces{
+      {"src", "http://www.srcML.org/srcML/src"},
+      {"diff", "http://www.srcML.org/srcDiff"}};
 };
 
 } // namespace srcmove

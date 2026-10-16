@@ -18,6 +18,7 @@ struct candidate_diagnostic {
   bool        type3_eligible = false;
   std::size_t line_units = 0;
   std::size_t token_units = 0;
+  std::string revision_file;
 };
 
 // A blind equivalence group is an observation, never a production proposal.

@@ -126,15 +126,19 @@ The classifier does not reconstruct editing actions.
 
 Matching ambiguity is separate: repeated content or competing partners can leave
 pairing unresolved even when a particular pair has clear location evidence.
-The legacy diagnostic field `shadow_change` exposes the location outcome;
-`cardinality` and partner counts describe separate matching relationships.
+Diagnostic `location.classification` exposes the location outcome;
+`verified_partner_counts` describes Type-3 edge competition separately from
+ordinary `correspondence.status`.
 
 The refined group builder harvests unique exact Type-1 pairs before hierarchy
 selection and classifies them once. Only positively classified independent
 relocations remain eligible as unique Type-1 proposals; stationary, restructured, ambiguous, and
 parent-carried correspondences remain diagnostic-only. The same compact
 decision records materialize the opt-in diagnostics, so production eligibility
-and diagnostic interpretation cannot diverge.
+and diagnostic interpretation share those decisions. One existing exact-fragment
+exception lacks a classified pair after endpoint reduction; results expose
+`location_evidence: {scope: not_assessed, reason: no_classified_pair}` rather
+than inventing displacement evidence. See [results terminology](#results-terminology).
 Unique Type-2c groups are classified once after exact grouping has removed Type-1
 correspondences. The same decisions control eligibility and diagnostics: only
 `relocated` pairs that pass the continuing-name identity checks enter selection.
@@ -166,7 +170,8 @@ are not rejected merely for lacking continuing-use corroboration. Their selectio
 utility is multiplied by 650/1000 with integer truncation, and their evidence
 tie-break strength is lowered. The structural coverage bonus is unchanged. The
 named constant lives in `selection_policy.hpp`; it is a ranking heuristic, not an accuracy
-estimate. Content-based `confidence_milli` and matched-unit counts stay unchanged.
+estimate. Content-based matching weights and matched-unit counts stay unchanged; JSON
+serializes the weight as `selection.matching_weight_milli`.
 Proposals are ranked again after this adjustment and before descendant-bundle
 selection. With no stronger competitor, a tentative pair may be reported.
 Larger isolated constructs retain the existing policy when there is no
@@ -386,13 +391,21 @@ adds the srcMove namespace and annotates matched start tags with:
 - `mv:from`: source XPath or XPath union on an insertion
 
 Annotations may be placed on a structural child inside a diff wrapper rather
-than on the wrapper itself. The optional `--results` output records move groups,
-predicted content relationships, source/destination XPaths, raw texts, candidate counts, group
-classifications, confidence in thousandths, matched units, selection utility,
-and the selection reason as JSON. The top-level `results_schema_version`
-identifies this contract and is currently `2`. With `--results-only`, srcMove
-materializes that JSON evidence from candidate-owned XPaths and skips the
-second XML pass entirely.
+than on the wrapper itself. Optional `--results` emits results schema `3`.
+`atomic_move_groups` retain candidate IDs, revision-specific file paths, input
+locators, raw texts, content classifications, correspondence/name/location
+evidence, and selection metrics. `output_items` reference those groups without
+duplicating endpoint bodies. Summary counts and pipeline statistics have separate
+objects. The [results contract](plans/results_schema_v3/README.md) owns the field
+specification and validation rules.
+
+With `--results-only`, srcMove materializes the same ordinary JSON evidence from
+candidate-owned locators and skips the second XML pass. Locators use the existing
+srcReader file-unit convention; archive paths omit the outer archive root and
+are not universally absolute document XPaths. Namespace admission applies to
+published JSON locators, with unsupported contexts rejected before annotation;
+XML-only execution retains its existing behavior. See the
+[locator contract](plans/results_schema_v3/README.md#the-existing-locator-convention).
 
 ### Ordered move sequences
 
@@ -406,39 +419,21 @@ preprocessor constructs, unknown diff tags, unstructured substantive text,
 and unreliable nested revision ownership prevent grouping. The metadata does not supply new
 relocation evidence.
 
-Results schema 2 adds `move_sequences` alongside `moves`. Each sequence records
-`policy: ordered_adjacent_v1`, `content_relationship: type1`, ordered
-`member_move_ids`, and `from`/`to` endpoint objects. Endpoints record
-`revision_file`, comparison-local `parent_id`, first/last child ordinals, and
-ordered `member_xpaths`. Sequence IDs use `sequence:` followed by the first
-member's move ID and have the same comparison-local scope as those IDs.
-The original move records, XML annotations, and summary count meanings are
-unchanged. `sequence_cluster_count` counts runs with at least two members;
-`sequence_reporting_unit_count` is the original group count minus
-the sum of `(member count - 1)` over those runs. Residual ambiguous groups each
-remain one reporting unit, without resolving their pairings. Neither count
-establishes the number of developer editing actions.
+Each qualifying run becomes one `output_items` entry with
+`kind: sequence_move_group`, ordered `member_group_ids`, and `sequence` context.
+The context preserves `policy: ordered_adjacent_v1`, revision-specific file and
+comparison-local parent IDs, and first/last child ordinals for each side.
+Sequence IDs retain `sequence:` followed by the first member's atomic ID.
+Ungrouped items use `kind: atomic_move_group` and a singleton member reference.
+Every atomic group belongs to exactly one output item.
 
-The primary reporting projection is `reported_moves`, with
-`reported_move_count` and `reported_content_relationships`. Every selected
-atomic group belongs to exactly one report. An ungrouped report has
-`report_kind: atomic`, its original `move_id`, and a singleton
-`member_move_ids`. A grouped report has `report_kind: ordered_sequence`, its
-sequence ID as `move_id`, `content_relationship: type1`, and ordered member
-IDs. Both kinds provide `from_xpaths`, `to_xpaths`, `from_raw_texts`, and
-`to_raw_texts`. For a sequence those arrays concatenate each member's single
-endpoint in member order: index i on the source matches index i on the
-destination. They are not Cartesian partner sets. Atomic repeated groups
-retain their existing equivalence/ambiguity semantics.
-
-One qualifying run is therefore one Type-1 reported move, even when it has no
-enclosing AST construct. XML continues to annotate the original member
-endpoints and their exact partner links. No synthetic block or enclosing
-method detection is implied. Legacy `moves`, group/pair/annotation counts,
-and `content_relationships` retain their meanings for existing consumers and
-benchmark scoring. `reported_move_count` equals
-`sequence_reporting_unit_count`; category counts in
-`reported_content_relationships` count primary reports, rather than members.
+XML continues to annotate original atomic endpoints and partner links. No
+synthetic block or enclosing method detection is implied. Repeated-content and
+residual groups retain their uncertainty without chosen individual pairings.
+The summary separately counts output items and atomic groups, and provides a
+content histogram at each granularity. Neither granularity counts developer
+editing actions. Sequence items derive evidence from their ordered members;
+they do not copy endpoint arrays or inherit the first member's name assessment.
 
 Whole-run Type-1 equality follows from ordered equality of complete sibling
 canonical streams and the absence of intervening meaningful content. Exact
@@ -456,38 +451,41 @@ per-revision counters to its existing source stack and context to retained
 candidates. Key-string storage/comparison costs also depend on their lengths.
 This reporting stage cannot recover an unmatched edited statement or detect
 an entire method from a run of its interior statements. The primary reporting
-projection adds expected linear indexing/copying work in selected member
-references and their serialized endpoint/text sizes. See the
+projection adds expected linear indexing work and stores selected member
+references rather than duplicate endpoint/text arrays. See the
 [sequence plan](plans/adjacent_move_sequences.md) for proposed changed-sequence
 matching and the [semantic tests](../tests/behavior/test_move_sequences.py) for
 implemented boundary checks.
 
 ### Diagnostics
 
-`--diagnostics` is an opt-in results mode for algorithm review. Diagnostics
-schema version `4` records unique Type-1/Type-2c and verified Type-3 edge classifications,
-endpoint context independent of selection, retained candidates, and Type-3 shortlist
-decisions, including observed line and token LCS evidence for below-threshold
-pairs and whether a verified edge was selected. Each correspondence also says
-whether current selection emitted it as a move. The legacy `shadow_change` field
-names the location outcome for all three evidence types. File, mapped-container,
-anchor-interval, relative-order, and ancestor observations are explicit.
-Endpoint contexts also expose immediate `structural_region_id` and mapping
-status, outer `anchor_region_id`, and common-sibling prefix/suffix ranks used
-for crossing decisions.
-An optional `identity_reason` separately records continuing-name corroboration,
-contradiction, or an unsupported changed-name declaration. `identity_status`
-is explicit in correspondence diagnostics, selected atomic moves, and primary
-reported moves: `exact` describes Type-1 content equality (not resolved repeated
-pairing), `corroborated` records independent replacement support, `tentative`
-marks unsupported changed-name declarations, and `unassessed` marks other
-normalized matches without independent corroboration. `contradicted` occurs
-only in diagnostics. These states describe evidence, not semantic proof or
-probabilities. Positive location remains required even for tentative matches;
-contradictions remain a reporting veto.
-Container-local anchor intervals are `different`, not crossed, when their
-mapped containers differ. Diagnostics require `--results` and are not emitted
-during ordinary runs.
+`--diagnostics` is an opt-in results mode for algorithm review and requires
+`--results`. Diagnostics schema `5` records the active candidate inventory,
+classified Type-1/Type-2c correspondences, verified Type-3 edge classifications,
+endpoint context, and Type-3 shortlist comparisons. It is a trace of implemented
+retrieval paths, not an exhaustive comparison or truth oracle. The
+[diagnostics contract](plans/results_schema_v3/README.md#diagnostics-schema-5)
+owns its complete structure.
+
+Selected inventory candidates reference their owning atomic group and have a
+null endpoint; unselected candidates retain their endpoint data inline. Registry
+counts, roles, eligibility, and normalized sequence lengths remain diagnostic
+metadata. Correspondence selection links identify exact selected pairs;
+`not_selected_pair` does not claim stationarity and does not imply unused
+endpoints. Unresolved singleton groups cannot become pair links by cardinality.
+
+Diagnostic `location` preserves classification/reason, file, mapped-container,
+anchor-interval, relative-order, ancestor observations, and parent carrying.
+Full contexts preserve structural-region mapping, outer anchor region, and
+common-sibling ranks. Container-local anchor intervals are `different`, not
+crossed, when their mapped containers differ.
+
+`name_evidence` is a scalar in ordinary and diagnostic records. Type-1 equality
+and normalized pairs without independent support use `not_assessed`;
+`corroborated` records continuing-name support, and `tentative` identifies
+unsupported changed-name declarations. `contradicted` is diagnostic-only and
+retains the existing selection veto. These values describe lexical evidence,
+not historical identity or correctness probabilities.
 
 ### Observation-only Type-2b retrieval
 
@@ -499,17 +497,13 @@ Repeated-name patterns therefore need not agree. This is srcMove's blind
 identifier normalization, not a claim of full BigCloneBench equivalence.
 Ordinary runs do not construct this identity or retrieve blind groups.
 
-`diagnostics.type2b_groups` is an additive array in diagnostics schema `4`:
-
-- `correspondence_kind`: `"type2b"`
-- `observation_only`: `true`
-- `delete_candidate_ids` and `insert_candidate_ids`: sorted references to
-  `diagnostics.candidates`, which retain each endpoint's XPath and raw text
-- `cardinality`: `"one_to_one"` for a unique blind group, otherwise `"ambiguous"`
-- `blind_only_pair_count`: the number of delete/insert combinations in the group
-  whose Type-2c identities differ; it is not a selected-move count
-- `location_change` and `location_reason`: existing location-classifier output
-  for unique blind-only pairs; omitted for ambiguous groups
+`diagnostics.type2b_groups` retains observation-only records with result-local
+IDs, `content_relationship: type2b`, original/modified candidate references,
+`blind_only_pair_count`, and nullable location assessment. A unique blind-only
+pair retains the existing location classification/reason; other groups have
+null location. Cardinality follows list lengths, without labeling every
+multi-endpoint observation ambiguous. Endpoint data resolve through the active
+candidate inventory and canonical selected groups.
 
 Only groups with a nonzero blind-only pair count are retained. A mixed group
 can include endpoints that also form exact or Type-2c pairs; its count excludes
@@ -522,10 +516,10 @@ product, and groups are sorted deterministically by endpoint IDs. With
 `profile.content_groups.type2b_diagnostics_ms` and
 `profile.content_groups.type2b_groups_observed`.
 
-Type-2b is absent from production `moves[].content_relationship`, `content_relationships`, and XML
-annotations. Existing correspondence records remain unchanged; the new groups
-live in their own array. Diagnostic and results-only modes preserve ordinary
-results and selected XML annotations.
+Type-2b is absent from production atomic/output content histograms and XML
+annotations. Its groups remain observation-only in their own diagnostic array.
+Diagnostic and results-only modes preserve ordinary results and selected XML
+annotations.
 
 ### Type-3 correspondence diagnostics
 
@@ -536,120 +530,63 @@ do not become correspondence records. The shared classifier does not infer
 parent carrying for edited Type-3 parents. Production proposals require positive
 relocation evidence under the same predicate used for Type-1 and Type-2c pairs.
 
-Type-3 records add `delete_verified_partner_count` and
-`insert_verified_partner_count`, counting incident verified edges before
-selection. Their `cardinality` is `competing_edges` if either endpoint has more
-than one verified partner; otherwise it is `one_to_one`. These are local edge
-degrees, not equivalence groups or proof of identity. Location and matching
-ambiguity are separate: a competing edge can have `shadow_change: relocated`
-without establishing a unique continuing construct. Connectivity never creates
-additional edges. `current_result` records actual Type-3 selection after location
-eligibility and hierarchy policy. A `current_result` of `not_move` means the edge was
-not selected, not that it was established as stationary.
+Type-3 `verified_partner_counts.original` and `.modified` count incident
+verified edges before selection. These degrees are not equivalence groups or
+proof of identity; a competing edge can still have relocated location evidence.
+Connectivity never creates additional edges.
+
+`type3_comparisons` separates verification from selection. Verification is
+`not_evaluated` for the retained ambiguous-Type-2c exclusion, `below_threshold`,
+or `verified`; line/token measurements preserve existing observations, with
+null common lengths when not evaluated. Selection is `selected`,
+`not_selected`, or `not_applicable`, with a selected group reference only for an
+exact selected Type-3 pair. A verified but unselected edge does not establish
+stationarity, and its rejection does not necessarily mean an overlap conflict.
+No detailed rejection reason is invented where the implementation retained none.
 
 ### Results terminology
 
-Results schema `2` reports `moves[].content_relationship` and the top-level
-`content_relationships` group counts. The values remain `type1`, `type2c`, and
-`type3`. These are srcMove's predicted classifications of the reported
-endpoints' contents under the thesis's Type-1, Type-2c, Type-2b, and Type-3
-terminology. A classification does not establish continuity, relocation, or
-computational equivalence. Each reported group contributes one count,
-including groups with repeated endpoints.
+The [results schema-3 contract](plans/results_schema_v3/README.md) is the canonical
+field reference. `content_relationship` remains the predicted `type1`, `type2c`,
+or `type3` classification of atomic endpoint content. It does not establish
+continuity, relocation, or computational equivalence. A blind-only Type-2b pair
+can still be retrieved through Type-3 and receive an incorrect `type3` label;
+that classification disagreement is separate from a detection miss. Reporting
+changes neither matching nor selection and creates no production Type-2b class.
 
-The matching passes currently supply these predictions. Their rules do not
-always identify the thesis's lowest applicable content type. In particular,
-a blind-only Type-2b pair can be detected through Type-3 matching and receive
-an incorrect `type3` classification. That is a classification disagreement,
-separate from a detection miss. Type-1 canonicalization and Type-2c lexical
-normalization also disregard different formatting details, and neither
-identifier normalization nor literal normalization resolves bindings or tests
-computation. This reporting change improves neither classification nor move
-selection; no selected Type-2b category is manufactured.
+Correspondence status distinguishes a selected pair, unresolved partner sets,
+and continuing copy sources. Ordinary location evidence separately records a
+classified relocated pair, an existential group relocation gate, or an explicit
+absence of assessment. Existing exact fragment proposals can reduce repeated
+endpoint sets to one endpoint per side after unique-pair classification. The
+existing Release selector can retain such a pair without a classifier decision;
+`scope: not_assessed, reason: no_classified_pair` exposes that gap rather than
+claiming a relocation gate passed. This migration does not reclassify those
+proposals or repair the matching policy.
 
-Internal `match_kind` describes the matching pass and retains its name.
-Diagnostic `correspondence_kind` identifies the comparison evidence for a
-candidate correspondence, including unselected edges and observation-only
-blind groups. It is not a reported endpoint content classification and remains
-separate. `classification_reason` and `shadow_change` describe location
-judgments. Type-3 shortlist `outcome` records retrieval or selection decisions.
-Diagnostics schema remains `4`. Profiling names describe implementation stages.
-XML has no content classification attribute: `mv:id`, `mv:from`, and `mv:to`
-identify groups and partners and remain unchanged.
+`summary.atomic_move_group_count` and `summary.output_item_count` count different
+units. `summary.pair_capacity` sums the smaller endpoint count per atomic group,
+including copies and unresolved groups; it establishes no individual pairing.
+`summary.endpoint_count` counts selected endpoints even in results-only mode.
+Atomic and output content histograms use their respective units. Selection
+weight and matched units are heuristics, not a probability or universal token
+count. `pipeline_statistics.processing_group_kinds` retains internal categories,
+including one-sided groups; `copy_or_repeat` also covers policy-specific copy and
+residual cases and is not a pure cardinality label.
 
-#### Incompatible stored output
+#### Consumer migration pending
 
-Current consumers reject results schema `1`, the superseded `match_kind` and
-`match_kinds` fields, and the legacy reported `type2` label. Retained results,
-historical reviews, and frozen snapshots keep their original fields and labels;
-they were not produced by schema `2` and must not be relabeled as new evidence.
-`VERSION` is unchanged.
+The executable emits results schema `3` and diagnostics schema `5`. History,
+benchmark tooling, and srcDiffVisual still require a separate consumer migration;
+this producer change does not update their schema-2 readers. Use the focused
+producer verification target described in the [contract](plans/results_schema_v3/README.md)
+until coordinated consumer work is complete. Program release version is a
+separate decision and is unchanged.
 
-Regenerate detector JSON and benchmark runs with the rebuilt executable. Publish
-new BigMoveBench benchmark-case collections (manifest and SQLite schema `2`)
-from existing compiled data and selections, and create new execution journals
-(schema/user version `2`, scoring oracle `9`, summary schema `3`). Existing compiled source data, selection populations,
-and source inputs do not need to be reselected for this reporting change.
-Current label correction snapshots use
-`bigMoveBench/content_relationship_corrections.json` (schema `2`); the original
-`reviewed_label_corrections.json` remains historical evidence. The current copy
-retains the reviewed judgments and fragment hashes, with the historical
-consistent `type2` expectations explicitly recorded as `type2c`.
-
-Start fresh history analyses: database schema is `7`, compact-pair schema is `3`,
-and results validator version is `3`. Older databases and cached outcomes are
-incompatible. Preserve old state directories for evidence and create new ones;
-do not resume an old analysis against the new binary. Current move-selection
-benchmark catalogs use schema `3` and runs use schema `2`. Regenerate their output in a new directory.
-
-#### srcDiffVisual follow-up (separate repository)
-
-The companion application must adopt the new contract before using these runs:
-
-- `srcdiffvisual/srcmove/srcmove_results.py` and
-  `srcdiffvisual/srcmove/validate_results.py`: admit results schema `2`, require
-  the new classification fields, reject legacy fields/labels, and preserve the
-  new producer metadata. Audit projections and result enrichment, which copy
-  producer data.
-- `srcdiffvisual/artifacts/store.py`: emit `content_relationship` in move
-  manifests; regenerate saved artifacts or explicitly version their contracts.
-- `srcdiffvisual/bigmovebench/_browser.py`: expect browser response schema `2`.
-  Update bundles/routes for `expected_content_relationship`,
-  `reviewed_expected_content_relationship`, `observed_content_relationship`,
-  `reviewed_content_relationship`, and `content_relationships`.
-- `frontend/src/types.ts`, `frontend/src/history/types.ts`, and
-  `frontend/src/bigmovebench/browserTypes.ts`: rename classification properties.
-  Update artifact navigation, filtering, popups, summaries, HistoryInput, and
-  SavedBenchmarkBrowser, plus their fixtures and tests. Remove `type2` label
-  compatibility and present mismatches as classification disagreements.
-- History status uses schema `3` with `moves.by_content_relationship`; pair list, pair detail, and comparison
-  responses use schema `2`. Update `srcdiffvisual/history/client.py`
-  expectations and route/tests accordingly. Rebuild the application's bundled srcMove/history
-  code and refresh analyses and artifacts after the coordinated update.
-
-No sibling code is changed by this task.
-
-
-The JSON contract distinguishes evidence, endpoint cardinality, and counts:
-
-- `content_relationship` (`type1`, `type2c`, or `type3`) predicts the
-  contents' classification; `content_relationships` counts groups by prediction.
-- `group_kinds` classifies endpoint cardinality: `move_1_to_1` is one deletion
-  and one insertion, `moves_many` has equal counts greater than one, and
-  `copy_or_repeat` normally has unequal nonzero counts; explicit continuing-source
-  copies and unresolved residuals also use this kind, including one-to-one
-  cardinality. `delete_only` and `insert_only`
-  describe one-sided groups. The count classifier uses `ambiguous` for zero
-  endpoints on both sides; this label is distinct from location ambiguity.
-- `move_group_count` counts selected groups. The legacy `move_count` field is an
-  alias for the same value; it does not count endpoint pairs.
-- `move_pair_count` sums `min(deletions, insertions)` over selected groups. For
-  repeated-content groups this is a capacity estimate, not a claimed pairing.
-- `annotated_region_count` counts selected endpoints. The legacy
-  `annotated_regions` field is an alias for the same value.
-
-`confidence_milli` is an internal ranking value on a 0–1000 scale. It is not a
-calibrated probability.
+Frozen studies, execution receipts, artifact hashes, adjudications, and their
+version-specific readers retain their original contracts. Do not rewrite them
+in place or present renamed files as new evidence. New consumer states and
+viewer artifacts will need fresh identities when their migration is implemented.
 
 ## Matching and group semantics
 
