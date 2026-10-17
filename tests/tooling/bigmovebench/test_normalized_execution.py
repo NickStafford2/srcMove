@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from tests.tooling.results_fixtures import schema3_fixture
 
+import csv
 import io
 import json
 import sqlite3
@@ -265,6 +266,35 @@ class NormalizedExecutionTests(unittest.TestCase):
                 _, resumed = self._runner(benchmark_cases, run_dir).run()
             self.assertEqual(reused_tools.calls, [])
             self.assertEqual(resumed["counts"], summary["counts"])
+
+    def test_csv_exports_atomic_counts_and_preserves_frozen_legacy_counts(self) -> None:
+        examples = Path(__file__).resolve().parents[3] / "doc/plans/results_schema_v3/examples"
+        receipts = [
+            (name, json.loads((examples / f"{name}.json").read_text(encoding="utf-8")), count)
+            for name, count in [("empty", "0"), ("selected-pair", "1"), ("ordered-sequence", "3")]
+        ]
+        receipts.extend([
+            ("legacy", {"results_schema_version": 2, "move_count": 7, "moves": []}, "7"),
+            ("invalid", {"results_schema_version": 3, "summary": {"atomic_move_group_count": 99}}, ""),
+        ])
+        for name, evidence, expected in receipts:
+            with self.subTest(receipt=name), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
+                _, _, benchmark_cases, _ = fixture.publish_two_case_fixture(root)
+                run_dir = root / "results" / "csv-counts"
+                patches = self._successful_patches(FakeToolAttempts())
+                with patches[0], patches[1], patches[2] as scorer:
+                    scorer.return_value = (
+                        "oracle_pass", [], {"from": "exact", "to": "exact"},
+                        {**evidence, "_oracle_reviewed_outcome": "oracle_pass"},
+                    )
+                    self._runner(benchmark_cases, run_dir).run()
+                with (run_dir / "cases.csv").open(newline="", encoding="utf-8") as stream:
+                    rows = list(csv.DictReader(stream))
+                self.assertEqual(len(rows), 2)
+                self.assertEqual([row["move_count"] for row in rows], [expected] * 2)
+                self.assertEqual([row["outcome"] for row in rows], ["oracle_pass"] * 2)
 
     def test_type3_review_enables_diagnostics_and_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

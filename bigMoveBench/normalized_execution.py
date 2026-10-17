@@ -471,12 +471,15 @@ ORDER BY c.ordinal
                             evidence = benchmark_result_evidence(results)
                         except ValueError:
                             moves = None
+                            move_count = ""
                             observed_kind = ""
                         else:
                             moves = atomic_moves(evidence)
+                            move_count = evidence["summary"]["atomic_move_group_count"]
                     else:
                         # Read-only projection of frozen pre-migration receipts.
                         moves = results.get("moves")
+                        move_count = results.get("move_count", "")
                     if (
                         not observed_kind
                         and isinstance(moves, list)
@@ -513,7 +516,7 @@ ORDER BY c.ordinal
                             "syntactic_type": row["syntactic_type"],
                             "expected_content_relationship": row["expected_content_relationship"],
                             "observed_content_relationship": observed_kind,
-                            "move_count": results.get("move_count", ""),
+                            "move_count": move_count,
                             "semantic_status": row["semantic_status"],
                             "semantic_reason": semantic_details.get("reason", ""),
                             "type3_both_similarity": row[
