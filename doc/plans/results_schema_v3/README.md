@@ -400,6 +400,18 @@ baseline in ordinary, diagnostic, results-only, and diagnostic results-only
 modes. It checks structural and cross-record constraints, atomic evidence,
 sequence membership, selection values, and byte-identical native XML.
 
+The native XML validator independently checks sequence context against the
+input document. It reconstructs parent stream identifiers from XML events and
+projects original/modified source children through diff wrappers to check
+revision files, actual parents, consecutive child ordinals, member order, and
+disjoint XML spans. Comments and whitespace do not consume sibling positions;
+common and unselected source elements do. Hand-authored positive and negative
+checks in
+[test_results_schema_v3_sequences.py](../../../tests/behavior/test_results_schema_v3_sequences.py)
+exercise this validator without using detector-produced expectations. Ambiguous
+sequence-member locators fail this check even when an atomic baseline locator
+ambiguity is recorded.
+
 The October 16 verification uses 326 distinct input/granularity cases and nine
 namespace regressions: all 335 producer checks and all 25 unit/component checks
 passed in Docker. The synthetic checker also passed nine examples, an

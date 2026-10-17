@@ -233,6 +233,9 @@ def validate_native_xml(input_path, annotated_path, payload, known_ambiguities=N
     ns = payload["xpath_context"]["namespaces"]
     known = {row["xpath"]: row for row in known_ambiguities or []}
 
+    from tests.support.sequence_xml import validate_sequences
+    validate_sequences(input_path, tree, payload, locator.resolve)
+
     def resolve_checked(document, xpath, label):
         if xpath not in known:
             return locator.resolve(document, xpath, ns)
