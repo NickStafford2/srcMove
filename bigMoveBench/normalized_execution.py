@@ -647,9 +647,20 @@ ORDER BY c.ordinal
                 )
                 if outcome == "oracle_pass":
                     if row["case_kind"] == "known_false_positive":
-                        if results.get("move_count", 0) == 0:
-                            negative_zero_move_passes += 1
+                        if results.get("results_schema_version") == 3:
+                            try:
+                                evidence = benchmark_result_evidence(results)
+                            except ValueError:
+                                move_count = None
+                            else:
+                                move_count = evidence["summary"]["atomic_move_group_count"]
                         else:
+                            # Read-only projection of frozen pre-migration receipts.
+                            move_count = results.get("move_count")
+                        # Unavailable evidence does not establish zero moves.
+                        if move_count == 0:
+                            negative_zero_move_passes += 1
+                        elif isinstance(move_count, int) and move_count > 0:
                             negative_incidental_move_passes += 1
                     elif "encoding_tolerant" in validation.values():
                         tolerant_passes += 1

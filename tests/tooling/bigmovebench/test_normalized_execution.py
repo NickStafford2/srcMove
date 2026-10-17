@@ -296,6 +296,35 @@ class NormalizedExecutionTests(unittest.TestCase):
                 self.assertEqual([row["move_count"] for row in rows], [expected] * 2)
                 self.assertEqual([row["outcome"] for row in rows], ["oracle_pass"] * 2)
 
+    def test_negative_summary_distinguishes_zero_moves_from_reported_groups(self) -> None:
+        examples = Path(__file__).resolve().parents[3] / "doc/plans/results_schema_v3/examples"
+        receipts = [
+            (name, json.loads((examples / f"{name}.json").read_text(encoding="utf-8")), "oracle_pass", zero, other)
+            for name, zero, other in [("empty", 1, 0), ("selected-pair", 0, 1), ("ordered-sequence", 0, 1)]
+        ]
+        receipts.extend([
+            ("legacy-empty", {"results_schema_version": 2, "move_count": 0}, "oracle_pass", 1, 0),
+            ("legacy-moves", {"results_schema_version": 2, "move_count": 2}, "oracle_pass", 0, 1),
+            ("invalid", {"results_schema_version": 3, "summary": {"atomic_move_group_count": 0}}, "oracle_pass", 0, 0),
+            ("failed", receipts[1][1], "oracle_failure", 0, 0),
+        ])
+        for name, evidence, outcome, zero, other in receipts:
+            with self.subTest(receipt=name), tempfile.TemporaryDirectory() as temporary:
+                root = Path(temporary)
+                fixture = test_benchmark_cases.NormalizedBenchmarkCasesTests()
+                _, _, benchmark_cases, _ = fixture.publish_fixture(root, "known-false-positive")
+                patches = self._successful_patches(FakeToolAttempts())
+                # The oracle's whole-fragment verdict is already stored; this
+                # test checks its reporting breakdown without changing scoring.
+                with patches[0], patches[1], patches[2] as scorer:
+                    scorer.return_value = (
+                        outcome, [], {}, {**evidence, "_oracle_reviewed_outcome": outcome},
+                    )
+                    _, summary = self._runner(benchmark_cases, root / "results" / "negative-counts").run()
+                self.assertEqual(summary["counts"]["negative_zero_move_passes"], zero)
+                self.assertEqual(summary["counts"]["negative_incidental_move_passes"], other)
+                self.assertEqual(summary["counts"][outcome], 1)
+
     def test_type3_review_enables_diagnostics_and_writes_artifacts(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
