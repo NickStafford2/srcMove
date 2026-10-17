@@ -23,6 +23,7 @@ if str(REPO_ROOT) not in sys.path:
 from benchmarking.contracts import RunMode
 from benchmarking.storage import write_json_atomic
 from performance.benchmark import load_workloads, run_performance
+from srcmove_runtime.results_schema import validate_results
 
 
 INTEGER_FIELDS = {
@@ -116,6 +117,14 @@ def _load_records(run_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any
             results, results_status = _load_json_object(
                 attempt_dir / "results.json"
             )
+            if results_status == "valid":
+                try:
+                    validate_results(results)
+                except ValueError:
+                    results_status = "invalid_schema"
+                    results = {}
+            statistics = results.get("pipeline_statistics", {})
+            summary = results.get("summary", {})
             record.update(
                 {
                     "executable_sha256": executable["artifact"]["sha256"],
@@ -123,11 +132,11 @@ def _load_records(run_dir: Path, manifest: dict[str, Any]) -> list[dict[str, Any
                     "attempt_record_status": attempt_status,
                     "results_record_status": results_status,
                     "output_size_bytes": attempt.get("xml", {}).get("size_bytes"),
-                    "regions_total": results.get("regions_total"),
-                    "candidates_total": results.get("candidates_total"),
-                    "groups_total": results.get("groups_total"),
-                    "move_group_count": results.get("move_group_count"),
-                    "content_relationships": results.get("content_relationships", {}),
+                    "regions_total": statistics.get("srcdiff_region_count"),
+                    "candidates_total": statistics.get("grouped_candidate_entry_count"),
+                    "groups_total": statistics.get("processing_group_count"),
+                    "move_group_count": summary.get("atomic_move_group_count"),
+                    "content_relationships": summary.get("atomic_content_relationships", {}),
                 }
             )
             records.append(record)
@@ -155,7 +164,11 @@ def _result_medians(records: list[dict[str, Any]]) -> dict[str, Any]:
         ):
             values = [row[key] for row in rows if row.get(key) is not None]
             result[workload][key] = median(values) if values else None
-        result[workload]["content_relationships"] = rows[0].get("content_relationships", {}) if rows else {}
+        result[workload]["content_relationships"] = next(
+            (row["content_relationships"] for row in rows
+             if row["results_record_status"] == "valid"),
+            {},
+        )
     return result
 
 
@@ -186,9 +199,9 @@ def _report(summary: dict[str, Any], results: dict[str, Any]) -> str:
         counts = results[name]
         lines.append(
             "- result counts: "
-            f"regions={counts['regions_total']}, candidates={counts['candidates_total']}, "
-            f"groups={counts['groups_total']}, moves={counts['move_group_count']}, "
-            f"content_relationships={json.dumps(counts['content_relationships'], sort_keys=True)}"
+            f"srcDiff regions={counts['regions_total']}, candidate entries={counts['candidates_total']}, "
+            f"processing groups={counts['groups_total']}, atomic move groups={counts['move_group_count']}, "
+            f"atomic content relationships={json.dumps(counts['content_relationships'], sort_keys=True)}"
         )
         lines.append("")
     return "\n".join(lines)

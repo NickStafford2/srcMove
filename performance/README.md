@@ -6,6 +6,8 @@ move-detection accuracy.
 
 - `benchmark.py` implements scheduling, measurement, and result summaries.
 - `run.py` is the command-line entry point.
+- `profile_study.py` captures a focused single-executable study with retained
+  result counters alongside timing and resource measurements.
 - [`../tests/tooling/performance/`](../tests/tooling/performance/) contains this component's focused correctness tests.
 
 The component reuses generic process-execution, provenance, atomic JSON, and
@@ -90,6 +92,17 @@ The profiler now exposes nesting/common counters and Type-1, Type-2, and Type-3
 work counters, including Type-3 shortlist size, pair comparisons, LCS calls,
 edges produced, and selection rejections. These distinguish a faster result
 caused by better pruning from one caused by silently doing less useful work.
+
+## Focused profiler study
+
+`profile_study.py` reads the current [results schema 3](../doc/plans/results_schema_v3/README.md).
+Its result counters distinguish srcDiff regions, grouped candidate entries,
+processing groups, and atomic move groups. Content counts also describe atomic
+groups, so a sequence containing three members counts as three rather than one.
+The JSON report retains its existing counter keys for continuity.
+Missing, malformed, and invalid-schema results remain explicit in `raw.jsonl`;
+they supply no result counters, while captured timings remain available.
+Saved studies are never rewritten.
 
 ## Startup dependency study
 
