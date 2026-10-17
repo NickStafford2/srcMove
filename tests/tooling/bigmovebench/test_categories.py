@@ -1,4 +1,5 @@
 from __future__ import annotations
+from tests.tooling.results_fixtures import schema3_fixture
 
 import csv
 import json
@@ -98,9 +99,9 @@ class CategoryTests(unittest.TestCase):
                 metadata["case_kind"] = "known_false_positive"
             if not legacy:
                 metadata.update(category_rules_version=CATEGORY_RULES_VERSION, benchmark_category=category)
-            results = dict(results_schema_version=2, move_count=1, content_relationships={reported: 1}, moves=[
+            results = schema3_fixture(dict(results_schema_version=3, move_count=1, content_relationships={reported: 1}, moves=[
                 dict(move_id="m1", content_relationship=reported, from_raw_texts=["{}" if partial else "void before() {}"],
-                     to_raw_texts=["{}" if partial else "void after() {}"], from_xpaths=["/src:function"], to_xpaths=["/src:function"])])
+                     to_raw_texts=["{}" if partial else "void after() {}"], from_xpaths=["/src:function"], to_xpaths=["/src:function"])]))
             path = root / "results.json"
             path.write_text(json.dumps(results))
             self.assertEqual(validate_results_output(path)["status"], "valid")

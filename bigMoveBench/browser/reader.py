@@ -5,6 +5,8 @@ identities are unaffected. Uses only the standard library; never runs tools.
 """
 from __future__ import annotations
 
+from srcmove_runtime.results_schema import atomic_moves, benchmark_result_evidence
+
 from contextlib import closing, contextmanager
 import hashlib
 import json
@@ -128,7 +130,9 @@ AND NOT EXISTS (
 _OUTCOME = "coalesce(a.outcome, 'not_executed')"
 _REVIEWED = "coalesce(json_extract(a.oracle_results_json, '$._oracle_reviewed_outcome'), a.outcome, 'not_executed')"
 _OBSERVED = """coalesce(json_extract(a.oracle_results_json, '$._oracle_observed_content_relationship'),
-CASE WHEN json_array_length(a.oracle_results_json, '$.moves')=1
+CASE WHEN json_array_length(a.oracle_results_json, '$.atomic_move_groups')=1
+THEN json_extract(a.oracle_results_json, '$.atomic_move_groups[0].content_relationship')
+WHEN json_array_length(a.oracle_results_json, '$.moves')=1
 THEN json_extract(a.oracle_results_json, '$.moves[0].content_relationship') END)"""
 _FIELDS = f"""
 c.case_id, c.ordinal, c.case_kind, c.expected_content_relationship,
@@ -137,7 +141,8 @@ c.type3_both_similarity, c.type3_strength_stratum, c.min_tokens,
 {_OBSERVED} AS observed_content_relationship,
 coalesce(json_extract(a.oracle_results_json, '$._oracle_label_correction.reviewed_content_relationship'), c.expected_content_relationship) AS reviewed_expected_content_relationship,
 json_extract(a.oracle_results_json, '$._oracle_label_correction.id') AS label_correction_id,
-json_extract(a.oracle_results_json, '$.move_count') AS move_count,
+coalesce(json_extract(a.oracle_results_json, '$.summary.atomic_move_group_count'),
+         json_extract(a.oracle_results_json, '$.move_count')) AS move_count,
 json_extract(a.oracle_results_json, '$._oracle_diagnostic_stage') AS diagnostic_stage,
 a.semantic_status, json_extract(a.semantic_details_json, '$.reason') AS semantic_reason,
 a.attempt_id, a.attempt_ordinal
@@ -230,8 +235,8 @@ def show_case(results_root: Path, cache_root: Path, run_id: str, category: str, 
             "label_correction": results.get("_oracle_label_correction"),
             "semantic_details": retained("semantic_details_json", {}),
             "text_validation": retained("text_validation_json", {}),
-            "moves": results.get("moves", []),
-            "content_relationships": results.get("content_relationships", {}),
+            "moves": atomic_moves(benchmark_result_evidence(results)) if results.get("results_schema_version") == 3 else results.get("moves", []),
+            "content_relationships": results.get("summary", {}).get("atomic_content_relationships", results.get("content_relationships", {})),
             "diagnostics": results.get("diagnostics"),
             "results_available": bool(attempt and attempt["oracle_results_json"]),
             "tool_sha256": summary.get("tool_sha256", {}),
@@ -257,5 +262,5 @@ def show_source(results_root: Path, cache_root: Path, run_id: str, category: str
             raise ValueError("Retained srcDiff input checksum differs from the recorded attempt.")
         return {"schema_version": SCHEMA_VERSION, "run_id": run_id,
                 "case": _case_summary(row, category), "srcdiff_xml": payload.decode("utf-8"),
-                "results": json.loads(attempt["oracle_results_json"]),
+                "results": benchmark_result_evidence(json.loads(attempt["oracle_results_json"])),
                 "tool_sha256": summary.get("tool_sha256", {})}

@@ -5,6 +5,7 @@ opposite region of a reorder; these tests accept either genuine displacement,
 while separately checking exact-target classification when that pair is exposed.
 """
 from __future__ import annotations
+from tests.support.schema3_oracle import oracle_view
 from tests.support.execution import require_success, require_tool
 
 import json
@@ -67,7 +68,7 @@ class SourceCorrespondenceVariantTests(unittest.TestCase):
                 completed = run_logged(command, cwd=REPO_ROOT,
                                            capture_output=True, text=True)
                 require_success(completed)
-                payloads.append(json.loads(result.read_text()))
+                payloads.append(oracle_view(json.loads(result.read_text())))
                 if mode != 'results_only':
                     annotations.append(output.read_bytes())
             self.assertEqual(annotations[0], annotations[1])

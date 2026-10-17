@@ -30,15 +30,22 @@ During the schema-3 migration, `make test-results-schema` verifies the producer
 against an explicitly captured schema-2 corpus. It requires the validation
 dependencies documented in the [schema contract](../doc/plans/results_schema_v3/README.md)
 and an ignored baseline at `build/schema3-phase2/baseline` (override with
-`SCHEMA3_BASELINE`). The target fails if its corpus or locator audit is missing.
-It checks all four JSON output modes, semantic projections, native XML bytes,
-and independent locator resolution. This is a differential regression check,
+`SCHEMA3_BASELINE`). The target fails if its corpus or locator audit is missing. It also runs the
+independent pinned-JSON-Schema parity tests for runtime admission; these
+development-only dependency checks are explicitly skipped in a normal unit run
+when `jsonschema` is unavailable.
+It checks all four JSON output modes, semantic projections, native XML bytes
+except srcReader's intentional added positions after filename/name predicates,
+and independent locator resolution. Current locators must resolve uniquely;
+archive-root omission remains unchanged. Replay output goes to
+`build/schema3-phase3/replay` (override with `SCHEMA3_REPLAY`). This is a differential regression check,
 not a detector-accuracy experiment. The replay tests are otherwise opt-in;
 the namespace regressions are ordinary behavior tests.
 
-Existing schema-2 behavior/tooling readers await consumer migration. Therefore
-the focused producer target and `make test-unit` are the Phase-2 checks; a
-passing full `make test` is not claimed at this intermediate migration stage.
+Live test admission requires schema 3. A test-only projection keeps frozen
+behavioral oracle vocabulary and atomic scoring assertions independent of the
+wire format; it does not admit schema-2 live results. `make test` runs the
+coordinated unit, behavior, and tooling checks.
 
 | Location | Responsibility |
 | --- | --- |

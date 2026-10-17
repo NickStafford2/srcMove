@@ -1,5 +1,6 @@
 """Repeated exact groups retain supported pairs and explicit residual copies."""
 from __future__ import annotations
+from tests.support.schema3_oracle import oracle_view
 
 import json
 from pathlib import Path
@@ -97,7 +98,7 @@ class PartialCorrespondenceTests(unittest.TestCase):
             command = [str(find_srcmove(fixture.REPO_ROOT, None)), str(xml),
                        '--results', str(results), '--results-only', '--diagnostics']
             run_logged(command, check=True, capture_output=True, text=True)
-            diagnostics = json.loads(results.read_text())['diagnostics']
+            diagnostics = oracle_view(json.loads(results.read_text()))['diagnostics']
         unresolved_path = residual['from_xpaths'][0]
         unresolved_ids = {
             candidate['candidate_id'] for candidate in diagnostics['candidates']

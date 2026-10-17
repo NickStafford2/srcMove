@@ -4,6 +4,7 @@ Whole-loop replacements are legal coarse encodings, not assertions about default
 srcDiff output. Common markup and regenerated source provide paired controls.
 """
 from __future__ import annotations
+from tests.support.validation import legacy_locator
 from tests.support.execution import require_success, require_tool
 
 from pathlib import Path
@@ -56,8 +57,8 @@ class CorrespondenceInteractionTests(unittest.TestCase):
         mv_id = '{http://www.srcML.org/srcMove}id'
         expected_nodes = set()
         for move, origins, destinations in moves:
-            self.assertCountEqual(move['from_xpaths'], origins)
-            self.assertCountEqual(move['to_xpaths'], destinations)
+            self.assertCountEqual([legacy_locator(path) for path in move['from_xpaths']], origins)
+            self.assertCountEqual([legacy_locator(path) for path in move['to_xpaths']], destinations)
             for path in origins + destinations:
                 self.assertTrue(path.startswith('/src:unit[1]/'))
                 nodes = self.annotated_root.findall(

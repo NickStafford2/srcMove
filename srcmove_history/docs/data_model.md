@@ -64,41 +64,35 @@ Move evidence belongs directly to the pair's canonical outcome. Normalized
 evidence is queryable from SQLite; larger retained artifacts follow the
 analysis retention policy.
 
-For current srcMove results, compact pair metrics retain the additive
-`reported_moves`, `reported_move_count`, `reported_content_relationships`, and
-`move_sequences` metadata. Reported source bodies become ordered SHA-256/size
-observations, like atomic evidence; no raw source bodies are stored. Sequence
-records retain only their known identity, policy, member IDs, and endpoint
-fields. This uses the existing metrics JSON column without a database migration.
+Current admission requires results schema 3, including diagnostics schema 5 when
+present, through the shared runtime validator. Compact pair schema 5 retains
+`summary`, `configuration`, `pipeline_statistics`, `xpath_context`, `output_items`,
+and complete `atomic_move_groups` evidence. Endpoint `raw_text` becomes a
+SHA-256/UTF-8 byte-size observation; endpoint candidate ID, file, locator,
+construct, correspondence, name evidence, location, and selection remain intact.
+Diagnostic candidate bodies and traces are excluded from compact storage.
+Compact SQLite storage retains no raw source bodies; larger execution artifacts
+follow the retention policy. Existing states and snapshots are not rewritten.
 
-Compact pair schema 4 additionally retains `atomic_metadata` in metrics: each
-entry gives its compact row `ordinal` and any detector-emitted `move_id`,
-`identity_status`, `identity_reason`, and `selection_reason`. Explicit IDs join
-primary `member_move_ids` to atomic rows; ordinals are not substitute IDs.
-Primary reports also retain emitted identity status/reason. Pair-detail JSON
-from `AnalysisReader.show` exposes the sidecar alongside `moves`. Missing fields
-in old records remain absent/unknown; no identity or reason is reconstructed.
-Fresh states capture these fields without retaining source bodies or diagnostic
-candidate arrays. Existing states and snapshots are not migrated.
+SQLite `moves` rows and the established `move_*` query counts still describe
+atomic groups. `atomic_metadata` joins explicit group IDs to compact row
+ordinals; ordinals are not detector IDs. The query API's `reported_moves` is a
+projection of output items with their `item:`/`sequence:` IDs and ordered member
+group IDs. Sequences receive no aggregate selection or correspondence evidence.
+Pair-detail JSON also exposes the retained schema-3 objects directly. This uses
+the existing metrics JSON column without a database migration.
 
-Reported moves partition the atomic groups: a verified ordered run becomes one
-Type-1 report, while other groups retain one atomic report each. Compound
-endpoints represent corresponding ordered members, never a Cartesian product.
-Admission validates member coverage, endpoint order, relationships, and counts.
-Atomic `moves` rows and original `move_*` counts remain available as evidence.
+Output items partition the atomic groups. Human status, pair listings, and
+research reports prefer output-item counts and relationships; JSON keeps
+explicit atomic counts. A sequence combines Type-1 selected-pair members for
+reporting and does not change atomic evidence or benchmark scoring.
 
-Human status, pair listings, and research reports prefer reported counts and
-relationships; JSON retains explicit atomic counts. Pair details expose compact
-`reported_moves` and sequence metadata when available. Older analyses use their
-atomic groups as reporting units and do not invent sequence records. A fresh
-analysis is required to obtain compound records for old results. Snapshot
-exports preserve these fields because they preserve the canonical database.
-
-Read-only access supports compact schema 3, preserving absent atomic metadata
-as unknown. This exception accepts only compact schema 3 with all other current
-contract versions unchanged; it does not broaden support to earlier contracts.
-Writing, resuming, and comparison regeneration require the current contract,
-so a schema-3 state must be recreated separately for new execution.
+Read-only access supports older compact schemas 3 and 4 with their previous
+results-validator contract 3. Absent evidence remains unknown. Writing,
+resuming, and comparison regeneration require compact schema 5 and validator 4;
+the fingerprint records these contracts, preventing reuse of old outcomes in
+new execution. Create a separate analysis state for current execution. Snapshot
+exports preserve their canonical database and original manifest identities.
 
 ## Deferred retries
 

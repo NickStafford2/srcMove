@@ -9,7 +9,7 @@ import unittest
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import quoteattr
 
-from tests.support.results_v3 import CONTRACT, REPO_ROOT, load_module, validate_native_xml
+from tests.support.results_v3 import REPO_ROOT, validate_native_xml
 
 SRC = 'http://www.srcML.org/srcML/src'
 DIFF = 'http://www.srcML.org/srcDiff'
@@ -38,15 +38,14 @@ def archive(original_scope='<x:scope xmlns:x="urn:scope">',
 class ResultsSchemaV3NamespaceTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.checker = load_module('namespace_schema3_check', CONTRACT / 'check_examples.py')
-        from jsonschema import Draft202012Validator
-        cls.schema = Draft202012Validator(json.loads((CONTRACT / 'schema.json').read_text()))
+        from srcmove_runtime.results_schema import validate_results
+        cls.validate_results = staticmethod(validate_results)
         cls.binary = Path(os.environ.get('SRCMOVE_BIN', REPO_ROOT / 'build/srcMove')).resolve()
         if not cls.binary.is_file():
             raise RuntimeError('Current srcMove binary is required')
 
     def execute(self, xml, mode, *, diagnostics=False, only=False, json_results=True):
-        root = Path(os.environ.get('SRCMOVE_TEST_ARTIFACTS', REPO_ROOT / 'build/schema3-phase2/namespace-tests'))
+        root = Path(os.environ.get('SRCMOVE_TEST_ARTIFACTS', REPO_ROOT / 'build/schema3-phase3/namespace-tests'))
         output = root / self._testMethodName / mode
         output.mkdir(parents=True, exist_ok=True)
         source, annotated, result = output / 'input.xml', output / 'annotated.xml', output / 'results.json'
@@ -82,9 +81,7 @@ class ResultsSchemaV3NamespaceTests(unittest.TestCase):
                 completed, source, annotated, result = self.execute(xml, mode, diagnostics=diagnostics, only=only)
                 self.assertEqual(completed.returncode, 0, completed.stderr)
                 payload = json.loads(result.read_text())
-                errors = list(self.schema.iter_errors(payload))
-                self.assertFalse(errors, '\n'.join(error.message for error in errors[:5]))
-                self.checker.validate(payload)
+                self.validate_results(payload)
                 groups = payload['atomic_move_groups']
                 self.assertTrue(groups, 'Namespace fixture must exercise real selected evidence')
                 self.assertTrue(any(group['content_relationship'] == 'type1'

@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from benchmarking.provenance import observe_file
+from tests.support.schema3_oracle import oracle_view
 from benchmarking.results import validate_results_schema
 from benchmarking.tooling import find_srcdiff, find_srcmove, format_process_failure
 from tests.support.execution import run_logged
@@ -99,7 +100,7 @@ def _normalized_texts(move: dict[str, Any], field: str) -> list[str]:
 
 
 def evaluate(case: PolicyCaseSpec, results: dict[str, Any]) -> tuple[bool, str]:
-    moves = results.get("moves")
+    moves = oracle_view(results)["moves"]
     if not isinstance(moves, list):
         return False, "results.json field 'moves' is not a list"
 

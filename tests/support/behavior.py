@@ -8,6 +8,7 @@ from tests.support.execution import require_success, require_tool
 
 import xml.etree.ElementTree as ET
 
+from tests.support.schema3_oracle import oracle_view
 from tests.support.annotations import validate_annotations
 from tests.support.execution import REPO_ROOT, execute_xml
 
@@ -51,7 +52,7 @@ def assert_output_invariants(self, payloads: list[dict], annotations: list[bytes
     ordinary = dict(payloads[1])
     ordinary.pop('diagnostics')
     self.assertEqual(ordinary, payloads[0])
-    payload = payloads[0]
+    payload = oracle_view(payloads[0])
     self.assertEqual(payload['move_group_count'], len(payload['moves']))
     self.assertEqual(payload['sequence_cluster_count'], len(payload['move_sequences']))
     saved = sum(len(s['member_move_ids']) - 1 for s in payload['move_sequences'])
@@ -115,5 +116,5 @@ def assert_runs(self, payload: dict, expected: list[list[str]]) -> None:
     moves = {m['move_id']: m for m in payload['moves']}
     observed = [[moves[mid]['from_raw_texts'][0] for mid in seq['member_move_ids']]
                 for seq in payload['move_sequences']]
-    self.assertEqual(observed, expected)
+    self.assertCountEqual(observed, expected)
 

@@ -164,9 +164,8 @@ srcMove --version
   standard error.
 - `-v` and `--verbose` print selected move-match diagnostics to standard output.
 
-Producer migration is implemented; history, benchmark, and srcDiffVisual readers
-still need their separate schema-3 migration. Existing schema-2 readers cannot
-consume new output. Frozen studies, hashes, and version-specific readers retain
+Live history, benchmark, and srcDiffVisual readers require schema 3 and
+diagnostics schema 5. Benchmark scoring continues to use atomic groups. Frozen studies, hashes, and version-specific readers retain
 their original contracts; do not overwrite them with regenerated evidence.
 
 ## Output format

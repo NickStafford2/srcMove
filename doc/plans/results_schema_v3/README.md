@@ -1,8 +1,8 @@
 # Results schema 3 contract
 
-Status: producer implemented in Phase 2, October 16, 2026. The executable emits
-results schema 3 and diagnostics schema 5. Live consumer migration is still
-pending; schema-2 readers must be updated before using this output.
+Status: Phase 3 consumer migration implemented and checked, October 16, 2026. The executable and
+live consumers use results schema 3 and diagnostics schema 5. Verification
+receipts distinguish current consumer checks from the historical Phase-2 run.
 Examples are synthetic format illustrations, not detector observations.
 
 The migration must preserve matching, selection, sequence eligibility, atomic
@@ -11,7 +11,7 @@ clearer through the thesis's atomic move groups and output items. Live consumers
 will require schema 3; frozen studies and their version-specific readers remain
 unchanged. See the [architecture](../../architecture.md) for the detector pipeline.
 
-[schema.json](schema.json) defines structural constraints. Cross-record and XML
+[schema.json](schema.json) links to the packaged runtime contract and defines structural constraints. Cross-record and XML
 checks below supplement it; no JSON schema proves detector correctness.
 
 ## Start with the results
@@ -211,6 +211,10 @@ Registered/active inventory counts move to diagnostics.
 
 These strings are srcReader locators with XPath syntax, not universally absolute
 XPaths into the XML document. Preserve their strings and XML partner links.
+srcReader intentionally appends positional qualifiers after name and filename
+predicates, including `[1]`; these distinguish repeated semantic predicates.
+This does not change archive-root omission. Frozen captures predate these
+qualifiers and must not be rewritten.
 The resolver must reproduce [srcReader's root test](../../../../srcReader/src/srcml_reader.cpp):
 
 1. A root whose local name is `unit`, with an attribute whose local name is
@@ -358,8 +362,9 @@ nullable location. Lists describe a blind equivalence group that can also
 contain stronger consistent pairs. Blind-only count excludes those stronger
 pairs; do not label the whole Cartesian product blind-only.
 
-A nonnull location has classification and reason and requires one unique
-blind-only pair. Cardinality follows list lengths, not an `ambiguous` confidence
+A nonnull location has classification and reason and requires singleton
+original and modified lists with one blind-only pair, matching current producer
+instrumentation. Cardinality follows list lengths, not an `ambiguous` confidence
 label. Type-2b never enters production histograms.
 
 ## Worked examples and validation
@@ -398,9 +403,33 @@ The example checker first calls `Draft202012Validator.check_schema`, then applie
 that schema before cross-record validation. Its malformed cases exercise shape,
 namespace, references, evidence states, degree/measurement consistency, and
 counts. Selected-pair joins are indexed rather than scanned for every trace
-record. The locator checker independently uses a full XPath engine for native
+record. The focused migration target also compares runtime structural admission
+with the pinned JSON Schema engine across independently generated nested
+mutations; ordinary runtime admission has no JSON Schema library dependency.
+Runtime integer fields require integer encodings and reject integral floats
+such as `3.0`, a deliberately narrower admission rule than JSON Schema's
+mathematical integer interpretation. The locator checker independently uses a full XPath engine for native
 root handling, text/annotation links, quote handling, and ambiguous resolution.
 Neither checker proves detector correctness or actual structural adjacency.
+
+## Phase 3 consumer inventory
+
+The pre-edit inventory identified these live schema-2 consumers:
+
+| Boundary | Consumers and responsibility |
+| --- | --- |
+| Shared admission | `tests/support/validation.py`, `benchmarking/results.py`, history `results.py`, viewer `srcmove_results.py`; now delegate wire admission to the runtime contract. |
+| History | `process.py`, `compact.py`, `database.py`, `contracts.py`, `inputs.py`; atomic metrics, retained evidence, read-only historical access and strict resume fingerprints. |
+| Benchmarks | `bigMoveBench/evaluate.py`, `oracle.py`, `normalized_execution.py`, `review.py`, `browser/reader.py`; atomic scoring, native locator ranges, diagnostics and retained-run display. |
+| Viewer | Producer merge/enrichment, output-item projection, artifact admission/projections, correspondence APIs, native pre-transform resolver and frontend payload types. |
+| Test readers | Behavioral oracle helpers, shadow diagnostics and tooling fixture constructors; schema-3 admission before test-only legacy-vocabulary projection. |
+
+Other uses of schema number 2 (history CLI, benchmark dataset/review manifests,
+configuration and projection APIs) are separate contracts and are not results
+schema versions. Frozen schema-2 replay captures and version-specific study
+readers remain historical evidence. Test comparison permits only srcReader's
+new positional suffix after a semantic predicate; current native resolution
+must still succeed with the unmodified locator.
 
 ## Implementation gates
 
@@ -410,8 +439,8 @@ baseline in ordinary, diagnostic, results-only, and diagnostic results-only
 modes. It checks structural and cross-record constraints, atomic evidence,
 sequence membership, selection values, and byte-identical native XML.
 
-The native XML validator independently checks sequence context against the
-input document. It reconstructs parent stream identifiers from XML events and
+The shared native XML validator in `srcmove_runtime/results_xml.py` checks
+sequence context independently of the detector against the input document. It reconstructs parent stream identifiers from XML events and
 projects original/modified source children through diff wrappers to check
 revision files, actual parents, consecutive child ordinals, member order, and
 disjoint XML spans. Comments and whitespace do not consume sibling positions;
@@ -438,16 +467,25 @@ automatic receipt discovering the enclosing repository.
 
 Generated evidence stays ignored under `build/schema3-phase2/`: `baseline/`
 contains snapshots and the locator audit, `source-baseline/receipt.json` and
-`comparison.json` bind the old executable to archived source, and
-`replay/report.json` records producer checks. `build/test-results/report.json`
-records the separate unit/component run. See [test entry points](../../../tests/README.md)
+`comparison.json` bind the old executable to archived source.
+
+The initial Phase-3 invocation of the existing target reused `replay/` before
+its output destination was corrected. That generated directory is no longer
+an intact Phase-2 execution receipt; `replay/PHASE3_REGENERATION_NOTICE.json`
+records this limitation. Frozen baseline inputs, results, annotation XML,
+manifest hashes and archived-source receipts remain unchanged. Current
+producer/consumer checks write to `build/schema3-phase3/`; ordinary suite reports
+use `build/test-results/report.json`. See [test entry points](../../../tests/README.md)
 for the focused target and baseline prerequisites.
 
-Known limits are retained explicitly:
+Historical Phase-2 limits are retained explicitly below. Current srcReader
+positions address repeated semantic predicates; Phase-3 replay validates the
+current locators independently while preserving the old audit and hashes.
 
 - Three baseline cases have ambiguous native locators from repeated file units
-  or named functions. Tests require exactly their recorded paths and match
-  counts; 323 cases resolve uniquely. Schema 3 does not repair native locators.
+  or named functions. Phase-2 tests recorded their exact paths and match counts;
+  323 cases resolved uniquely. Current srcReader adds positional qualifiers;
+  Phase-3 checks require all current endpoint locators to resolve uniquely.
 - Three legacy behavioral oracle failures existed before migration (padded
   loop reorder, unchanged try/catch crossing, and edited control-header/body
   reorder). They remain recorded separately from differential equivalence.
@@ -457,10 +495,55 @@ Known limits are retained explicitly:
   declarations within one file unit. JSON admission and valid cross-unit
   rebinding are tested; this migration does not repair that writer.
 
-History admission/retention and fingerprints, benchmark readers, and viewer
-artifacts/APIs must migrate together after the producer. Benchmark scoring stays
-atomic. Frozen outputs, hashes, adjudications, and version-specific thesis
-appendix readers remain unchanged. Current thesis claims change only after the
+Phase 3 shares strict JSON admission through `srcmove_runtime.results_schema`,
+including diagnostics schema 5 and cross-record consistency. History compact
+schema 5 retains ordinary evidence with source text digests and keeps output
+items separate from atomic SQLite projections; validator fingerprint 4 prevents
+resuming old admissions as current evidence. Read-only historical access keeps
+its original fingerprints. Viewer artifact schema 5 uses explicit correspondence
+IDs and resolves diagnostic paths against native input before transformation.
+Viewer native admission also checks actual sequence parents, adjacency, member
+order, files and disjoint spans. Parent stream IDs are checked against original
+input bytes when available; annotated-only supplied documents cannot prove
+those original event indices after writer framing changes.
+Benchmark scoring stays atomic. Frozen study outputs, hashes, adjudications,
+and version-specific thesis appendix readers remain unchanged. Current thesis claims change only after the
 new format is implemented and verified. No production constants or program
-release version changed in Phases 1–2. Full behavior/tooling suite success is
-pending the schema-2 consumer migration; it is not a Phase-2 claim.
+release version changed in Phases 1–2. Phase-2 verification does not establish
+full consumer-suite success. Current verification is recorded separately under `build/schema3-phase3/`.
+
+
+## Phase 3 verification
+
+Docker verification on October 16, 2026:
+
+- `make test-results-schema`: 358 checks passed, including all 326 frozen-case
+  replays, native namespace/sequence checks, independent structural-validator
+  parity, and oracle-boundary regressions. Current locators resolve uniquely;
+  frozen capture hashes remain unchanged.
+- `make test`: 739 passed, three failures exactly matching the frozen baseline,
+  and two development-only dependency checks skipped. Those two checks passed
+  in the focused migration target. There were no errors. The known detector
+  failures remain assertions; no full-suite green result is claimed.
+- Final benchmark browser query checks: all ten passed, covering schema-3
+  atomic counts/classifications and legacy read-only fallbacks.
+- Synthetic contract checker: nine examples, the unclassified exact-pair
+  variant, and 108 malformed counterexamples passed. Locator companions and
+  ten edge cases passed.
+- `make -C srcDiffVisual image` and the authoritative
+  `make -C srcDiffVisual test` passed with the rebuilt packaged image: 277
+  backend tests, 76 frontend tests, production frontend build, and lint.
+  Final frontend layers reused the successful source-matched Docker cache.
+- The workspace Docker image was rebuilt with `python3-lxml`. Initial viewer
+  checks used an isolated development dependency target; the final check needed
+  no temporary dependency override.
+
+Local receipts are `build/schema3-phase3/replay/report.json`,
+`build/schema3-phase3/browser-consumers/report.json`,
+`build/schema3-phase3/verification.json`, and `build/test-results/report.json`.
+Ignored build/test output and `../srcDiffVisual/temp/schema3-python` are generated
+files, not frozen research results. See the regeneration notice above for the
+initial reuse of the old generated Phase-2 replay directory.
+
+No staging, commits, pushes, release-version changes, detector matching-policy
+changes, or frozen study rewrites were performed.

@@ -1,4 +1,5 @@
 """Strict-ancestor context contracts shared by all three evidence classes."""
+from tests.support.schema3_oracle import oracle_view
 from tests.support.execution import require_success, require_tool
 from copy import deepcopy
 import json
@@ -76,7 +77,7 @@ class StructuralContextTests(unittest.TestCase):
                         output = tmp / 'result.json'
                         run_logged([str(binary), str(path), '--results-only', '--diagnostics',
                                         '--results', str(output)], check=True, capture_output=True)
-                        data = json.loads(output.read_text())
+                        data = oracle_view(json.loads(output.read_text()))
                         candidates = {c['candidate_id']: c for c in data['diagnostics']['candidates']}
                         records = [r for r in data['diagnostics']['correspondences']
                                    if r['correspondence_kind'] == kind

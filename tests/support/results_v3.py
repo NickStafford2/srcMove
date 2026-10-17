@@ -131,6 +131,12 @@ def ordinary_projection(payload):
         sequences = {item["id"]: item["sequence"] for item in payload["output_items"]
                      if item["kind"] == "sequence_move_group"}
         summary, stats = payload["summary"], payload["pipeline_statistics"]
+    # Frozen locators predate srcReader's intentional post-predicate positions.
+    # Compare only that syntax change here; native XML validation stays strict.
+    from tests.support.validation import legacy_locator
+    for group in groups:
+        for side in ('original', 'modified'):
+            group[side] = [(legacy_locator(path), text) for path, text in group[side]]
     return {"groups": groups, "items": items, "sequences": sequences, "summary": summary, "statistics": stats}
 
 
@@ -219,6 +225,9 @@ def diagnostic_projection(payload):
                       "count": g["blind_only_pair_count"],
                       "location": ({"classification": g["location_change"], "reason": g["location_reason"]}
                                    if g.get("location_change") else None) if old else g["location"]})
+    from tests.support.validation import legacy_locator
+    for candidate in candidates:
+        candidate['xpath'] = legacy_locator(candidate['xpath'])
     return {"candidates": candidates, "correspondences": correspondences, "comparisons": comparisons, "blind": blind}
 
 

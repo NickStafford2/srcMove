@@ -42,21 +42,16 @@ class ResultValidationTests(unittest.TestCase):
         )
         self.assertTrue(any("content_relationship must be type1" in item for item in failures))
 
-    def test_optional_identity_fields_are_compared_when_declared(self) -> None:
-        expected = {"moves": [move(identity_status="tentative",
-                                   identity_reason="uncorroborated_declaration")]}
-        actual = {"moves": [move(identity_status="corroborated",
-                                 identity_reason="continuing_name_corroborated")]}
+    def test_optional_name_evidence_is_compared_when_declared(self) -> None:
+        expected = {"moves": [move(name_evidence="tentative")]}
+        actual = {"moves": [move(name_evidence="corroborated")]}
         failures = validate_moves(expected, actual)
-        self.assertTrue(any("identity_status mismatch" in item for item in failures))
-        actual["moves"][0]["identity_status"] = "tentative"
-        failures = validate_moves(expected, actual)
-        self.assertTrue(any("identity_reason mismatch" in item for item in failures))
+        self.assertTrue(any("name_evidence mismatch" in item for item in failures))
 
-    def test_contradicted_identity_cannot_be_a_selected_move(self) -> None:
+    def test_contradicted_name_cannot_be_a_selected_move(self) -> None:
         failures = validate_moves({"moves": [move()]},
-                                  {"moves": [move(identity_status="contradicted")]})
-        self.assertTrue(any("identity_status is invalid" in item for item in failures))
+                                  {"moves": [move(name_evidence="contradicted")]})
+        self.assertTrue(any("name_evidence is invalid" in item for item in failures))
 
     def test_endpoint_text_binding_cannot_be_swapped(self) -> None:
         expected = move(from_xpaths=["/a", "/b"],

@@ -166,10 +166,11 @@ cases store the derived category in `expected_content_relationship`, expose it a
 Only derived Type-3 receives a Type-3 strength band. Deduplication, conflict
 exclusion, source availability and srcDiff admission rules remain unchanged.
 
-Results schema 2 uses `moves[].content_relationship` and `content_relationships`
-for predicted content classifications and their group counts. Current consumers
-reject schema 1, superseded fields, legacy `type2`, and `type2b` as a selected
-report label. Counts must agree with the reported groups. Reference expectations
+Results schema 3 uses `atomic_move_groups[].content_relationship` and
+`summary.atomic_content_relationships` for predicted content classifications and
+atomic group counts. Current consumers reject earlier results schemas,
+superseded fields, legacy `type2`, and `type2b` as a selected report label.
+Counts must agree with the canonical atomic groups. Reference expectations
 may still be Type-2b; this does not manufacture a detector prediction.
 No Type-2b detection capability is presumed:
 a complete Type-2b pair reported as Type-3 is detected but incorrectly
@@ -222,15 +223,28 @@ summaries for final rates. CSV adds `benchmark_category`,
 `normalized_observed_category`, while preserving raw `observed_content_relationship`,
 `syntactic_type`, reviewed outcome, and correction fields.
 
+### Current results admission
+
+The live reader now requires results schema 3 and optional diagnostics schema 5.
+Scoring still iterates atomic move groups, resolving each endpoint against the
+admitted srcDiff input with the shared locator convention. An output sequence
+counts as its original atomic members for scoring, without inheriting the first
+member's selection evidence. Dependency and resolver details are documented in
+[shared benchmark infrastructure](../../benchmarking/README.md#shared-infrastructure).
+Frozen outputs, artifact hashes, adjudications, and version-specific study
+readers retain their original format and interpretation. The following prior
+regeneration boundary describes those retained category-migration artifacts.
+
 ### Existing artifacts: regeneration, not implicit migration
 
 Existing compiled catalogs and generated Java object bytes remain reusable;
 they preserve the raw evidence needed for category derivation. Existing
 selection manifests, case databases, frozen profile rows, journals and results
-remain legacy evidence under their recorded rules. Current consumers require
-new benchmark-case collections (schema/user version 2), execution journals
+remain legacy evidence under their recorded rules. At that prior category
+migration boundary, consumers required new benchmark-case collections (schema/user version 2), execution journals
 (schema/user version 2), and results (schema 2). Do not relabel retained output
 or resume old run directories. Scoring oracle 9 requires a new run ID/directory.
+The current results admission boundary is described above.
 Versionless raw source metadata is not inferred to be Type-2b from a high score;
 category derivation and case publication remain separate from output admission.
 See [the reporting contract](../../doc/architecture.md#results-terminology) for

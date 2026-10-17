@@ -3,6 +3,8 @@
 
 from __future__ import annotations
 
+from srcmove_runtime.results_schema import atomic_moves, benchmark_result_evidence
+
 import argparse
 import csv
 import hashlib
@@ -464,7 +466,17 @@ ORDER BY c.ordinal
                     observed_kind = results.get(
                         "_oracle_observed_content_relationship", ""
                     )
-                    moves = results.get("moves")
+                    if results.get("results_schema_version") == 3:
+                        try:
+                            evidence = benchmark_result_evidence(results)
+                        except ValueError:
+                            moves = None
+                            observed_kind = ""
+                        else:
+                            moves = atomic_moves(evidence)
+                    else:
+                        # Read-only projection of frozen pre-migration receipts.
+                        moves = results.get("moves")
                     if (
                         not observed_kind
                         and isinstance(moves, list)

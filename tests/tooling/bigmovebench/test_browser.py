@@ -6,6 +6,7 @@ import tempfile
 import unittest
 
 from bigMoveBench.browser.reader import list_cases, list_runs, show_case, show_run, show_source
+from tests.tooling.results_fixtures import schema3_fixture
 
 
 class BrowserTests(unittest.TestCase):
@@ -109,9 +110,28 @@ CREATE TABLE attempts(attempt_id TEXT, case_id TEXT, attempt_ordinal INTEGER, st
             for column in ("srcdiff_admitted INTEGER", "srcdiff_record_json TEXT", "srcdiff_attempt_path TEXT"):
                 connection.execute("ALTER TABLE attempts ADD COLUMN " + column)
             connection.execute("UPDATE attempts SET srcdiff_admitted=1,srcdiff_record_json=?,srcdiff_attempt_path=? WHERE case_id='type1-1'", (json.dumps(record), "tool-attempts/srcdiff/attempt-one"))
+        receipt = schema3_fixture({'moves': [{'move_id': 'move-1', 'from_raw_texts': ['before'], 'to_raw_texts': ['after']}]})
+        receipt.update(_oracle_expected_category='type1', _oracle_complete_detection=True,
+                       _oracle_detected_move_id='move-1', _oracle_diagnostic_stage='selected')
+        with sqlite3.connect(self.journals[0]) as connection:
+            connection.execute("UPDATE attempts SET oracle_results_json=? WHERE case_id='type1-1'", (json.dumps(receipt),))
+        journal_before = self.journals[0].read_bytes()
         source = show_source(self.results, self.cache, "saved-run", "type1", "type1-1")
         self.assertEqual(source["srcdiff_xml"], path.read_text())
-        self.assertEqual(source["results"]["move_count"], 1)
+        self.assertEqual(source["results"]["summary"]["atomic_move_group_count"], 1)
+        self.assertEqual(source['case']['move_count'], 1)
+        self.assertEqual(source['case']['observed_content_relationship'], 'type1')
+        self.assertNotIn('_oracle_expected_category', source['results'])
+        self.assertEqual(self.journals[0].read_bytes(), journal_before)
+        self.assertEqual(show_case(self.results, self.cache, 'saved-run', 'type1', 'type1-1')['moves'][0]['move_id'], 'move-1')
+        receipt['_oracle_unrecognized'] = 'must not be silently discarded'
+        with sqlite3.connect(self.journals[0]) as connection:
+            connection.execute("UPDATE attempts SET oracle_results_json=? WHERE case_id='type1-1'", (json.dumps(receipt),))
+        with self.assertRaises(ValueError):
+            show_source(self.results, self.cache, 'saved-run', 'type1', 'type1-1')
+        del receipt['_oracle_unrecognized']
+        with sqlite3.connect(self.journals[0]) as connection:
+            connection.execute("UPDATE attempts SET oracle_results_json=? WHERE case_id='type1-1'", (json.dumps(receipt),))
         path.write_text("changed XML")
         with self.assertRaisesRegex(ValueError, "checksum differs"):
             show_source(self.results, self.cache, "saved-run", "type1", "type1-1")

@@ -3,6 +3,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from tests.tooling.results_fixtures import schema3_fixture
 from tests.support.selection_catalog import CatalogError, evaluate_results, load_catalog, normalize_text
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
@@ -52,21 +53,21 @@ class SelectionCatalogTests(unittest.TestCase):
             }
             passing = evaluate_results(
                 case,
-                {"moves": [move(" whole  old ", "whole\nnew", "type3")]},
+                schema3_fixture({"moves": [move(" whole  old ", "whole\nnew", "type3")]}),
             )
             self.assertEqual(passing["status"], "pass")
             self.assertEqual(normalize_text(" a\n  b "), "a b")
 
             failing = evaluate_results(
                 case,
-                {"moves": [move("small();", "small();")]},
+                schema3_fixture({"moves": [move("small();", "small();")]}),
             )
             self.assertEqual(failing["status"], "semantic_miss")
             self.assertEqual(failing["required_found"], 0)
             self.assertEqual(failing["forbidden_found"], 1)
 
     def test_malformed_result_move_is_a_validation_error(self) -> None:
-            with self.assertRaisesRegex(ValueError, "invalid shape"):
+            with self.assertRaisesRegex(ValueError, "invalid schema-3"):
                 evaluate_results(
                     {"required": [], "forbidden": []},
                     {"moves": [{"content_relationship": "type1"}]},

@@ -64,14 +64,16 @@ test-classification: build
 	$(PYTHON) tests/run.py --suite behavior --test 'fixtures.policy.classification_*'
 
 .PHONY: test-results-schema
-# Phase-2 producer verification against explicitly captured, ignored baselines.
+# Producer verification against explicitly captured, ignored baselines.
 SCHEMA3_BASELINE ?= $(CURDIR)/build/schema3-phase2/baseline
+SCHEMA3_REPLAY ?= $(CURDIR)/build/schema3-phase3/replay
 test-results-schema: build
 	PYTHONPATH="$(CURDIR)/build/schema3-validation:$(PYTHONPATH)" \
 	SRCMOVE_RESULTS_V3_BASELINE="$(SCHEMA3_BASELINE)" \
-	$(PYTHON) tests/run.py --suite behavior \
+	$(PYTHON) tests/run.py --suite behavior --suite unit \
 		--test 'tests.behavior.test_results_schema_v3*' \
-		--artifacts "$(CURDIR)/build/schema3-phase2/replay"
+		--test 'tests.unit.test_results_schema_runtime*' \
+		--artifacts "$(SCHEMA3_REPLAY)"
 
 move-selection-benchmark: build
 	$(PYTHON) moveSelectionBench/benchmark.py \

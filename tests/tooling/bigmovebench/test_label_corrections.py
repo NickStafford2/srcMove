@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.tooling.results_fixtures import schema3_fixture
+
 import copy
 import csv
 import hashlib
@@ -44,7 +46,7 @@ class LabelCorrectionTests(unittest.TestCase):
 
     def score(self, kind='type3', partial=False, missing=False, invalid=False):
         moves = [] if missing else [{'move_id': 'm1', 'content_relationship': kind, 'from_raw_texts': ['return;' if partial else self.before], 'to_raw_texts': [self.after]}]
-        results = {'results_schema_version': 0 if invalid else 2, 'move_count': len(moves), 'moves': moves, 'content_relationships': {kind: len(moves)}}
+        results = schema3_fixture({'results_schema_version': 0 if invalid else 2, 'move_count': len(moves), 'moves': moves, 'content_relationships': {kind: len(moves)}})
         path = self.root / 'results.json'
         path.write_text(json.dumps(results))
         return _score_completed_case(metadata=self.metadata, results_path=path, srcmove_xml=self.xml, label_corrections=self.registry)

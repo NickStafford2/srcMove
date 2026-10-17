@@ -1,5 +1,7 @@
 """Production Type-2 identity reservation and retained normalization evidence."""
 from __future__ import annotations
+from tests.support.schema3_oracle import oracle_view
+from tests.support.validation import legacy_locator
 from tests.support.execution import require_success, require_tool
 
 import json
@@ -29,7 +31,7 @@ class Type2AdoptionTests(unittest.TestCase):
                     command.append('--diagnostics')
                 result = run_logged(command, capture_output=True, text=True)
                 require_success(result)
-                payloads.append(json.loads(output.read_text()))
+                payloads.append(oracle_view(json.loads(output.read_text())))
             observed = dict(payloads[1])
             observed.pop('diagnostics')
             self.assertEqual(payloads[0], observed)
@@ -69,8 +71,8 @@ class Type2AdoptionTests(unittest.TestCase):
                 candidates = {c['candidate_id']: c for c in evidence['candidates']}
                 for correspondence in expected:
                     records = [r for r in evidence['correspondences']
-                               if candidates[r['delete_candidate_id']]['xpath'] in correspondence['from_xpaths']
-                               and candidates[r['insert_candidate_id']]['xpath'] in correspondence['to_xpaths']]
+                               if legacy_locator(candidates[r['delete_candidate_id']]['xpath']) in correspondence['from_xpaths']
+                               and legacy_locator(candidates[r['insert_candidate_id']]['xpath']) in correspondence['to_xpaths']]
                     self.assertEqual(len(records), 1, correspondence)
                     record = records[0]
                     self.assertEqual(record['correspondence_kind'], 'type2c')

@@ -574,19 +574,28 @@ count. `pipeline_statistics.processing_group_kinds` retains internal categories,
 including one-sided groups; `copy_or_repeat` also covers policy-specific copy and
 residual cases and is not a pure cardinality label.
 
-#### Consumer migration pending
+#### Consumer admission
 
-The executable emits results schema `3` and diagnostics schema `5`. History,
-benchmark tooling, and srcDiffVisual still require a separate consumer migration;
-this producer change does not update their schema-2 readers. Use the focused
-producer verification target described in the [contract](plans/results_schema_v3/README.md)
-until coordinated consumer work is complete. Program release version is a
-separate decision and is unchanged.
+Live history, benchmark tooling, and srcDiffVisual require results schema `3`
+and diagnostics schema `5`. Shared admission in
+[`srcmove_runtime/results_schema.py`](../srcmove_runtime/results_schema.py)
+checks the pinned structural contract and cross-record evidence without adding
+Python dependencies to ordinary JSON admission. Full native XPath resolution
+uses `lxml` and the exact srcReader archive-root rule. JSON checks alone cannot
+prove XML adjacency or detector correctness. The shared native XML sequence
+validator in `srcmove_runtime/results_xml.py` independently checks actual
+parents, sibling ordinals, member order and disjoint spans; original input bytes
+are required to check parent stream IDs.
+
+Internal benchmark and history projections resolve canonical atomic groups;
+output items never replace atomic scoring units. History retains ordinary
+evidence with endpoint text digests and fingerprints its changed validator and
+compact contracts. Viewer artifacts use fresh schema identities. Program
+release version is a separate decision and is unchanged.
 
 Frozen studies, execution receipts, artifact hashes, adjudications, and their
 version-specific readers retain their original contracts. Do not rewrite them
-in place or present renamed files as new evidence. New consumer states and
-viewer artifacts will need fresh identities when their migration is implemented.
+in place or present renamed files as new evidence.
 
 ## Matching and group semantics
 

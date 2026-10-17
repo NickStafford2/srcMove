@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.tooling.results_fixtures import schema3_fixture
+
 import json
 import sys
 import tempfile
@@ -28,19 +30,19 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             diagnostic_stage("srcmove_false_positive", {}), "false_acceptance"
         )
         self.assertEqual(
-            diagnostic_stage("srcmove_miss", {"candidates_total": 1}),
+            diagnostic_stage("srcmove_miss", schema3_fixture({"candidates_total": 1})),
             "candidate_generation",
         )
         self.assertEqual(
             diagnostic_stage(
-                "srcmove_miss", {"candidates_total": 2, "moves": []}
+                "srcmove_miss", schema3_fixture({"candidates_total": 2, "moves": []})
             ),
             "retrieval_or_verification",
         )
         self.assertEqual(
             diagnostic_stage(
                 "srcmove_miss",
-                {"candidates_total": 2, "moves": [{"move_id": "m1"}]},
+                schema3_fixture({"candidates_total": 2, "moves": [{"move_id": "m1", "from_raw_texts": ["x"], "to_raw_texts": ["x"]}]}),
             ),
             "selection_or_granularity",
         )
@@ -56,7 +58,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 ("{}", "invalid_structure"),
                 (
                     json.dumps(
-                        {"results_schema_version": 2, "move_count": 0, "content_relationships": {}, "moves": []}
+                        schema3_fixture({"results_schema_version": 2, "move_count": 0, "content_relationships": {}, "moves": []})
                     ),
                     "valid",
                 ),
@@ -79,7 +81,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 "to_end_line": 7,
             },
         }
-        results = {
+        results = schema3_fixture({
             "results_schema_version": 2, "move_count": 1,
             "content_relationships": {"type1": 1},
             "moves": [
@@ -100,11 +102,11 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                     "to_raw_texts": ["void moved() {}"],
                 }
             ],
-        }
+        })
         srcdiff = (
             "<unit xmlns='http://www.srcML.org/srcML/src' "
             "xmlns:diff='http://www.srcML.org/srcDiff' "
-            "xmlns:pos='http://www.srcML.org/srcML/position'>"
+            "xmlns:pos='http://www.srcML.org/srcML/position' url='old|new'>"
             "<unit filename='source/input.java'><class><block><diff:delete>"
             "<function pos:start='3:1' pos:end='3:20'><name>moved</name>"
             "</function></diff:delete></block></class></unit>"
@@ -129,7 +131,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             self.assertEqual(outcome, "oracle_pass")
             self.assertEqual(failures, [])
 
-            results["moves"][0]["from_xpaths"] = ["/src:unit[@filename='missing']"]
+            results["atomic_move_groups"][0]["original"][0]["xpath"] = "/src:unit[@filename='missing']"
             results_path.write_text(json.dumps(results), encoding="utf-8")
             outcome, failures, _, _ = _score_completed_case(
                 metadata=metadata,
@@ -137,7 +139,53 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 srcdiff_xml=srcdiff_path,
             )
             self.assertEqual(outcome, "oracle_failure")
-            self.assertTrue(any("resolved to 0 nodes" in failure for failure in failures))
+            self.assertTrue(any("resolve exactly once" in failure for failure in failures))
+
+            srcdiff_path.write_text('<unit>', encoding='utf-8')
+            outcome, failures, _, _ = _score_completed_case(
+                metadata=metadata, results_path=results_path, srcdiff_xml=srcdiff_path)
+            self.assertEqual(outcome, 'oracle_failure')
+            self.assertTrue(any('srcdiff.xml position error' in failure for failure in failures))
+
+    def test_sequence_reporting_keeps_atomic_scoring_and_detected_group_identity(self):
+        value = schema3_fixture({'moves': [
+            {'move_id': name, 'from_raw_texts': [text], 'to_raw_texts': [text],
+             'from_xpaths': [f'/src:unit[1]/diff:delete[1]/src:expr_stmt[{ordinal}]'],
+             'to_xpaths': [f'/src:unit[1]/diff:insert[1]/src:expr_stmt[{ordinal}]']}
+            for ordinal, name, text in [(1, 'a', 'first();'), (2, 'b', 'second();')]]})
+        for group in value['atomic_move_groups']:
+            group['original'][0]['revision_file'] = 'old.cpp'
+            group['modified'][0]['revision_file'] = 'new.cpp'
+        value['output_items'] = [{'id': 'sequence:a', 'kind': 'sequence_move_group',
+                                  'member_group_ids': ['a', 'b'],
+                                  'sequence': {'policy': 'ordered_adjacent_v1', **{
+                                      side: {'revision_file': file, 'parent_id': f'old.cpp|new.cpp:{side}:unit:0',
+                                             'first_child_ordinal': 1, 'last_child_ordinal': 2}
+                                      for side, file in [('original', 'old.cpp'), ('modified', 'new.cpp')]}}}]
+        value['summary'].update(output_item_count=1, sequence_move_group_count=1,
+                                output_content_relationships={'type1': 1, 'type2c': 0, 'type3': 0})
+        xml = ('<unit xmlns="http://www.srcML.org/srcML/src" xmlns:diff="http://www.srcML.org/srcDiff" '
+               'xmlns:pos="http://www.srcML.org/srcML/position" filename="old.cpp|new.cpp">'
+               '<diff:delete><expr_stmt pos:start="2:1" pos:end="2:8">first();</expr_stmt>'
+               '<expr_stmt pos:start="3:1" pos:end="3:9">second();</expr_stmt></diff:delete>'
+               '<diff:insert><expr_stmt pos:start="5:1" pos:end="5:8">first();</expr_stmt>'
+               '<expr_stmt pos:start="6:1" pos:end="6:9">second();</expr_stmt></diff:insert></unit>')
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            results_path, input_path = root / 'results.json', root / 'srcdiff.xml'
+            results_path.write_text(json.dumps(value))
+            input_path.write_text(xml)
+            self.assertEqual(validate_results_output(results_path)['status'], 'valid')
+            for expected, outcome in [('first();second();', 'srcmove_miss'), ('first();', 'oracle_pass')]:
+                metadata = {'syntactic_type': 1, 'expected': {
+                    'from_generated_text': expected, 'to_generated_text': expected,
+                    'from_start_line': 2, 'from_end_line': 3,
+                    'to_start_line': 5, 'to_end_line': 6}}
+                actual, _, _, receipt = _score_completed_case(metadata=metadata,
+                    results_path=results_path, srcdiff_xml=input_path)
+                self.assertEqual(actual, outcome)
+                if actual == 'oracle_pass':
+                    self.assertEqual(receipt['_oracle_detected_move_id'], 'a')
 
     def test_type_two_scoring_requires_type2_content_relationship(self) -> None:
         metadata = {
@@ -174,7 +222,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             ):
                 results_path.write_text(
                     json.dumps(
-                        {
+                        schema3_fixture({
                             "results_schema_version": 2, "move_count": 1,
                             "content_relationships": {content_relationship: 1},
                             "moves": [
@@ -185,7 +233,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                                     "to_raw_texts": ["void moved() {}\n"],
                                 }
                             ],
-                        }
+                        })
                     )
                 )
                 with self.subTest(content_relationship=content_relationship):
@@ -231,7 +279,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             ):
                 results_path.write_text(
                     json.dumps(
-                        {
+                        schema3_fixture({
                             "results_schema_version": 2, "move_count": 1,
                             "content_relationships": {content_relationship: 1},
                             "moves": [
@@ -242,7 +290,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                                     "to_raw_texts": ["void after() {}\n"],
                                 }
                             ],
-                        }
+                        })
                     )
                 )
                 with self.subTest(content_relationship=content_relationship):
@@ -334,11 +382,11 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                     counts[kind] = counts.get(kind, 0) + 1
                 results_path.write_text(
                     json.dumps(
-                        {
+                        schema3_fixture({
                             "results_schema_version": 2, "move_count": len(moves),
                             "content_relationships": counts,
                             "moves": moves,
-                        }
+                        })
                     )
                 )
                 srcmove_xml.write_text(xml_text)
@@ -377,17 +425,18 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
 
             results_path.write_text(
                 json.dumps(
-                    {
+                    schema3_fixture({
                         "results_schema_version": 2, "move_count": 1,
                         "content_relationships": {"type1": 1},
                         "moves": [
                             {
+                                "move_id": None,
                                 "content_relationship": "type1",
                                 "from_raw_texts": ["void moved() {}"],
                                 "to_raw_texts": ["void moved() {}"],
                             }
                         ],
-                    }
+                    })
                 )
             )
             outcome, failures, _, _ = _score_completed_case(
@@ -396,10 +445,10 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 srcmove_xml=srcmove_xml,
             )
             self.assertEqual(outcome, "oracle_failure")
-            self.assertTrue(any("move_id" in failure for failure in failures))
+            self.assertTrue(failures, "invalid group identity must be rejected at admission")
 
             results_path.write_text(
-                json.dumps({"results_schema_version": 2, "move_count": 0, "content_relationships": {}, "moves": []})
+                json.dumps(schema3_fixture({"results_schema_version": 2, "move_count": 0, "content_relationships": {}, "moves": []}))
             )
             srcmove_xml.write_text("<unit>")
             outcome, _, _, _ = _score_completed_case(
@@ -408,6 +457,22 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                 srcmove_xml=srcmove_xml,
             )
             self.assertEqual(outcome, "oracle_failure")
+
+    def test_malformed_nested_summary_is_an_admission_failure_for_both_oracles(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            path = Path(temporary) / 'results.json'
+            for summary in (None, [], 'invalid', True, 1):
+                malformed = {'results_schema_version': 3, 'summary': summary}
+                path.write_text(json.dumps(malformed))
+                for kind in ('positive', 'known_false_positive'):
+                    with self.subTest(summary=summary, kind=kind):
+                        metadata = {'case_kind': kind, 'syntactic_type': 1}
+                        actual, failures, _, receipt = _score_completed_case(metadata=metadata, results_path=path)
+                        self.assertEqual(actual, 'oracle_failure')
+                        self.assertTrue(failures)
+                        self.assertEqual({key: receipt[key] for key in malformed}, malformed)
+                        if kind == 'positive':
+                            self.assertFalse(receipt['_oracle_complete_detection'])
 
     def test_known_false_positive_scoring_rejects_only_whole_fragment_move(self) -> None:
         metadata = {
@@ -421,11 +486,11 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
         }
         cases = (
             (
-                {"results_schema_version": 2, "move_count": 0, "content_relationships": {}, "moves": []},
+                schema3_fixture({"results_schema_version": 2, "move_count": 0, "content_relationships": {}, "moves": []}),
                 "oracle_pass",
             ),
             (
-                {
+                schema3_fixture({
                     "results_schema_version": 2, "move_count": 1,
                     "content_relationships": {"type1": 1},
                     "moves": [
@@ -436,11 +501,11 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                             "to_raw_texts": ["child();"],
                         }
                     ],
-                },
+                }),
                 "oracle_pass",
             ),
             (
-                {
+                schema3_fixture({
                     "results_schema_version": 2, "move_count": 2,
                     "content_relationships": {"type1": 1, "type3": 1},
                     "moves": [
@@ -457,7 +522,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
                             "to_raw_texts": ["child();"],
                         },
                     ],
-                },
+                }),
                 "srcmove_false_positive",
             ),
         )
@@ -467,7 +532,7 @@ class BigMoveBenchEvaluationTests(unittest.TestCase):
             srcmove_xml = root / "srcmove.xml"
             for results, expected_outcome in cases:
                 results_path.write_text(json.dumps(results))
-                if results["move_count"] == 0:
+                if results["summary"]["atomic_move_group_count"] == 0:
                     srcmove_xml.unlink(missing_ok=True)
                 else:
                     srcmove_xml.write_text("<unit/>")

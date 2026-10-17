@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.tooling.results_fixtures import schema3_fixture
+
 import io
 import json
 import sqlite3
@@ -78,7 +80,7 @@ class FakeToolAttempts:
         )
         if stage == "srcmove":
             (attempt_dir / "results.json").write_text(
-                json.dumps({"results_schema_version": 2, "move_count": 1, "moves": []}), encoding="utf-8"
+                json.dumps(schema3_fixture({"results_schema_version": 2, "move_count": 1, "moves": []})), encoding="utf-8"
             )
             if "--results-only" not in command:
                 (attempt_dir / "srcmove.xml").write_text(

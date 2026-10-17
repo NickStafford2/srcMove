@@ -120,7 +120,8 @@ def load_catalog(path: Path) -> list[dict[str, Any]]:
 
 
 def _result_moves(results: Mapping[str, Any]) -> list[dict[str, Any]]:
-    moves = results.get("moves")
+    from tests.support.schema3_oracle import oracle_view
+    moves = oracle_view(results)["moves"]
     if not isinstance(moves, list):
         raise ValueError("results.moves must be an array")
     parsed = []
@@ -170,9 +171,9 @@ def evaluate_results(case: Mapping[str, Any], results: Mapping[str, Any]) -> dic
         "forbidden_found": sum(forbidden_hits),
         "missing_required_indexes": missing,
         "forbidden_violation_indexes": violations,
-        "move_count": results.get("move_count"),
-        "candidate_count": results.get("candidates_total"),
-        "group_count": results.get("groups_total"),
+        "move_count": results["summary"]["pair_capacity"],
+        "candidate_count": results["pipeline_statistics"]["grouped_candidate_entry_count"],
+        "group_count": results["pipeline_statistics"]["processing_group_count"],
     }
 
 

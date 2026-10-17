@@ -452,15 +452,16 @@ def validate_srcdiff_precondition(case: dict[str, Any], srcdiff_path: Path) -> d
 def evaluate_shadow_diagnostics(
     case: dict[str, Any], results: dict[str, Any]
 ) -> dict[str, Any]:
-    """Resolve one contract's endpoints in schema-v4 diagnostics.
+    """Resolve one contract's endpoints in schema-5 diagnostics.
 
     This adapter uses the reviewed element and exact endpoint text from the
     contract. It never derives expected classifications from current output.
     """
 
-    diagnostics = results.get("diagnostics")
-    if not isinstance(diagnostics, dict) or diagnostics.get("schema_version") != 4:
-        raise ShadowContractError(f"{case['id']}: expected diagnostics schema 4")
+    from tests.support.schema3_oracle import oracle_view
+    diagnostics = oracle_view(results).get("diagnostics")
+    if not isinstance(diagnostics, dict) or diagnostics.get("schema_version") != 5:
+        raise ShadowContractError(f"{case['id']}: expected diagnostics schema 5")
     candidates = diagnostics.get("candidates")
     correspondences = diagnostics.get("correspondences")
     if not isinstance(candidates, list) or not isinstance(correspondences, list):
@@ -519,14 +520,15 @@ def evaluate_shadow_diagnostics(
     record = matching[0]
     if record.get("correspondence_kind") != precondition["correspondence_kind"]:
         raise ShadowContractError(f"{case['id']}: incorrect correspondence kind")
-    if case.get("expected_identity_reason") is not None and (
-        record.get("identity_reason") != case["expected_identity_reason"]
-    ):
-        raise ShadowContractError(f"{case['id']}: incorrect identity reason")
-    if case.get("expected_identity_status") is not None and (
-        record.get("identity_status") != case["expected_identity_status"]
-    ):
-        raise ShadowContractError(f"{case['id']}: incorrect identity status")
+    expected_name = case.get("expected_identity_status")
+    if expected_name is None and case.get("expected_identity_reason") is not None:
+        expected_name = {"continuing_name_conflict": "contradicted",
+                         "uncorroborated_declaration": "tentative",
+                         "continuing_name_corroborated": "corroborated"}[case["expected_identity_reason"]]
+    if expected_name is not None:
+        expected_name = {"exact": "not_assessed", "unassessed": "not_assessed"}.get(expected_name, expected_name)
+        if record["name_evidence"] != expected_name:
+            raise ShadowContractError(f"{case['id']}: incorrect name evidence")
     anchor_interval = record.get("anchor_interval_observation")
     ancestor_change = {
         "same": "none",

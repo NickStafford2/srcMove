@@ -74,15 +74,13 @@ class ContinuingIdentityTests(unittest.TestCase):
         reports = [report for report in payload['reported_moves']
                    if move['move_id'] in report['member_move_ids']]
         self.assertEqual(len(reports), 1)
-        self.assertEqual(reports[0]['identity_status'], move['identity_status'])
-        self.assertEqual(reports[0]['identity_reason'], move['identity_reason'])
+        self.assertEqual(reports[0]['name_evidence'], move['name_evidence'])
 
     def assert_tentative(self, payload: dict) -> dict:
         moves = self.declaration_moves(payload)
         self.assertEqual(len(moves), 1)
         move = moves[0]
-        self.assertEqual(move['identity_status'], 'tentative')
-        self.assertEqual(move['identity_reason'], 'uncorroborated_declaration')
+        self.assertEqual(move['name_evidence'], 'tentative')
         self.assert_report_identity(payload, move)
         return move
 
@@ -92,8 +90,7 @@ class ContinuingIdentityTests(unittest.TestCase):
         self.assertEqual(len(moves), 1)
         self.assertEqual(moves[0]['content_relationship'], 'type2c')
         self.assertEqual(moves[0]['to_raw_texts'], [f'int {NEW} = 1;'])
-        self.assertEqual(moves[0]['identity_status'], 'corroborated')
-        self.assertEqual(moves[0]['identity_reason'], 'continuing_name_corroborated')
+        self.assertEqual(moves[0]['name_evidence'], 'corroborated')
         self.assert_report_identity(payload, moves[0])
 
     def test_crossed_anchor_alone_does_not_establish_renamed_identity(self):
@@ -208,7 +205,7 @@ class ContinuingIdentityTests(unittest.TestCase):
         self.assertEqual(len(moves), 1)
         self.assertEqual(moves[0]['content_relationship'], 'type1')
         self.assertEqual(moves[0]['to_raw_texts'], [f'int {OLD} = 1;'])
-        self.assertEqual(moves[0]['identity_status'], 'exact')
+        self.assertEqual(moves[0]['name_evidence'], 'not_assessed')
         self.assert_report_identity(payload, moves[0])
 
     def test_tentative_type2_does_not_reserve_endpoint_against_stronger_type3(self):

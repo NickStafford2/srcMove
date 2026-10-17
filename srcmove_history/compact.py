@@ -124,27 +124,26 @@ def _compact_results(
         {"ordinal": ordinal, **_retained_metadata(move)}
         for ordinal, move in enumerate(moves)
     ]
-    for name in ("sequence_cluster_count", "sequence_reporting_unit_count", "reported_move_count", "reported_content_relationships"):
-        if name in value:
-            nested[name] = value[name]
-    if "move_sequences" in value:
-        nested["move_sequences"] = [
-            {
-                **{key: sequence[key] for key in ("sequence_id", "content_relationship", "policy", "member_move_ids")},
-                **{side: {key: sequence[side][key] for key in ("revision_file", "parent_id", "first_child_ordinal", "last_child_ordinal", "member_xpaths")} for side in ("from", "to")},
-            }
-            for sequence in value["move_sequences"]
-        ]
-    if "reported_moves" in value:
-        nested["reported_moves"] = [
-            {
-                **{key: report[key] for key in ("move_id", "report_kind", "content_relationship", "member_move_ids", "from_xpaths", "to_xpaths")},
-                "from_text_digests": _text_digests(report["from_raw_texts"]),
-                "to_text_digests": _text_digests(report["to_raw_texts"]),
-                **_retained_metadata(report),
-            }
-            for report in value["reported_moves"]
-        ]
+    # Preserve every ordinary evidence field, replacing source bodies with digests.
+    nested["atomic_move_groups"] = [
+        {**group, **{side: [
+            {**{key: field for key, field in endpoint.items() if key != "raw_text"},
+             "text_digest": _text_digests([endpoint["raw_text"]])[0]}
+            for endpoint in group[side]] for side in ("original", "modified")}}
+        for group in value["atomic_move_groups"]
+    ]
+    atomic = {move["move_id"]: move for move in moves}
+    # Existing query/report API projects output items while retaining their new IDs.
+    nested["reported_move_count"] = value["summary"]["output_item_count"]
+    nested["reported_content_relationships"] = value["summary"]["output_content_relationships"]
+    nested["reported_moves"] = [
+        {"move_id": item["id"], "report_kind": item["kind"],
+         "member_move_ids": item["member_group_ids"],
+         "content_relationship": atomic[item["member_group_ids"][0]]["content_relationship"],
+         **{side + "_xpaths": [path for member in item["member_group_ids"] for path in atomic[member][side + "_xpaths"]] for side in ("from", "to")},
+         **{side + "_text_digests": _text_digests([text for member in item["member_group_ids"] for text in atomic[member][side + "_raw_texts"]]) for side in ("from", "to")}}
+        for item in value["output_items"]
+    ]
     return compact_moves, nested
 
 

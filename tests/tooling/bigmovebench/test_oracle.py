@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.tooling.results_fixtures import schema3_fixture
+
 import json
 import tempfile
 import unittest
@@ -37,7 +39,7 @@ class BigMoveBenchOracleTests(unittest.TestCase):
                     "to_end_line": 7,
                 },
             }
-            results = {
+            results = schema3_fixture({
                 "results_schema_version": 2,
                 "move_count": 1,
                 "content_relationships": {content_relationship: 1},
@@ -49,7 +51,7 @@ class BigMoveBenchOracleTests(unittest.TestCase):
                         "to_raw_texts": ["void moved() {}"],
                     }
                 ],
-            }
+            })
             (case_dir / "metadata.json").write_text(
                 json.dumps(metadata), encoding="utf-8"
             )

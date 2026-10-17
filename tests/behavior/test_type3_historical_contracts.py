@@ -1,4 +1,5 @@
 """Check reported moves against reviewed source identity and location."""
+from tests.support.schema3_oracle import oracle_view
 from tests.support.execution import require_success, require_tool
 import hashlib
 import json
@@ -50,14 +51,14 @@ class HistoricalType3ContractTests(unittest.TestCase):
                         else:
                             command.insert(2, str(annotated))
                         run_logged(command, check=True, capture_output=True)
-                        docs.append(json.loads(output.read_text()))
+                        docs.append(oracle_view(json.loads(output.read_text())))
                         if mode != 'results_only':
                             annotations.append(annotated.read_bytes())
                     self.assertEqual(annotations[0], annotations[1])
                     self.assertEqual(docs[1], docs[2])
                     self.assertEqual(docs[0], {k: v for k, v in docs[1].items() if k != 'diagnostics'})
                     diagnostics = docs[1]['diagnostics']
-                    self.assertEqual(diagnostics['schema_version'], 4)
+                    self.assertEqual(diagnostics['schema_version'], 5)
                     # Independently reviewed source occurrences also constrain
                     # fallback groups exposed when edited parents are rejected.
                     # These are surviving source occurrences, not moved code.

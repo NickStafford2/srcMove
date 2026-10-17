@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from tests.tooling.results_fixtures import schema3_fixture
+
 import hashlib
 import json
 import tempfile
@@ -71,7 +73,7 @@ class CompactPairTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             raw_text = "a very large moved source region"
-            results = {
+            results = schema3_fixture({
                 "results_schema_version": 2,
                 "move_count": 1,
                 "move_group_count": 1,
@@ -88,7 +90,7 @@ class CompactPairTests(unittest.TestCase):
                 ],
                 "group_kinds": {"one_to_one": 1},
                 "content_relationships": {"type1": 1, "type2c": 0},
-            }
+            })
             content = json.dumps(results).encode("utf-8")
             path = root / "results.json"
             path.write_bytes(content)
@@ -247,7 +249,7 @@ class CompactPairTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temporary_directory:
             root = Path(temporary_directory)
             content = json.dumps(
-                {
+                schema3_fixture({
                     "results_schema_version": 2,
                     "move_count": 1,
                     "move_group_count": 1,
@@ -255,7 +257,7 @@ class CompactPairTests(unittest.TestCase):
                     "annotated_region_count": 2,
                     "group_kinds": {},
                     "content_relationships": {},
-                }
+                })
             ).encode()
             path = root / "results.json"
             path.write_bytes(content)
@@ -279,7 +281,7 @@ class CompactPairTests(unittest.TestCase):
                 ),
             )
 
-            with self.assertRaisesRegex(ValueError, "moves do not match"):
+            with self.assertRaisesRegex(ValueError, "Summary differs"):
                 compact_pair_outcome(outcome)
 
     def test_admission_rejects_results_that_compaction_cannot_store(self) -> None:
@@ -287,7 +289,7 @@ class CompactPairTests(unittest.TestCase):
             path = Path(temporary_directory) / "results.json"
             path.write_text(
                 json.dumps(
-                    {
+                    schema3_fixture({
                         "results_schema_version": 2,
                         "move_count": 1,
                         "move_group_count": 1,
@@ -296,12 +298,12 @@ class CompactPairTests(unittest.TestCase):
                         "moves": [{}],
                         "group_kinds": {},
                         "content_relationships": {},
-                    }
+                    })
                 ),
                 encoding="utf-8",
             )
 
-            with self.assertRaisesRegex(ArtifactValidationError, "content relationship"):
+            with self.assertRaisesRegex(ArtifactValidationError, "too few items"):
                 validate_results_artifact(path)
 
 

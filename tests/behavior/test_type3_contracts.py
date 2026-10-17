@@ -1,5 +1,6 @@
 """Independent location and competing-edge contracts for Type-3 observation."""
 from __future__ import annotations
+from tests.support.schema3_oracle import oracle_view
 from tests.support.execution import require_success, require_tool
 
 import json
@@ -57,7 +58,7 @@ class Type3ContractTests(unittest.TestCase):
                             command.insert(2, str(xml))
                         result = run_logged(command, text=True, capture_output=True)
                         require_success(result)
-                        payload = json.loads(output.read_text())
+                        payload = oracle_view(json.loads(output.read_text()))
                         payloads.append(payload)
                         if mode != 'results_only':
                             annotations.append(xml.read_bytes())
@@ -66,7 +67,7 @@ class Type3ContractTests(unittest.TestCase):
                     observed = dict(payloads[1])
                     diagnostics = observed.pop('diagnostics')
                     self.assertEqual(observed, payloads[0])
-                    self.assertEqual(diagnostics['schema_version'], 4)
+                    self.assertEqual(diagnostics['schema_version'], 5)
                     candidates = {c['candidate_id']: c for c in diagnostics['candidates']}
                     records = diagnostics['correspondences']
                     ids = [(r['delete_candidate_id'], r['insert_candidate_id']) for r in records]

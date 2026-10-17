@@ -136,11 +136,20 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
         moves = _count(metrics.get("reported_move_count", metrics.get("move_group_count", 0)), "reported moves")
         if "reported_moves" in metrics:
             compound_pairs.add((row["batch_id"], row["batch_sequence"]))
-            compound_rows.extend({
-                "content_relationship": report["content_relationship"],
-                "from_xpaths_json": json.dumps(report["from_xpaths"]).encode(),
-                "to_xpaths_json": json.dumps(report["to_xpaths"]).encode(),
-            } for report in metrics["reported_moves"])
+            groups = {group["id"]: group for group in metrics.get("atomic_move_groups", [])}
+            for report in metrics["reported_moves"]:
+                projected = {
+                    "content_relationship": report["content_relationship"],
+                    "from_xpaths_json": json.dumps(report["from_xpaths"]).encode(),
+                    "to_xpaths_json": json.dumps(report["to_xpaths"]).encode(),
+                }
+                if groups:
+                    for prefix, side in (("from", "original"), ("to", "modified")):
+                        projected[prefix + "_revision_files"] = [
+                            endpoint["revision_file"]
+                            for member in report["member_move_ids"] for endpoint in groups[member][side]
+                        ]
+                compound_rows.append(projected)
 
         _add_counts(group_kinds, metrics.get("group_kinds", {}), "group kinds")
         _add_counts(
@@ -177,10 +186,15 @@ def build_report(analysis_root: Path) -> ReportSnapshot:
     unclassified = 0
     for row in move_rows:
         content_relationships[_text(row["content_relationship"], "move content relationship")] += 1
-        sources = _filenames(_array(row["from_xpaths_json"], "source XPaths"))
-        destinations = _filenames(
-            _array(row["to_xpaths_json"], "destination XPaths")
-        )
+        if isinstance(row, dict) and "from_revision_files" in row:
+            # Schema 3 owns per-revision files explicitly; do not parse locator
+            # literals (which may use concat or omit filename predicates).
+            source_files, destination_files = row["from_revision_files"], row["to_revision_files"]
+            sources = set(source_files) if source_files and all(isinstance(path, str) for path in source_files) else None
+            destinations = set(destination_files) if destination_files and all(isinstance(path, str) for path in destination_files) else None
+        else:
+            sources = _filenames(_array(row["from_xpaths_json"], "source XPaths"))
+            destinations = _filenames(_array(row["to_xpaths_json"], "destination XPaths"))
         if sources is None or destinations is None:
             unclassified += 1
         elif len(sources) == 1 and sources == destinations:
@@ -436,8 +450,8 @@ def render_report(report: ReportSnapshot) -> str:
         "source or destination regions."
     )
     lines.append(
-        "  - Within-file and cross-file locations come from filenames in the "
-        "retained XPath evidence."
+        "  - Within-file and cross-file locations use retained revision files; "
+        "legacy records use filenames in retained XPath evidence."
     )
     lines.append(
         "  - Path exclusion counts are observations across commit pairs, not "

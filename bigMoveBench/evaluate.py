@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from benchmarking.results import validate_results_schema
+from srcmove_runtime.results_schema import atomic_moves, benchmark_result_evidence
 from benchmarking.contracts import XmlStatus
 from benchmarking.provenance import observe_file
 from bigMoveBench.label_corrections import LabelCorrections
@@ -56,11 +57,15 @@ def diagnostic_stage(outcome: str, results: dict[str, Any]) -> str:
     if outcome != "srcmove_miss":
         return outcome
 
-    candidates = results.get("candidates_total")
+    try:
+        evidence = benchmark_result_evidence(results)
+    except ValueError:
+        return "retrieval_or_verification"
+    candidates = evidence["pipeline_statistics"]["grouped_candidate_entry_count"]
     if type(candidates) is int and candidates < 2:
         return "candidate_generation"
-    moves = results.get("moves")
-    if isinstance(moves, list) and moves:
+    moves = atomic_moves(evidence)
+    if moves:
         return "selection_or_granularity"
     return "retrieval_or_verification"
 
@@ -122,9 +127,11 @@ def _score_completed_case(
     if metadata.get("case_kind") == "known_false_positive":
         text_validation = {"from": "not_checked", "to": "not_checked"}
         failures = validate_results_schema(results)
-        moves = results.get("moves")
+        if failures:
+            return 'oracle_failure', failures, text_validation, results
+        moves = atomic_moves(results)
         if srcmove_xml is not None and (
-            results.get("move_count") != 0 or srcmove_xml.exists()
+            results.get("summary", {}).get("atomic_move_group_count") != 0 or srcmove_xml.exists()
         ):
             try:
                 ET.parse(srcmove_xml)

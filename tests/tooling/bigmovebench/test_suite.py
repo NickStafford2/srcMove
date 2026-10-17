@@ -87,12 +87,12 @@ import json
 import shutil
 import sys
 from pathlib import Path
+sys.path.insert(0, __SRCMOVE_ROOT__)
 source, output = Path(sys.argv[1]), Path(sys.argv[2])
 shutil.copy2(source, output)
 Path(sys.argv[sys.argv.index('--results') + 1]).write_text(
-    json.dumps({'results_schema_version': 2, 'move_count': 0,
-                'content_relationships': {}, 'moves': []}))
-""",
+    json.dumps(__import__('tests.tooling.results_fixtures', fromlist=['schema3_fixture']).schema3_fixture({})))
+""".replace("__SRCMOVE_ROOT__", repr(str(Path(__file__).resolve().parents[3]))),
             )
             args = SimpleNamespace(
                 cache_root=root / "data",

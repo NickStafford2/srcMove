@@ -73,12 +73,24 @@ def main() -> int:
             write_xml(destination, archive=outcome == "valid-archive")
         if "--results" in arguments:
             results = Path(arguments[arguments.index("--results") + 1])
-            results.write_text(
-                '{"results_schema_version":2,"move_count":0,"move_group_count":0,'
-                '"move_pair_count":0,"annotated_region_count":0,'
-                '"content_relationships":{},"moves":[]}\n',
-                encoding="utf-8",
-            )
+            # Standalone copied fake tool: keep a complete schema-3 empty result.
+            import json
+            kinds = {kind: 0 for kind in ('type1', 'type2c', 'type3')}
+            payload = {
+                'results_schema_version': 3,
+                'summary': {'output_item_count': 0, 'atomic_move_group_count': 0,
+                            'sequence_move_group_count': 0, 'pair_capacity': 0,
+                            'endpoint_count': 0, 'atomic_content_relationships': kinds,
+                            'output_content_relationships': kinds},
+                'atomic_move_groups': [], 'output_items': [],
+                'configuration': {'min_granularity': 'statement', 'sequence_policy': 'ordered_adjacent_v1'},
+                'pipeline_statistics': {'srcdiff_region_count': 0, 'grouped_candidate_entry_count': 0,
+                                        'processing_group_count': 0, 'processing_group_kinds': {
+                                            kind: 0 for kind in ('move_1_to_1','moves_many','delete_only','insert_only','copy_or_repeat','ambiguous')}},
+                'xpath_context': {'document': 'input_srcdiff', 'convention': 'srcreader_file_units_v1',
+                                  'namespaces': {'src': 'http://www.srcML.org/srcML/src', 'diff': 'http://www.srcML.org/srcDiff'}},
+            }
+            results.write_text(json.dumps(payload) + '\n', encoding='utf-8')
         return 0
     if outcome == "nonzero-valid":
         if destination is not None:

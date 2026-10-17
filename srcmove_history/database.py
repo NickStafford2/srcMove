@@ -897,7 +897,7 @@ class AnalysisDatabase:
             "analyzable_path_count": _nonnegative_integer(
                 row["analyzable_path_count"], "analyzable path count"
             ),
-            **{name: metrics[name] for name in ("reported_moves", "move_sequences", "reported_move_count", "reported_content_relationships") if name in metrics},
+            **{name: metrics[name] for name in ("reported_moves", "move_sequences", "reported_move_count", "reported_content_relationships", "atomic_move_groups", "output_items", "summary", "configuration", "pipeline_statistics", "xpath_context") if name in metrics},
             "metrics": metrics,
             "timings": _json_object(
                 bytes(row["timings_json"]), "commit pair timings"

@@ -14,33 +14,32 @@ from srcmove_history.database import AnalysisDatabase
 from srcmove_history.inputs import build_pair_work_items, observe_executable
 from srcmove_history.queries import AnalysisReader
 from srcmove_history.report import build_report
-from srcmove_history.results import normalize_compactable_results
+from srcmove_history.results import normalize_compactable_results, scalar_metrics
 from tests.tooling.srcmove_history import test_srcmove_history_database as fixture
 from srcmove_history.retention import RetentionPolicy
 
 
 def results() -> dict:
-    moves = [
-        {"move_id": name, "content_relationship": "type1",
-         "from_xpaths": [f'/src:unit[@filename="old.cpp"]/{name}'], "to_xpaths": [f'/src:unit[@filename="new.cpp"]/{name}'],
-         "from_raw_texts": [f"{name}();"], "to_raw_texts": [f"{name}();"]}
-        for name in ("a", "b", "c")
-    ]
-    sequence = {"move_id": "sequence:a", "report_kind": "ordered_sequence",
-                "content_relationship": "type1", "member_move_ids": ["a", "b"]}
-    for field in ("from_xpaths", "to_xpaths", "from_raw_texts", "to_raw_texts"):
-        sequence[field] = [item for move in moves[:2] for item in move[field]]
-    return {
-        "results_schema_version": 2, "move_count": 3, "move_group_count": 3,
-        "move_pair_count": 3, "annotated_region_count": 6,
-        "group_kinds": {"one_to_one": 3}, "content_relationships": {"type1": 3},
-        "moves": moves,
-        "reported_moves": [sequence, {**moves[2], "report_kind": "atomic", "member_move_ids": ["c"]}],
-        "reported_move_count": 2, "reported_content_relationships": {"type1": 2},
-        "move_sequences": [{"sequence_id": "sequence:a", "content_relationship": "type1", "policy": "ordered_adjacent_v1", "member_move_ids": ["a", "b"],
-                            **{side: {"revision_file": side + ".cpp", "parent_id": "/parent", "first_child_ordinal": 1, "last_child_ordinal": 2, "member_xpaths": sequence[side + "_xpaths"]} for side in ("from", "to")}}],
-        "sequence_cluster_count": 1, "sequence_reporting_unit_count": 2,
-    }
+    from tests.tooling.results_fixtures import schema3_fixture
+    value = schema3_fixture({'moves': [
+        {'move_id': name, 'from_raw_texts': [name + '();'],
+         'to_raw_texts': [name + '();'],
+         'from_xpaths': [f'/src:unit[@filename="old.cpp"][1]/src:expr_stmt[{i}]'],
+         'to_xpaths': [f'/src:unit[@filename="new.cpp"][1]/src:expr_stmt[{i}]']}
+        for i, name in enumerate(('a', 'b', 'c'), 1)]})
+    for group in value['atomic_move_groups']:
+        group['original'][0]['revision_file'] = 'old.cpp'
+        group['modified'][0]['revision_file'] = 'new.cpp'
+    value['output_items'] = [
+        {'id': 'sequence:a', 'kind': 'sequence_move_group', 'member_group_ids': ['a', 'b'],
+         'sequence': {'policy': 'ordered_adjacent_v1', **{
+             side: {'revision_file': filename, 'parent_id': '/parent',
+                    'first_child_ordinal': 1, 'last_child_ordinal': 2}
+             for side, filename in [('original', 'old.cpp'), ('modified', 'new.cpp')]}}},
+        {'id': 'item:c', 'kind': 'atomic_move_group', 'member_group_ids': ['c']}]
+    value['summary'].update(output_item_count=2, sequence_move_group_count=1,
+                            output_content_relationships={'type1': 2, 'type2c': 0, 'type3': 0})
+    return value
 
 
 def outcome(path: Path, work, value: dict) -> PairOutcome:
@@ -49,55 +48,47 @@ def outcome(path: Path, work, value: dict) -> PairOutcome:
     return PairOutcome(
         work, PairStatus.COMPLETED,
         artifacts=(VerifiedArtifact(path, len(content), hashlib.sha256(content).hexdigest(), "json_results", "valid", "srcmove"),),
-        metrics=tuple((name, count) for name, count in value.items() if isinstance(count, int)),
+        metrics=tuple(scalar_metrics(value).items()),
     )
 
 
 class ReportedMovesTests(unittest.TestCase):
     def test_reports_partition_atomic_matches_and_reject_cross_links(self):
         normalize_compactable_results(results())
-        for mutation in ("repeat", "omit", "crosslink", "type", "count", "invalid_id"):
+        mutations = [
+            lambda p: p['output_items'][0].update(member_group_ids=['a', 'a']),
+            lambda p: p['output_items'].pop(),
+            lambda p: p['output_items'][0].update(id='sequence:b'),
+            lambda p: p['atomic_move_groups'][0].update(content_relationship='type3'),
+            lambda p: p['summary'].update(output_item_count=3),
+            lambda p: p['atomic_move_groups'][0].update(id=[]),
+        ]
+        for mutation in mutations:
             value = results()
-            report = value["reported_moves"][0]
-            if mutation == "repeat":
-                report["member_move_ids"] = ["a", "a"]
-            elif mutation == "omit":
-                value["reported_moves"].pop()
-                value["reported_move_count"] = 1
-            elif mutation == "crosslink":
-                report["to_xpaths"].reverse()
-            elif mutation == "type":
-                report["content_relationship"] = "type3"
-            elif mutation == "invalid_id":
-                value["moves"][0]["move_id"] = []
-            else:
-                value["reported_content_relationships"] = {"type1": 3}
-            with self.subTest(mutation=mutation), self.assertRaises(ValueError):
+            mutation(value)
+            with self.subTest(value=value), self.assertRaises(ValueError):
                 normalize_compactable_results(value)
 
     def test_contradictory_sequence_metadata_is_rejected(self):
-        for mutation in ("count", "order", "member", "ordinal"):
+        for mutation in ('count', 'file', 'member', 'ordinal'):
             value = results()
-            sequence = value["move_sequences"][0]
-            if mutation == "count":
-                value["sequence_reporting_unit_count"] = 3
-            elif mutation == "order":
-                sequence["to"]["member_xpaths"].reverse()
-            elif mutation == "member":
-                sequence["member_move_ids"] = ["a", "c"]
+            sequence = value['output_items'][0]
+            if mutation == 'count':
+                value['summary']['sequence_move_group_count'] = 0
+            elif mutation == 'file':
+                sequence['sequence']['modified']['revision_file'] = 'other.cpp'
+            elif mutation == 'member':
+                sequence['member_group_ids'] = ['a', 'missing']
             else:
-                sequence["from"]["last_child_ordinal"] = 3
+                sequence['sequence']['original']['last_child_ordinal'] = 3
             with self.subTest(mutation=mutation), self.assertRaises(ValueError):
                 normalize_compactable_results(value)
 
-    def test_sequence_compaction_discards_unknown_source_payload(self):
+    def test_sequence_compaction_rejects_unknown_source_payload(self):
         value = results()
-        value["move_sequences"][0]["from_raw_texts"] = ["secret source payload"]
-        value["move_sequences"][0]["from"]["source_text"] = "other secret payload"
-        from srcmove_history.contracts import PairWorkItem
-        with tempfile.TemporaryDirectory() as temporary:
-            compact = compact_pair_outcome(outcome(Path(temporary) / "results.json", PairWorkItem(0, "old", "new", "fingerprint"), value))
-            self.assertNotIn(b"secret", compact.metrics_json)
+        value['output_items'][0]['sequence']['original']['source_text'] = 'secret payload'
+        with self.assertRaises(ValueError):
+            normalize_compactable_results(value)
 
     def test_reports_survive_database_queries_and_keep_raw_text_ephemeral(self):
         with tempfile.TemporaryDirectory() as temporary:
@@ -121,11 +112,11 @@ class ReportedMovesTests(unittest.TestCase):
                 summary = database.summary()
                 self.assertEqual(summary["move_group_count"], 3)
                 self.assertEqual(summary["reported_move_count"], 2)
-                self.assertEqual(summary["reported_content_relationships"], {"type1": 2})
+                self.assertEqual(summary["reported_content_relationships"].get("type1"), 2)
                 detail = database.pair_details(0)
                 self.assertEqual(len(detail["moves"]), 3)
                 self.assertEqual(len(detail["reported_moves"]), 2)
-                self.assertEqual(detail["move_sequences"], results()["move_sequences"])
+                self.assertEqual(detail["output_items"], results()["output_items"])
             reader = AnalysisReader(analysis)
             status = reader.status().record()
             self.assertEqual(status["reported_move_count"], 2)
@@ -141,23 +132,26 @@ class ReportedMovesTests(unittest.TestCase):
             self.assertEqual(report.cross_file_moves, 2)
             self.assertEqual(dict(report.content_relationships), {"type1": 2})
 
-    def test_atomic_metadata_links_primary_members_without_guessing_absent_fields(self):
+    def test_atomic_evidence_survives_without_becoming_sequence_confidence(self):
         from srcmove_history.contracts import PairWorkItem
         value = results()
-        value["moves"][0].update(identity_status="unresolved", identity_reason="repeated source", selection_reason="selected")
-        value["reported_moves"][0].update(identity_status="unresolved", identity_reason="member ambiguity")
+        value['atomic_move_groups'][0]['selection']['matching_weight_milli'] = 725
         with tempfile.TemporaryDirectory() as temporary:
-            work = PairWorkItem(0, "old", "new", "fingerprint")
-            first = compact_pair_outcome(outcome(Path(temporary) / "results.json", work, value))
-            second = compact_pair_outcome(outcome(Path(temporary) / "results.json", work, value))
+            work = PairWorkItem(0, 'old', 'new', 'fingerprint')
+            path = Path(temporary) / 'results.json'
+            first = compact_pair_outcome(outcome(path, work, value))
+            second = compact_pair_outcome(outcome(path, work, value))
             self.assertEqual(first.metrics_json, second.metrics_json)
             metrics = json.loads(first.metrics_json)
-            metadata = metrics["atomic_metadata"]
-            self.assertEqual(metadata[0], {"ordinal": 0, "move_id": "a", "identity_status": "unresolved", "identity_reason": "repeated source", "selection_reason": "selected"})
-            by_id = {row["move_id"]: row for row in metadata}
-            self.assertEqual([by_id[name]["ordinal"] for name in metrics["reported_moves"][0]["member_move_ids"]], [0, 1])
-            self.assertNotIn("identity_status", metadata[1])
-            self.assertEqual(metrics["reported_moves"][0]["identity_reason"], "member ambiguity")
+            retained = metrics['atomic_move_groups'][0]
+            self.assertEqual(retained['selection'], value['atomic_move_groups'][0]['selection'])
+            self.assertEqual(retained['correspondence'], {'status': 'selected_pair'})
+            self.assertEqual(retained['original'][0]['candidate_id'], 0)
+            self.assertNotIn('raw_text', retained['original'][0])
+            self.assertIn('text_digest', retained['original'][0])
+            self.assertEqual(metrics['output_items'], value['output_items'])
+            self.assertNotIn('selection', metrics['reported_moves'][0])
+            self.assertNotIn('selection', metrics['output_items'][0])
 
     def test_pair_detail_exposes_metadata_sidecar_and_old_absence(self):
         from srcmove_history.queries import PairDetailSnapshot
@@ -169,21 +163,10 @@ class ReportedMovesTests(unittest.TestCase):
         current = PairDetailSnapshot(metrics=_freeze_json({"atomic_metadata": sidecar}), **common).record()
         self.assertEqual(current["atomic_metadata"], sidecar)
 
-    def test_legacy_results_do_not_invent_sequences(self):
-        value = results()
-        for field in list(value):
-            if field.startswith("reported_") or field.startswith("sequence_") or field == "move_sequences":
-                del value[field]
-        for move in value["moves"]:
-            del move["move_id"]
-        normalize_compactable_results(value)
-        with tempfile.TemporaryDirectory() as temporary:
-            from srcmove_history.contracts import PairWorkItem
-            compact = compact_pair_outcome(outcome(Path(temporary) / "results.json", PairWorkItem(0, "old", "new", "fingerprint"), value))
-            metrics = json.loads(compact.metrics_json)
-            self.assertNotIn("reported_moves", metrics)
-            self.assertNotIn("move_sequences", metrics)
-            self.assertEqual(metrics["atomic_metadata"], [{"ordinal": 0}, {"ordinal": 1}, {"ordinal": 2}])
+    def test_legacy_results_are_rejected_at_live_admission(self):
+        value = {'results_schema_version': 2, 'moves': [], 'move_count': 0}
+        with self.assertRaises(ValueError):
+            normalize_compactable_results(value)
 
 
 if __name__ == "__main__":

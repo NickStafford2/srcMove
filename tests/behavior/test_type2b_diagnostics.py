@@ -1,5 +1,6 @@
 """Blind identifier equality observes extra evidence without selecting moves."""
 from __future__ import annotations
+from tests.support.schema3_oracle import oracle_view
 from tests.support.execution import require_success, require_tool
 
 import json
@@ -38,7 +39,7 @@ class Type2bDiagnosticTests(unittest.TestCase):
                     command.append('--results-only')
                 process = run_logged(command, capture_output=True, text=True)
                 require_success(process)
-                payloads.append(json.loads(output.read_text()))
+                payloads.append(oracle_view(json.loads(output.read_text())))
                 profiles.append(process.stderr)
                 if not results_only:
                     annotations.append(annotation.read_bytes())

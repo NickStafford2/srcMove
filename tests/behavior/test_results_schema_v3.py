@@ -1,4 +1,4 @@
-"""Opt-in producer migration differential suite; legacy consumers are untouched.
+"""Opt-in producer migration differential suite with frozen schema-2 evidence.
 
 Enable through make test-results-schema after capturing the frozen v2 baseline.
 Each case replays retained input bytes; no new semantic oracle is inferred from
@@ -52,7 +52,7 @@ class ResultsSchemaV3Replay(unittest.TestCase):
         for name, path in paths.items():
             self.assertEqual(sha256(path), case["sha256"][name], f"Frozen {name} hash changed")
         expected = json.loads(paths["results"].read_text())
-        output_root = Path(os.environ.get("SRCMOVE_TEST_ARTIFACTS", REPO_ROOT / "build/schema3-phase2/replay"))
+        output_root = Path(os.environ.get("SRCMOVE_TEST_ARTIFACTS", REPO_ROOT / "build/schema3-phase3/replay"))
         output = output_root / "schema3-replay" / case["id"]
         output.mkdir(parents=True, exist_ok=True)
         input_path = output / "input.xml"
@@ -112,10 +112,12 @@ class ResultsSchemaV3Replay(unittest.TestCase):
         self.assertEqual(standard, results["ordinary"])
         self.assertIn("locator_audit", case, "Run baseline indexing with --audit-locators first")
         for xml_path in xml_paths.values():
-            self.assertEqual(paths["xml"].read_bytes(), xml_path.read_bytes(),
-                             f"Native annotation XML differs from frozen output: {xml_path}")
-            validate_native_xml(input_path, xml_path, results["diagnostic"],
-                                case["locator_audit"]["ambiguous_locators"])
+            from tests.support.validation import compare_xml_files_exact
+            self.assertEqual(compare_xml_files_exact(paths["xml"], xml_path), [],
+                             f"Native annotation XML differs beyond intentional locator qualifiers: {xml_path}")
+            # The frozen audit records old ambiguity; current srcReader emits
+            # post-predicate positions and every current locator must be unique.
+            validate_native_xml(input_path, xml_path, results["diagnostic"])
         self.assertEqual(xml_paths["ordinary"].read_bytes(), xml_paths["diagnostic"].read_bytes())
 
 

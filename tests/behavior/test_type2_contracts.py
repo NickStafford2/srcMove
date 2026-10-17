@@ -74,14 +74,16 @@ class Type2ContractTests(unittest.TestCase):
                                      'type2c_groups_selected'):
                             self.assertIn('profile.content_groups.' + name + '=', result.stderr)
                         self.assertNotIn('profile.content_groups.type2_', result.stderr)
-                        payload = json.loads(output.read_text())
+                        from tests.support.schema3_oracle import oracle_view
+                        raw_payload = json.loads(output.read_text())
+                        payload = oracle_view(raw_payload)
                         self.assertEqual(set(payload['content_relationships']),
                                          {'type1', 'type2c', 'type3'})
                         self.assertTrue(all(move['content_relationship'] in
                                             {'type1', 'type2c', 'type3'}
                                             for move in payload['moves']))
                         if diagnostics:
-                            actual = evaluate_shadow_diagnostics(case, payload)
+                            actual = evaluate_shadow_diagnostics(case, raw_payload)
                             assert_shadow_expectation(case, actual)
                             if case['srcdiff_precondition']['cardinality'] == 'one_to_one':
                                 precondition = case['srcdiff_precondition']

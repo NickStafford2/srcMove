@@ -32,7 +32,7 @@ class ReadOnlyCompatibilityTests(unittest.TestCase):
                 load_frozen_manifest_bytes(content, analysis_root=root)
             old = load_frozen_manifest_bytes(content, analysis_root=root, allow_legacy_compact=True)
             self.assertEqual(old.schema_versions.compact_pair, 3)
-            for version in (1, 2, 5, True):
+            for version in (1, 2, 6, True):
                 value['fingerprint_schema_versions']['compact_pair'] = version
                 with self.subTest(version=version), self.assertRaises(ValueError):
                     load_frozen_manifest_bytes(canonical_pretty_json_bytes(value), analysis_root=root, allow_legacy_compact=True)
@@ -40,6 +40,25 @@ class ReadOnlyCompatibilityTests(unittest.TestCase):
             value['fingerprint_schema_versions']['srcmove_results_validator'] = 2
             with self.assertRaises(ValueError):
                 load_frozen_manifest_bytes(canonical_pretty_json_bytes(value), analysis_root=root, allow_legacy_compact=True)
+
+    def test_previous_schema_two_contract_is_read_only_and_fingerprint_distinct(self):
+        from srcmove_history.inputs import build_pair_work_items
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            manifest = self.make_manifest(root)
+            old = dataclasses.replace(manifest, schema_versions=dataclasses.replace(
+                manifest.schema_versions, compact_pair=4, srcmove_results_validator=3))
+            content = canonical_pretty_json_bytes(old.record())
+            loaded = load_frozen_manifest_bytes(content, analysis_root=root, allow_legacy_compact=True)
+            self.assertEqual(loaded.schema_versions.compact_pair, 4)
+            self.assertEqual(loaded.schema_versions.srcmove_results_validator, 3)
+            with self.assertRaises(ValueError):
+                load_frozen_manifest_bytes(content, analysis_root=root)
+            self.assertNotEqual(build_pair_work_items(manifest)[0].fingerprint,
+                                build_pair_work_items(old)[0].fingerprint)
+            with self.assertRaisesRegex(ValueError, 'read-only'):
+                verify_resume_inputs(old, repository_identity=old.repository_identity,
+                                     configuration=old.configuration, srcdiff=old.srcdiff, srcmove=old.srcmove)
 
     def test_legacy_resume_and_compare_binding_remain_rejected(self):
         with tempfile.TemporaryDirectory() as temporary:

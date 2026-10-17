@@ -216,8 +216,10 @@ new analysis root instead.
 
 Database schema version 7 is a deliberate clean break for content-relationship
 reporting. Older roots are rejected with an instruction to start a fresh state
-directory. Results schema 2, compact-pair schema 3, and validator version 3
-require regenerated outcomes. Version 7 retains the
+directory. Current execution requires results schema 3, compact-pair schema 5, and
+validator version 4. Older compact states remain available for read-only
+queries; [the data model](data_model.md#move-evidence) defines retention and
+fingerprint compatibility. New execution requires a fresh analysis state. Version 7 retains the
 analysis-relative repository and admitted-tool locators introduced in version 4
 and srcDiff archive invariant from version 5. It also records unsupported Git
 modes as compact path-exclusion counts instead of failing an otherwise valid

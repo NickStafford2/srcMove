@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from benchmarking.results import validate_results_schema
+from srcmove_runtime.results_schema import atomic_moves, resolve_locator
 from bigMoveBench.categories import expected_category
 
 TextValidation = dict[str, str]
@@ -147,11 +148,15 @@ def reported_position_ranges(
 ) -> dict[str, dict[str, list[tuple[int, int]]]]:
     """Resolve move-result XPaths against the admitted srcDiff artifact."""
 
-    if not isinstance(results, dict) or not isinstance(results.get("moves"), list):
+    if not isinstance(results, dict) or validate_results_schema(results):
         raise ValueError("results.json moves must be a list")
-    root = ET.parse(srcdiff_xml).getroot()
+    from lxml import etree
+    try:
+        root = etree.parse(str(srcdiff_xml), etree.XMLParser(resolve_entities=False, no_network=True)).getroot()
+    except etree.XMLSyntaxError as error:
+        raise ValueError(f"srcDiff XML parse error: {error}") from error
     ranges: dict[str, dict[str, list[tuple[int, int]]]] = {}
-    for move in results["moves"]:
+    for move in atomic_moves(results):
         if not isinstance(move, dict):
             raise ValueError("results.json move must be an object")
         move_id = move.get("move_id")
@@ -172,8 +177,8 @@ def reported_position_ranges(
                 raise ValueError(f"move {move_id!r} has invalid {field}")
             for xpath in xpaths:
                 try:
-                    nodes = root.findall(f".{xpath}", XPATH_NAMESPACES)
-                except SyntaxError as error:
+                    nodes = [resolve_locator(root, xpath, results["xpath_context"]["namespaces"])]
+                except (SyntaxError, ValueError) as error:
                     raise ValueError(
                         f"move {move_id!r} has invalid {field} XPath: {error}"
                     ) from error
@@ -289,6 +294,9 @@ def assess_positive_case(
     detection_failures: list[str] = []
     classification_failures: list[str] = []
     text_validation: TextValidation = {"from": "not_checked", "to": "not_checked"}
+    if operational_failures:
+        return PositiveOracleAssessment(False, False, operational_failures,
+                                        detection_failures, classification_failures, text_validation)
     expected_content_relationships = {1: "type1", 2: "type2c", 3: "type3"}
     if syntactic_type not in expected_content_relationships:
         raise ValueError(f"unsupported BigCloneBench syntactic type: {syntactic_type}")
@@ -331,7 +339,7 @@ def assess_positive_case(
     ranges_by_move: dict[str, dict[str, list[tuple[int, int]]]] = {}
     # BigMoveBench resolves result XPaths against the admitted srcDiff input.
     # The annotated-output path remains for checked-in XML regression fixtures.
-    move_count = results.get("move_count") if isinstance(results, dict) else None
+    move_count = results.get("summary", {}).get("atomic_move_group_count") if isinstance(results, dict) else None
     if move_count != 0 and srcdiff_xml is not None:
         try:
             ranges_by_move = reported_position_ranges(srcdiff_xml, results)
@@ -359,7 +367,7 @@ def assess_positive_case(
     text_link_found = False
     from_position_found = False
     to_position_found = False
-    for move in results["moves"]:
+    for move in atomic_moves(results):
         from_status = next(
             (
                 status
@@ -507,8 +515,10 @@ def classify_result(
     if results is None:
         return "tool_failure"
 
-    moves = results.get("moves")
-    move_count = results.get("move_count")
+    if validate_results_schema(results):
+        return "invalid_results"
+    moves = atomic_moves(results)
+    move_count = results["summary"]["atomic_move_group_count"]
     fragment_relation = metadata.get("fragment_relation")
     raw_identical = (
         isinstance(fragment_relation, dict)

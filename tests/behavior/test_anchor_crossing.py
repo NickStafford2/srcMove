@@ -1,5 +1,6 @@
 """Displacement needs a shared mapped sibling, rather than function-wide order."""
 from __future__ import annotations
+from tests.support.schema3_oracle import oracle_view
 from tests.support.execution import require_success, require_tool
 
 import json
@@ -55,7 +56,7 @@ class AnchorCrossingTests(unittest.TestCase):
                 [str(binary), str(fixture), '--results-only', '--results',
                  str(result), '--diagnostics'], capture_output=True, text=True)
             require_success(completed)
-            return json.loads(result.read_text())
+            return oracle_view(json.loads(result.read_text()))
 
     def target_moves(self, body: str) -> list[dict]:
         return [move for move in self.evaluate(body)['moves']

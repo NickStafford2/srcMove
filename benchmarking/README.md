@@ -76,4 +76,20 @@ For current commands and interpretation rules, use the suite documentation
 linked above. Large benchmark executions are never started by the normal test
 runner.
 
-`results.py` owns structural validation of srcMove schema-2 JSON independently of dataset scoring and semantic test oracles.
+`results.py` delegates strict results-schema-3 admission (and optional diagnostics
+schema 5) to `srcmove_runtime.results_schema`, independently of dataset scoring.
+Live scoring resolves only `atomic_move_groups`; sequence output items never
+change benchmark units or classifications. Retained research artifacts and their
+version-specific interpretation are unchanged.
+Retained execution receipts can additionally contain the explicitly enumerated
+`_oracle_*` metadata fields. `benchmark_result_evidence` removes only those known
+receipt fields from a new projection and validates the remaining evidence;
+unknown fields are rejected, and saved receipts are not rewritten. Producer
+artifact admission remains strict and accepts no receipt metadata.
+
+BigMoveBench position scoring uses the shared full XPath resolver and requires
+Python `lxml`. The workspace Docker image provides `python3-lxml`; standalone
+Python environments must install `lxml` before results-only position scoring.
+The resolver honors srcReader archive-root omission, positional qualifiers after
+filename/name predicates, and `concat()` quote literals, and requires exactly
+one resolved endpoint without alternate-root fallback.

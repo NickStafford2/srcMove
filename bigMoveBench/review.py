@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+from srcmove_runtime.results_schema import atomic_moves, benchmark_result_evidence
+from benchmarking.results import validate_results_schema
+
 import hashlib
 import json
 import os
@@ -56,8 +59,8 @@ WHERE current.status='terminal'
     return {str(row["case_id"]): row for row in rows}
 
 
-def _ratio(common: int, maximum: int) -> float | None:
-    return common / maximum if maximum else None
+def _ratio(common: int | None, maximum: int) -> float | None:
+    return common / maximum if common is not None and maximum else None
 
 
 def _case_diagnosis(
@@ -66,6 +69,10 @@ def _case_diagnosis(
     expected_from: str,
     expected_to: str,
 ) -> dict[str, Any]:
+    try:
+        results = benchmark_result_evidence(dict(results))
+    except ValueError:
+        return {"stage": "results_admission", "reason": "invalid_results"}
     if outcome == "oracle_pass":
         return {"stage": "selected", "reason": "expected_type3_move_selected"}
     if outcome == "wrong_classification":
@@ -78,7 +85,27 @@ def _case_diagnosis(
             "reason": "diagnostics_unavailable",
         }
     candidates = diagnostics.get("candidates")
-    pairs = diagnostics.get("type3_pairs")
+    pairs = diagnostics.get("type3_comparisons")
+    if diagnostics.get("schema_version") != 5:
+        return {"stage": diagnostic_stage(outcome, dict(results)), "reason": "diagnostics_unavailable"}
+    endpoints = {endpoint["candidate_id"]: endpoint
+                 for group in results.get("atomic_move_groups", [])
+                 for side in ("original", "modified") for endpoint in group[side]}
+    if isinstance(candidates, list):
+        candidates = [{**candidate, **(candidate.get("endpoint") or endpoints.get(candidate["candidate_id"], {})),
+                       "side": {"original": "delete", "modified": "insert"}.get(candidate.get("revision"))}
+                      for candidate in candidates]
+    if isinstance(pairs, list):
+        pairs = [{**pair, "delete_candidate_id": pair["original_candidate_id"],
+                  "insert_candidate_id": pair["modified_candidate_id"],
+                  "common_lines": pair["verification"]["lines"]["common"],
+                  "maximum_lines": pair["verification"]["lines"]["maximum"],
+                  "common_tokens": pair["verification"]["tokens"]["common"],
+                  "maximum_tokens": pair["verification"]["tokens"]["maximum"],
+                  "outcome": ("ambiguous_type2c" if pair["verification"]["status"] == "not_evaluated"
+                              else "below_threshold" if pair["verification"]["status"] == "below_threshold"
+                              else "selected" if pair["selection"]["status"] == "selected" else "selection_rejected")}
+                 for pair in pairs]
     if not isinstance(candidates, list) or not isinstance(pairs, list):
         return {"stage": "candidate_generation", "reason": "invalid_diagnostics"}
 
@@ -156,10 +183,10 @@ def _case_diagnosis(
     ranked = sorted(
         matching_pairs,
         key=lambda pair: max(
-            _ratio(int(pair.get("common_lines", 0)), int(pair.get("maximum_lines", 0)))
+            _ratio(pair.get("common_lines"), int(pair.get("maximum_lines", 0)))
             or 0.0,
             _ratio(
-                int(pair.get("common_tokens", 0)),
+                pair.get("common_tokens"),
                 int(pair.get("maximum_tokens", 0)),
             )
             or 0.0,
@@ -170,7 +197,7 @@ def _case_diagnosis(
     pair_outcome = str(best.get("outcome"))
     stage = {
         "below_threshold": "verification",
-        "ambiguous_type2": "ambiguity",
+        "ambiguous_type2c": "ambiguity",
         "selection_rejected": "selection",
         "selected": "granularity_or_oracle",
     }.get(pair_outcome, "retrieval_or_verification")
@@ -179,10 +206,10 @@ def _case_diagnosis(
         "reason": pair_outcome,
         "best_expected_pair": dict(best),
         "line_similarity": _ratio(
-            int(best.get("common_lines", 0)), int(best.get("maximum_lines", 0))
+            best.get("common_lines"), int(best.get("maximum_lines", 0))
         ),
         "token_similarity": _ratio(
-            int(best.get("common_tokens", 0)), int(best.get("maximum_tokens", 0))
+            best.get("common_tokens"), int(best.get("maximum_tokens", 0))
         ),
     }
 
@@ -244,9 +271,18 @@ def _write_bundle(
         )
         _atomic_write(case_dir / files["srcdiff_xml"], srcdiff_xml.read_text(encoding="utf-8"))
         _atomic_write(case_dir / files["srcmove_xml"], srcmove_xml.read_text(encoding="utf-8"))
+        try:
+            result_evidence = benchmark_result_evidence(record["results"])
+        except ValueError as error:
+            # Preserve forensic data when no admitted evidence exists. The
+            # manifest explicitly prevents treating it as visualizable output.
+            result_evidence = record["results"]
+            result_status = {"status": "nonvisualizable", "error": str(error)}
+        else:
+            result_status = {"status": "admitted", "results_schema_version": 3}
         _atomic_write(
             case_dir / files["results"],
-            json.dumps(record["results"], indent=2, sort_keys=True) + "\n",
+            json.dumps(result_evidence, indent=2, sort_keys=True) + "\n",
         )
         _atomic_write(
             case_dir / files["review"],
@@ -262,6 +298,7 @@ def _write_bundle(
                 "diagnosis": record["diagnosis"],
                 "directory": relative_dir.as_posix(),
                 "files": files,
+                "result_evidence": result_status,
             }
         )
 
@@ -319,6 +356,13 @@ def _markdown(records: list[dict[str, Any]]) -> str:
     ]
     ordered = sorted(records, key=lambda item: (item["outcome"] == "oracle_pass", item["ordinal"]))
     for record in ordered:
+        try:
+            evidence = benchmark_result_evidence(record["results"])
+        except ValueError:
+            admitted, moves = False, []
+        else:
+            admitted, moves = True, atomic_moves(evidence)
+        atomic_count = evidence['summary']['atomic_move_group_count'] if admitted else 'unavailable'
         verdict = "PASS" if record["outcome"] == "oracle_pass" else "REVIEW"
         lines.extend(
             [
@@ -328,7 +372,7 @@ def _markdown(records: list[dict[str, Any]]) -> str:
                 f"- Outcome: `{record['outcome']}`",
                 f"- Dataset similarity: `{record['type3_both_similarity']}`",
                 f"- Diagnosis: `{record['diagnosis']['stage']}` / `{record['diagnosis']['reason']}`",
-                f"- Reported moves: `{record['results'].get('move_count', 0)}`",
+                f"- Atomic groups: `{atomic_count}`",
                 "- AI agrees?:",
                 "- Human verdict:",
                 "- Notes:",
@@ -343,19 +387,19 @@ def _markdown(records: list[dict[str, Any]]) -> str:
                 "",
             ]
         )
-        moves = record["results"].get("moves", [])
         if not moves:
-            lines.extend(["### Actual moves", "", "No move was reported.", ""])
+            message = "No atomic group was reported." if admitted else "No admitted results are available."
+            lines.extend(["### Actual moves", "", message, ""])
         for index, move in enumerate(moves, start=1):
             lines.extend(
                 [
                     f"### Actual move {index}: {move.get('content_relationship', 'unknown')}",
                     "",
                     (
-                        f"Confidence `{move.get('confidence_milli')}`; utility "
-                        f"`{move.get('selection_utility')}`; matched units "
-                        f"`{move.get('matched_units')}`; reason "
-                        f"`{move.get('selection_reason')}`."
+                        f"Matching weight `{move['selection']['matching_weight_milli']}`; utility "
+                        f"`{move['selection']['utility']}`; matched units "
+                        f"`{move['selection']['matched_units']}`; reason "
+                        f"`{move['selection']['reason']}`."
                     ),
                     "",
                 ]

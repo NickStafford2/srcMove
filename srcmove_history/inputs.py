@@ -558,11 +558,12 @@ def _load_fingerprint_schema_versions(
     expected = FingerprintSchemaVersions().record()
     _fields(record, set(expected), "fingerprint_schema_versions")
     for name, version in expected.items():
-        # Schema 3 differs only by absent additive atomic metadata. This
-        # exception applies to reading; resume/compare retain strict contracts.
-        if (allow_legacy_compact and name == "compact_pair"
-                and version == 4 and type(record[name]) is int and record[name] == 3):
-            continue
+        # Read-only queries preserve old receipts; resume/compare remain strict.
+        if allow_legacy_compact and type(record[name]) is int:
+            if name == "compact_pair" and record[name] in (3, 4):
+                continue
+            if name == "srcmove_results_validator" and record[name] == 3:
+                continue
         _schema(record, name, version)
     return FingerprintSchemaVersions(**record)
 
