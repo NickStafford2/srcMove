@@ -246,6 +246,16 @@ and remapping. Resolve diagnostic paths against input before transformation.
 Namespace and uniqueness checks need the XML; a declaration in JSON alone does
 not establish successful resolution.
 
+Producer namespace admission indexes extension-element spans in opening-tag
+order, retaining one enclosing-span index per record. Building that index takes
+O(E) time and storage for E extension elements. A candidate lookup takes
+O(log E + D) time, where D is extension nesting depth, and reuses one temporary
+list of ancestor indices. Namespace strings are not copied into each candidate.
+Binding order remains outer-to-inner, with published candidates admitted before
+benign bindings from other active candidates. XML-only runs skip extension
+namespace collection and admission entirely. The optional profile report records
+JSON admission under `pipeline.locator_namespaces_ms`.
+
 ## Diagnostics schema 5
 
 When requested, diagnostics requires `schema_version: 5`, `candidate_counts`,
@@ -446,9 +456,6 @@ Known limits are retained explicitly:
 - A separate native XML writer defect can hoist conflicting extension-prefix
   declarations within one file unit. JSON admission and valid cross-unit
   rebinding are tested; this migration does not repair that writer.
-- JSON namespace admission currently scans extension spans per active candidate
-  (O(C × E)); XML-only runs skip this scan. Large extension-heavy archives need
-  performance measurement before making throughput claims.
 
 History admission/retention and fingerprints, benchmark readers, and viewer
 artifacts/APIs must migrate together after the producer. Benchmark scoring stays

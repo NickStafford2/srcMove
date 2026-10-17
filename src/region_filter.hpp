@@ -35,6 +35,8 @@ struct region_filter_options {
   region_filter_policy policy = region_filter_policy::revision_aware;
   // Common practical filters:
   bool        collect_type2b_diagnostics = false;
+  // Extension-locator bindings are needed only for JSON results.
+  bool        collect_xpath_namespaces = false;
   bool        drop_whitespace_only = true;
   bool        skip_pre_marked      = false;
   bool        expand_structural_children = true;

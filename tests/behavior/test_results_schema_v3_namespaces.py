@@ -164,3 +164,29 @@ class ResultsSchemaV3NamespaceTests(unittest.TestCase):
 
     def test_filename_quotes_slashes_and_colons_preserve_locators(self):
         self.assert_success_modes(archive(original_file='old/dir:a\'b"c.cpp', modified_file='new/dir:d\'e"f.cpp'))
+
+    def test_nested_extension_ancestors_after_closed_siblings(self):
+        # Lookup starts at the last preceding extension span, which can be a
+        # closed sibling below an ancestor that still contains the candidate.
+        xml = archive()
+        xml = xml.replace('<x:scope xmlns:x="urn:scope">',
+                          '<outer:scope xmlns:outer="urn:outer">'
+                          '<x:scope xmlns:x="urn:scope">'
+                          '<closed:marker xmlns:closed="urn:closed">'
+                          '<deep:marker xmlns:deep="urn:deep"/></closed:marker>')
+        xml = xml.replace('</x:scope>', '</x:scope></outer:scope>')
+        payload = self.assert_success_modes(xml)
+        namespaces = payload['xpath_context']['namespaces']
+        self.assertEqual(namespaces['outer'], 'urn:outer')
+        self.assertEqual(namespaces['x'], 'urn:scope')
+        self.assertNotIn('closed', namespaces)
+        self.assertNotIn('deep', namespaces)
+
+    def test_closed_extension_sibling_does_not_bind_following_candidate(self):
+        xml = archive(original_scope='<scope xmlns="">', modified_scope='<scope xmlns="">')
+        xml = xml.replace('><diff:',
+                          '><closed:marker xmlns:closed="urn:closed">'
+                          '<deep:marker xmlns:deep="urn:deep"/></closed:marker><diff:')
+        payload = self.assert_success_modes(xml)
+        self.assertNotIn('closed', payload['xpath_context']['namespaces'])
+        self.assertNotIn('deep', payload['xpath_context']['namespaces'])

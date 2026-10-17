@@ -36,6 +36,43 @@ namespace srcmove {
 
 namespace {
 
+// Extension spans arrive in opening-tag order and are nested or disjoint.
+// Store one enclosing-span index per record, without copying namespace strings
+// into candidates. Lookup costs O(log E + D), where D is extension nesting depth.
+class locator_namespace_index {
+public:
+  explicit locator_namespace_index(const std::vector<xpath_namespace_use> &uses)
+      : uses_(uses), parents_(uses.size(), uses.size()) {
+    std::vector<std::size_t> open;
+    for (std::size_t index = 0; index < uses.size(); ++index) {
+      while (!open.empty() && uses[open.back()].end_idx < uses[index].start_idx)
+        open.pop_back();
+      if (!open.empty()) parents_[index] = open.back();
+      open.push_back(index);
+    }
+  }
+
+  void ancestors(std::size_t position, std::vector<std::size_t> &out) const {
+    out.clear();
+    const auto after = std::upper_bound(
+        uses_.begin(), uses_.end(), position,
+        [](std::size_t value, const xpath_namespace_use &use) {
+          return value < use.start_idx;
+        });
+    if (after == uses_.begin()) return;
+    for (std::size_t index = static_cast<std::size_t>(after - uses_.begin() - 1);
+         index != uses_.size(); index = parents_[index]) {
+      if (position <= uses_[index].end_idx) out.push_back(index);
+    }
+    // Preserve the old outer-to-inner binding order, including benign extras.
+    std::reverse(out.begin(), out.end());
+  }
+
+private:
+  const std::vector<xpath_namespace_use> &uses_;
+  std::vector<std::size_t> parents_;
+};
+
 void validate_locator_namespaces(
     const std::string &xpath,
     const std::map<std::string, std::string> &bindings) {
@@ -222,6 +259,7 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     region_filter_options filter_options = get_default_filter_options();
     filter_options.min_granularity = options.min_granularity;
     filter_options.collect_type2b_diagnostics = options.diagnostics;
+    filter_options.collect_xpath_namespaces = options.results_requested;
     candidate_collection collection =
         collect_candidates_streaming(reader, filter_options, profile);
     candidates = std::move(collection.candidates);
@@ -258,39 +296,43 @@ summary run_pipeline(const std::string &srcdiff_in_filename,
     print_greedy_matches(registry, groups, std::cout);
   }
 
-  // Only the namespace steps of published candidates constrain JSON admission.
-  std::set<candidate_id> published;
-  if (options.results_requested && options.diagnostics) {
-    for (candidate_id id = 0; id < registry.total_record_count(); ++id)
-      if (registry.is_active(id)) published.insert(id);
-  } else if (options.results_requested) {
-    for (const auto &group : groups.groups()) {
-      if (group.del_count() == 0 || group.ins_count() == 0) continue;
-      for (const auto id : groups.delete_ids(group)) published.insert(id);
-      for (const auto id : groups.insert_ids(group)) published.insert(id);
-    }
-  }
-  const auto bind_candidate = [&](candidate_id id, bool required) {
-    const auto &candidate = registry.candidate(id);
-    for (const auto &use : xpath_namespace_uses) {
-      if (candidate.start_idx < use.start_idx || candidate.start_idx > use.end_idx) continue;
-      const auto ascii_start = [](unsigned char c) {
-        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
-      };
-      bool supported = !use.prefix.empty() && ascii_start(use.prefix.front());
-      for (const unsigned char c : use.prefix)
-        supported = supported && (ascii_start(c) || (c >= '0' && c <= '9') || c == '-' || c == '.');
-      if (!supported) {
-        if (required) throw std::runtime_error("unsupported_namespace_context: unsupported locator prefix");
-        continue;
-      }
-      const auto [binding, inserted] = xpath_namespaces.emplace(use.prefix, use.uri);
-      if (!inserted && binding->second != use.uri && required)
-        throw std::runtime_error("unsupported_namespace_context: conflicting locator prefix " + use.prefix);
-    }
-    if (required) validate_locator_namespaces(candidate.xpath, xpath_namespaces);
-  };
   if (options.results_requested) {
+    scoped_profile_timer timer(profile, "pipeline.locator_namespaces");
+    const locator_namespace_index namespace_index(xpath_namespace_uses);
+    std::vector<std::size_t> enclosing_namespace_uses;
+    // Only the namespace steps of published candidates constrain JSON admission.
+    std::set<candidate_id> published;
+    if (options.diagnostics) {
+      for (candidate_id id = 0; id < registry.total_record_count(); ++id)
+        if (registry.is_active(id)) published.insert(id);
+    } else {
+      for (const auto &group : groups.groups()) {
+        if (group.del_count() == 0 || group.ins_count() == 0) continue;
+        for (const auto id : groups.delete_ids(group)) published.insert(id);
+        for (const auto id : groups.insert_ids(group)) published.insert(id);
+      }
+    }
+    const auto bind_candidate = [&](candidate_id id, bool required) {
+      const auto &candidate = registry.candidate(id);
+      namespace_index.ancestors(candidate.start_idx, enclosing_namespace_uses);
+      for (const auto index : enclosing_namespace_uses) {
+        const auto &use = xpath_namespace_uses[index];
+        const auto ascii_start = [](unsigned char c) {
+          return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_';
+        };
+        bool supported = !use.prefix.empty() && ascii_start(use.prefix.front());
+        for (const unsigned char c : use.prefix)
+          supported = supported && (ascii_start(c) || (c >= '0' && c <= '9') || c == '-' || c == '.');
+        if (!supported) {
+          if (required) throw std::runtime_error("unsupported_namespace_context: unsupported locator prefix");
+          continue;
+        }
+        const auto [binding, inserted] = xpath_namespaces.emplace(use.prefix, use.uri);
+        if (!inserted && binding->second != use.uri && required)
+          throw std::runtime_error("unsupported_namespace_context: conflicting locator prefix " + use.prefix);
+      }
+      if (required) validate_locator_namespaces(candidate.xpath, xpath_namespaces);
+    };
     for (const auto id : published) bind_candidate(id, true);
     // Benign extra bindings make standard metadata agree across output modes.
     // Unpublished conflicts cannot veto representable ordinary results.

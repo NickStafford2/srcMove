@@ -1463,7 +1463,8 @@ collect_candidates_streaming(srcml_reader                &reader,
 
   std::size_t node_index = 0;
   record_stream_event(*it, stats);
-  namespace_observer.consume(*it, reader, node_index, result, stats);
+  if (opt.collect_xpath_namespaces)
+    namespace_observer.consume(*it, reader, node_index, result, stats);
   const std::string *root_filename = it->get_attribute_value("filename");
   if (root_filename != nullptr && root_filename->empty()) {
     throw std::runtime_error("root single-file unit: expected unit@filename");
@@ -1478,7 +1479,8 @@ collect_candidates_streaming(srcml_reader                &reader,
   while (it != end) {
     const srcml_node &node = *it;
     record_stream_event(node, stats);
-    namespace_observer.consume(node, reader, node_index, result, stats);
+    if (opt.collect_xpath_namespaces)
+      namespace_observer.consume(node, reader, node_index, result, stats);
 
     if (document_done) {
       ++it;
