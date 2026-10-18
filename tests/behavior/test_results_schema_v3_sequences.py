@@ -52,6 +52,73 @@ class ResultsSchemaV3SequenceTests(unittest.TestCase):
     def test_nested_parent(self):
         self.validate(OPEN + '<block_content>' + BODY + '</block_content></unit>', results(True))
 
+    def test_literal_block_brace_consumes_a_position(self):
+        # Minimal form of pair 732: the brace is source text, not an element.
+        payload = results(True)
+        for group in payload['atomic_move_groups']:
+            for side in ('original', 'modified'):
+                group[side][0]['xpath'] = group[side][0]['xpath'].replace(
+                    'src:block_content', 'src:block')
+        for span in payload['output_items'][0]['sequence'].values():
+            span.update(first_child_ordinal=2, last_child_ordinal=3)
+        self.validate(OPEN + '<block>{\n' + BODY + '}</block></unit>', payload)
+
+    def test_each_nonwhitespace_text_run_consumes_a_position(self):
+        for prefix in ('alpha beta\t', '<!-- ignored -->alpha beta\t',
+                       '<comment>// ignored</comment>alpha beta\t',
+                       '<diff:insert/>alpha beta\t'):
+            with self.subTest(prefix=prefix):
+                payload = results()
+                for span in payload['output_items'][0]['sequence'].values():
+                    span.update(first_child_ordinal=3, last_child_ordinal=4)
+                if prefix.startswith('<diff:insert/>'):
+                    for group in payload['atomic_move_groups']:
+                        group['modified'][0]['xpath'] = group['modified'][0]['xpath'].replace(
+                            'diff:insert[1]', 'diff:insert[2]')
+                self.validate(OPEN + prefix + BODY + '</unit>', payload)
+
+    def test_wrapper_text_counts_only_in_its_revision(self):
+        for wrapper, sides in (('delete', ('original',)),
+                               ('insert', ('modified',)),
+                               ('common', ('original', 'modified'))):
+            with self.subTest(wrapper=wrapper):
+                payload = results()
+                for side in sides:
+                    payload['output_items'][0]['sequence'][side].update(
+                        first_child_ordinal=2, last_child_ordinal=3)
+                # This text is a wrapper's .text; its tail is common whitespace.
+                prefix = f'<diff:{wrapper}>hidden();</diff:{wrapper}>\n'
+                for group in payload['atomic_move_groups']:
+                    if wrapper in ('delete', 'insert'):
+                        side = sides[0]
+                        group[side][0]['xpath'] = group[side][0]['xpath'].replace(
+                            f'diff:{wrapper}[1]', f'diff:{wrapper}[2]')
+                self.validate(OPEN + prefix + BODY + '</unit>', payload)
+
+    def test_substantive_tails_break_adjacency_in_either_revision(self):
+        for wrapper in ('delete', 'insert'):
+            for gap in ('hidden();', '<!-- ignored -->hidden();',
+                        '<comment>// ignored</comment>hidden();',
+                        '<diff:common/>hidden();'):
+                with self.subTest(wrapper=wrapper, gap=gap):
+                    body = BODY.replace(
+                        f'<diff:{wrapper}>{STATEMENTS}',
+                        f'<diff:{wrapper}>' + STATEMENTS.replace(
+                            '</expr_stmt><expr_stmt>',
+                            '</expr_stmt>' + gap + '<expr_stmt>'))
+                    with self.assertRaisesRegex(AssertionError, 'child positions or member order'):
+                        self.validate(OPEN + body + '</unit>', results())
+
+    def test_text_in_absent_source_parent_does_not_escape_to_siblings(self):
+        payload = results()
+        for group in payload['atomic_move_groups']:
+            group['original'][0]['xpath'] = group['original'][0]['xpath'].replace(
+                'diff:delete[1]', 'diff:delete[2]')
+        payload['output_items'][0]['sequence']['original'].update(
+            first_child_ordinal=2, last_child_ordinal=3)
+        prefix = '<diff:delete><block>{<diff:common>hidden();</diff:common>}</block></diff:delete>'
+        self.validate(OPEN + prefix + BODY + '</unit>', payload)
+
     def test_archive_unit_parent(self):
         payload = results()
         for group in payload['atomic_move_groups']:

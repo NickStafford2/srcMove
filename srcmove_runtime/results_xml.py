@@ -65,7 +65,8 @@ def validate_sequences(xml, tree, payload, resolve, *, check_parent_ids=True):
 
     Known diff wrappers are transparent when finding source parents. Comments
     and whitespace disappear; common and unselected source elements still take
-    sibling positions. Input stream indices identify parents only, never order.
+    sibling positions. Each non-whitespace source-text run consumes a barrier
+    position too. Input stream indices identify parents only, never order.
     Set check_parent_ids=False only for an annotated document when original
     input bytes are unavailable: writer framing may change event indices. Actual
     parent identity, adjacency, file, order and overlap checks still apply.
@@ -96,14 +97,28 @@ def validate_sequences(xml, tree, payload, resolve, *, check_parent_ids=True):
         contexts = {}
         children = {}
 
+        def visit_content(node, unit, parent, state, allowed):
+            def text_barriers(text):
+                if state in ("both", side):
+                    # Match the collector's non-whitespace text events, rather
+                    # than treating an entire mixed-content string as one gap.
+                    children.setdefault(parent, []).extend(
+                        None for _ in re.finditer(r"[^ \t\r\n\v\f]+", text or ""))
+
+            text_barriers(node.text)
+            for child in node:
+                visit(child, unit, parent, state, allowed)
+                # A tail belongs to the enclosing context, including after an
+                # ignored comment or an opposite-revision wrapper.
+                text_barriers(child.tail)
+
         def visit(node, unit=None, parent=None, state="both", allowed=True):
             if not isinstance(node.tag, str):
                 return
             name = etree.QName(node)
             if name.namespace == SRC and name.localname == "unit":
                 unit, parent = node, node
-                for child in node:
-                    visit(child, unit, parent, state, allowed)
+                visit_content(node, unit, parent, state, allowed)
                 return
             if name.localname == "comment":
                 return
@@ -121,8 +136,7 @@ def validate_sequences(xml, tree, payload, resolve, *, check_parent_ids=True):
                 else:
                     state = revision
                     allowed = allowed and revision in ("both", side)
-                for child in node:
-                    visit(child, unit, parent, state, allowed)
+                visit_content(node, unit, parent, state, allowed)
                 return
             # A source parent absent from this revision hides its descendants,
             # including nested diff:common elements.
@@ -131,8 +145,7 @@ def validate_sequences(xml, tree, payload, resolve, *, check_parent_ids=True):
             siblings = children.setdefault(parent, [])
             siblings.append(node)
             contexts[node] = (unit, parent, len(siblings), allowed and name.namespace != CPP)
-            for child in node:
-                visit(child, unit, node, state, allowed and name.namespace != CPP)
+            visit_content(node, unit, node, state, allowed and name.namespace != CPP)
 
         visit(tree.getroot())
         for item in items:

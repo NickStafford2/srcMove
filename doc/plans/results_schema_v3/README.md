@@ -444,8 +444,10 @@ sequence context independently of the detector against the input document. It re
 projects original/modified source children through diff wrappers to check
 revision files, actual parents, consecutive child ordinals, member order, and
 disjoint XML spans. Comments and whitespace do not consume sibling positions;
-common and unselected source elements do. Hand-authored positive and negative
-checks in
+common and unselected source elements do. Each non-whitespace source-text run
+also consumes a position, including literal block braces and node tails;
+revision wrappers project that text onto the corresponding side. Hand-authored
+positive and negative checks in
 [test_results_schema_v3_sequences.py](../../../tests/behavior/test_results_schema_v3_sequences.py)
 exercise this validator without using detector-produced expectations. Ambiguous
 sequence-member locators fail this check even when an atomic baseline locator
