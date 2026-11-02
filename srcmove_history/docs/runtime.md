@@ -357,10 +357,14 @@ intended Docker environment:
 
 ```bash
 ./bin/srcml-dev-shell make --no-print-directory \
-  -C srcMove test-srcmove-history
+  -C srcMove test-tooling
 ```
 
-The tests cover target convergence, root exhaustion, bounded all-history
+`test-tooling` includes history, benchmark, and test-infrastructure checks.
+For history-only inventory or case selection, use the selectors documented in
+[the test guide](../../tests/README.md).
+
+The history tests cover target convergence, root exhaustion, bounded all-history
 planning, exact pending recovery, terminal-failure idempotency, lock contention,
 stale scratch cleanup, frozen executable admission, compact storage, and
 read-only status, list, and show queries. Progress tests cover transactional

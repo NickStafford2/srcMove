@@ -52,6 +52,16 @@ can bind a binary to observed source state; a path, nearby checkout, or version
 string alone cannot. Development caches and historical runs retain their
 declared limitations and must not be promoted silently to thesis evidence.
 
+For disaster recovery, the private thesis repository retains selected major
+results and restore instructions in
+[`research/retained-benchmark-results/`](../../thesis-workspace/research/retained-benchmark-results/README.md).
+Its [research index](../../thesis-workspace/research/README.md) identifies other
+retained studies. These links require access to that independent private
+checkout. Cloning srcMove alone does not restore those archives. Restore retained
+historical evidence according to its instructions; rerun disposable caches and
+new analyses using the owning suite's guide. A new run is a new measurement,
+not a recreation of historical timing observations.
+
 ## Reporting and interpretation
 
 Every reported result should make its population, unit, denominator, selection

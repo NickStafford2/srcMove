@@ -14,6 +14,9 @@ and command-line usage.
   candidate, grouping, selection, and output types
 - [Conceptual scoring diagram](diagrams/scoring_model_diagram.md): proposed
   distinction between confidence and selection utility
+- [Results schema 3 contract](plans/results_schema_v3/README.md): implemented
+  atomic-group and output-item format, diagnostics schema 5, examples, and
+  migration verification
 - [srcDiff notes](srcDiff_notes.md): investigated srcDiff behavior and XML
   format details
 - [XPath commands](sample_xpath_commands.md): example queries for srcMove XML
@@ -25,6 +28,10 @@ summaries or diagrams disagree with current behavior.
 
 ## Development and testing
 
+- [Workspace recovery and content map](../README.md#contents-and-recovery-boundaries):
+  what Git restores, what to rebuild, and where retained research evidence lives
+- [Reference repository inventory](../reference-repositories/README.md): clone
+  names, URLs, exact observed revisions, and recovery limits
 - [Code rules](code_rules.md): local implementation conventions
 - [Correctness tests](../tests/README.md): test entry points, suite boundaries,
   and fixture conventions
@@ -50,9 +57,6 @@ summaries or diagrams disagree with current behavior.
 
 ## Research notes and planned work
 
-- [Results schema 3 contract](plans/results_schema_v3/README.md): proposed
-  atomic-group and output-item format, production evidence, diagnostics schema 5,
-  illustrative examples, and migration validation gates; not yet implemented
 - [History analysis engine](plans/history_analysis_engine.md): proposed reproducible
   metrics, evidence contracts, implementation gates, and adversarial review
 - [Adjacent moved sequences](plans/adjacent_move_sequences.md): proposed ordered
