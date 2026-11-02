@@ -51,9 +51,16 @@ availability and reachability of recorded commits were not verified.
 
 The existing Linux clone uses the kernel.org stable Linux remote, while the
 registry default is Torvalds' GitHub repository. Use the recorded actual origin
-to restore that observed clone. Linux also reported 13 modified tracked files;
-the inventory names them but does not preserve their changed contents or
-establish their cause. Review them separately before discarding the checkout.
+to restore that observed clone. Linux reported 13 modified tracked files;
+inspection confirmed that each file exactly matches its differently cased
+counterpart in the recorded Git commit, and both spellings resolve to the same
+local file inode. These are case-collision checkout artifacts on the Mac's
+case-insensitive filesystem, not unique changes requiring backup. For a complete
+Linux working tree, clone onto a case-sensitive filesystem such as a Linux
+Docker volume; a bind mount of the same Mac directory retains the collision.
+The Git object database preserves both committed versions even though the Mac
+working tree cannot represent both names independently. Do not commit these
+apparent changes or try to fix them by repeatedly restoring individual files.
 
 ### What cloning does not restore
 
