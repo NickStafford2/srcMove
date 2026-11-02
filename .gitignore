@@ -11,6 +11,7 @@ compile_commands.json
 reference-repositories/*
 !reference-repositories/README.md
 !reference-repositories/repositories.json
+!reference-repositories/recovery-inventory.json
 context-export.toml
 examples/
 # Hand-authored results-format illustrations are documentation fixtures.

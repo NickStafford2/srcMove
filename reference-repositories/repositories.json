@@ -32,14 +32,24 @@
       "url": "https://github.com/notepad-plus-plus/notepad-plus-plus.git",
       "roles": ["history", "history-scaling", "large-input"]
     },
+    "open-nicad": {
+      "checkout": "Open-NiCad",
+      "url": "https://github.com/CordyJ/Open-NiCad.git",
+      "roles": ["reference"]
+    },
     "opencv": {
       "checkout": "opencv",
       "url": "https://github.com/opencv/opencv.git",
       "roles": ["history", "history-scaling", "large-input"]
     },
-    "open-nicad": {
-      "checkout": "Open-NiCad",
-      "url": "https://github.com/CordyJ/Open-NiCad.git",
+    "refactoringminer": {
+      "checkout": "RefactoringMiner",
+      "url": "https://github.com/tsantalis/RefactoringMiner.git",
+      "roles": ["reference"]
+    },
+    "sourcerercc": {
+      "checkout": "SourcererCC",
+      "url": "https://github.com/Mondego/SourcererCC.git",
       "roles": ["reference"]
     },
     "sqlite": {
@@ -47,11 +57,6 @@
       "url": "https://github.com/sqlite/sqlite.git",
       "analysis_directory": "src",
       "roles": ["history", "history-scaling", "large-input"]
-    },
-    "sourcerercc": {
-      "checkout": "SourcererCC",
-      "url": "https://github.com/Mondego/SourcererCC.git",
-      "roles": ["reference"]
     },
     "srcmove": {
       "checkout": "srcMove",

@@ -1,0 +1,175 @@
+{
+  "schema_version": 1,
+  "observed_date": "2026-11-02",
+  "scope": "Local recovery inventory; no network availability verification. Working changes, untracked files, Git stashes and analysis contents are not backed up by this inventory.",
+  "repositories": {
+    "context_export": {
+      "present": false
+    },
+    "deckard": {
+      "present": true,
+      "origin": "https://github.com/skyhover/Deckard.git",
+      "commit": "24164dc7b19eb2fbb8c676a3e88efbc8c234c8b2",
+      "branch": "rel2.0solidity",
+      "tracked_changes": [],
+      "analysis_directories": []
+    },
+    "firefox": {
+      "present": false
+    },
+    "gumtree": {
+      "present": true,
+      "origin": "https://github.com/GumTreeDiff/gumtree.git",
+      "commit": "a4a2a9d9e8ab9dcafa78133cf8eacaf2762555e7",
+      "branch": "main",
+      "tracked_changes": [],
+      "analysis_directories": []
+    },
+    "linux": {
+      "present": true,
+      "origin": "https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git",
+      "commit": "0fcb05b72344f40806cbe810de8872f1698bf053",
+      "branch": "master",
+      "tracked_changes": [
+        "M include/uapi/linux/netfilter/xt_CONNMARK.h",
+        " M include/uapi/linux/netfilter/xt_DSCP.h",
+        " M include/uapi/linux/netfilter/xt_MARK.h",
+        " M include/uapi/linux/netfilter/xt_RATEEST.h",
+        " M include/uapi/linux/netfilter/xt_TCPMSS.h",
+        " M include/uapi/linux/netfilter_ipv4/ipt_ECN.h",
+        " M include/uapi/linux/netfilter_ipv4/ipt_TTL.h",
+        " M include/uapi/linux/netfilter_ipv6/ip6t_HL.h",
+        " M net/netfilter/xt_DSCP.c",
+        " M net/netfilter/xt_HL.c",
+        " M net/netfilter/xt_RATEEST.c",
+        " M net/netfilter/xt_TCPMSS.c",
+        " M tools/memory-model/litmus-tests/Z6.0+pooncelock+poonceLock+pombonce.litmus"
+      ],
+      "analysis_directories": [
+        ".srcmove",
+        ".srcmove-archive-srcmove-12c21cf13b6ac99a87982a70e6cac748aacadfc85e9d9ab244e86aacaedb0365-srcdiff-36e0b7e021e997cd0aadbe899ad56c90c97c250d4c9be0159243229e44b0e7df-20261017T232132Z",
+        ".srcmove-whole"
+      ]
+    },
+    "notepadpp": {
+      "present": true,
+      "origin": "https://github.com/notepad-plus-plus/notepad-plus-plus.git",
+      "commit": "de0a77ba7f9d0d81f5862f527e8afc2693ce49ff",
+      "branch": "master",
+      "tracked_changes": [],
+      "analysis_directories": [
+        ".srcmove",
+        ".srcmove-archive-20260925T203220Z",
+        ".srcmove-archive-srcmove-12c21cf13b6ac99a87982a70e6cac748aacadfc85e9d9ab244e86aacaedb0365-srcdiff-36e0b7e021e997cd0aadbe899ad56c90c97c250d4c9be0159243229e44b0e7df-20261017T222103Z",
+        ".srcmove-archive-srcmove-359baf50869312f88f8737becfb76fc47915cc9ad63c1b5a49fe3a81de03ebaa-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20261005T201609Z",
+        ".srcmove-archive-srcmove-4716608701992a1104a34c6dc1280cb290dea6aea9287aff714147296aad2561-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20261005T203805Z",
+        ".srcmove-archive-srcmove-4716608701992a1104a34c6dc1280cb290dea6aea9287aff714147296aad2561-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20261005T224433Z",
+        ".srcmove-archive-srcmove-7ab864eb8314da0a124c44a4c6aa9d9ce8ab8f0dd944f31fa788125ee4fda505-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20260926T022553Z",
+        ".srcmove-archive-srcmove-904c1deea3b8918352995c9c7a9c5f84872a40b12dd689d92160fdfbde9aa1a0-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20260926T054050Z",
+        ".srcmove-archive-srcmove-aef0f57d85ed2b9c82e068ddee17595211e22b646360dd80d505965a3b2d0726-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20260927T164700Z",
+        ".srcmove-archive-srcmove-cf8cefbd145f13494c3f04a61d19054664e59e1edf2b7722130101a28ca630e9-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20260925T213124Z",
+        ".srcmove-archive-srcmove-d6d6b3706ebfcf6cb42c80d51f4db5cef2de80f961498df856a91b9e6e16727c-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20260926T000124Z",
+        ".srcmove-before-ch7-viewer-20261014T205936Z",
+        ".srcmove-before-rewrite",
+        ".srcmove-ch7-pass2-20261013-descriptive1000",
+        ".srcmove-ch7-pass2-20261013-pilot10",
+        ".srcmove-ch7-pass2-20261013-reviewed",
+        ".srcmove-refresh-20261017-outputreview",
+        ".srcmove-refresh-20261017-reviewed",
+        ".srcmove-type12-20260927"
+      ]
+    },
+    "open-nicad": {
+      "present": true,
+      "origin": "https://github.com/CordyJ/Open-NiCad.git",
+      "commit": "7a90d11795a7fe585282e25b7fa8d9964f202965",
+      "branch": "main",
+      "tracked_changes": [],
+      "analysis_directories": []
+    },
+    "opencv": {
+      "present": true,
+      "origin": "https://github.com/opencv/opencv.git",
+      "commit": "1c59b23c9fe1bf1d41169460914174b295b2635b",
+      "branch": "4.x",
+      "tracked_changes": [],
+      "analysis_directories": [
+        ".srcmove",
+        ".srcmove-archive-srcmove-0071be20208611f4926228fd4ca72479098239cbc879247cfe593d8a6ed7c9dd-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20261006T004500Z",
+        ".srcmove-archive-srcmove-12c21cf13b6ac99a87982a70e6cac748aacadfc85e9d9ab244e86aacaedb0365-srcdiff-36e0b7e021e997cd0aadbe899ad56c90c97c250d4c9be0159243229e44b0e7df-20261017T224954Z",
+        ".srcmove-archive-srcmove-4716608701992a1104a34c6dc1280cb290dea6aea9287aff714147296aad2561-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20261005T224055Z",
+        ".srcmove-archive-srcmove-8533eed96bba7d45f46bcd4434dc4b8ba1a4404a3b33af389193717b3e0f5eeb-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20261006T033952Z",
+        ".srcmove-archive-srcmove-b7aa1d160210e64f9ff2d0f34a038b243e0d3dbd240ddbe37879d25204df8fbf-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20261005T234059Z",
+        ".srcmove-archive-srcmove-ce3f10defcc67dae6975a06e9fe67a5a735196d352fcc875b6029bc7cf3fe6ae-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20261006T012427Z",
+        ".srcmove-before-ch7-viewer-20261014T205936Z",
+        ".srcmove-ch7-pass2-20261013-descriptive1000",
+        ".srcmove-ch7-pass2-20261013-pilot10",
+        ".srcmove-ch7-pass2-20261013-reviewed",
+        ".srcmove-refresh-20261017-outputreview",
+        ".srcmove-refresh-20261017-reviewed",
+        ".srcmove-type12-20260927"
+      ]
+    },
+    "refactoringminer": {
+      "present": true,
+      "origin": "https://github.com/tsantalis/RefactoringMiner.git",
+      "commit": "4d08e547cfe572ed8e58993b7c1303253142d4ac",
+      "branch": "master",
+      "tracked_changes": [],
+      "analysis_directories": []
+    },
+    "sourcerercc": {
+      "present": true,
+      "origin": "https://github.com/Mondego/SourcererCC.git",
+      "commit": "88314f51fdf3cd89103eb2c19fb56464308846c8",
+      "branch": "master",
+      "tracked_changes": [],
+      "analysis_directories": []
+    },
+    "sqlite": {
+      "present": true,
+      "origin": "https://github.com/sqlite/sqlite.git",
+      "commit": "9e5727e51dfc007636ad2be2c16b2dcf5576ddf4",
+      "branch": "master",
+      "tracked_changes": [],
+      "analysis_directories": [
+        ".srcmove",
+        ".srcmove-archive-srcmove-12c21cf13b6ac99a87982a70e6cac748aacadfc85e9d9ab244e86aacaedb0365-srcdiff-36e0b7e021e997cd0aadbe899ad56c90c97c250d4c9be0159243229e44b0e7df-20261017T214227Z",
+        ".srcmove-archive-srcmove-359baf50869312f88f8737becfb76fc47915cc9ad63c1b5a49fe3a81de03ebaa-srcdiff-c418240d67461c4341ef3664ebaf222a0335bb3883aa862475555c542fad4f93-20261005T203325Z",
+        ".srcmove-before-ch7-viewer-20261014T205936Z",
+        ".srcmove-benchmark-sqlite-3b84190ac3b9",
+        ".srcmove-benchmark-sqlite-65b015e2debf",
+        ".srcmove-benchmark-sqlite-c0e27633b596",
+        ".srcmove-benchmark-sqlite-d476ef8ab074",
+        ".srcmove-benchmark-sqlite-d4807e415952",
+        ".srcmove-benchmark-sqlite-e5e67c40c725",
+        ".srcmove-benchmark-sqlite-fa359b0aca46",
+        ".srcmove-ch7-pass2-20261013-descriptive1000",
+        ".srcmove-ch7-pass2-20261013-pilot10",
+        ".srcmove-ch7-pass2-20261013-reviewed",
+        ".srcmove-refresh-20261017-outputreview",
+        ".srcmove-refresh-20261017-reviewed",
+        ".srcmove-type12-20260927"
+      ]
+    },
+    "srcmove": {
+      "present": true,
+      "origin": "https://github.com/NickStafford2/srcMove.git",
+      "commit": "e08fe9e96b42b9de0f50b4c691a65fb8b29e9b37",
+      "branch": "main",
+      "tracked_changes": [],
+      "analysis_directories": []
+    },
+    "wowy_advanced_analytics": {
+      "present": false
+    },
+    "zlib": {
+      "present": true,
+      "origin": "https://github.com/madler/zlib.git",
+      "commit": "e3dc0a85b7032e98380dec011bc8f2c2ee0d8fca",
+      "branch": "develop",
+      "tracked_changes": [],
+      "analysis_directories": []
+    }
+  }
+}
